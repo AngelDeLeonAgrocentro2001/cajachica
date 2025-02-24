@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario de Detalles de Liquidaciones</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($detalle) ? 'Editar Detalle de Liquidación' : 'Crear Detalle de Liquidación'; ?></h2>
+    <form id="detalleLiquidacionForm" enctype="multipart/form-data">
+        <input type="hidden" name="id" value="<?php echo isset($detalle) ? $detalle['id'] : ''; ?>">
+        <select name="id_liquidacion" required>
+            <?php
+            $liquidacion = new Liquidacion();
+            $liquidaciones = $liquidacion->getAllLiquidaciones();
+            foreach ($liquidaciones as $l) {
+                $selected = isset($detalle) && $detalle['id_liquidacion'] == $l['id'] ? 'selected' : '';
+                echo "<option value='{$l['id']}' {$selected}>{$l['id_caja_chica']} - {$l['fecha_creacion']}</option>";
+            }
+            ?>
+        </select>
+        <input type="text" name="no_factura" placeholder="Número de Factura" value="<?php echo isset($detalle) ? $detalle['no_factura'] : ''; ?>" required>
+        <input type="text" name="regimen" placeholder="Régimen" value="<?php echo isset($detalle) ? $detalle['regimen'] : ''; ?>">
+        <input type="text" name="c_costo" placeholder="Centro de Costo" value="<?php echo isset($detalle) ? $detalle['c_costo'] : ''; ?>">
+        <input type="text" name="nit_proveedor" placeholder="NIT Proveedor" value="<?php echo isset($detalle) ? $detalle['nit_proveedor'] : ''; ?>">
+        <input type="text" name="nombre_proveedor" placeholder="Nombre Proveedor" value="<?php echo isset($detalle) ? $detalle['nombre_proveedor'] : ''; ?>" required>
+        <input type="date" name="fecha" value="<?php echo isset($detalle) ? $detalle['fecha'] : date('Y-m-d'); ?>" required>
+        <input type="text" name="bien_servicio" placeholder="Bien/Servicio" value="<?php echo isset($detalle) ? $detalle['bien_servicio'] : ''; ?>" required>
+        <input type="text" name="t_gasto" placeholder="Tipo de Gasto" value="<?php echo isset($detalle) ? $detalle['t_gasto'] : ''; ?>" required>
+        <input type="text" name="codigo_ccta" placeholder="Código Cuenta" value="<?php echo isset($detalle) ? $detalle['codigo_ccta'] : ''; ?>">
+        <textarea name="descripcion_factura" placeholder="Descripción Factura"><?php echo isset($detalle) ? $detalle['descripcion_factura'] : ''; ?></textarea>
+        <input type="number" name="p_unitario" placeholder="Precio Unitario" step="0.01" value="<?php echo isset($detalle) ? $detalle['p_unitario'] : ''; ?>" required>
+        <input type="number" name="iva" placeholder="IVA" step="0.01" value="<?php echo isset($detalle) ? $detalle['iva'] : ''; ?>">
+        <input type="number" name="total_factura" placeholder="Total Factura" step="0.01" value="<?php echo isset($detalle) ? $detalle['total_factura'] : ''; ?>" required>
+        <input type="number" name="idp" placeholder="IDP" step="0.01" value="<?php echo isset($detalle) ? $detalle['idp'] : ''; ?>">
+        <input type="number" name="inguat" placeholder="INGUAT" step="0.01" value="<?php echo isset($detalle) ? $detalle['inguat'] : ''; ?>">
+        <input type="file" name="rutaimagen" accept="image/*" onchange="previewImage(this)">
+        <input type="file" name="rutarchivopdf" accept=".pdf" onchange="previewPDF(this)">
+        <input type="number" name="porcentajeiva" placeholder="Porcentaje IVA" step="0.01" value="<?php echo isset($detalle) ? $detalle['porcentajeiva'] : ''; ?>">
+        <input type="number" name="porcentajeidp" placeholder="Porcentaje IDP" step="0.01" value="<?php echo isset($detalle) ? $detalle['porcentajeidp'] : ''; ?>">
+        <input type="text" name="tipo_combustible" placeholder="Tipo Combustible" value="<?php echo isset($detalle) ? $detalle['tipo_combustible'] : ''; ?>">
+        <select name="estado" required>
+            <option value="PENDIENTE" <?php echo isset($detalle) && $detalle['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
+            <option value="AUTORIZADO" <?php echo isset($detalle) && $detalle['estado'] === 'AUTORIZADO' ? 'selected' : ''; ?>>Autorizado</option>
+            <option value="RECHAZADO" <?php echo isset($detalle) && $detalle['estado'] === 'RECHAZADO' ? 'selected' : ''; ?>>Rechazado</option>
+        </select>
+        <div id="preview"></div>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../js/detalle_liquidaciones.js"></script>
+</body>
+</html>

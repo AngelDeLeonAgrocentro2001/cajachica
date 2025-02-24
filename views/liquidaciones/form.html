@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario de Liquidaciones</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($liquidacion) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
+    <form id="liquidacionForm">
+        <input type="hidden" name="id" value="<?php echo isset($liquidacion) ? $liquidacion['id'] : ''; ?>">
+        <select name="id_caja_chica" required>
+            <?php
+            $cajaChica = new CajaChica();
+            $cajas = $cajaChica->getAllCajasChicas();
+            foreach ($cajas as $c) {
+                $selected = isset($liquidacion) && $liquidacion['id_caja_chica'] == $c['id'] ? 'selected' : '';
+                echo "<option value='{$c['id']}' {$selected}>{$c['nombre']}</option>";
+            }
+            ?>
+        </select>
+        <input type="date" name="fecha_creacion" value="<?php echo isset($liquidacion) ? $liquidacion['fecha_creacion'] : date('Y-m-d'); ?>" required>
+        <input type="number" name="monto_total" placeholder="Monto Total" step="0.01" value="<?php echo isset($liquidacion) ? $liquidacion['monto_total'] : ''; ?>" required>
+        <select name="estado" required>
+            <option value="PENDIENTE" <?php echo isset($liquidacion) && $liquidacion['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
+            <option value="AUTORIZADA" <?php echo isset($liquidacion) && $liquidacion['estado'] === 'AUTORIZADA' ? 'selected' : ''; ?>>Autorizada</option>
+            <option value="RECHAZADA" <?php echo isset($liquidacion) && $liquidacion['estado'] === 'RECHAZADA' ? 'selected' : ''; ?>>Rechazada</option>
+            <option value="PROCESADA_CONTABILIDAD" <?php echo isset($liquidacion) && $liquidacion['estado'] === 'PROCESADA_CONTABILIDAD' ? 'selected' : ''; ?>>Procesada Contabilidad</option>
+            <option value="EXPORTADA_SAP" <?php echo isset($liquidacion) && $liquidacion['estado'] === 'EXPORTADA_SAP' ? 'selected' : ''; ?>>Exportada a SAP</option>
+        </select>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../js/liquidaciones.js"></script>
+</body>
+</html>

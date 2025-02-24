@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario de Tipos de Gastos</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($gasto) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></h2>
+    <form id="gastoForm">
+        <input type="hidden" name="id" value="<?php echo isset($gasto) ? $gasto['id'] : ''; ?>">
+        <input type="text" name="name" placeholder="Nombre del Tipo de Gasto" value="<?php echo isset($gasto) ? $gasto['name'] : ''; ?>" required>
+        <textarea name="description" placeholder="Descripción" required><?php echo isset($gasto) ? $gasto['description'] : ''; ?></textarea>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../js/gastos.js"></script>
+</body>
+</html>

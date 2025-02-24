@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario de Roles</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($role) ? 'Editar Rol' : 'Crear Rol'; ?></h2>
+    <form id="roleForm">
+        <input type="hidden" name="id" value="<?php echo isset($role) ? $role['id'] : ''; ?>">
+        <input type="text" name="name" placeholder="Nombre del Rol" value="<?php echo isset($role) ? $role['name'] : ''; ?>" required>
+        <textarea name="description" placeholder="Descripción" required><?php echo isset($role) ? $role['description'] : ''; ?></textarea>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../js/roles.js"></script>
+</body>
+</html>

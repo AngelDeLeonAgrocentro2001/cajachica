@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mantenimiento de Cajas Chicas</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2>Lista de Cajas Chicas</h2>
+    <button onclick="showCreateForm()">Crear Caja Chica</button>
+    <table id="cajasChicasTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Monto Asignado</th>
+                <th>Monto Disponible</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="cajaChicaForm" style="display: none;"></div>
+    <script src="../js/cajas_chicas.js"></script>
+</body>
+</html>

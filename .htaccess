@@ -1,17 +1,8 @@
-# .htaccess
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ /public/index.php/$1 [L]
-
-# Proteger los directorios sensibles
-RewriteRule ^app/ - [F,L]
-RewriteRule ^config/ - [F,L]
-RewriteRule ^routes/ - [F,L]
-
-# Configuración adicional de seguridad
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set X-Frame-Options "SAMEORIGIN"
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /agrocaja-chica/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
 </IfModule>
+Header set Access-Control-Allow-Origin "*"

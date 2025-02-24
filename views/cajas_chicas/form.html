@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario de Cajas Chicas</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($cajaChica) ? 'Editar Caja Chica' : 'Crear Caja Chica'; ?></h2>
+    <form id="cajaChicaForm">
+        <input type="hidden" name="id" value="<?php echo isset($cajaChica) ? $cajaChica['id'] : ''; ?>">
+        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($cajaChica) ? $cajaChica['nombre'] : ''; ?>" required>
+        <input type="number" name="monto_asignado" placeholder="Monto Asignado" step="0.01" value="<?php echo isset($cajaChica) ? $cajaChica['monto_asignado'] : ''; ?>" required>
+        <input type="number" name="monto_disponible" placeholder="Monto Disponible" step="0.01" value="<?php echo isset($cajaChica) ? $cajaChica['monto_disponible'] : ''; ?>" required>
+        <select name="id_usuario_encargado" required>
+            <?php
+            $usuario = new Usuario();
+            $usuarios = $usuario->getAllUsuarios();
+            foreach ($usuarios as $u) {
+                $selected = isset($cajaChica) && $cajaChica['id_usuario_encargado'] == $u['id'] ? 'selected' : '';
+                echo "<option value='{$u['id']}' {$selected}>{$u['nombre']} ({$u['rol']})</option>";
+            }
+            ?>
+        </select>
+        <select name="id_supervisor" required>
+            <?php
+            foreach ($usuarios as $u) {
+                $selected = isset($cajaChica) && $cajaChica['id_supervisor'] == $u['id'] ? 'selected' : '';
+                echo "<option value='{$u['id']}' {$selected}>{$u['nombre']} ({$u['rol']})</option>";
+            }
+            ?>
+        </select>
+        <select name="estado" required>
+            <option value="ACTIVA" <?php echo isset($cajaChica) && $cajaChica['estado'] === 'ACTIVA' ? 'selected' : ''; ?>>Activa</option>
+            <option value="INACTIVA" <?php echo isset($cajaChica) && $cajaChica['estado'] === 'INACTIVA' ? 'selected' : ''; ?>>Inactiva</option>
+        </select>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../js/cajas_chicas.js"></script>
+</body>
+</html>

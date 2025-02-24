@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mantenimiento de Liquidaciones</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2>Lista de Liquidaciones</h2>
+    <button onclick="showCreateForm()">Crear Liquidación</button>
+    <table id="liquidacionesTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Caja Chica</th>
+                <th>Fecha Creación</th>
+                <th>Monto Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="liquidacionForm" style="display: none;"></div>
+    <script src="../js/liquidaciones.js"></script>
+</body>
+</html>
