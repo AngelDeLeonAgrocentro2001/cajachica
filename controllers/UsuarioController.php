@@ -3,6 +3,28 @@ require_once '../models/Usuario.php';
 require_once '../config/jwt.php';
 
 class UsuarioController {
+    public function login() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
+            error_log("Email recibido: " . $email . ", Password: " . $password); // Depuración
+
+            $usuario = new Usuario();
+            $user = $usuario->authenticate($email, $password);
+
+            if ($user) {
+                $token = generateJWT(['user' => $user]);
+                header('Content-Type: application/json');
+                echo json_encode(['token' => $token]);
+            } else {
+                http_response_code(401);
+                echo json_encode(['error' => 'Credenciales inválidas']);
+            }
+            exit;
+        }
+        require '../views/login/index.html';
+    }
+
     public function listUsuarios() {
         $usuario = new Usuario();
         $usuarios = $usuario->getAllUsuarios();
@@ -60,26 +82,5 @@ class UsuarioController {
             echo json_encode(['error' => 'Error al eliminar usuario']);
         }
         exit;
-    }
-
-    public function login() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = $_POST['email'] ?? '';
-            $password = $_POST['password'] ?? '';
-            error_log("Email recibido: " . $email . ", Password: " . $password);
-            $usuario = new Usuario();
-            $user = $usuario->authenticate($email, $password);
-        
-            if ($user) {
-                $token = generateJWT(['user' => $user]);
-                header('Content-Type: application/json');
-                echo json_encode(['token' => $token]);
-            } else {
-                http_response_code(401);
-                echo json_encode(['error' => 'Credenciales inválidas']);
-            }
-            exit;
-        }
-        require '../views/login/index.html';
     }
 }

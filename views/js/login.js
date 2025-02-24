@@ -7,19 +7,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             body: formData
         });
         console.log('Estado de la respuesta:', response.status); // Depuración: estado HTTP
-
-        // Leer el cuerpo de la respuesta como texto una sola vez
         const responseText = await response.text();
         console.log('Cuerpo de la respuesta (texto):', responseText);
-
-        // Intentar parsear el texto como JSON, manejando posibles errores
         let data;
         try {
             data = responseText ? JSON.parse(responseText) : {};
         } catch (parseError) {
             throw new Error('Respuesta no es un JSON válido: ' + parseError.message);
         }
-
         if (response.ok) {
             if (data.token) {
                 localStorage.setItem('token', data.token);
