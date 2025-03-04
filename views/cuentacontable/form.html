@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title><?php echo isset($cuenta['id']) ? 'Editar Cuenta Contable' : 'Crear Cuenta Contable'; ?></title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($cuenta['id']) ? 'Editar Cuenta Contable' : 'Crear Cuenta Contable'; ?></h2>
+    <form id="cuentaContableFormInner">
+        <input type="hidden" name="id" value="<?php echo htmlspecialchars($cuenta['id'] ?? ''); ?>">
+        <div>
+            <label for="codigo">Código:</label>
+            <input type="text" id="codigo" name="codigo" value="<?php echo htmlspecialchars($cuenta['codigo'] ?? ''); ?>">
+            <div class="error" data-field="codigo" style="display: none;"></div>
+        </div>
+        <div>
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($cuenta['nombre'] ?? ''); ?>">
+            <div class="error" data-field="nombre" style="display: none;"></div>
+        </div>
+        <div>
+            <label for="estado">Estado:</label>
+            <select id="estado" name="estado">
+                <option value="ACTIVO" <?php echo (isset($cuenta['estado']) && $cuenta['estado'] === 'ACTIVO') ? 'selected' : ''; ?>>Activo</option>
+                <option value="INACTIVO" <?php echo (isset($cuenta['estado']) && $cuenta['estado'] === 'INACTIVO') ? 'selected' : ''; ?>>Inactivo</option>
+            </select>
+        </div>
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+        <div class="error" style="display: none;"></div>
+    </form>
+</body>
+</html>

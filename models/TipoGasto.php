@@ -5,8 +5,7 @@ class TipoGasto {
     private $pdo;
 
     public function __construct() {
-        global $pdo;
-        $this->pdo = $pdo;
+        $this->pdo = Database::getInstance()->getPdo();
     }
 
     public function getAllTiposGastos() {
@@ -20,14 +19,25 @@ class TipoGasto {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createTipoGasto($name, $description) {
-        $stmt = $this->pdo->prepare("INSERT INTO tipos_gastos (name, description) VALUES (?, ?)");
-        return $stmt->execute([$name, $description]);
+    public function getTipoGastoByName($name, $excludeId = null) {
+        if ($excludeId) {
+            $stmt = $this->pdo->prepare("SELECT * FROM tipos_gastos WHERE name = ? AND id != ?");
+            $stmt->execute([$name, $excludeId]);
+        } else {
+            $stmt = $this->pdo->prepare("SELECT * FROM tipos_gastos WHERE name = ?");
+            $stmt->execute([$name]);
+        }
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function updateTipoGasto($id, $name, $description) {
-        $stmt = $this->pdo->prepare("UPDATE tipos_gastos SET name = ?, description = ? WHERE id = ?");
-        return $stmt->execute([$name, $description, $id]);
+    public function createTipoGasto($name, $description, $estado = 'ACTIVO') {
+        $stmt = $this->pdo->prepare("INSERT INTO tipos_gastos (name, description, estado) VALUES (?, ?, ?)");
+        return $stmt->execute([$name, $description, $estado]);
+    }
+
+    public function updateTipoGasto($id, $name, $description, $estado) {
+        $stmt = $this->pdo->prepare("UPDATE tipos_gastos SET name = ?, description = ?, estado = ? WHERE id = ?");
+        return $stmt->execute([$name, $description, $estado, $id]);
     }
 
     public function deleteTipoGasto($id) {

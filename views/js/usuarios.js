@@ -1,9 +1,13 @@
-// Definir usuarioForm y agregar una verificación
-const usuarioForm = document.querySelector('#usuarioFormInner');
+const usuarioForm = document.querySelector('#usuarioForm');
 
-// Cargar usuarios al iniciar
 document.addEventListener('DOMContentLoaded', () => {
     loadUsuarios();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id && usuarioForm) {
+        showEditForm(id);
+    }
 });
 
 async function loadUsuarios() {
@@ -37,11 +41,18 @@ async function loadUsuarios() {
                 </tr>
             `;
         });
+        return usuarios;
     } catch (error) {
         console.error('Error al cargar usuarios:', error);
         alert('No se pudo cargar la lista de usuarios. Por favor, inicia sesión nuevamente.');
         window.location.href = 'index.php?controller=login&action=login';
     }
+}
+
+async function checkEmailExists(email, excludeId = null) {
+    const usuarios = await loadUsuarios();
+    const excludeIdNum = excludeId ? Number(excludeId) : null;
+    return usuarios.some(usuario => usuario.email === email && (excludeIdNum === null || usuario.id !== excludeIdNum));
 }
 
 async function createUsuario(data) {
@@ -54,7 +65,7 @@ async function createUsuario(data) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Error al crear usuario: ${errorData.error || await response.text()}`);
+        throw new Error(errorData.error || 'Error al crear usuario');
     }
     return response.json();
 }
@@ -71,9 +82,9 @@ async function updateUsuario(id, data) {
         const text = await response.text();
         try {
             const errorData = JSON.parse(text);
-            throw new Error(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
+            throw new Error(errorData.error || 'Error al actualizar usuario');
         } catch (parseError) {
-            throw new Error(`Error al actualizar usuario: Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
     }
     return response.json();
@@ -88,7 +99,7 @@ async function deleteUsuario(id) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Error al eliminar usuario: ${errorData.error || await response.text()}`);
+        throw new Error(errorData.error || 'Error al eliminar usuario');
     }
     if (response.ok) loadUsuarios();
 }
@@ -107,13 +118,16 @@ function showCreateForm() {
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.error || `Error HTTP: ${response.status} - ${response.statusText}`);
+            return response.text().then(errorText => {
+                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
             });
         }
         return response.text();
     })
     .then(html => {
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
         console.log('HTML devuelto (create):', html);
         usuarioForm.innerHTML = html;
         usuarioForm.style.display = 'block';
@@ -131,7 +145,6 @@ function showCreateForm() {
             usuarioForm.innerHTML = `<div class="error">${error.message}</div>`;
             usuarioForm.style.display = 'block';
         } else {
-            console.error('El elemento #usuarioForm no se encontró en el DOM');
             alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         }
     });
@@ -151,13 +164,16 @@ function showEditForm(id) {
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.error || `Error HTTP: ${response.status} - ${response.statusText}`);
+            return response.text().then(errorText => {
+                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
             });
         }
         return response.text();
     })
     .then(html => {
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
         console.log('HTML devuelto (update):', html);
         usuarioForm.innerHTML = html;
         usuarioForm.style.display = 'block';
@@ -175,22 +191,29 @@ function showEditForm(id) {
             usuarioForm.innerHTML = `<div class="error">${error.message}</div>`;
             usuarioForm.style.display = 'block';
         } else {
-            console.error('El elemento #usuarioForm no se encontró en el DOM');
             alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         }
     });
 }
 
 function cancelForm() {
-    const formContainer = document.getElementById('usuarioFormInner');
+    const formContainer = document.getElementById('usuarioForm');
     if (formContainer) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const idFromUrl = urlParams.get('id');
         formContainer.style.display = 'none';
         formContainer.innerHTML = '';
+        if (idFromUrl) {
+            // Preservamos el id en la URL si estamos en modo edición
+            window.history.pushState({}, '', `index.php?controller=usuario&action=update&id=${idFromUrl}`);
+        } else {
+            window.history.pushState({}, '', 'index.php?controller=usuario&action=list');
+        }
     }
 }
 
 function addValidations() {
-    const form = document.querySelector('#usuarioFormInner #usuarioFormInner');
+    const form = document.querySelector('#usuarioForm #usuarioFormInner');
     if (!form) {
         console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #usuarioForm');
         return;
@@ -198,21 +221,41 @@ function addValidations() {
 
     const fields = {
         nombre: { required: true, minLength: 2 },
-        email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-        rol: { required: true },
-        password: { required: form.querySelector('input[name="id"]').value === '', minLength: 6 }
+        email: { required: true },
+        password: { required: false, minLength: 6 },
+        id_rol: { required: true }
     };
+
+    let formMode = 'create';
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('id');
+    const formIdInput = form.querySelector('input[name="id"]');
+    const formId = formIdInput ? formIdInput.value : null;
+
+    // Determinamos el modo combinando idFromUrl y formId
+    if (idFromUrl || formId) {
+        formMode = 'update';
+        fields.password.required = false;
+    } else {
+        fields.password.required = true;
+    }
+
+    console.log('formMode (determined):', formMode);
+    console.log('idFromUrl:', idFromUrl);
+    console.log('formId:', formId);
 
     form.querySelectorAll('input, select').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
-    function validateField(e) {
+    async function validateField(e) {
         const fieldName = e.target.name;
         const value = e.target.value;
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
-        errorElement.className = 'error';
-        errorElement.setAttribute('data-field', fieldName);
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
+        if (!errorElement) return true;
+
+        errorElement.style.display = 'none';
+        e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
@@ -221,20 +264,29 @@ function addValidations() {
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
+            if (fields[fieldName].minLength && value && value.length < fields[fieldName].minLength) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fields[fieldName].pattern && !fields[fieldName].pattern.test(value)) {
-                errorElement.textContent = `El ${fieldName} no es válido.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
+            if (fieldName === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value)) {
+                    errorElement.textContent = 'Por favor, ingresa un email válido.';
+                    errorElement.style.display = 'block';
+                    e.target.classList.add('invalid');
+                    return false;
+                }
+                // Verificar si el email ya existe
+                const emailExists = await checkEmailExists(value, formId);
+                if (emailExists) {
+                    errorElement.textContent = `El email "${value}" ya está registrado. Por favor, usa un email diferente.`;
+                    errorElement.style.display = 'block';
+                    e.target.classList.add('invalid');
+                    return false;
+                }
             }
-            errorElement.style.display = 'none';
-            e.target.classList.remove('invalid');
             return true;
         }
         return true;
@@ -243,39 +295,43 @@ function addValidations() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        form.querySelectorAll('input, select').forEach(field => {
-            if (!validateField({ target: field })) isValid = false;
-        });
+        const validations = await Promise.all(
+            Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
+        );
+        isValid = validations.every(valid => valid);
 
         if (isValid) {
             const formData = new FormData(form);
-            const id = formData.get('id');
+            const formIdInput = form.querySelector('input[name="id"]');
+            const formId = formIdInput ? formIdInput.value : null;
+
+            console.log('formMode (submit):', formMode);
+            console.log('formId (submit):', formId);
+
             try {
-                if (id) {
-                    const result = await updateUsuario(id, formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
+                let result;
+                if (formMode === 'update' && (idFromUrl || formId)) {
+                    const idToUse = idFromUrl || formId;
+                    result = await updateUsuario(idToUse, formData);
                 } else {
-                    const result = await createUsuario(formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
+                    result = await createUsuario(formData);
+                }
+
+                if (result.message) {
+                    const successElement = form.querySelector('.success');
+                    successElement.textContent = result.message;
+                    successElement.style.display = 'block';
+                    setTimeout(() => {
+                        window.location.href = 'index.php?controller=usuario&action=list';
+                    }, 1000);
+                } else if (result.error) {
+                    const errorElement = form.querySelector('.error');
+                    errorElement.textContent = result.error;
+                    errorElement.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Error al enviar formulario:', error);
-                const errorElement = form.querySelector('.error') || document.createElement('div');
-                errorElement.className = 'error';
+                const errorElement = form.querySelector('.error');
                 errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
                 errorElement.style.display = 'block';
             }

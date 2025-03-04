@@ -5,8 +5,7 @@ class Role {
     private $pdo;
 
     public function __construct() {
-        global $pdo;
-        $this->pdo = $pdo;
+        $this->pdo = Database::getInstance()->getPdo();
     }
 
     public function getAllRoles() {
@@ -14,28 +13,32 @@ class Role {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function createRole($name, $description) {
-        $stmt = $this->pdo->prepare("INSERT INTO roles (name, description) VALUES (?, ?)");
-        return $stmt->execute([$name, $description]);
+    public function getRolById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM roles WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function updateRole($id, $name, $description) {
-        $stmt = $this->pdo->prepare("UPDATE roles SET name = ?, description = ? WHERE id = ?");
-        return $stmt->execute([$name, $description, $id]);
+    public function createRol($nombre, $descripcion, $estado) {
+        $stmt = $this->pdo->prepare("INSERT INTO roles (nombre, descripcion, estado) VALUES (?, ?, ?)");
+        return $stmt->execute([$nombre, $descripcion, $estado]);
     }
 
-    public function deleteRole($id) {
+    public function updateRol($id, $nombre, $descripcion, $estado) {
+        $stmt = $this->pdo->prepare("UPDATE roles SET nombre = ?, descripcion = ?, estado = ? WHERE id = ?");
+        return $stmt->execute([$nombre, $descripcion, $estado, $id]);
+    }
+
+    public function deleteRol($id) {
+        // Verificar si el rol está siendo utilizado por algún usuario
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE id_rol = ?");
+        $stmt->execute([$id]);
+        $count = $stmt->fetchColumn();
+        if ($count > 0) {
+            return false; // No se puede eliminar un rol que está en uso
+        }
+
         $stmt = $this->pdo->prepare("DELETE FROM roles WHERE id = ?");
         return $stmt->execute([$id]);
-    }
-
-    public function assignRoleToUser($userId, $roleId) {
-        $stmt = $this->pdo->prepare("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)");
-        return $stmt->execute([$userId, $roleId]);
-    }
-
-    public function removeRoleFromUser($userId, $roleId) {
-        $stmt = $this->pdo->prepare("DELETE FROM user_roles WHERE user_id = ? AND role_id = ?");
-        return $stmt->execute([$userId, $roleId]);
     }
 }

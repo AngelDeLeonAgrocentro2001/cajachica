@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
+    <?php include '../views/partials/menu.php'; ?>
     <h2>Lista de Roles</h2>
     <button onclick="showCreateForm()">Crear Rol</button>
     <table id="rolesTable">
@@ -14,12 +15,13 @@
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <div id="roleForm" style="display: none;"></div>
+    <div id="rolForm" style="display: none;"></div>
     <script src="../views/js/roles.js"></script>
 </body>
 </html>

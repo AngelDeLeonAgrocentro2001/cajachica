@@ -1,12 +1,12 @@
-const rolForm = document.querySelector('#rolForm');
+const impuestoForm = document.querySelector('#impuestoForm');
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadRoles();
+    loadImpuestos();
 });
 
-async function loadRoles() {
+async function loadImpuestos() {
     try {
-        const response = await fetch('index.php?controller=rol&action=list', {
+        const response = await fetch('index.php?controller=impuesto&action=list', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -18,32 +18,32 @@ async function loadRoles() {
             }
             throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
-        const roles = await response.json();
-        const tbody = document.querySelector('#rolesTable tbody');
+        const impuestos = await response.json();
+        const tbody = document.querySelector('#impuestosTable tbody');
         tbody.innerHTML = '';
-        roles.forEach(rol => {
+        impuestos.forEach(impuesto => {
             tbody.innerHTML += `
                 <tr>
-                    <td>${rol.id}</td>
-                    <td>${rol.nombre}</td>
-                    <td>${rol.descripcion || ''}</td>
-                    <td>${rol.estado}</td>
+                    <td>${impuesto.id}</td>
+                    <td>${impuesto.nombre}</td>
+                    <td>${impuesto.porcentaje}</td>
+                    <td>${impuesto.estado}</td>
                     <td>
-                        <button onclick="showEditForm(${rol.id})">Editar</button>
-                        <button onclick="deleteRol(${rol.id})">Eliminar</button>
+                        <button onclick="showEditForm(${impuesto.id})">Editar</button>
+                        <button onclick="deleteImpuesto(${impuesto.id})">Eliminar</button>
                     </td>
                 </tr>
             `;
         });
     } catch (error) {
-        console.error('Error al cargar roles:', error);
-        alert('No se pudo cargar la lista de roles. Por favor, inicia sesión nuevamente.');
+        console.error('Error al cargar impuestos:', error);
+        alert('No se pudo cargar la lista de impuestos. Por favor, inicia sesión nuevamente.');
         window.location.href = 'index.php?controller=login&action=login';
     }
 }
 
-async function createRol(data) {
-    const response = await fetch('index.php?controller=rol&action=create', {
+async function createImpuesto(data) {
+    const response = await fetch('index.php?controller=impuesto&action=create', {
         method: 'POST',
         body: data,
         headers: {
@@ -52,13 +52,13 @@ async function createRol(data) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Error al crear rol: ${errorData.error || await response.text()}`);
+        throw new Error(`Error al crear impuesto: ${errorData.error || await response.text()}`);
     }
     return response.json();
 }
 
-async function updateRol(id, data) {
-    const response = await fetch(`index.php?controller=rol&action=update&id=${id}`, {
+async function updateImpuesto(id, data) {
+    const response = await fetch(`index.php?controller=impuesto&action=update&id=${id}`, {
         method: 'POST',
         body: data,
         headers: {
@@ -69,16 +69,16 @@ async function updateRol(id, data) {
         const text = await response.text();
         try {
             const errorData = JSON.parse(text);
-            throw new Error(`Error al actualizar rol: ${errorData.error || 'Error desconocido'}`);
+            throw new Error(`Error al actualizar impuesto: ${errorData.error || 'Error desconocido'}`);
         } catch (parseError) {
-            throw new Error(`Error al actualizar rol: Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Error al actualizar impuesto: Respuesta no es JSON válida: ${text}`);
         }
     }
     return response.json();
 }
 
-async function deleteRol(id) {
-    const response = await fetch(`index.php?controller=rol&action=delete&id=${id}`, {
+async function deleteImpuesto(id) {
+    const response = await fetch(`index.php?controller=impuesto&action=delete&id=${id}`, {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -86,19 +86,19 @@ async function deleteRol(id) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Error al eliminar rol: ${errorData.error || await response.text()}`);
+        throw new Error(`Error al eliminar impuesto: ${errorData.error || await response.text()}`);
     }
-    if (response.ok) loadRoles();
+    if (response.ok) loadImpuestos();
 }
 
 function showCreateForm() {
-    if (!rolForm) {
-        console.error('El elemento #rolForm no se encontró en el DOM');
+    if (!impuestoForm) {
+        console.error('El elemento #impuestoForm no se encontró en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch('index.php?controller=rol&action=create', {
+    fetch('index.php?controller=impuesto&action=create', {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
@@ -113,21 +113,21 @@ function showCreateForm() {
     })
     .then(html => {
         console.log('HTML devuelto (create):', html);
-        rolForm.innerHTML = html;
-        rolForm.style.display = 'block';
-        const form = rolForm.querySelector('#rolFormInner');
+        impuestoForm.innerHTML = html;
+        impuestoForm.style.display = 'block';
+        const form = impuestoForm.querySelector('#impuestoFormInner');
         if (!form) {
-            console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
-            rolForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
+            console.error('No se encontró un elemento <form> con id="impuestoFormInner" dentro de #impuestoForm');
+            impuestoForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
             return;
         }
         addValidations();
     })
     .catch(error => {
         console.error('Error al cargar el formulario (create):', error);
-        if (rolForm) {
-            rolForm.innerHTML = `<div class="error">${error.message}</div>`;
-            rolForm.style.display = 'block';
+        if (impuestoForm) {
+            impuestoForm.innerHTML = `<div class="error">${error.message}</div>`;
+            impuestoForm.style.display = 'block';
         } else {
             alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         }
@@ -135,13 +135,13 @@ function showCreateForm() {
 }
 
 function showEditForm(id) {
-    if (!rolForm) {
-        console.error('El elemento #rolForm no se encontró en el DOM');
+    if (!impuestoForm) {
+        console.error('El elemento #impuestoForm no se encontró en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch(`index.php?controller=rol&action=update&id=${id}`, {
+    fetch(`index.php?controller=impuesto&action=update&id=${id}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
@@ -156,21 +156,21 @@ function showEditForm(id) {
     })
     .then(html => {
         console.log('HTML devuelto (update):', html);
-        rolForm.innerHTML = html;
-        rolForm.style.display = 'block';
-        const form = rolForm.querySelector('#rolFormInner');
+        impuestoForm.innerHTML = html;
+        impuestoForm.style.display = 'block';
+        const form = impuestoForm.querySelector('#impuestoFormInner');
         if (!form) {
-            console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
-            rolForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
+            console.error('No se encontró un elemento <form> con id="impuestoFormInner" dentro de #impuestoForm');
+            impuestoForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
             return;
         }
         addValidations();
     })
     .catch(error => {
         console.error('Error al cargar el formulario (update):', error);
-        if (rolForm) {
-            rolForm.innerHTML = `<div class="error">${error.message}</div>`;
-            rolForm.style.display = 'block';
+        if (impuestoForm) {
+            impuestoForm.innerHTML = `<div class="error">${error.message}</div>`;
+            impuestoForm.style.display = 'block';
         } else {
             alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         }
@@ -178,7 +178,7 @@ function showEditForm(id) {
 }
 
 function cancelForm() {
-    const formContainer = document.getElementById('rolForm');
+    const formContainer = document.getElementById('impuestoForm');
     if (formContainer) {
         formContainer.style.display = 'none';
         formContainer.innerHTML = '';
@@ -186,17 +186,18 @@ function cancelForm() {
 }
 
 function addValidations() {
-    const form = document.querySelector('#rolForm #rolFormInner');
+    const form = document.querySelector('#impuestoForm #impuestoFormInner');
     if (!form) {
-        console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
+        console.error('No se encontró un elemento <form> con id="impuestoFormInner" dentro de #impuestoForm');
         return;
     }
 
     const fields = {
-        nombre: { required: true, minLength: 2 }
+        nombre: { required: true, minLength: 2 },
+        porcentaje: { required: true, min: 0.01, max: 100 }
     };
 
-    form.querySelectorAll('input, textarea, select').forEach(field => {
+    form.querySelectorAll('input, select').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
@@ -220,6 +221,15 @@ function addValidations() {
                 e.target.classList.add('invalid');
                 return false;
             }
+            if (fieldName === 'porcentaje') {
+                const numValue = parseFloat(value);
+                if (isNaN(numValue) || numValue < fields[fieldName].min || numValue > fields[fieldName].max) {
+                    errorElement.textContent = `El porcentaje debe estar entre ${fields[fieldName].min} y ${fields[fieldName].max}.`;
+                    errorElement.style.display = 'block';
+                    e.target.classList.add('invalid');
+                    return false;
+                }
+            }
             errorElement.style.display = 'none';
             e.target.classList.remove('invalid');
             return true;
@@ -230,7 +240,7 @@ function addValidations() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        form.querySelectorAll('input, textarea, select').forEach(field => {
+        form.querySelectorAll('input, select').forEach(field => {
             if (!validateField({ target: field })) isValid = false;
         });
 
@@ -239,7 +249,7 @@ function addValidations() {
             const id = formData.get('id');
             try {
                 if (id) {
-                    const result = await updateRol(id, formData);
+                    const result = await updateImpuesto(id, formData);
                     if (result.message) {
                         window.location.reload();
                     } else if (result.error) {
@@ -249,7 +259,7 @@ function addValidations() {
                         errorElement.style.display = 'block';
                     }
                 } else {
-                    const result = await createRol(formData);
+                    const result = await createImpuesto(formData);
                     if (result.message) {
                         window.location.reload();
                     } else if (result.error) {

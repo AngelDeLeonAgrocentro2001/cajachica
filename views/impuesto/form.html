@@ -2,21 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Rol' : 'Crear Rol'; ?></title>
-    <link rel="stylesheet" href="../views/css/style.css">
+    <title><?php echo isset($data) ? 'Editar Impuesto' : 'Crear Impuesto'; ?></title>
+    <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <h2><?php echo isset($data) ? 'Editar Rol' : 'Crear Rol'; ?></h2>
-    <form id="rolFormInner">
+    <h2><?php echo isset($data) ? 'Editar Impuesto' : 'Crear Impuesto'; ?></h2>
+    <form id="impuestoFormInner">
         <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
         <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
-        <textarea name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
+        <input type="number" name="porcentaje" placeholder="Porcentaje" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['porcentaje']) : ''; ?>" required>
         <select name="estado" required>
             <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
             <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
         </select>
         <div class="error" data-field="nombre"></div>
-        <div class="error" data-field="descripcion"></div>
+        <div class="error" data-field="porcentaje"></div>
         <div class="error" data-field="estado"></div>
         <div class="error"></div>
         <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>

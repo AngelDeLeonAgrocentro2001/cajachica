@@ -1,15 +1,15 @@
 <?php
-require_once '../models/Role.php';
+require_once '../models/Impuesto.php';
 require_once '../models/Usuario.php';
 
-class RoleController {
+class ImpuestoController {
     private $pdo;
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
-    public function listRoles() {
+    public function listImpuestos() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -19,28 +19,28 @@ class RoleController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_roles')) {
+        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para gestionar roles']);
+            echo json_encode(['error' => 'No tienes permiso para gestionar impuestos']);
             exit;
         }
 
-        $rolModel = new Role();
-        $roles = $rolModel->getAllRoles();
+        $impuestoModel = new Impuesto();
+        $impuestos = $impuestoModel->getAllImpuestos();
 
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
-            echo json_encode($roles);
+            echo json_encode($impuestos);
         } else {
-            require '../views/roles/list.html';
+            require '../views/impuesto/list.html';
         }
         exit;
     }
 
-    public function createRol() {
+    public function createImpuesto() {
         if (!isset($_SESSION['user_id'])) {
-            error_log('Error: No hay session user_id en createRol');
+            error_log('Error: No hay session user_id en createImpuesto');
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
@@ -49,37 +49,42 @@ class RoleController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_roles')) {
-            error_log('Error: No tienes permiso para crear roles');
+        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+            error_log('Error: No tienes permiso para crear impuestos');
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para crear roles']);
+            echo json_encode(['error' => 'No tienes permiso para crear impuestos']);
             exit;
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $nombre = $_POST['nombre'] ?? '';
-                $descripcion = $_POST['descripcion'] ?? '';
+                $porcentaje = $_POST['porcentaje'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVO';
 
-                error_log("Datos recibidos para crear rol: nombre=$nombre, descripcion=$descripcion, estado=$estado");
+                error_log("Datos recibidos para crear impuesto: nombre=$nombre, porcentaje=$porcentaje, estado=$estado");
 
-                if (empty($nombre)) {
-                    throw new Exception('El nombre del rol es obligatorio');
+                if (empty($nombre) || empty($porcentaje)) {
+                    throw new Exception('Nombre y porcentaje son obligatorios');
                 }
 
-                $rolModel = new Role();
-                $result = $rolModel->createRol($nombre, $descripcion, $estado);
+                $porcentaje = floatval($porcentaje);
+                if ($porcentaje <= 0 || $porcentaje > 100) {
+                    throw new Exception('El porcentaje debe estar entre 0 y 100');
+                }
+
+                $impuestoModel = new Impuesto();
+                $result = $impuestoModel->createImpuesto($nombre, $porcentaje, $estado);
                 if ($result === false) {
-                    throw new Exception('Error al crear rol en la base de datos');
+                    throw new Exception('Error al crear impuesto en la base de datos');
                 }
 
                 header('Content-Type: application/json');
                 http_response_code(201);
-                echo json_encode(['message' => 'Rol creado']);
+                echo json_encode(['message' => 'Impuesto creado']);
             } catch (Exception $e) {
-                error_log('Error en createRol: ' . $e->getMessage());
+                error_log('Error en createImpuesto: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => $e->getMessage()]);
@@ -88,14 +93,14 @@ class RoleController {
         }
 
         ob_start();
-        require '../views/roles/form.html';
+        require '../views/impuesto/form.html';
         $html = ob_get_clean();
         echo $html;
     }
 
-    public function updateRol($id) {
+    public function updateImpuesto($id) {
         if (!isset($_SESSION['user_id'])) {
-            error_log('Error: No hay session user_id en updateRol');
+            error_log('Error: No hay session user_id en updateImpuesto');
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
@@ -104,36 +109,41 @@ class RoleController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_roles')) {
-            error_log('Error: No tienes permiso para actualizar roles');
+        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+            error_log('Error: No tienes permiso para actualizar impuestos');
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para actualizar roles']);
+            echo json_encode(['error' => 'No tienes permiso para actualizar impuestos']);
             exit;
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $nombre = $_POST['nombre'] ?? '';
-                $descripcion = $_POST['descripcion'] ?? '';
+                $porcentaje = $_POST['porcentaje'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVO';
 
-                error_log("Datos recibidos para actualizar rol ID $id: nombre=$nombre, descripcion=$descripcion, estado=$estado");
+                error_log("Datos recibidos para actualizar impuesto ID $id: nombre=$nombre, porcentaje=$porcentaje, estado=$estado");
 
-                if (empty($nombre)) {
-                    throw new Exception('El nombre del rol es obligatorio');
+                if (empty($nombre) || empty($porcentaje)) {
+                    throw new Exception('Nombre y porcentaje son obligatorios');
                 }
 
-                $rolModel = new Role();
-                $result = $rolModel->updateRol($id, $nombre, $descripcion, $estado);
+                $porcentaje = floatval($porcentaje);
+                if ($porcentaje <= 0 || $porcentaje > 100) {
+                    throw new Exception('El porcentaje debe estar entre 0 y 100');
+                }
+
+                $impuestoModel = new Impuesto();
+                $result = $impuestoModel->updateImpuesto($id, $nombre, $porcentaje, $estado);
                 if ($result === false) {
-                    throw new Exception('Error al actualizar rol en la base de datos');
+                    throw new Exception('Error al actualizar impuesto en la base de datos');
                 }
 
                 header('Content-Type: application/json');
-                echo json_encode(['message' => 'Rol actualizado']);
+                echo json_encode(['message' => 'Impuesto actualizado']);
             } catch (Exception $e) {
-                error_log('Error en updateRol: ' . $e->getMessage());
+                error_log('Error en updateImpuesto: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => $e->getMessage()]);
@@ -141,23 +151,23 @@ class RoleController {
             exit;
         }
 
-        $rolModel = new Role();
-        $data = $rolModel->getRolById($id);
+        $impuestoModel = new Impuesto();
+        $data = $impuestoModel->getImpuestoById($id);
         if ($data === false) {
-            error_log("Error: No se pudo obtener el rol con ID $id");
+            error_log("Error: No se pudo obtener el impuesto con ID $id");
             header('Content-Type: application/json');
             http_response_code(404);
-            echo json_encode(['error' => 'Rol no encontrado']);
+            echo json_encode(['error' => 'Impuesto no encontrado']);
             exit;
         }
 
         ob_start();
-        require '../views/roles/form.html';
+        require '../views/impuesto/form.html';
         $html = ob_get_clean();
         echo $html;
     }
 
-    public function deleteRol($id) {
+    public function deleteImpuesto($id) {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -167,21 +177,21 @@ class RoleController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_roles')) {
+        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar roles']);
+            echo json_encode(['error' => 'No tienes permiso para eliminar impuestos']);
             exit;
         }
 
-        $rolModel = new Role();
-        if ($rolModel->deleteRol($id)) {
+        $impuestoModel = new Impuesto();
+        if ($impuestoModel->deleteImpuesto($id)) {
             header('Content-Type: application/json');
-            echo json_encode(['message' => 'Rol eliminado']);
+            echo json_encode(['message' => 'Impuesto eliminado']);
         } else {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'Error al eliminar rol. Es posible que esté en uso por algún usuario.']);
+            echo json_encode(['error' => 'Error al eliminar impuesto']);
         }
         exit;
     }

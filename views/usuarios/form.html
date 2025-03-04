@@ -2,33 +2,44 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Usuario' : 'Crear Usuario'; ?></title>
+    <title><?php echo isset($usuario['id']) ? 'Editar Usuario' : 'Crear Usuario'; ?></title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <!-- <?php include '../partials/menu.php'; ?> -->
-    <h2><?php echo isset($data) ? 'Editar Usuario' : 'Crear Usuario'; ?></h2>
+    <h2><?php echo isset($usuario['id']) ? 'Editar Usuario' : 'Crear Usuario'; ?></h2>
     <form id="usuarioFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
-        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
-        <input type="email" name="email" placeholder="Email" value="<?php echo isset($data) ? htmlspecialchars($data['email']) : ''; ?>" required>
-        <input type="password" name="password" placeholder="Contraseña">
-        <select name="rol" required>
-            <option value="" disabled <?php echo !isset($data) ? 'selected' : ''; ?>>Seleccionar Rol</option>
-            <option value="ADMIN" <?php echo isset($data) && $data['rol'] === 'ADMIN' ? 'selected' : ''; ?>>Administrador</option>
-            <option value="ENCARGADO_CAJA_CHICA" <?php echo isset($data) && $data['rol'] === 'ENCARGADO_CAJA_CHICA' ? 'selected' : ''; ?>>Encargado de Caja Chica</option>
-            <option value="SUPERVISOR_AUTORIZADOR" <?php echo isset($data) && $data['rol'] === 'SUPERVISOR_AUTORIZADOR' ? 'selected' : ''; ?>>Supervisor Autorizador</option>
-            <option value="CONTABILIDAD" <?php echo isset($data) && $data['rol'] === 'CONTABILIDAD' ? 'selected' : ''; ?>>Contabilidad</option>
-        </select>
-        <div class="error" data-field="nombre"></div>
-        <div class="error" data-field="email"></div>
-        <div class="error" data-field="password"></div>
-        <div class="error" data-field="rol"></div>
-        <div class="success"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+        <input type="hidden" name="id" value="<?php echo isset($usuario['id']) ? htmlspecialchars($usuario['id']) : ''; ?>">
+        <div>
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" placeholder="Nombre" value="<?php echo isset($usuario['nombre']) ? htmlspecialchars($usuario['nombre']) : ''; ?>" required>
+            <div class="error" data-field="nombre" style="display: none;"></div>
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="Email" value="<?php echo isset($usuario['email']) ? htmlspecialchars($usuario['email']) : ''; ?>" required>
+            <div class="error" data-field="email" style="display: none;"></div>
+        </div>
+        <div>
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" placeholder="Contraseña" <?php echo isset($usuario['id']) ? '' : 'required'; ?>>
+            <div class="error" data-field="password" style="display: none;"></div>
+        </div>
+        <div>
+            <label for="id_rol">Rol:</label>
+            <select id="id_rol" name="id_rol" required>
+                <option value="" disabled <?php echo !isset($usuario['id_rol']) ? 'selected' : ''; ?>>Seleccionar Rol</option>
+                <?php foreach ($roles as $rol): ?>
+                    <option value="<?php echo htmlspecialchars($rol['id']); ?>" <?php echo isset($usuario['id_rol']) && $usuario['id_rol'] == $rol['id'] ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($rol['nombre']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <div class="error" data-field="id_rol" style="display: none;"></div>
+        </div>
+        <div class="success" style="display: none;"></div>
+        <div class="error" style="display: none;"></div>
+        <button type="submit"><?php echo isset($usuario['id']) ? 'Actualizar' : 'Crear'; ?></button>
         <button type="button" onclick="cancelForm()">Cancelar</button>
     </form>
-    <!-- Eliminar esta línea: <script src="../views/js/usuarios.js"></script> -->
 </body>
 </html>

@@ -2,26 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Mantenimiento de Tipos de Gastos</title>
+    <title>Mantenimiento de Impuestos</title>
     <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Lista de Tipos de Gastos</h2>
-    <button onclick="showCreateForm()">Crear Tipo de Gasto</button>
-    <table id="tiposGastosTable">
+    <h2>Lista de Impuestos</h2>
+    <button onclick="showCreateForm()">Crear Impuesto</button>
+    <table id="impuestosTable">
         <thead>
             <tr>
                 <th>ID</th>
                 <th>Nombre</th>
-                <th>Descripción</th>
+                <th>Porcentaje</th>
                 <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <div id="tipoGastoForm" style="display: none;"></div>
-    <script src="../views/js/tipos_gastos.js"></script>
+    <div id="impuestoForm" style="display: none;"></div>
+    <script src="../views/js/impuestos.js"></script>
 </body>
 </html>

@@ -1,15 +1,15 @@
 <?php
-require_once '../models/TipoGasto.php';
+require_once '../models/CuentaContable.php';
 require_once '../models/Usuario.php';
 
-class TipoGastoController {
-    private $tipoGastoModel;
+class CuentaContableController {
+    private $cuentaContableModel;
 
     public function __construct() {
-        $this->tipoGastoModel = new TipoGasto();
+        $this->cuentaContableModel = new CuentaContable();
     }
 
-    public function listTiposGastos() {
+    public function listCuentas() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -22,59 +22,55 @@ class TipoGastoController {
         if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para gestionar tipos de gastos']);
+            echo json_encode(['error' => 'No tienes permiso para gestionar cuentas contables']);
             exit;
         }
 
-        $tipos = $this->tipoGastoModel->getAllTiposGastos();
+        $cuentas = $this->cuentaContableModel->getAllCuentas();
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
-            echo json_encode($tipos);
+            echo json_encode($cuentas);
         } else {
-            require '../views/tipos_gastos/list.html';
+            require '../views/cuentacontable/list.html';
         }
         exit;
     }
 
-    public function createTipoGasto() {
+    public function createCuenta() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para crear tipos de gastos']);
+            echo json_encode(['error' => 'No tienes permiso para crear cuentas contables']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
-                $name = $_POST['name'] ?? '';
-                $description = $_POST['description'] ?? '';
+                $codigo = $_POST['codigo'] ?? '';
+                $nombre = $_POST['nombre'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVO';
-
-                if (empty($name) || empty($description)) {
-                    throw new Exception('Nombre y descripción son obligatorios.');
+    
+                if (empty($codigo) || empty($nombre)) {
+                    throw new Exception('Código y nombre son obligatorios');
                 }
-
-                // Verificar si el nombre ya existe
-                if ($this->tipoGastoModel->getTipoGastoByName($name)) {
-                    throw new Exception("El nombre '$name' ya está registrado. Por favor, usa un nombre diferente.");
+    
+                $result = $this->cuentaContableModel->createCuenta($codigo, $nombre, $estado);
+                if ($result === false) {
+                    throw new Exception('Error al crear cuenta contable');
                 }
-
-                if ($this->tipoGastoModel->createTipoGasto($name, $description, $estado)) {
-                    header('Content-Type: application/json');
-                    http_response_code(201);
-                    echo json_encode(['message' => 'Tipo de gasto creado']);
-                } else {
-                    throw new Exception('Error al crear tipo de gasto en la base de datos.');
-                }
+    
+                header('Content-Type: application/json');
+                http_response_code(201);
+                echo json_encode(['message' => 'Cuenta contable creada']);
             } catch (Exception $e) {
                 header('Content-Type: application/json');
                 http_response_code(400);
@@ -82,9 +78,9 @@ class TipoGastoController {
             } catch (PDOException $e) {
                 header('Content-Type: application/json');
                 http_response_code(400);
-                $errorMessage = 'Error al crear tipo de gasto';
+                $errorMessage = 'Error al crear cuenta contable';
                 if ($e->getCode() == '23000' && strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                    $errorMessage = "El nombre '$name' ya está registrado. Por favor, usa un nombre diferente.";
+                    $errorMessage = "El código '$codigo' ya está registrado. Por favor, usa un código diferente.";
                 } else {
                     $errorMessage .= ': ' . $e->getMessage();
                 }
@@ -92,88 +88,70 @@ class TipoGastoController {
             }
             exit;
         }
-
-        $tipoGasto = [];
+    
         ob_start();
-        require '../views/tipos_gastos/form.html';
+        require '../views/cuentacontable/form.html';
         $html = ob_get_clean();
         echo $html;
-        exit;
     }
 
-    public function updateTipoGasto($id) {
+    public function updateCuenta($id) {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para actualizar tipos de gastos']);
+            echo json_encode(['error' => 'No tienes permiso para actualizar cuentas contables']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
-                $name = $_POST['name'] ?? '';
-                $description = $_POST['description'] ?? '';
+                $codigo = $_POST['codigo'] ?? '';
+                $nombre = $_POST['nombre'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVO';
-
-                if (empty($name) || empty($description)) {
-                    throw new Exception('Nombre y descripción son obligatorios.');
+    
+                if (empty($codigo) || empty($nombre)) {
+                    throw new Exception('Código y nombre son obligatorios');
                 }
-
-                // Verificar si el nombre ya existe (excluyendo el registro actual)
-                $existingTipoGasto = $this->tipoGastoModel->getTipoGastoByName($name, $id);
-                if ($existingTipoGasto) {
-                    throw new Exception("El nombre '$name' ya está registrado por otro tipo de gasto. Por favor, usa un nombre diferente.");
+    
+                $result = $this->cuentaContableModel->updateCuenta($id, $codigo, $nombre, $estado);
+                if ($result === false) {
+                    throw new Exception('Error al actualizar cuenta contable');
                 }
-
-                if ($this->tipoGastoModel->updateTipoGasto($id, $name, $description, $estado)) {
-                    header('Content-Type: application/json');
-                    echo json_encode(['message' => 'Tipo de gasto actualizado']);
-                } else {
-                    throw new Exception('Error al actualizar tipo de gasto en la base de datos.');
-                }
+    
+                header('Content-Type: application/json');
+                echo json_encode(['message' => 'Cuenta contable actualizada']);
             } catch (Exception $e) {
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => $e->getMessage()]);
-            } catch (PDOException $e) {
-                header('Content-Type: application/json');
-                http_response_code(400);
-                $errorMessage = 'Error al actualizar tipo de gasto';
-                if ($e->getCode() == '23000' && strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                    $errorMessage = "El nombre '$name' ya está registrado por otro tipo de gasto. Por favor, usa un nombre diferente.";
-                } else {
-                    $errorMessage .= ': ' . $e->getMessage();
-                }
-                echo json_encode(['error' => $errorMessage]);
             }
             exit;
         }
-
-        $tipoGasto = $this->tipoGastoModel->getTipoGastoById($id);
-        if ($tipoGasto === false) {
+    
+        $cuenta = $this->cuentaContableModel->getCuentaById($id);
+        if ($cuenta === false) {
             header('Content-Type: application/json');
             http_response_code(404);
-            echo json_encode(['error' => 'Tipo de gasto no encontrado']);
+            echo json_encode(['error' => 'Cuenta contable no encontrada']);
             exit;
         }
-
+    
         ob_start();
-        require '../views/tipos_gastos/form.html';
+        require '../views/cuentacontable/form.html';
         $html = ob_get_clean();
         echo $html;
-        exit;
     }
 
-    public function deleteTipoGasto($id) {
+    public function deleteCuenta($id) {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -186,17 +164,17 @@ class TipoGastoController {
         if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
             header('Content-Type: application/json');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar tipos de gastos']);
+            echo json_encode(['error' => 'No tienes permiso para eliminar cuentas contables']);
             exit;
         }
 
-        if ($this->tipoGastoModel->deleteTipoGasto($id)) {
+        if ($this->cuentaContableModel->deleteCuenta($id)) {
             header('Content-Type: application/json');
-            echo json_encode(['message' => 'Tipo de gasto eliminado']);
+            echo json_encode(['message' => 'Cuenta contable eliminada']);
         } else {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'Error al eliminar tipo de gasto']);
+            echo json_encode(['error' => 'Error al eliminar cuenta contable']);
         }
         exit;
     }
