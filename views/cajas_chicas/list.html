@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Mantenimiento de Cajas Chicas</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
+    <?php include '../views/partials/menu.php'; ?>
     <h2>Lista de Cajas Chicas</h2>
-    <button onclick="showCreateForm()">Crear Caja Chica</button>
+    <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')): ?>
+        <button onclick="showCreateForm()">Crear Caja Chica</button>
+    <?php endif; ?>
     <table id="cajasChicasTable">
         <thead>
             <tr>
@@ -22,6 +25,6 @@
         <tbody></tbody>
     </table>
     <div id="cajaChicaForm" style="display: none;"></div>
-    <script src="../js/cajas_chicas.js"></script>
+    <script src="../views/js/cajas_chicas.js"></script>
 </body>
 </html>

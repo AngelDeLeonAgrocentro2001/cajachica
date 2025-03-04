@@ -1,34 +1,32 @@
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    try {
-        const response = await fetch('index.php?controller=usuario&action=login', {
-            method: 'POST',
-            body: formData
-        });
-        console.log('Estado de la respuesta:', response.status); // Depuración: estado HTTP
-        const responseText = await response.text();
-        console.log('Cuerpo de la respuesta (texto):', responseText);
-        let data;
+const form = document.getElementById('loginForm');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
         try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-            throw new Error('Respuesta no es un JSON válido: ' + parseError.message);
-        }
-        if (response.ok) {
-            if (data.token) {
-                localStorage.setItem('token', data.token);
-                window.location.href = 'index.php?controller=usuario&action=list';
-            } else {
-                throw new Error('Token no encontrado en la respuesta');
+            const response = await fetch('index.php?controller=login&action=login', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error desconocido');
             }
-        } else {
-            document.getElementById('message').innerText = data.error || 'Error desconocido';
-            document.getElementById('message').style.color = '#dc3545';
+            const result = await response.json();
+            if (result.message && result.redirect) {
+                window.location.href = result.redirect; // Redirigir desde el cliente
+            } else if (result.error) {
+                const errorElement = form.querySelector('.error');
+                errorElement.textContent = result.error;
+                errorElement.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error detallado:', error);
+            const errorElement = form.querySelector('.error') || document.createElement('div');
+            errorElement.className = 'error';
+            errorElement.textContent = 'Error al iniciar sesión: ' + error.message;
+            errorElement.style.display = 'block';
         }
-    } catch (error) {
-        document.getElementById('message').innerText = 'Error en la conexión: ' + error.message;
-        document.getElementById('message').style.color = '#dc3545';
-        console.error('Error detallado:', error);
-    }
-});
+    });

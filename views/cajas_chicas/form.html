@@ -2,39 +2,37 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Formulario de Cajas Chicas</title>
+    <title><?php echo isset($data) ? 'Editar Caja Chica' : 'Crear Caja Chica'; ?></title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <h2><?php echo isset($cajaChica) ? 'Editar Caja Chica' : 'Crear Caja Chica'; ?></h2>
-    <form id="cajaChicaForm">
-        <input type="hidden" name="id" value="<?php echo isset($cajaChica) ? $cajaChica['id'] : ''; ?>">
-        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($cajaChica) ? $cajaChica['nombre'] : ''; ?>" required>
-        <input type="number" name="monto_asignado" placeholder="Monto Asignado" step="0.01" value="<?php echo isset($cajaChica) ? $cajaChica['monto_asignado'] : ''; ?>" required>
-        <input type="number" name="monto_disponible" placeholder="Monto Disponible" step="0.01" value="<?php echo isset($cajaChica) ? $cajaChica['monto_disponible'] : ''; ?>" required>
+    <h2><?php echo isset($data) ? 'Editar Caja Chica' : 'Crear Caja Chica'; ?></h2>
+    <form id="cajaChicaFormInner">
+        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+        <input type="number" name="monto_asignado" placeholder="Monto Asignado" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_asignado']) : ''; ?>" required>
+        <input type="number" name="monto_disponible" placeholder="Monto Disponible" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_disponible']) : ''; ?>" required>
+        <label for="id_usuario_encargado">Usuario Encargado</label>
         <select name="id_usuario_encargado" required>
-            <?php
-            $usuario = new Usuario();
-            $usuarios = $usuario->getAllUsuarios();
-            foreach ($usuarios as $u) {
-                $selected = isset($cajaChica) && $cajaChica['id_usuario_encargado'] == $u['id'] ? 'selected' : '';
-                echo "<option value='{$u['id']}' {$selected}>{$u['nombre']} ({$u['rol']})</option>";
-            }
-            ?>
+            {{select_encargados}}
         </select>
+        <label for="id_supervisor">Usuario Supervisor</label>
         <select name="id_supervisor" required>
-            <?php
-            foreach ($usuarios as $u) {
-                $selected = isset($cajaChica) && $cajaChica['id_supervisor'] == $u['id'] ? 'selected' : '';
-                echo "<option value='{$u['id']}' {$selected}>{$u['nombre']} ({$u['rol']})</option>";
-            }
-            ?>
+            {{select_supervisores}}
         </select>
         <select name="estado" required>
-            <option value="ACTIVA" <?php echo isset($cajaChica) && $cajaChica['estado'] === 'ACTIVA' ? 'selected' : ''; ?>>Activa</option>
-            <option value="INACTIVA" <?php echo isset($cajaChica) && $cajaChica['estado'] === 'INACTIVA' ? 'selected' : ''; ?>>Inactiva</option>
+            <option value="ACTIVA" <?php echo isset($data) && $data['estado'] === 'ACTIVA' ? 'selected' : ''; ?>>Activa</option>
+            <option value="INACTIVA" <?php echo isset($data) && $data['estado'] === 'INACTIVA' ? 'selected' : ''; ?>>Inactiva</option>
         </select>
-        <button type="submit">Guardar</button>
+        <div class="error" data-field="nombre"></div>
+        <div class="error" data-field="monto_asignado"></div>
+        <div class="error" data-field="monto_disponible"></div>
+        <div class="error" data-field="id_usuario_encargado"></div>
+        <div class="error" data-field="id_supervisor"></div>
+        <div class="error" data-field="estado"></div>
+        <div class="success"></div>
+        <div class="error"></div>
+        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
         <button type="button" onclick="cancelForm()">Cancelar</button>
     </form>
     <script src="../js/cajas_chicas.js"></script>

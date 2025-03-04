@@ -1,159 +1,431 @@
 <?php
 require_once '../models/DetalleLiquidacion.php';
-require_once '../config/jwt.php';
+require_once '../models/Liquidacion.php';
+require_once '../models/TipoGasto.php';
+require_once '../models/Auditoria.php';
+require_once '../models/Usuario.php';
+require_once '../config/database.php'; // Añadir para acceder a Database
 
 class DetalleLiquidacionController {
+    private $pdo;
+
+    public function __construct() {
+        $this->pdo = Database::getInstance()->getPdo();
+    }
+
     public function listDetallesLiquidacion() {
+        error_log('Iniciando listDetallesLiquidacion');
+        if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id');
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         $detalle = new DetalleLiquidacion();
         $detalles = $detalle->getAllDetallesLiquidacion();
-        header('Content-Type: application/json');
-        echo json_encode($detalles);
+        error_log('Detalles obtenidos: ' . print_r($detalles, true));
+    
+        // Filtrar detalles en modo revisar para CONTABILIDAD
+        $urlParams = $_GET['mode'] ?? '';
+        $isRevisarMode = $urlParams === 'revisar';
+        if ($isRevisarMode) {
+            $detalles = array_filter($detalles, function($detalle) {
+                return $detalle['estado'] !== 'DESCARTADO';
+            });
+        }
+    
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode(array_values($detalles));
+        } else {
+            // Si el usuario tiene rol CONTABILIDAD y está en modo revisión
+            if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && $isRevisarMode) {
+                require '../views/detalle_liquidaciones/revisar.html';
+            } else {
+                require '../views/detalle_liquidaciones/list.html';
+            }
+        }
         exit;
     }
 
     public function createDetalleLiquidacion() {
+        if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id en createDetalleLiquidacion');
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
+            error_log('Error: No tienes permiso para crear detalles de liquidaciones');
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para crear detalles de liquidaciones']);
+            exit;
+        }
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id_liquidacion = $_POST['id_liquidacion'] ?? '';
-            $no_factura = $_POST['no_factura'] ?? '';
-            $regimen = $_POST['regimen'] ?? NULL;
-            $c_costo = $_POST['c_costo'] ?? NULL;
-            $nit_proveedor = $_POST['nit_proveedor'] ?? NULL;
-            $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
-            $fecha = $_POST['fecha'] ?? date('Y-m-d');
-            $bien_servicio = $_POST['bien_servicio'] ?? '';
-            $t_gasto = $_POST['t_gasto'] ?? '';
-            $codigo_ccta = $_POST['codigo_ccta'] ?? NULL;
-            $descripcion_factura = $_POST['descripcion_factura'] ?? '';
-            $p_unitario = $_POST['p_unitario'] ?? 0;
-            $iva = $_POST['iva'] ?? 0;
-            $total_factura = $_POST['total_factura'] ?? 0;
-            $idp = $_POST['idp'] ?? 0;
-            $inguat = $_POST['inguat'] ?? 0;
-            $rutaimagen = NULL;
-            $rutarchivopdf = NULL;
-            $porcentajeiva = $_POST['porcentajeiva'] ?? 0;
-            $porcentajeidp = $_POST['porcentajeidp'] ?? 0;
-            $tipo_combustible = $_POST['tipo_combustible'] ?? NULL;
-
-            // Manejo de subida de archivos con depuración
-            $uploadDir = '../uploads/'; // Ruta relativa desde controllers/
-            if (!file_exists($uploadDir)) {
-                if (!mkdir($uploadDir, 0777, true)) {
-                    http_response_code(500);
-                    echo json_encode(['error' => 'No se pudo crear la carpeta uploads/']);
-                    exit;
+            try {
+                $id_liquidacion = $_POST['id_liquidacion'] ?? '';
+                $no_factura = $_POST['no_factura'] ?? '';
+                $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
+                $fecha = $_POST['fecha'] ?? '';
+                $bien_servicio = $_POST['bien_servicio'] ?? '';
+                $t_gasto = $_POST['t_gasto'] ?? '';
+                $p_unitario = $_POST['p_unitario'] ?? 0;
+                $total_factura = $_POST['total_factura'] ?? 0;
+                $estado = $_POST['estado'] ?? 'PENDIENTE';
+    
+                // Validar datos antes de crear
+                if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
+                    throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
-            }
-
-            if (isset($_FILES['rutaimagen']) && $_FILES['rutaimagen']['error'] === UPLOAD_ERR_OK) {
-                $imageName = basename($_FILES['rutaimagen']['name']);
-                $imagePath = $uploadDir . $imageName;
-                if (move_uploaded_file($_FILES['rutaimagen']['tmp_name'], $imagePath)) {
-                    $rutaimagen = 'uploads/' . $imageName;
+    
+                // Verificar que id_liquidacion exista en la tabla liquidaciones
+                $liquidacionModel = new Liquidacion();
+                if (!$liquidacionModel->getLiquidacionById($id_liquidacion)) {
+                    throw new Exception('El ID de liquidación ' . $id_liquidacion . ' no existe.');
+                }
+    
+                // Manejar la subida de múltiples archivos
+                $rutas_archivos = [];
+                $uploadDir = '../uploads/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+    
+                if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
+                    foreach ($_FILES['archivos']['name'] as $key => $name) {
+                        if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
+                            $fileName = basename($name);
+                            $filePath = $uploadDir . uniqid() . '_' . $fileName;
+                            if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
+                                $rutas_archivos[] = 'uploads/' . basename($filePath);
+                            } else {
+                                throw new Exception('Error al subir uno o más archivos.');
+                            }
+                        }
+                    }
+                }
+                $rutas_json = json_encode($rutas_archivos);
+    
+                $detalle = new DetalleLiquidacion();
+                if ($detalle->createDetalleLiquidacion($id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_json)) {
+                    $lastInsertId = $this->pdo->lastInsertId();
+                    $auditoria = new Auditoria();
+                    $auditoria->createAuditoria($id_liquidacion, $lastInsertId, $_SESSION['user_id'], 'CREADO', 'Detalle de liquidación creado por encargado');
+                    header('Content-Type: application/json');
+                    http_response_code(201);
+                    echo json_encode(['message' => 'Detalle de liquidación creado']);
                 } else {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Error al subir la imagen']);
-                    exit;
+                    throw new Exception('Error al crear detalle de liquidación en la base de datos.');
                 }
-            }
-
-            if (isset($_FILES['rutarchivopdf']) && $_FILES['rutarchivopdf']['error'] === UPLOAD_ERR_OK) {
-                $pdfName = basename($_FILES['rutarchivopdf']['name']);
-                $pdfPath = $uploadDir . $pdfName;
-                if (move_uploaded_file($_FILES['rutarchivopdf']['tmp_name'], $pdfPath)) {
-                    $rutarchivopdf = 'uploads/' . $pdfName;
-                } else {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Error al subir el PDF']);
-                    exit;
-                }
-            }
-
-            $detalle = new DetalleLiquidacion();
-            if ($detalle->createDetalleLiquidacion($id_liquidacion, $no_factura, $regimen, $c_costo, $nit_proveedor, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $codigo_ccta, $descripcion_factura, $p_unitario, $iva, $total_factura, $idp, $inguat, $rutaimagen, $rutarchivopdf, $porcentajeiva, $porcentajeidp, $tipo_combustible)) {
-                http_response_code(201);
-                echo json_encode(['message' => 'Detalle de liquidación creado']);
-            } else {
+            } catch (Exception $e) {
+                error_log('Error en createDetalleLiquidacion: ' . $e->getMessage());
+                header('Content-Type: application/json');
                 http_response_code(400);
-                echo json_encode(['error' => 'Error al crear detalle de liquidación']);
+                echo json_encode(['error' => $e->getMessage()]);
             }
             exit;
         }
+    
+        $liquidacion = new Liquidacion();
+        $liquidaciones = $liquidacion->getAllLiquidaciones();
+        $selectLiquidaciones = '';
+        foreach ($liquidaciones as $l) {
+            $selectLiquidaciones .= "<option value='{$l['id']}'>{$l['nombre_caja_chica']} - {$l['fecha_creacion']}</option>";
+        }
+    
+        $tipoGasto = new TipoGasto();
+        $tiposGastos = $tipoGasto->getAllTiposGastos();
+        $selectTiposGastos = '';
+        foreach ($tiposGastos as $tg) {
+            $selectTiposGastos .= "<option value='{$tg['name']}'>{$tg['name']}</option>";
+        }
+    
+        ob_start();
         require '../views/detalle_liquidaciones/form.html';
+        $html = ob_get_clean();
+        $html = str_replace('{{select_liquidaciones}}', $selectLiquidaciones, $html);
+        $html = str_replace('{{select_tipos_gastos}}', $selectTiposGastos, $html);
+        echo $html;
+        exit;
     }
-
+    
     public function updateDetalleLiquidacion($id) {
+        if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id en updateDetalleLiquidacion');
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
+            error_log('Error: No tienes permiso para actualizar detalles de liquidaciones');
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para actualizar detalles de liquidaciones']);
+            exit;
+        }
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id_liquidacion = $_POST['id_liquidacion'] ?? '';
-            $no_factura = $_POST['no_factura'] ?? '';
-            $regimen = $_POST['regimen'] ?? NULL;
-            $c_costo = $_POST['c_costo'] ?? NULL;
-            $nit_proveedor = $_POST['nit_proveedor'] ?? NULL;
-            $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
-            $fecha = $_POST['fecha'] ?? '';
-            $bien_servicio = $_POST['bien_servicio'] ?? '';
-            $t_gasto = $_POST['t_gasto'] ?? '';
-            $codigo_ccta = $_POST['codigo_ccta'] ?? NULL;
-            $descripcion_factura = $_POST['descripcion_factura'] ?? '';
-            $p_unitario = $_POST['p_unitario'] ?? 0;
-            $iva = $_POST['iva'] ?? 0;
-            $total_factura = $_POST['total_factura'] ?? 0;
-            $idp = $_POST['idp'] ?? 0;
-            $inguat = $_POST['inguat'] ?? 0;
-            $rutaimagen = NULL;
-            $rutarchivopdf = NULL;
-            $porcentajeiva = $_POST['porcentajeiva'] ?? 0;
-            $porcentajeidp = $_POST['porcentajeidp'] ?? 0;
-            $tipo_combustible = $_POST['tipo_combustible'] ?? NULL;
-            $estado = $_POST['estado'] ?? 'PENDIENTE';
-
-            $uploadDir = '../uploads/';
-            if (!file_exists($uploadDir)) {
-                if (!mkdir($uploadDir, 0777, true)) {
-                    http_response_code(500);
-                    echo json_encode(['error' => 'No se pudo crear la carpeta uploads/']);
-                    exit;
+            try {
+                $id_liquidacion = $_POST['id_liquidacion'] ?? '';
+                $no_factura = $_POST['no_factura'] ?? '';
+                $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
+                $fecha = $_POST['fecha'] ?? '';
+                $bien_servicio = $_POST['bien_servicio'] ?? '';
+                $t_gasto = $_POST['t_gasto'] ?? '';
+                $p_unitario = $_POST['p_unitario'] ?? 0;
+                $total_factura = $_POST['total_factura'] ?? 0;
+                $estado = $_POST['estado'] ?? 'PENDIENTE';
+    
+                if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura) || empty($estado)) {
+                    throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
-            }
-
-            if (isset($_FILES['rutaimagen']) && $_FILES['rutaimagen']['error'] === UPLOAD_ERR_OK) {
-                $imageName = basename($_FILES['rutaimagen']['name']);
-                $imagePath = $uploadDir . $imageName;
-                if (move_uploaded_file($_FILES['rutaimagen']['tmp_name'], $imagePath)) {
-                    $rutaimagen = 'uploads/' . $imageName;
+    
+                $liquidacionModel = new Liquidacion();
+                if (!$liquidacionModel->getLiquidacionById($id_liquidacion)) {
+                    throw new Exception('El ID de liquidación ' . $id_liquidacion . ' no existe.');
                 }
-            }
-
-            if (isset($_FILES['rutarchivopdf']) && $_FILES['rutarchivopdf']['error'] === UPLOAD_ERR_OK) {
-                $pdfName = basename($_FILES['rutarchivopdf']['name']);
-                $pdfPath = $uploadDir . $pdfName;
-                if (move_uploaded_file($_FILES['rutarchivopdf']['tmp_name'], $pdfPath)) {
-                    $rutarchivopdf = 'uploads/' . $pdfName;
+    
+                $rutas_archivos = [];
+                $uploadDir = '../uploads/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
                 }
-            }
-
-            $detalle = new DetalleLiquidacion();
-            if ($detalle->updateDetalleLiquidacion($id, $id_liquidacion, $no_factura, $regimen, $c_costo, $nit_proveedor, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $codigo_ccta, $descripcion_factura, $p_unitario, $iva, $total_factura, $idp, $inguat, $rutaimagen, $rutarchivopdf, $porcentajeiva, $porcentajeidp, $tipo_combustible, $estado)) {
-                echo json_encode(['message' => 'Detalle de liquidación actualizado']);
-            } else {
+    
+                $detalle = new DetalleLiquidacion();
+                $existingData = $detalle->getDetalleLiquidacionById($id);
+                if (!$existingData) {
+                    throw new Exception('El detalle con ID ' . $id . ' no existe.');
+                }
+    
+                $existingRutas = [];
+                if (isset($existingData['rutas_archivos'])) {
+                    if (is_array($existingData['rutas_archivos'])) {
+                        $existingRutas = $existingData['rutas_archivos'];
+                    } else {
+                        $decodedRutas = json_decode($existingData['rutas_archivos'], true);
+                        $existingRutas = is_array($decodedRutas) ? $decodedRutas : [];
+                    }
+                }
+    
+                if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
+                    foreach ($_FILES['archivos']['name'] as $key => $name) {
+                        if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
+                            $fileName = basename($name);
+                            $filePath = $uploadDir . uniqid() . '_' . $fileName;
+                            if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
+                                $rutas_archivos[] = 'uploads/' . basename($filePath);
+                            } else {
+                                throw new Exception('Error al subir uno o más archivos.');
+                            }
+                        }
+                    }
+                    $rutas_archivos = array_merge($existingRutas, $rutas_archivos);
+                } else {
+                    $rutas_archivos = $existingRutas;
+                }
+    
+                $rutas_json = json_encode($rutas_archivos);
+    
+                $detalle = new DetalleLiquidacion();
+                if ($detalle->updateDetalleLiquidacion($id, $id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_json)) {
+                    $auditoria = new Auditoria();
+                    $auditoria->createAuditoria($id_liquidacion, $id, $_SESSION['user_id'], 'ACTUALIZADO', 'Detalle de liquidación actualizado');
+    
+                    $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM detalle_liquidaciones WHERE id_liquidacion = ? AND estado = 'DESCARTADO'");
+                    $stmt->execute([$id_liquidacion]);
+                    $descartados = $stmt->fetchColumn();
+    
+                    if ($descartados == 0) {
+                        $liquidacionModel = new Liquidacion();
+                        $liquidacionModel->updateEstado($id_liquidacion, 'PENDIENTE');
+                        $auditoria->createAuditoria($id_liquidacion, null, $_SESSION['user_id'], 'PENDIENTE', 'Liquidación restaurada a PENDIENTE tras corrección de detalles');
+                    }
+    
+                    header('Content-Type: application/json');
+                    echo json_encode(['message' => 'Detalle de liquidación actualizado']);
+                } else {
+                    throw new Exception('Error al actualizar detalle de liquidación en la base de datos.');
+                }
+            } catch (Exception $e) {
+                error_log('Error en updateDetalleLiquidacion: ' . $e->getMessage());
+                header('Content-Type: application/json');
                 http_response_code(400);
-                echo json_encode(['error' => 'Error al actualizar detalle de liquidación']);
+                echo json_encode(['error' => $e->getMessage()]);
+                exit;
             }
             exit;
         }
+    
         $detalle = new DetalleLiquidacion();
         $data = $detalle->getDetalleLiquidacionById($id);
+        if (!$data) {
+            echo "<h2>Error: Detalle no encontrado</h2>";
+            echo "<p>No se pudo cargar el detalle con ID " . htmlspecialchars($id) . ".</p>";
+            echo '<a href="index.php?controller=detalleliquidacion&action=list">Volver a Lista</a>';
+            exit;
+        }
+    
+        $liquidacion = new Liquidacion();
+        $liquidaciones = $liquidacion->getAllLiquidaciones();
+        $selectLiquidaciones = '';
+        foreach ($liquidaciones as $l) {
+            $selected = $data['id_liquidacion'] == $l['id'] ? 'selected' : '';
+            $selectLiquidaciones .= "<option value='{$l['id']}' {$selected}>{$l['nombre_caja_chica']} - {$l['fecha_creacion']}</option>";
+        }
+    
+        $tipoGasto = new TipoGasto();
+        $tiposGastos = $tipoGasto->getAllTiposGastos();
+        $selectTiposGastos = '';
+        foreach ($tiposGastos as $tg) {
+            $selected = $data['t_gasto'] == $tg['name'] ? 'selected' : '';
+            $selectTiposGastos .= "<option value='{$tg['name']}' {$selected}>{$tg['name']}</option>";
+        }
+    
+        ob_start();
         require '../views/detalle_liquidaciones/form.html';
+        $html = ob_get_clean();
+        $html = str_replace('{{select_liquidaciones}}', $selectLiquidaciones, $html);
+        $html = str_replace('{{select_tipos_gastos}}', $selectTiposGastos, $html);
+        echo $html;
+        exit;
     }
-
+    
     public function deleteDetalleLiquidacion($id) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para eliminar detalles de liquidaciones']);
+            exit;
+        }
+    
         $detalle = new DetalleLiquidacion();
+        $detalleData = $detalle->getDetalleLiquidacionById($id);
+        if (!$detalleData) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Detalle no encontrado']);
+            exit;
+        }
+    
+        // Eliminar registros dependientes en auditoria
+        $auditoria = new Auditoria();
+        $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_detalle_liquidacion = ?");
+        if (!$stmt->execute([$id])) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al eliminar registros de auditoría relacionados']);
+            exit;
+        }
+    
         if ($detalle->deleteDetalleLiquidacion($id)) {
+            $auditoria->createAuditoria($detalleData['id_liquidacion'], $id, $_SESSION['user_id'], 'ELIMINADO', 'Detalle de liquidación eliminado');
+            header('Content-Type: application/json');
             echo json_encode(['message' => 'Detalle de liquidación eliminado']);
         } else {
+            header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => 'Error al eliminar detalle de liquidación']);
         }
+        exit;
+    }
+    
+    public function revisarDetalle($id) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para revisar detalles']);
+            exit;
+        }
+    
+        $detalleModel = new DetalleLiquidacion();
+        $data = $detalleModel->getDetalleLiquidacionById($id);
+        if (!$data) {
+            require '../views/detalle_liquidaciones/revisar_individual.html';
+            exit;
+        }
+    
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $accion = $_POST['accion'] ?? '';
+            $motivo = $_POST['motivo'] ?? '';
+    
+            if (!in_array($accion, ['AUTORIZADO_POR_CONTABILIDAD', 'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO'])) {
+                header('Content-Type: application/json');
+                http_response_code(400);
+                echo json_encode(['error' => 'Acción no válida']);
+                exit;
+            }
+    
+            try {
+                $detalleModel->updateEstado($id, $accion);
+                $auditoria = new Auditoria();
+                $auditoria->createAuditoria($data['id_liquidacion'], $id, $_SESSION['user_id'], $accion, $motivo);
+    
+                $liquidacionModel = new Liquidacion();
+                $detalles = $detalleModel->getDetallesByLiquidacionId($data['id_liquidacion']);
+                $allAutorizado = true;
+                $anyDescartado = false;
+    
+                foreach ($detalles as $d) {
+                    if ($d['estado'] !== 'AUTORIZADO_POR_CONTABILIDAD') {
+                        $allAutorizado = false;
+                    }
+                    if ($d['estado'] === 'DESCARTADO') {
+                        $anyDescartado = true;
+                    }
+                }
+    
+                if ($anyDescartado) {
+                    $liquidacionModel->updateEstado($data['id_liquidacion'], 'PENDIENTE_CORRECCIÓN');
+                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'PENDIENTE_CORRECCIÓN', 'Liquidación marcada para corrección tras revisión de detalle');
+                } elseif ($allAutorizado) {
+                    $liquidacionModel->updateEstado($data['id_liquidacion'], 'AUTORIZADO_POR_CONTABILIDAD');
+                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'AUTORIZADO_POR_CONTABILIDAD', 'Liquidación completamente autorizada tras revisión de detalles');
+                }
+    
+                header('Content-Type: application/json');
+                echo json_encode(['message' => 'Revisión registrada correctamente']);
+            } catch (Exception $e) {
+                error_log('Error al registrar revisión: ' . $e->getMessage());
+                header('Content-Type: application/json');
+                http_response_code(500);
+                echo json_encode(['error' => 'Error al registrar la revisión: ' . $e->getMessage()]);
+            }
+            exit;
+        }
+    
+        require '../views/detalle_liquidaciones/revisar_individual.html';
         exit;
     }
 }

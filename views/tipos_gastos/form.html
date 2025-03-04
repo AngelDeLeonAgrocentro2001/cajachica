@@ -2,18 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Formulario de Tipos de Gastos</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <title><?php echo isset($data) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></title>
+    <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
-    <h2><?php echo isset($tipoGasto) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></h2>
-    <form id="tipoGastoForm">
-        <input type="hidden" name="id" value="<?php echo isset($tipoGasto) ? $tipoGasto['id'] : ''; ?>">
-        <input type="text" name="name" placeholder="Nombre" value="<?php echo isset($tipoGasto) ? $tipoGasto['name'] : ''; ?>" required>
-        <textarea name="description" placeholder="Descripción"><?php echo isset($tipoGasto) ? $tipoGasto['description'] : ''; ?></textarea>
-        <button type="submit">Guardar</button>
+    <h2><?php echo isset($data) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></h2>
+    <form id="tipoGastoFormInner">
+        <input type="hidden" name="id" value="<?php echo isset($data) ? $data['id'] : ''; ?>">
+        <input type="text" name="name" placeholder="Nombre" value="<?php echo isset($data) ? $data['name'] : ''; ?>" required>
+        <input type="text" name="description" placeholder="Descripción" value="<?php echo isset($data) ? $data['description'] : ''; ?>" required>
+        <div class="error" data-field="name"></div>
+        <div class="error" data-field="description"></div>
+        <div class="success"></div>
+        <div class="error"></div>
+        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
         <button type="button" onclick="cancelForm()">Cancelar</button>
     </form>
-    <script src="../js/tipos_gastos.js"></script>
+    <script src="../views/js/tipos_gastos.js"></script>
 </body>
 </html>

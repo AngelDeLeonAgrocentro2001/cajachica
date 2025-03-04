@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generar Reportes</title>
+    <link rel="stylesheet" href="../views/css/style.css">
+</head>
+<body>
+    <?php include '../views/partials/menu.php'; ?>
+    <h2>Generar Reportes</h2>
+    <form id="reporteForm">
+        <h3>Filtros para Reporte Detallado</h3>
+        <label>Fecha Inicio:</label>
+        <input type="date" name="fecha_inicio">
+        <label>Fecha Fin:</label>
+        <input type="date" name="fecha_fin">
+        <label>Caja Chica:</label>
+        <select name="id_caja_chica">
+            <option value="">Todas</option>
+            <?php foreach ($cajasChicas as $caja): ?>
+                <option value="<?php echo $caja['id']; ?>"><?php echo htmlspecialchars($caja['nombre']); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <label>Estado:</label>
+        <select name="estado">
+            <option value="">Todos</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="AUTORIZADO_POR_SUPERVISOR">Autorizado por Supervisor</option>
+            <option value="RECHAZADO_POR_SUPERVISOR">Rechazado por Supervisor</option>
+            <option value="AUTORIZADO_POR_CONTABILIDAD">Autorizado por Contabilidad</option>
+            <option value="RECHAZADO_POR_CONTABILIDAD">Rechazado por Contabilidad</option>
+            <option value="PENDIENTE_CORRECCIÓN">Pendiente de Corrección</option>
+        </select>
+        <button type="button" onclick="generarReporte('generarResumen')">Generar Reporte de Resumen</button>
+        <button type="button" onclick="generarReporte('generarDetalle')">Generar Reporte Detallado</button>
+    </form>
+    <script>
+        function generarReporte(action) {
+            const form = document.getElementById('reporteForm');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData).toString();
+            window.location.href = `index.php?controller=reportes&action=${action}&${params}`;
+        }
+    </script>
+</body>
+</html>

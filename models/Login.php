@@ -1,6 +1,5 @@
 <?php
 require_once '../config/database.php';
-require_once '../config/jwt.php';
 
 class Login {
     private $pdo;
@@ -10,14 +9,14 @@ class Login {
         $this->pdo = $pdo;
     }
 
-    public function authenticate($username, $password) {
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    public function authenticate($email, $password) {
+        $stmt = $this->pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && password_verify($password, $user['password'])) {
-            unset($user['password']); // No incluimos la contraseña en el token
-            return generateJWT(['user' => $user]);
+        if ($usuario && password_verify($password, $usuario['password'])) {
+            unset($usuario['password']);
+            return $usuario;
         }
         return false;
     }

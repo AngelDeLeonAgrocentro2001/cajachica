@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?></title>
+    <link rel="stylesheet" href="../views/css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?> ID: <?php echo htmlspecialchars($data['id']); ?></h2>
+    <p><strong>Caja Chica:</strong> <?php echo htmlspecialchars($data['id_caja_chica']); ?></p>
+    <p><strong>Fecha Creación:</strong> <?php echo htmlspecialchars($data['fecha_creacion']); ?></p>
+    <p><strong>Monto Total:</strong> <?php echo htmlspecialchars($data['monto_total']); ?></p>
+    <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
+    <h3>Detalles de la Liquidación</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Número Factura</th>
+                <th>Proveedor</th>
+                <th>Total Factura</th>
+                <th>Estado</th>
+                <th>Seleccionar</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($detalles as $detalle): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($detalle['id']); ?></td>
+                    <td><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
+                    <td><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                    <td><?php echo htmlspecialchars($detalle['total_factura']); ?></td>
+                    <td><?php echo htmlspecialchars($detalle['estado']); ?></td>
+                    <td><input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" checked></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <form id="autorizarForm">
+        <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
+        <select name="accion" required>
+            <?php if (isset($mode) && $mode === 'revisar'): ?>
+                <option value="AUTORIZADO_POR_CONTABILIDAD">Autorizar</option>
+                <option value="RECHAZADO_POR_CONTABILIDAD">Rechazar</option>
+                <option value="DESCARTADO">Descartar</option>
+            <?php else: ?>
+                <option value="AUTORIZADO_POR_SUPERVISOR">Autorizar</option>
+                <option value="RECHAZADO_POR_SUPERVISOR">Rechazar</option>
+                <option value="DESCARTADO">Descartar</option>
+            <?php endif; ?>
+        </select>
+        <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
+        <div class="error" data-field="accion"></div>
+        <div class="error" data-field="motivo"></div>
+        <div class="success"></div>
+        <div class="error"></div>
+        <button type="submit"><?php echo isset($mode) && $mode === 'revisar' ? 'Enviar Revisión' : 'Enviar Autorización'; ?></button>
+        <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
+    </form>
+    <script>
+        const form = document.getElementById('autorizarForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const id = formData.get('id');
+            const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
+            const action = mode === 'revisar' ? 'revisar' : 'autorizar';
+            try {
+                const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al procesar la solicitud');
+                }
+                const result = await response.json();
+                if (result.message) {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                } else if (result.error) {
+                    const errorElement = form.querySelector('.error');
+                    errorElement.textContent = result.error;
+                    errorElement.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error al enviar solicitud:', error);
+                const errorElement = form.querySelector('.error');
+                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                errorElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

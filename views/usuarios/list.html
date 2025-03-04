@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Mantenimiento de Usuarios</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
+    <?php include '../views/partials/menu.php'; ?>
     <h2>Lista de Usuarios</h2>
     <button onclick="showCreateForm()">Crear Usuario</button>
     <table id="usuariosTable">
@@ -20,7 +21,7 @@
         </thead>
         <tbody></tbody>
     </table>
-    <div id="usuarioForm" style="display: none;"></div>
-    <script src="../js/usuario.js"></script>
+    <div id="usuarioFormInner" style="display: none;"></div>
+    <script src="../views/js/usuarios.js"></script>
 </body>
 </html>

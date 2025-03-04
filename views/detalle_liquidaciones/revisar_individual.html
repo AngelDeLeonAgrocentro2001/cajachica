@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Revisar Detalle de Liquidación</title>
+    <link rel="stylesheet" href="../views/css/style.css">
+</head>
+<body>
+    <?php if (!isset($data) || empty($data) || !is_array($data)): ?>
+        <h2>Error: Detalle no encontrado</h2>
+        <p>No se pudo cargar el detalle con ID <?php echo htmlspecialchars($id); ?>.</p>
+        <a href="index.php?controller=detalleliquidacion&action=list&mode=revisar">Volver a Revisión</a>
+    <?php else: ?>
+        <h2>Revisar Detalle de Liquidación ID: <?php echo htmlspecialchars($data['id']); ?></h2>
+        <p><strong>Liquidación:</strong> <?php echo htmlspecialchars($data['id_liquidacion']); ?></p>
+        <p><strong>Número Factura:</strong> <?php echo htmlspecialchars($data['no_factura']); ?></p>
+        <p><strong>Proveedor:</strong> <?php echo htmlspecialchars($data['nombre_proveedor']); ?></p>
+        <p><strong>Fecha:</strong> <?php echo htmlspecialchars($data['fecha']); ?></p>
+        <p><strong>Bien/Servicio:</strong> <?php echo htmlspecialchars($data['bien_servicio']); ?></p>
+        <p><strong>Tipo de Gasto:</strong> <?php echo htmlspecialchars($data['t_gasto']); ?></p>
+        <p><strong>Precio Unitario:</strong> <?php echo htmlspecialchars($data['p_unitario']); ?></p>
+        <p><strong>Total Factura:</strong> <?php echo htmlspecialchars($data['total_factura']); ?></p>
+        <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
+        <p><strong>Archivos:</strong></p>
+        <ul>
+            <?php
+            $rutas = isset($data['rutas_archivos']) && is_array($data['rutas_archivos']) ? $data['rutas_archivos'] : [];
+            if (empty($rutas)) {
+                echo '<li>No hay archivos adjuntos.</li>';
+            } else {
+                foreach ($rutas as $ruta) {
+                    echo '<li><a href="../' . htmlspecialchars($ruta) . '" target="_blank">' . htmlspecialchars(basename($ruta)) . '</a></li>';
+                }
+            }
+            ?>
+        </ul>
+        <form id="revisarForm">
+            <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
+            <select name="accion" required>
+                <option value="AUTORIZADO_POR_CONTABILIDAD">Autorizar</option>
+                <option value="RECHAZADO_POR_CONTABILIDAD">Rechazar</option>
+                <option value="DESCARTADO">Descartar</option>
+            </select>
+            <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
+            <div class="error" data-field="accion"></div>
+            <div class="error" data-field="motivo"></div>
+            <div class="success"></div>
+            <div class="error"></div>
+            <button type="submit">Enviar Revisión</button>
+            <button type="button" onclick="window.location.href='index.php?controller=detalleliquidacion&action=list&mode=revisar'">Volver</button>
+        </form>
+        <script>
+            const form = document.getElementById('revisarForm');
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+                try {
+                    const response = await fetch(`index.php?controller=detalleliquidacion&action=revisar&id=${id}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al procesar la revisión');
+                    }
+                    const result = await response.json();
+                    if (result.message) {
+                        window.location.href = 'index.php?controller=detalleliquidacion&action=list&mode=revisar';
+                    } else if (result.error) {
+                        const errorElement = form.querySelector('.error');
+                        errorElement.textContent = result.error;
+                        errorElement.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error al enviar revisión:', error);
+                    const errorElement = form.querySelector('.error');
+                    errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                    errorElement.style.display = 'block';
+                }
+            });
+        </script>
+    <?php endif; ?>
+</body>
+</html>

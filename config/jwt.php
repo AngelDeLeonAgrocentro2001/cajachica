@@ -1,11 +1,11 @@
-<?php
+<!-- <?php
 require '../vendor/autoload.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
-define('JWT_SECRET', 'probando'); // Cambia por un secreto único y seguro
+define('JWT_SECRET', 'tu_secreto_super_seguro'); 
 define('JWT_ALGORITHM', 'HS256');
-define('JWT_EXPIRY', 3600); // 1 hora de expiración
+define('JWT_EXPIRY', 3600);
 
 function generateJWT($payload) {
     $payload['exp'] = time() + JWT_EXPIRY;
@@ -19,3 +19,4 @@ function validateJWT($token) {
         return false;
     }
 }
+?> -->

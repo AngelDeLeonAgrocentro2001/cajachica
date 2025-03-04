@@ -51,41 +51,172 @@ textarea {
     resize: vertical;
 }
 
+/* Estilos generales para las tablas */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+}
+
+td {
+    word-wrap: break-word; /* Permite que el texto largo se ajuste */
+    max-width: 150px; /* Define un ancho máximo para las celdas */
+}
+
+/* Estilos específicos para la tabla de detalles */
+#detallesTable th:nth-child(1), #detallesTable td:nth-child(1) { /* ID */
+    width: 5%;
+}
+#detallesTable th:nth-child(2), #detallesTable td:nth-child(2) { /* Liquidación */
+    width: 8%;
+}
+#detallesTable th:nth-child(3), #detallesTable td:nth-child(3) { /* Factura */
+    width: 8%;
+}
+#detallesTable th:nth-child(4), #detallesTable td:nth-child(4) { /* Proveedor */
+    width: 12%;
+}
+#detallesTable th:nth-child(5), #detallesTable td:nth-child(5) { /* Fecha */
+    width: 8%;
+}
+#detallesTable th:nth-child(6), #detallesTable td:nth-child(6) { /* Bien/Servicio */
+    width: 12%;
+}
+#detallesTable th:nth-child(7), #detallesTable td:nth-child(7) { /* Tipo de Gasto */
+    width: 10%;
+}
+#detallesTable th:nth-child(8), #detallesTable td:nth-child(8) { /* Precio Unitario */
+    width: 8%;
+}
+#detallesTable th:nth-child(9), #detallesTable td:nth-child(9) { /* Total Factura */
+    width: 8%;
+}
+#detallesTable th:nth-child(10), #detallesTable td:nth-child(10) { /* Estado */
+    width: 10%;
+}
+#detallesTable th:nth-child(11), #detallesTable td:nth-child(11) { /* Archivos */
+    width: 8%;
+}
+#detallesTable th:nth-child(12), #detallesTable td:nth-child(12) { /* Acciones */
+    width: 10%;
+}
+
+
+
+/* Estilos para la tabla de liquidaciones */
+#liquidacionesTable th:nth-child(1), #liquidacionesTable td:nth-child(1) { /* ID */
+    width: 10%;
+}
+#liquidacionesTable th:nth-child(2), #liquidacionesTable td:nth-child(2) { /* Caja Chica */
+    width: 20%;
+}
+#liquidacionesTable th:nth-child(3), #liquidacionesTable td:nth-child(3) { /* Fecha Creación */
+    width: 20%;
+}
+#liquidacionesTable th:nth-child(4), #liquidacionesTable td:nth-child(4) { /* Monto Total */
+    width: 15%;
+}
+#liquidacionesTable th:nth-child(5), #liquidacionesTable td:nth-child(5) { /* Estado */
+    width: 20%;
+}
+#liquidacionesTable th:nth-child(6), #liquidacionesTable td:nth-child(6) { /* Acciones */
+    width: 15%;
+}
+
+/* Estilos para la tabla de cajas chicas */
+#cajasChicasTable th:nth-child(1), #cajasChicasTable td:nth-child(1) { /* ID */
+    width: 10%;
+}
+#cajasChicasTable th:nth-child(2), #cajasChicasTable td:nth-child(2) { /* Nombre */
+    width: 25%;
+}
+#cajasChicasTable th:nth-child(3), #cajasChicasTable td:nth-child(3) { /* Monto Asignado */
+    width: 15%;
+}
+#cajasChicasTable th:nth-child(4), #cajasChicasTable td:nth-child(4) { /* Monto Disponible */
+    width: 15%;
+}
+#cajasChicasTable th:nth-child(5), #cajasChicasTable td:nth-child(5) { /* Estado */
+    width: 15%;
+}
+#cajasChicasTable th:nth-child(6), #cajasChicasTable td:nth-child(6) { /* Acciones */
+    width: 20%;
+}
+
+/* Estilos para la tabla de auditoría */
+#auditoriaTable th:nth-child(1), #auditoriaTable td:nth-child(1) { /* ID */
+    width: 5%;
+}
+#auditoriaTable th:nth-child(2), #auditoriaTable td:nth-child(2) { /* Liquidación */
+    width: 10%;
+}
+#auditoriaTable th:nth-child(3), #auditoriaTable td:nth-child(3) { /* Detalle */
+    width: 10%;
+}
+#auditoriaTable th:nth-child(4), #auditoriaTable td:nth-child(4) { /* Usuario */
+    width: 15%;
+}
+#auditoriaTable th:nth-child(5), #auditoriaTable td:nth-child(5) { /* Tipo de Acción */
+    width: 20%;
+}
+#auditoriaTable th:nth-child(6), #auditoriaTable td:nth-child(6) { /* Detalles */
+    width: 25%;
+}
+#auditoriaTable th:nth-child(7), #auditoriaTable td:nth-child(7) { /* Fecha */
+    width: 15%;
+}
+
+/* Estilos para la tabla de usuarios */
+#usuariosTable th:nth-child(1), #usuariosTable td:nth-child(1) { /* ID */
+    width: 10%;
+}
+#usuariosTable th:nth-child(2), #usuariosTable td:nth-child(2) { /* Nombre */
+    width: 25%;
+}
+#usuariosTable th:nth-child(3), #usuariosTable td:nth-child(3) { /* Email */
+    width: 30%;
+}
+#usuariosTable th:nth-child(4), #usuariosTable td:nth-child(4) { /* Rol */
+    width: 20%;
+}
+#usuariosTable th:nth-child(5), #usuariosTable td:nth-child(5) { /* Acciones */
+    width: 15%;
+}
+
+/* Estilos para los botones */
 button {
+    padding: 5px 10px;
+    margin: 2px;
     background-color: #007BFF;
     color: white;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
-    padding: 12px;
-    font-size: 16px;
 }
 
 button:hover {
     background-color: #0056b3;
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+a {
+    color: #007bff;
+    text-decoration: none;
+    margin: 2px;
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    text-align: left;
-}
-
-th {
-    background-color: #007BFF;
-    color: white;
-}
-
-tr:nth-child(even) {
-    background-color: #f9f9f9;
+a:hover {
+    text-decoration: underline;
 }
 
 .error {
@@ -112,4 +243,20 @@ tr:nth-child(even) {
         padding: 8px;
         font-size: 14px;
     }
+}
+
+
+
+.success {
+    color: #28a745;
+    font-size: 14px;
+    margin-top: 10px;
+    display: none;
+}
+
+.error {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+    display: none;
 }

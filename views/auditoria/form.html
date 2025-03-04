@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title><?php echo isset($data) ? 'Editar auditorial de Aprobación' : 'Crear auditorial de Aprobación'; ?></title>
+    <link rel="stylesheet" href="../views/css/style.css">
+</head>
+<body>
+    <h2><?php echo isset($data) ? 'Editar auditorial de Aprobación' : 'Crear auditorial de Aprobación'; ?></h2>
+    <form id="AuditoriaFormInner">
+        <select name="id_liquidacion" required>
+            {{select_liquidaciones}}
+        </select>
+        <select name="id_detalle_liquidacion">
+            {{select_detalles}}
+        </select>
+        <select name="id_usuario" required>
+            {{select_usuarios}}
+        </select>
+        <select name="accion" required>
+            <option value="APROBADO">Aprobado</option>
+            <option value="RECHAZADO">Rechazado</option>
+        </select>
+        <input type="text" name="comentario" placeholder="Comentario" value="<?php echo isset($data) ? $data['comentario'] : ''; ?>">
+        <div class="error" data-field="id_liquidacion"></div>
+        <div class="error" data-field="id_detalle_liquidacion"></div>
+        <div class="error" data-field="id_usuario"></div>
+        <div class="error" data-field="accion"></div>
+        <div class="error" data-field="comentario"></div>
+        <div class="success"></div>
+        <div class="error"></div>
+        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+        <button type="button" onclick="cancelForm()">Cancelar</button>
+    </form>
+    <script src="../views/js/auditoria.js"></script>
+</body>
+</html>

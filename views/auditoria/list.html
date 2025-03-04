@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Auditoría</title>
+    <link rel="stylesheet" href="../views/css/style.css">
+</head>
+<body>
+    <?php include '../views/partials/menu.php'; ?>
+    <h2>Historial de Auditoría</h2>
+    <form id="auditoriaFilterForm">
+        <h3>Filtros</h3>
+        <label>Usuario:</label>
+        <select name="id_usuario">
+            <?php echo $selectUsuarios; ?>
+        </select>
+        <label>Tipo de Acción:</label>
+        <select name="tipo_accion">
+            <?php echo $selectTiposAcciones; ?>
+        </select>
+        <label>Fecha Inicio:</label>
+        <input type="date" name="fecha_inicio">
+        <label>Fecha Fin:</label>
+        <input type="date" name="fecha_fin">
+        <button type="button" onclick="loadAuditoria()">Filtrar</button>
+    </form>
+    <table id="auditoriaTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Liquidación</th>
+                <th>Detalle</th>
+                <th>Usuario</th>
+                <th>Tipo de Acción</th>
+                <th>Detalles</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        async function loadAuditoria() {
+            const form = document.getElementById('auditoriaFilterForm');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData).toString();
+            console.log('Parámetros enviados:', params);
+            try {
+                const response = await fetch(`index.php?controller=auditoria&action=getAuditoria&${params}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    try {
+                        const errorData = JSON.parse(text);
+                        throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
+                    } catch (parseError) {
+                        throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
+                    }
+                }
+                const auditoria = await response.json();
+                console.log('Registros recibidos:', auditoria);
+                const tbody = document.querySelector('#auditoriaTable tbody');
+                tbody.innerHTML = '';
+                if (auditoria.length > 0) {
+                    auditoria.forEach(entry => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${entry.id}</td>
+                                <td>${entry.id_liquidacion || '-'}</td>
+                                <td>${entry.id_detalle_liquidacion || '-'}</td>
+                                <td>${entry.usuario_nombre}</td>
+                                <td>${entry.tipo_accion}</td>
+                                <td>${entry.detalles || '-'}</td>
+                                <td>${entry.fecha}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7">No hay registros de auditoría.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error al cargar auditoría:', error.message);
+                alert('No se pudo cargar el historial de auditoría: ' + error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAuditoria();
+        });
+    </script>
+</body>
+</html>

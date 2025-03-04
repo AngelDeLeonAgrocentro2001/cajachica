@@ -3,25 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <title>Mantenimiento de Detalles de Liquidaciones</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../views/css/style.css">
 </head>
 <body>
+    <?php include '../views/partials/menu.php'; ?>
     <h2>Lista de Detalles de Liquidaciones</h2>
-    <button onclick="showCreateForm()">Crear Detalle de Liquidación</button>
-    <table id="detallesLiquidacionesTable">
+    <?php if ($usuarioModel->tienePermiso($usuario, 'create_detalles')): ?>
+        <button onclick="showCreateForm()">Crear Detalle de Liquidación</button>
+    <?php endif; ?>
+    <table id="detallesTable">
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Número Factura</th>
+                <th>Liquidación</th>
+                <th>Factura</th>
                 <th>Proveedor</th>
+                <th>Fecha</th>
+                <th>Bien/Servicio</th>
+                <th>Tipo de Gasto</th>
+                <th>Precio Unitario</th>
                 <th>Total Factura</th>
                 <th>Estado</th>
+                <th>Archivos</th>
                 <th>Acciones</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <div id="detalleLiquidacionForm" style="display: none;"></div>
-    <script src="../js/detalle_liquidaciones.js"></script>
+    <div id="detalleForm" style="display: none;"></div>
+    <script src="../views/js/detalle_liquidaciones.js"></script>
 </body>
 </html>

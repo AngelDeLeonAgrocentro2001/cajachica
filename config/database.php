@@ -15,4 +15,32 @@ try {
 } catch (PDOException $e) {
     die("Error de conexión: " . $e->getMessage());
 }
-?>
+
+// config/database.php
+
+class Database {
+    private static $instance = null;
+    private $pdo;
+
+    private function __construct() {
+        try {
+            $this->pdo = new PDO('mysql:host=localhost;dbname=cajas_chicas', 'root', '');
+            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->pdo->exec("SET CHARACTER SET utf8");
+        } catch (PDOException $e) {
+            error_log("Error al conectar a la base de datos: " . $e->getMessage());
+            throw new Exception("Error al conectar a la base de datos: " . $e->getMessage());
+        }
+    }
+
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new Database();
+        }
+        return self::$instance;
+    }
+
+    public function getPdo() {
+        return $this->pdo;
+    }
+}
