@@ -1,5 +1,8 @@
 {
     "require": {
-        "firebase/php-jwt": "^6.11"
+        "firebase/php-jwt": "^6.11",
+        "tecnickcom/tcpdf": "^6.8",
+        "phpoffice/phpspreadsheet": "^2.1",
+        "mpdf/mpdf": "^8.2"
     }
 }

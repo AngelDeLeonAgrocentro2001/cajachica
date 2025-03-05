@@ -75,6 +75,46 @@ function closeModal() {
     }
 }
 
+function exportReport(tipoReporte, formato) {
+    // Obtener los parámetros del formulario más reciente (almacenados en el DOM)
+    const fechaInicio = localStorage.getItem('reporteFechaInicio') || '';
+    const fechaFin = localStorage.getItem('reporteFechaFin') || '';
+    const idCajaChica = localStorage.getItem('reporteIdCajaChica') || '';
+
+    const formData = new FormData();
+    formData.append('fecha_inicio', fechaInicio);
+    formData.append('fecha_fin', fechaFin);
+    formData.append('id_caja_chica', idCajaChica);
+    formData.append('formato', formato);
+
+    const action = tipoReporte === 'resumen' ? 'generarResumen' : 'generarDetalle';
+
+    fetch(`index.php?controller=reportes&action=${action}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    }).then(response => {
+        if (!response.ok) {
+            throw new Error('Error al exportar el reporte');
+        }
+        return response.blob();
+    }).then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_${tipoReporte}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    }).catch(error => {
+        console.error('Error al exportar:', error);
+        alert('Error al exportar el reporte: ' + error.message);
+    });
+}
+
 function addResumenValidations() {
     const form = document.querySelector('#modalForm #resumenFormInner');
     if (!form) {
@@ -150,6 +190,12 @@ function addResumenValidations() {
                 }
                 const result = await response.text();
                 reportesOutput.innerHTML = result;
+
+                // Almacenar los parámetros para usarlos en la exportación
+                localStorage.setItem('reporteFechaInicio', formData.get('fecha_inicio'));
+                localStorage.setItem('reporteFechaFin', formData.get('fecha_fin'));
+                localStorage.setItem('reporteIdCajaChica', formData.get('id_caja_chica'));
+
                 closeModal();
             } catch (error) {
                 console.error('Error al generar reporte:', error);
@@ -240,6 +286,12 @@ function addDetalleValidations() {
                 }
                 const result = await response.text();
                 reportesOutput.innerHTML = result;
+
+                // Almacenar los parámetros para usarlos en la exportación
+                localStorage.setItem('reporteFechaInicio', formData.get('fecha_inicio'));
+                localStorage.setItem('reporteFechaFin', formData.get('fecha_fin'));
+                localStorage.setItem('reporteIdCajaChica', formData.get('id_caja_chica'));
+
                 closeModal();
             } catch (error) {
                 console.error('Error al generar reporte:', error);

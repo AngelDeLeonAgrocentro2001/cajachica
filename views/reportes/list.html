@@ -100,6 +100,28 @@
             color: #333;
         }
 
+        /* Contenedor de botones de exportación */
+        .export-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .btn-export {
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #27ae60;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-export:hover {
+            background-color: #219653;
+        }
+
         /* Estilo del modal */
         .modal {
             display: none;
@@ -280,6 +302,17 @@
             .modal-content {
                 width: 95%;
                 padding: 15px;
+            }
+
+            .export-buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .btn-export {
+                width: 100%;
+                margin: 0;
             }
         }
     </style>
