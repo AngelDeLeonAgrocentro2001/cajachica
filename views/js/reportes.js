@@ -27,24 +27,13 @@ async function showResumenForm() {
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (resumen):', html);
         modalForm.innerHTML = html;
-        modal.style.display = 'flex';
-        const form = modalForm.querySelector('#resumenFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="resumenFormInner" dentro de modalForm');
-            modalForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
+        modal.classList.add('active');
         addResumenValidations();
     } catch (error) {
         console.error('Error al cargar el formulario (resumen):', error);
-        if (modalForm) {
-            modalForm.innerHTML = `<div class="error">${error.message}</div>`;
-            modal.style.display = 'flex';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
@@ -69,30 +58,19 @@ async function showDetalleForm() {
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (detalle):', html);
         modalForm.innerHTML = html;
-        modal.style.display = 'flex';
-        const form = modalForm.querySelector('#detalleFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="detalleFormInner" dentro de modalForm');
-            modalForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
+        modal.classList.add('active');
         addDetalleValidations();
     } catch (error) {
         console.error('Error al cargar el formulario (detalle):', error);
-        if (modalForm) {
-            modalForm.innerHTML = `<div class="error">${error.message}</div>`;
-            modal.style.display = 'flex';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
 function closeModal() {
     if (modal) {
-        modal.style.display = 'none';
+        modal.classList.remove('active');
         modalForm.innerHTML = '';
     }
 }
@@ -117,8 +95,12 @@ function addResumenValidations() {
     async function validateField(e) {
         const fieldName = e.target.name;
         const value = e.target.value.trim();
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
-        if (!errorElement) return true;
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
+        errorElement.className = 'error';
+        errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
 
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
@@ -130,17 +112,16 @@ function addResumenValidations() {
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fieldName === 'fecha_inicio' && fieldName === 'fecha_fin') {
+            if (fieldName === 'fecha_inicio' || fieldName === 'fecha_fin') {
                 const fechaInicio = new Date(form.querySelector('[name="fecha_inicio"]').value);
                 const fechaFin = new Date(form.querySelector('[name="fecha_fin"]').value);
-                if (fechaInicio > fechaFin) {
+                if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
                     errorElement.textContent = 'La fecha de inicio no puede ser mayor que la fecha de fin.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
                 }
             }
-            return true;
         }
         return true;
     }
@@ -172,9 +153,13 @@ function addResumenValidations() {
                 closeModal();
             } catch (error) {
                 console.error('Error al generar reporte:', error);
-                const errorElement = form.querySelector('.error');
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
+                errorElement.className = 'error';
                 errorElement.textContent = error.message || 'Error al generar el reporte. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });
@@ -200,8 +185,12 @@ function addDetalleValidations() {
     async function validateField(e) {
         const fieldName = e.target.name;
         const value = e.target.value.trim();
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
-        if (!errorElement) return true;
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
+        errorElement.className = 'error';
+        errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
 
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
@@ -213,17 +202,16 @@ function addDetalleValidations() {
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fieldName === 'fecha_inicio' && fieldName === 'fecha_fin') {
+            if (fieldName === 'fecha_inicio' || fieldName === 'fecha_fin') {
                 const fechaInicio = new Date(form.querySelector('[name="fecha_inicio"]').value);
                 const fechaFin = new Date(form.querySelector('[name="fecha_fin"]').value);
-                if (fechaInicio > fechaFin) {
+                if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
                     errorElement.textContent = 'La fecha de inicio no puede ser mayor que la fecha de fin.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
                 }
             }
-            return true;
         }
         return true;
     }
@@ -255,9 +243,13 @@ function addDetalleValidations() {
                 closeModal();
             } catch (error) {
                 console.error('Error al generar reporte:', error);
-                const errorElement = form.querySelector('.error');
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
+                errorElement.className = 'error';
                 errorElement.textContent = error.message || 'Error al generar el reporte. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });

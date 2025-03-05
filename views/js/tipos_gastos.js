@@ -1,11 +1,12 @@
-const tipoGastoForm = document.querySelector('#tipoGastoForm');
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
     loadTiposGastos();
 
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
-    if (id && tipoGastoForm) {
+    if (id && modal) {
         showEditForm(id);
     }
 });
@@ -31,13 +32,13 @@ async function loadTiposGastos() {
             tipos.forEach(tipo => {
                 tbody.innerHTML += `
                     <tr>
-                        <td>${tipo.id}</td>
-                        <td>${tipo.name}</td>
-                        <td>${tipo.description}</td>
-                        <td>${tipo.estado}</td>
-                        <td>
-                            <button onclick="showEditForm(${tipo.id})">Editar</button>
-                            <button onclick="deleteTipoGasto(${tipo.id})">Eliminar</button>
+                        <td data-label="ID">${tipo.id}</td>
+                        <td data-label="Nombre">${tipo.name}</td>
+                        <td data-label="Descripción">${tipo.description || 'N/A'}</td>
+                        <td data-label="Estado">${tipo.estado}</td>
+                        <td data-label="Acciones">
+                            <button class="edit-btn" onclick="showEditForm(${tipo.id}); window.history.pushState({}, '', 'index.php?controller=tipogasto&action=update&id=${tipo.id}')">Editar</button>
+                            <button class="delete-btn" onclick="deleteTipoGasto(${tipo.id})">Eliminar</button>
                         </td>
                     </tr>
                 `;
@@ -54,9 +55,14 @@ async function loadTiposGastos() {
 }
 
 async function checkNombreExists(nombre, excludeId = null) {
-    const tipos = await loadTiposGastos();
-    const excludeIdNum = excludeId ? Number(excludeId) : null;
-    return tipos.some(tipo => tipo.name === nombre && (excludeIdNum === null || tipo.id !== excludeIdNum));
+    try {
+        const tipos = await loadTiposGastos();
+        const excludeIdNum = excludeId ? Number(excludeId) : null;
+        return tipos.some(tipo => tipo.name === nombre && (excludeIdNum === null || Number(tipo.id) !== excludeIdNum));
+    } catch (error) {
+        console.error('Error al verificar duplicados de nombre:', error);
+        return false;
+    }
 }
 
 async function createTipoGasto(data) {
@@ -68,8 +74,13 @@ async function createTipoGasto(data) {
         }
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear tipo de gasto');
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
     }
     return response.json();
 }
@@ -86,7 +97,7 @@ async function updateTipoGasto(id, data) {
         const text = await response.text();
         try {
             const errorData = JSON.parse(text);
-            throw new Error(errorData.error || 'Error al actualizar tipo de gasto');
+            throw new Error(errorData.error || text);
         } catch (parseError) {
             throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
@@ -95,22 +106,44 @@ async function updateTipoGasto(id, data) {
 }
 
 async function deleteTipoGasto(id) {
-    const response = await fetch(`index.php?controller=tipogasto&action=delete&id=${id}`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    if (!confirm('¿Estás seguro de que deseas eliminar este tipo de gasto?')) return;
+
+    try {
+        const response = await fetch(`index.php?controller=tipogasto&action=delete&id=${id}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.error || 'Error al eliminar tipo de gasto');
+            } catch (parseError) {
+                throw new Error(`Respuesta no es JSON válida: ${text}`);
+            }
         }
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar tipo de gasto');
+        const result = await response.json();
+        alert(result.message || 'Tipo de gasto eliminado');
+        loadTiposGastos();
+    } catch (error) {
+        console.error('Error al eliminar tipo de gasto:', error);
+        alert(error.message || 'Error al eliminar tipo de gasto. Intenta de nuevo.');
     }
-    if (response.ok) loadTiposGastos();
+}
+
+function closeModal() {
+    if (modal) {
+        modal.classList.remove('active');
+        modalForm.innerHTML = '';
+        window.history.pushState({}, '', 'index.php?controller=tipogasto&action=list');
+    }
 }
 
 async function showCreateForm() {
-    if (!tipoGastoForm) {
-        console.error('El elemento #tipoGastoForm no se encontró en el DOM');
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
@@ -129,30 +162,19 @@ async function showCreateForm() {
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (create):', html);
-        tipoGastoForm.innerHTML = html;
-        tipoGastoForm.style.display = 'block';
-        const form = tipoGastoForm.querySelector('#tipoGastoFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="tipoGastoFormInner" dentro de #tipoGastoForm');
-            tipoGastoForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
         addValidations();
     } catch (error) {
-        console.error('Error al cargar el formulario (create):', error);
-        if (tipoGastoForm) {
-            tipoGastoForm.innerHTML = `<div class="error">${error.message}</div>`;
-            tipoGastoForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
 async function showEditForm(id) {
-    if (!tipoGastoForm) {
-        console.error('El elemento #tipoGastoForm no se encontró en el DOM');
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
@@ -171,47 +193,20 @@ async function showEditForm(id) {
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (update):', html);
-        tipoGastoForm.innerHTML = html;
-        tipoGastoForm.style.display = 'block';
-        const form = tipoGastoForm.querySelector('#tipoGastoFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="tipoGastoFormInner" dentro de #tipoGastoForm');
-            tipoGastoForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
-        addValidations();
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addValidations(id);
     } catch (error) {
-        console.error('Error al cargar el formulario (update):', error);
-        if (tipoGastoForm) {
-            tipoGastoForm.innerHTML = `<div class="error">${error.message}</div>`;
-            tipoGastoForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
-function cancelForm() {
-    const formContainer = document.getElementById('tipoGastoForm');
-    if (formContainer) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const idFromUrl = urlParams.get('id');
-        formContainer.style.display = 'none';
-        formContainer.innerHTML = '';
-        if (idFromUrl) {
-            window.history.pushState({}, '', `index.php?controller=tipogasto&action=update&id=${idFromUrl}`);
-        } else {
-            window.history.pushState({}, '', 'index.php?controller=tipogasto&action=list');
-        }
-    }
-}
-
-function addValidations() {
-    const form = document.getElementById('tipoGastoFormInner');
-    if (!form || form.tagName !== 'FORM') {
-        console.error('No se encontró un elemento <form> con ID #tipoGastoFormInner. Verifica el HTML cargado:', document.getElementById('tipoGastoForm')?.innerHTML || 'No se encontró #tipoGastoForm');
-        alert('No se pudo inicializar el formulario. Intenta de nuevo.');
+function addValidations(id = null) {
+    const form = document.querySelector('#modalForm #tipoGastoFormInner');
+    if (!form) {
+        console.error('No se encontró un elemento <form> con id="tipoGastoFormInner" dentro de #modalForm');
         return;
     }
 
@@ -221,48 +216,38 @@ function addValidations() {
         estado: { required: true }
     };
 
-    let formMode = 'create';
-    const urlParams = new URLSearchParams(window.location.search);
-    const idFromUrl = urlParams.get('id');
-    const formIdInput = form.querySelector('input[name="id"]');
-    const formId = formIdInput ? formIdInput.value : null;
-
-    if (idFromUrl || formId) {
-        formMode = 'update';
-    }
-
-    console.log('formMode (determined):', formMode);
-    console.log('idFromUrl:', idFromUrl);
-    console.log('formId:', formId);
-
     form.querySelectorAll('input, textarea, select').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
     async function validateField(e) {
         const fieldName = e.target.name;
-        const value = e.target.value;
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
-        if (!errorElement) return true;
+        const value = e.target.value.trim();
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
+        errorElement.className = 'error';
+        errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
 
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fields[fieldName].minLength && value && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
+            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
             if (fieldName === 'name') {
-                const nombreExists = await checkNombreExists(value, idFromUrl || formId);
+                const nombreExists = await checkNombreExists(value, id);
                 if (nombreExists) {
                     errorElement.textContent = `El nombre "${value}" ya está registrado. Por favor, usa un nombre diferente.`;
                     errorElement.style.display = 'block';
@@ -270,7 +255,6 @@ function addValidations() {
                     return false;
                 }
             }
-            return true;
         }
         return true;
     }
@@ -285,38 +269,23 @@ function addValidations() {
 
         if (isValid) {
             const formData = new FormData(form);
-            const formIdInput = form.querySelector('input[name="id"]');
-            const formId = formIdInput ? formIdInput.value : null;
-
-            console.log('formMode (submit):', formMode);
-            console.log('formId (submit):', formId);
+            const formId = formData.get('id') || id;
 
             try {
-                let result;
-                if (formMode === 'update' && (idFromUrl || formId)) {
-                    const idToUse = idFromUrl || formId;
-                    result = await updateTipoGasto(idToUse, formData);
-                } else {
-                    result = await createTipoGasto(formData);
-                }
-
-                if (result.message) {
-                    const successElement = form.querySelector('.success');
-                    successElement.textContent = result.message;
-                    successElement.style.display = 'block';
-                    setTimeout(() => {
-                        window.location.href = 'index.php?controller=tipogasto&action=list';
-                    }, 1000);
-                } else if (result.error) {
-                    const errorElement = form.querySelector('.error');
-                    errorElement.textContent = result.error;
-                    errorElement.style.display = 'block';
-                }
+                const action = formId ? updateTipoGasto(formId, formData) : createTipoGasto(formData);
+                const result = await action;
+                alert(result.message || 'Operación exitosa');
+                closeModal();
+                loadTiposGastos();
             } catch (error) {
                 console.error('Error al enviar formulario:', error);
-                const errorElement = form.querySelector('.error');
-                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
+                errorElement.className = 'error';
+                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });

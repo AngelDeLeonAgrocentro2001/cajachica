@@ -1,160 +1,40 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Detalle de Liquidación' : 'Crear Detalle de Liquidación'; ?></title>
-    <link rel="stylesheet" href="../views/css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($data) ? 'Editar Detalle de Liquidación' : 'Crear Detalle de Liquidación'; ?></h2>
-    <form id="detalleFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
-        <select name="id_liquidacion" required>
-            {{select_liquidaciones}}
-        </select>
-        <input type="text" name="no_factura" placeholder="Número Factura" value="<?php echo isset($data) ? htmlspecialchars($data['no_factura']) : ''; ?>" required>
-        <input type="text" name="nombre_proveedor" placeholder="Nombre Proveedor" value="<?php echo isset($data) ? htmlspecialchars($data['nombre_proveedor']) : ''; ?>" required>
-        <input type="date" name="fecha" value="<?php echo isset($data) ? htmlspecialchars($data['fecha']) : ''; ?>" required>
-        <input type="text" name="bien_servicio" placeholder="Bien/Servicio" value="<?php echo isset($data) ? htmlspecialchars($data['bien_servicio']) : ''; ?>" required>
-        <select name="t_gasto" required>
-            {{select_tipos_gastos}}
-        </select>
-        <input type="number" name="p_unitario" step="0.01" placeholder="Precio Unitario" value="<?php echo isset($data) ? htmlspecialchars($data['p_unitario']) : ''; ?>" required>
-        <input type="number" name="total_factura" step="0.01" placeholder="Total Factura" value="<?php echo isset($data) ? htmlspecialchars($data['total_factura']) : ''; ?>" required>
-        <select name="estado" required>
-            <option value="PENDIENTE" <?php echo isset($data) && $data['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
-            <?php if (isset($data)): ?>
-                <option value="AUTORIZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'AUTORIZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Autorizado por Supervisor</option>
-                <option value="RECHAZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'RECHAZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Rechazado por Supervisor</option>
-                <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'AUTORIZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Autorizado por Contabilidad</option>
-                <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Rechazado por Contabilidad</option>
-                <option value="DESCARTADO" <?php echo $data['estado'] === 'DESCARTADO' ? 'selected' : ''; ?>>Descartado</option>
-            <?php endif; ?>
-        </select>
-        <input type="file" name="archivos[]" multiple accept="image/*,application/pdf">
-        <div class="error" data-field="id_liquidacion"></div>
-        <div class="error" data-field="no_factura"></div>
-        <div class="error" data-field="nombre_proveedor"></div>
-        <div class="error" data-field="fecha"></div>
-        <div class="error" data-field="bien_servicio"></div>
-        <div class="error" data-field="t_gasto"></div>
-        <div class="error" data-field="p_unitario"></div>
-        <div class="error" data-field="total_factura"></div>
-        <div class="error" data-field="estado"></div>
-        <div class="success"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-    <script>
-        // Función para cancelar el formulario
-        function cancelForm() {
-            window.location.href = 'index.php?controller=detalleliquidacion&action=list';
-        }
-
-        // Añadir validaciones y manejo del formulario
-        const form = document.getElementById('detalleFormInner');
-        const fields = {
-            id_liquidacion: { required: true },
-            no_factura: { required: true },
-            nombre_proveedor: { required: true },
-            fecha: { required: true },
-            bien_servicio: { required: true },
-            t_gasto: { required: true },
-            p_unitario: { required: true, type: 'number', min: 0 },
-            total_factura: { required: true, type: 'number', min: 0 },
-            estado: { required: true }
-        };
-
-        form.querySelectorAll('input, select, textarea').forEach(field => {
-            field.addEventListener('input', validateField);
-        });
-
-        function validateField(e) {
-            const fieldName = e.target.name;
-            const value = e.target.value;
-            const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
-            errorElement.className = 'error';
-            errorElement.setAttribute('data-field', fieldName);
-
-            if (fields[fieldName]) {
-                if (fields[fieldName].required && !value) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].type === 'number' && isNaN(value)) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser un número.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].min && value < fields[fieldName].min) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser mayor o igual a ${fields[fieldName].min}.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                errorElement.style.display = 'none';
-                e.target.classList.remove('invalid');
-                return true;
-            }
-            return true;
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            let isValid = true;
-            form.querySelectorAll('input, select, textarea').forEach(field => {
-                if (!validateField({ target: field })) isValid = false;
-            });
-
-            if (isValid) {
-                const formData = new FormData(form);
-                const id = formData.get('id');
-                const action = id ? 'update&id=' + id : 'create';
-                try {
-                    const response = await fetch(`index.php?controller=detalleliquidacion&action=${action}`, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-                    if (!response.ok) {
-                        const text = await response.text();
-                        try {
-                            const errorData = JSON.parse(text);
-                            throw new Error(errorData.error || 'Error desconocido');
-                        } catch (parseError) {
-                            throw new Error(`Respuesta no es JSON válida: ${text}`);
-                        }
-                    }
-                    const result = await response.json();
-                    if (result.message) {
-                        window.location.href = 'index.php?controller=detalleliquidacion&action=list';
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                } catch (error) {
-                    console.error('Error al enviar formulario:', error.message);
-                    const errorElement = form.querySelector('.error') || document.createElement('div');
-                    errorElement.className = 'error';
-                    errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
-                    errorElement.style.display = 'block';
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+<h2><?php echo isset($data) ? 'Editar Detalle de Liquidación' : 'Crear Detalle de Liquidación'; ?></h2>
+<form id="detalleFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <select name="id_liquidacion" required>
+        {{select_liquidaciones}}
+    </select>
+    <input type="text" name="no_factura" placeholder="Número Factura" value="<?php echo isset($data) ? htmlspecialchars($data['no_factura']) : ''; ?>" required>
+    <input type="text" name="nombre_proveedor" placeholder="Nombre Proveedor" value="<?php echo isset($data) ? htmlspecialchars($data['nombre_proveedor']) : ''; ?>" required>
+    <input type="date" name="fecha" value="<?php echo isset($data) ? htmlspecialchars($data['fecha']) : ''; ?>" required>
+    <input type="text" name="bien_servicio" placeholder="Bien/Servicio" value="<?php echo isset($data) ? htmlspecialchars($data['bien_servicio']) : ''; ?>" required>
+    <select name="t_gasto" required>
+        {{select_tipos_gastos}}
+    </select>
+    <input type="number" name="p_unitario" step="0.01" placeholder="Precio Unitario" value="<?php echo isset($data) ? htmlspecialchars($data['p_unitario']) : ''; ?>" required>
+    <input type="number" name="total_factura" step="0.01" placeholder="Total Factura" value="<?php echo isset($data) ? htmlspecialchars($data['total_factura']) : ''; ?>" required>
+    <select name="estado" required>
+        <option value="PENDIENTE" <?php echo isset($data) && $data['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
+        <?php if (isset($data)): ?>
+            <option value="AUTORIZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'AUTORIZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Autorizado por Supervisor</option>
+            <option value="RECHAZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'RECHAZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Rechazado por Supervisor</option>
+            <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'AUTORIZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Autorizado por Contabilidad</option>
+            <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Rechazado por Contabilidad</option>
+            <option value="DESCARTADO" <?php echo $data['estado'] === 'DESCARTADO' ? 'selected' : ''; ?>>Descartado</option>
+        <?php endif; ?>
+    </select>
+    <input type="file" name="archivos[]" multiple accept="image/*,application/pdf">
+    <div class="error" data-field="id_liquidacion"></div>
+    <div class="error" data-field="no_factura"></div>
+    <div class="error" data-field="nombre_proveedor"></div>
+    <div class="error" data-field="fecha"></div>
+    <div class="error" data-field="bien_servicio"></div>
+    <div class="error" data-field="t_gasto"></div>
+    <div class="error" data-field="p_unitario"></div>
+    <div class="error" data-field="total_factura"></div>
+    <div class="error" data-field="estado"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

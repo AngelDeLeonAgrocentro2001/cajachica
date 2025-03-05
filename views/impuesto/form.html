@@ -1,26 +1,19 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Impuesto' : 'Crear Impuesto'; ?></title>
-    <link rel="stylesheet" href="../css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($data) ? 'Editar Impuesto' : 'Crear Impuesto'; ?></h2>
-    <form id="impuestoFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
-        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
-        <input type="number" name="porcentaje" placeholder="Porcentaje" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['porcentaje']) : ''; ?>" required>
-        <select name="estado" required>
-            <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
-            <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
-        </select>
-        <div class="error" data-field="nombre"></div>
-        <div class="error" data-field="porcentaje"></div>
-        <div class="error" data-field="estado"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-</body>
-</html>
+<h2><?php echo isset($data) ? 'Editar Impuesto' : 'Crear Impuesto'; ?></h2>
+<form id="impuestoFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <label for="nombre">Nombre</label>
+    <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+    <label for="porcentaje">Porcentaje</label>
+    <input type="number" name="porcentaje" placeholder="Porcentaje" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['porcentaje']) : ''; ?>" required>
+    <label for="estado">Estado</label>
+    <select name="estado" required>
+        <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
+    </select>
+    <div class="error" data-field="nombre"></div>
+    <div class="error" data-field="porcentaje"></div>
+    <div class="error" data-field="estado"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

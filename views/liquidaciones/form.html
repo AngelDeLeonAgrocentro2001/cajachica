@@ -1,144 +1,27 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></title>
-    <link rel="stylesheet" href="../views/css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
-    <form id="liquidacionFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
-        <select name="id_caja_chica" required>
-            {{select_cajas_chicas}}
-        </select>
-        <input type="date" name="fecha_creacion" value="<?php echo isset($data) ? htmlspecialchars($data['fecha_creacion']) : ''; ?>" required>
-        <input type="number" name="monto_total" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_total']) : ''; ?>" required>
-        <select name="estado" required>
-            <option value="PENDIENTE" <?php echo isset($data) && $data['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
-            <?php if (isset($data)): ?>
-                <option value="AUTORIZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'AUTORIZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Autorizado por Supervisor</option>
-                <option value="RECHAZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'RECHAZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Rechazado por Supervisor</option>
-                <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'AUTORIZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Autorizado por Contabilidad</option>
-                <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Rechazado por Contabilidad</option>
-                <option value="PENDIENTE_CORRECCIÓN" <?php echo $data['estado'] === 'PENDIENTE_CORRECCIÓN' ? 'selected' : ''; ?>>Pendiente de Corrección</option>
-            <?php endif; ?>
-        </select>
-        <div class="error" data-field="id_caja_chica"></div>
-        <div class="error" data-field="fecha_creacion"></div>
-        <div class="error" data-field="monto_total"></div>
-        <div class="error" data-field="estado"></div>
-        <div class="success"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-    <script>
-        // Función para cancelar el formulario
-        function cancelForm() {
-            document.getElementById('liquidacionFormInner').style.display = 'none';
-            document.getElementById('liquidacionFormInner').innerHTML = '';
-            window.location.href = 'index.php?controller=liquidacion&action=list';
-        }
-
-        // Añadir validaciones y manejo del formulario
-        const form = document.getElementById('liquidacionFormInner');
-        const fields = {
-            id_caja_chica: { required: true },
-            fecha_creacion: { required: true },
-            monto_total: { required: true, type: 'number', min: 0 },
-            estado: { required: true }
-        };
-
-        form.querySelectorAll('input, select').forEach(field => {
-            field.addEventListener('input', validateField);
-        });
-
-        function validateField(e) {
-            const fieldName = e.target.name;
-            const value = e.target.value;
-            const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
-            errorElement.className = 'error';
-            errorElement.setAttribute('data-field', fieldName);
-
-            if (fields[fieldName]) {
-                if (fields[fieldName].required && !value) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].type === 'number' && isNaN(value)) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser un número.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                if (fields[fieldName].min && value < fields[fieldName].min) {
-                    errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser mayor o igual a ${fields[fieldName].min}.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-                errorElement.style.display = 'none';
-                e.target.classList.remove('invalid');
-                return true;
-            }
-            return true;
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            let isValid = true;
-            form.querySelectorAll('input, select').forEach(field => {
-                if (!validateField({ target: field })) isValid = false;
-            });
-
-            if (isValid) {
-                const formData = new FormData(form);
-                const id = formData.get('id');
-                const action = id ? 'update&id=' + id : 'create';
-                try {
-                    const response = await fetch(`index.php?controller=liquidacion&action=${action}`, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-                    if (!response.ok) {
-                        const text = await response.text();
-                        try {
-                            const errorData = JSON.parse(text);
-                            throw new Error(errorData.error || 'Error desconocido');
-                        } catch (parseError) {
-                            throw new Error(`Respuesta no es JSON válida: ${text}`);
-                        }
-                    }
-                    const result = await response.json();
-                    if (result.message) {
-                        window.location.href = 'index.php?controller=liquidacion&action=list';
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                } catch (error) {
-                    console.error('Error al enviar formulario:', error.message);
-                    const errorElement = form.querySelector('.error') || document.createElement('div');
-                    errorElement.className = 'error';
-                    errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
-                    errorElement.style.display = 'block';
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+<h2><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
+<form id="liquidacionFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <select name="id_caja_chica" required>
+        {{select_cajas_chicas}}
+    </select>
+    <input type="date" name="fecha_creacion" value="<?php echo isset($data) ? htmlspecialchars($data['fecha_creacion']) : ''; ?>" required>
+    <input type="number" name="monto_total" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_total']) : ''; ?>" required>
+    <select name="estado" required>
+        <option value="PENDIENTE" <?php echo isset($data) && $data['estado'] === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
+        <?php if (isset($data)): ?>
+            <option value="AUTORIZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'AUTORIZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Autorizado por Supervisor</option>
+            <option value="RECHAZADO_POR_SUPERVISOR" <?php echo $data['estado'] === 'RECHAZADO_POR_SUPERVISOR' ? 'selected' : ''; ?>>Rechazado por Supervisor</option>
+            <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'AUTORIZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Autorizado por Contabilidad</option>
+            <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD' ? 'selected' : ''; ?>>Rechazado por Contabilidad</option>
+            <option value="PENDIENTE_CORRECCIÓN" <?php echo $data['estado'] === 'PENDIENTE_CORRECCIÓN' ? 'selected' : ''; ?>>Pendiente de Corrección</option>
+        <?php endif; ?>
+    </select>
+    <div class="error" data-field="id_caja_chica"></div>
+    <div class="error" data-field="fecha_creacion"></div>
+    <div class="error" data-field="monto_total"></div>
+    <div class="error" data-field="estado"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

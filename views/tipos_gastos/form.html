@@ -1,37 +1,20 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($tipoGasto['id']) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></title>
-    <link rel="stylesheet" href="../css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($tipoGasto['id']) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></h2>
-    <form id="tipoGastoFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($tipoGasto['id']) ? htmlspecialchars($tipoGasto['id']) : ''; ?>">
-        <div>
-            <label for="name">Nombre:</label>
-            <input type="text" id="name" name="name" placeholder="Nombre" value="<?php echo isset($tipoGasto['name']) ? htmlspecialchars($tipoGasto['name']) : ''; ?>" required>
-            <div class="error" data-field="name" style="display: none;"></div>
-        </div>
-        <div>
-            <label for="description">Descripción:</label>
-            <textarea id="description" name="description" placeholder="Descripción"><?php echo isset($tipoGasto['description']) ? htmlspecialchars($tipoGasto['description']) : ''; ?></textarea>
-            <div class="error" data-field="description" style="display: none;"></div>
-        </div>
-        <div>
-            <label for="estado">Estado:</label>
-            <select id="estado" name="estado" required>
-                <option value="ACTIVO" <?php echo (isset($tipoGasto['estado']) && $tipoGasto['estado'] === 'ACTIVO') ? 'selected' : ''; ?>>Activo</option>
-                <option value="INACTIVO" <?php echo (isset($tipoGasto['estado']) && $tipoGasto['estado'] === 'INACTIVO') ? 'selected' : ''; ?>>Inactivo</option>
-            </select>
-            <div class="error" data-field="estado" style="display: none;"></div>
-        </div>
-        <div class="success" style="display: none;"></div>
-        <div class="error" style="display: none;"></div>
-        <button type="submit"><?php echo isset($tipoGasto['id']) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-    <script src="../views/js/tipos_gastos.js"></script>
-</body>
-</html>
+<h2><?php echo isset($tipoGasto['id']) ? 'Editar Tipo de Gasto' : 'Crear Tipo de Gasto'; ?></h2>
+<form id="tipoGastoFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($tipoGasto['id']) ? htmlspecialchars($tipoGasto['id']) : ''; ?>">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" placeholder="Nombre" value="<?php echo isset($tipoGasto['name']) ? htmlspecialchars($tipoGasto['name']) : ''; ?>" required>
+    <div class="error" data-field="name"></div>
+    <label for="description">Descripción</label>
+    <textarea id="description" name="description" placeholder="Descripción" required><?php echo isset($tipoGasto['description']) ? htmlspecialchars($tipoGasto['description']) : ''; ?></textarea>
+    <div class="error" data-field="description"></div>
+    <label for="estado">Estado</label>
+    <select id="estado" name="estado" required>
+        <option value="ACTIVO" <?php echo (isset($tipoGasto['estado']) && $tipoGasto['estado'] === 'ACTIVO') ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo (isset($tipoGasto['estado']) && $tipoGasto['estado'] === 'INACTIVO') ? 'selected' : ''; ?>>Inactivo</option>
+    </select>
+    <div class="error" data-field="estado"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($tipoGasto['id']) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

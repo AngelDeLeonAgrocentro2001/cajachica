@@ -1,11 +1,12 @@
-const usuarioForm = document.querySelector('#usuarioForm');
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
     loadUsuarios();
 
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
-    if (id && usuarioForm) {
+    if (id && modal) {
         showEditForm(id);
     }
 });
@@ -27,20 +28,24 @@ async function loadUsuarios() {
         const usuarios = await response.json();
         const tbody = document.querySelector('#usuariosTable tbody');
         tbody.innerHTML = '';
-        usuarios.forEach(usuario => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${usuario.id}</td>
-                    <td>${usuario.nombre}</td>
-                    <td>${usuario.email}</td>
-                    <td>${usuario.rol}</td>
-                    <td>
-                        <button onclick="showEditForm(${usuario.id})">Editar</button>
-                        <button onclick="deleteUsuario(${usuario.id})">Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        });
+        if (usuarios.length > 0) {
+            usuarios.forEach(usuario => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td data-label="ID">${usuario.id}</td>
+                        <td data-label="Nombre">${usuario.nombre}</td>
+                        <td data-label="Email">${usuario.email}</td>
+                        <td data-label="Rol">${usuario.rol}</td>
+                        <td data-label="Acciones">
+                            <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
+                            <button class="delete-btn" onclick="deleteUsuario(${usuario.id})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5">No hay usuarios registrados.</td></tr>';
+        }
         return usuarios;
     } catch (error) {
         console.error('Error al cargar usuarios:', error);
@@ -50,9 +55,14 @@ async function loadUsuarios() {
 }
 
 async function checkEmailExists(email, excludeId = null) {
-    const usuarios = await loadUsuarios();
-    const excludeIdNum = excludeId ? Number(excludeId) : null;
-    return usuarios.some(usuario => usuario.email === email && (excludeIdNum === null || usuario.id !== excludeIdNum));
+    try {
+        const usuarios = await loadUsuarios();
+        const excludeIdNum = excludeId ? Number(excludeId) : null;
+        return usuarios.some(usuario => usuario.email.toLowerCase() === email.toLowerCase() && (excludeIdNum === null || Number(usuario.id) !== excludeIdNum));
+    } catch (error) {
+        console.error('Error al verificar duplicados de email:', error);
+        return false;
+    }
 }
 
 async function createUsuario(data) {
@@ -64,8 +74,13 @@ async function createUsuario(data) {
         }
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear usuario');
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
     }
     return response.json();
 }
@@ -82,7 +97,7 @@ async function updateUsuario(id, data) {
         const text = await response.text();
         try {
             const errorData = JSON.parse(text);
-            throw new Error(errorData.error || 'Error al actualizar usuario');
+            throw new Error(errorData.error || text);
         } catch (parseError) {
             throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
@@ -91,131 +106,107 @@ async function updateUsuario(id, data) {
 }
 
 async function deleteUsuario(id) {
-    const response = await fetch(`index.php?controller=usuario&action=delete&id=${id}`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
+
+    try {
+        const response = await fetch(`index.php?controller=usuario&action=delete&id=${id}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.error || 'Error al eliminar usuario');
+            } catch (parseError) {
+                throw new Error(`Respuesta no es JSON válida: ${text}`);
+            }
         }
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar usuario');
+        const result = await response.json();
+        alert(result.message || 'Usuario eliminado');
+        loadUsuarios();
+    } catch (error) {
+        console.error('Error al eliminar usuario:', error);
+        alert(error.message || 'Error al eliminar usuario. Intenta de nuevo.');
     }
-    if (response.ok) loadUsuarios();
 }
 
-function showCreateForm() {
-    if (!usuarioForm) {
-        console.error('El elemento #usuarioForm no se encontró en el DOM');
+function closeModal() {
+    if (modal) {
+        modal.classList.remove('active');
+        modalForm.innerHTML = '';
+        window.history.pushState({}, '', 'index.php?controller=usuario&action=list');
+    }
+}
+
+async function showCreateForm() {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch('index.php?controller=usuario&action=create', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
+    try {
+        const response = await fetch('index.php?controller=usuario&action=create', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
         if (!response.ok) {
-            return response.text().then(errorText => {
-                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
-            });
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
-        return response.text();
-    })
-    .then(html => {
+        const html = await response.text();
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (create):', html);
-        usuarioForm.innerHTML = html;
-        usuarioForm.style.display = 'block';
-        const form = usuarioForm.querySelector('#usuarioFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #usuarioForm');
-            usuarioForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
         addValidations();
-    })
-    .catch(error => {
-        console.error('Error al cargar el formulario (create):', error);
-        if (usuarioForm) {
-            usuarioForm.innerHTML = `<div class="error">${error.message}</div>`;
-            usuarioForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
-    });
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    }
 }
 
-function showEditForm(id) {
-    if (!usuarioForm) {
-        console.error('El elemento #usuarioForm no se encontró en el DOM');
+async function showEditForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch(`index.php?controller=usuario&action=update&id=${id}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
+    try {
+        const response = await fetch(`index.php?controller=usuario&action=update&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
         if (!response.ok) {
-            return response.text().then(errorText => {
-                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
-            });
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
-        return response.text();
-    })
-    .then(html => {
+        const html = await response.text();
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        console.log('HTML devuelto (update):', html);
-        usuarioForm.innerHTML = html;
-        usuarioForm.style.display = 'block';
-        const form = usuarioForm.querySelector('#usuarioFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #usuarioForm');
-            usuarioForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
-        }
-        addValidations();
-    })
-    .catch(error => {
-        console.error('Error al cargar el formulario (update):', error);
-        if (usuarioForm) {
-            usuarioForm.innerHTML = `<div class="error">${error.message}</div>`;
-            usuarioForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
-    });
-}
-
-function cancelForm() {
-    const formContainer = document.getElementById('usuarioForm');
-    if (formContainer) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const idFromUrl = urlParams.get('id');
-        formContainer.style.display = 'none';
-        formContainer.innerHTML = '';
-        if (idFromUrl) {
-            // Preservamos el id en la URL si estamos en modo edición
-            window.history.pushState({}, '', `index.php?controller=usuario&action=update&id=${idFromUrl}`);
-        } else {
-            window.history.pushState({}, '', 'index.php?controller=usuario&action=list');
-        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addValidations(id);
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
-function addValidations() {
-    const form = document.querySelector('#usuarioForm #usuarioFormInner');
+function addValidations(id = null) {
+    const form = document.querySelector('#modalForm #usuarioFormInner');
     if (!form) {
-        console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #usuarioForm');
+        console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #modalForm');
         return;
     }
 
@@ -226,23 +217,13 @@ function addValidations() {
         id_rol: { required: true }
     };
 
-    let formMode = 'create';
-    const urlParams = new URLSearchParams(window.location.search);
-    const idFromUrl = urlParams.get('id');
-    const formIdInput = form.querySelector('input[name="id"]');
-    const formId = formIdInput ? formIdInput.value : null;
-
-    // Determinamos el modo combinando idFromUrl y formId
-    if (idFromUrl || formId) {
-        formMode = 'update';
-        fields.password.required = false;
+    // Determinar el modo (crear o actualizar)
+    const formMode = id ? 'update' : 'create';
+    if (formMode === 'update') {
+        fields.password.required = false; // Contraseña no requerida al editar
     } else {
-        fields.password.required = true;
+        fields.password.required = true; // Contraseña requerida al crear
     }
-
-    console.log('formMode (determined):', formMode);
-    console.log('idFromUrl:', idFromUrl);
-    console.log('formId:', formId);
 
     form.querySelectorAll('input, select').forEach(field => {
         field.addEventListener('input', validateField);
@@ -250,22 +231,26 @@ function addValidations() {
 
     async function validateField(e) {
         const fieldName = e.target.name;
-        const value = e.target.value;
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
-        if (!errorElement) return true;
+        const value = e.target.value.trim();
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
+        errorElement.className = 'error';
+        errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
 
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
             if (fields[fieldName].minLength && value && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
@@ -278,8 +263,7 @@ function addValidations() {
                     e.target.classList.add('invalid');
                     return false;
                 }
-                // Verificar si el email ya existe
-                const emailExists = await checkEmailExists(value, formId);
+                const emailExists = await checkEmailExists(value, id);
                 if (emailExists) {
                     errorElement.textContent = `El email "${value}" ya está registrado. Por favor, usa un email diferente.`;
                     errorElement.style.display = 'block';
@@ -287,7 +271,6 @@ function addValidations() {
                     return false;
                 }
             }
-            return true;
         }
         return true;
     }
@@ -302,38 +285,23 @@ function addValidations() {
 
         if (isValid) {
             const formData = new FormData(form);
-            const formIdInput = form.querySelector('input[name="id"]');
-            const formId = formIdInput ? formIdInput.value : null;
-
-            console.log('formMode (submit):', formMode);
-            console.log('formId (submit):', formId);
+            const formId = formData.get('id') || id;
 
             try {
-                let result;
-                if (formMode === 'update' && (idFromUrl || formId)) {
-                    const idToUse = idFromUrl || formId;
-                    result = await updateUsuario(idToUse, formData);
-                } else {
-                    result = await createUsuario(formData);
-                }
-
-                if (result.message) {
-                    const successElement = form.querySelector('.success');
-                    successElement.textContent = result.message;
-                    successElement.style.display = 'block';
-                    setTimeout(() => {
-                        window.location.href = 'index.php?controller=usuario&action=list';
-                    }, 1000);
-                } else if (result.error) {
-                    const errorElement = form.querySelector('.error');
-                    errorElement.textContent = result.error;
-                    errorElement.style.display = 'block';
-                }
+                const action = formId ? updateUsuario(formId, formData) : createUsuario(formData);
+                const result = await action;
+                alert(result.message || 'Operación exitosa');
+                closeModal();
+                loadUsuarios();
             } catch (error) {
                 console.error('Error al enviar formulario:', error);
-                const errorElement = form.querySelector('.error');
-                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
+                errorElement.className = 'error';
+                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });

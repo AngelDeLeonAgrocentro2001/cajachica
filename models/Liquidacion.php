@@ -10,16 +10,19 @@ class Liquidacion {
 
     public function getAllLiquidaciones() {
         $stmt = $this->pdo->query("
-            SELECT l.*, cc.nombre as caja_chica
+            SELECT l.*, 
+                   cc.nombre AS nombre_caja_chica
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            ORDER BY l.fecha_creacion DESC
         ");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getLiquidacionById($id) {
         $stmt = $this->pdo->prepare("
-            SELECT l.*, cc.nombre as caja_chica
+            SELECT l.*, 
+                   cc.nombre AS nombre_caja_chica
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
             WHERE l.id = ?
@@ -76,5 +79,10 @@ class Liquidacion {
         $stmt = $this->pdo->prepare($query);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateEstado($id, $estado) {
+        $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ? WHERE id = ?");
+        return $stmt->execute([$estado, $id]);
     }
 }

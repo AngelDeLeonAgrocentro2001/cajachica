@@ -66,7 +66,7 @@ th, td {
 }
 
 th {
-    background-color: #f4f4f4;
+    /* background-color: #f4f4f4; */
     font-weight: bold;
 }
 
@@ -205,9 +205,9 @@ button {
     cursor: pointer;
 }
 
-button:hover {
+/* button:hover {
     background-color: #0056b3;
-}
+} */
 
 a {
     color: #007bff;

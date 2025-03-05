@@ -1,37 +1,32 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar auditorial de Aprobación' : 'Crear auditorial de Aprobación'; ?></title>
-    <link rel="stylesheet" href="../views/css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($data) ? 'Editar auditorial de Aprobación' : 'Crear auditorial de Aprobación'; ?></h2>
-    <form id="AuditoriaFormInner">
-        <select name="id_liquidacion" required>
-            {{select_liquidaciones}}
-        </select>
-        <select name="id_detalle_liquidacion">
-            {{select_detalles}}
-        </select>
-        <select name="id_usuario" required>
-            {{select_usuarios}}
-        </select>
-        <select name="accion" required>
-            <option value="APROBADO">Aprobado</option>
-            <option value="RECHAZADO">Rechazado</option>
-        </select>
-        <input type="text" name="comentario" placeholder="Comentario" value="<?php echo isset($data) ? $data['comentario'] : ''; ?>">
-        <div class="error" data-field="id_liquidacion"></div>
-        <div class="error" data-field="id_detalle_liquidacion"></div>
-        <div class="error" data-field="id_usuario"></div>
-        <div class="error" data-field="accion"></div>
-        <div class="error" data-field="comentario"></div>
-        <div class="success"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-    <script src="../views/js/auditoria.js"></script>
-</body>
-</html>
+<h2><?php echo isset($data) ? 'Editar Auditoría de Aprobación' : 'Crear Auditoría de Aprobación'; ?></h2>
+<form id="AuditoriaFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <label for="id_liquidacion">Liquidación</label>
+    <select name="id_liquidacion" id="id_liquidacion" required>
+        {{select_liquidaciones}}
+    </select>
+    <div class="error" data-field="id_liquidacion"></div>
+    <label for="id_detalle_liquidacion">Detalle de Liquidación</label>
+    <select name="id_detalle_liquidacion" id="id_detalle_liquidacion">
+        {{select_detalles}}
+    </select>
+    <div class="error" data-field="id_detalle_liquidacion"></div>
+    <label for="id_usuario">Usuario</label>
+    <select name="id_usuario" id="id_usuario" required>
+        {{select_usuarios}}
+    </select>
+    <div class="error" data-field="id_usuario"></div>
+    <label for="accion">Acción</label>
+    <select name="accion" id="accion" required>
+        <option value="APROBADO">Aprobado</option>
+        <option value="RECHAZADO">Rechazado</option>
+    </select>
+    <div class="error" data-field="accion"></div>
+    <label for="comentario">Comentario</label>
+    <input type="text" name="comentario" id="comentario" placeholder="Comentario" value="<?php echo isset($data) ? htmlspecialchars($data['comentario']) : ''; ?>">
+    <div class="error" data-field="comentario"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

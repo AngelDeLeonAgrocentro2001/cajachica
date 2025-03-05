@@ -1,40 +1,47 @@
 async function loadAuditoria() {
+    const form = document.getElementById('auditoriaFilterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData).toString();
+    console.log('Parámetros enviados:', params);
     try {
-        const response = await fetch('index.php?controller=Auditoria&action=list', {
+        const response = await fetch(`index.php?controller=auditoria&action=getAuditoria&${params}`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
-            const errorData = await response.json();
-            if (response.status === 401) {
-                throw new Error(errorData.error || 'No autorizado');
+            const text = await response.text();
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
+            } catch (parseError) {
+                throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
             }
-            throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
-        const auditorias = await response.json();
-        const tbody = document.querySelector('#AuditoriaesTable tbody');
+        const auditoria = await response.json();
+        console.log('Registros recibidos:', auditoria);
+        const tbody = document.querySelector('#auditoriaTable tbody');
         tbody.innerHTML = '';
-        if (auditorias.length > 0) {
-            auditorias.forEach(auditorial => {
+        if (auditoria.length > 0) {
+            auditoria.forEach(entry => {
                 tbody.innerHTML += `
                     <tr>
-                        <td>${auditorial.id}</td>
-                        <td>${auditorial.id_caja_chica || 'General'}</td>
-                        <td>${auditorial.no_factura || 'N/A'}</td>
-                        <td>${auditorial.nombre_usuario}</td>
-                        <td>${auditorial.accion}</td>
-                        <td>${auditorial.fecha}</td>
+                        <td data-label="ID">${entry.id}</td>
+                        <td data-label="Liquidación">${entry.id_liquidacion || '-'}</td>
+                        <td data-label="Detalle">${entry.id_detalle_liquidacion || '-'}</td>
+                        <td data-label="Usuario">${entry.usuario_nombre}</td>
+                        <td data-label="Tipo de Acción">${entry.tipo_accion}</td>
+                        <td data-label="Detalles">${entry.detalles || '-'}</td>
+                        <td data-label="Fecha">${entry.fecha}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay auditorias de aprobaciones registrados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7">No hay registros de auditoría.</td></tr>';
         }
     } catch (error) {
-        console.error('Error al cargar auditorial de aprobaciones:', error);
-        alert('No se pudo cargar la lista de auditorial de aprobaciones. Por favor, inicia sesión nuevamente.');
-        window.location.href = 'index.php?controller=login&action=login';
+        console.error('Error al cargar auditoría:', error.message);
+        alert('No se pudo cargar el historial de auditoría: ' + error.message);
     }
 }
 
@@ -47,106 +54,192 @@ async function createAuditoria(data) {
         }
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Error al crear auditorial de aprobación: ${errorData.error || await response.text()}`);
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
     }
     return response.json();
 }
 
+async function updateAuditoria(id, data) {
+    const response = await fetch(`index.php?controller=Auditoria&action=update&id=${id}`, {
+        method: 'POST',
+        body: data,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
+    }
+    return response.json();
+}
+
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
+
+function closeModal() {
+    if (modal) {
+        modal.classList.remove('active');
+        modalForm.innerHTML = '';
+        window.history.pushState({}, '', 'index.php?controller=auditoria&action=list');
+    }
+}
+
 function showCreateForm() {
-    fetch('index.php?controller=Auditoria&action=create')
-        .then(response => {
-            if (!response.ok) throw new Error(`Error al cargar formulario: ${response.status}`);
-            return response.text();
-        })
-        .then(html => {
-            document.getElementById('AuditoriaForm').innerHTML = html;
-            document.getElementById('AuditoriaForm').style.display = 'block';
-            addValidations();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('No se pudo cargar el formulario. Por favor, intenta de nuevo.');
-        });
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
+    fetch('index.php?controller=Auditoria&action=create', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(errorText => {
+                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            });
+        }
+        return response.text();
+    })
+    .then(html => {
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addValidations();
+    })
+    .catch(error => {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    });
 }
 
-function cancelForm() {
-    document.getElementById('AuditoriaForm').style.display = 'none';
-    document.getElementById('AuditoriaForm').innerHTML = '';
+function showEditForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
+    fetch(`index.php?controller=Auditoria&action=update&id=${id}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(errorText => {
+                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            });
+        }
+        return response.text();
+    })
+    .then(html => {
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addValidations(id);
+    })
+    .catch(error => {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    });
 }
 
-function addValidations() {
-    const form = document.getElementById('AuditoriaFormInner');
-    if (!form || form.tagName !== 'FORM') {
-        console.error('No se encontró un elemento <form> con ID #AuditoriaFormInner. Verifica el HTML cargado:', document.getElementById('AuditoriaForm')?.innerHTML || 'No se encontró #AuditoriaForm');
-        alert('No se pudo inicializar el formulario. Intenta de nuevo.');
+function addValidations(id = null) {
+    const form = document.querySelector('#modalForm #AuditoriaFormInner');
+    if (!form) {
+        console.error('No se encontró un elemento <form> con id="AuditoriaFormInner" dentro de #modalForm');
         return;
     }
 
     const fields = {
         id_liquidacion: { required: true },
         id_usuario: { required: true },
-        accion: { required: true }
+        accion: { required: true },
+        comentario: { required: false }
     };
 
-    form.querySelectorAll('select').forEach(field => {
+    form.querySelectorAll('select, input').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
     function validateField(e) {
         const fieldName = e.target.name;
-        const value = e.target.value;
+        const value = e.target.value.trim();
         const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
         errorElement.className = 'error';
         errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
+
+        errorElement.style.display = 'none';
+        e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            errorElement.style.display = 'none';
-            e.target.classList.remove('invalid');
-            return true;
         }
         return true;
     }
 
-    // Inspeccionar el HTML de los <select> para depuración
-    form.querySelectorAll('select').forEach(select => {
-        console.log(select.outerHTML);
-    });
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        form.querySelectorAll('select').forEach(field => {
-            if (!validateField({ target: field })) isValid = false;
-        });
+        const validations = await Promise.all(
+            Array.from(form.querySelectorAll('select, input')).map(field => validateField({ target: field }))
+        );
+        isValid = validations.every(valid => valid);
 
         if (isValid) {
             const formData = new FormData(form);
+            const formId = formData.get('id') || id;
+
             try {
-                const result = await createAuditoria(formData);
-                if (result.message) {
-                    window.location.reload(); // Recargar la página automáticamente
-                } else if (result.error) {
-                    const errorElement = form.querySelector('.error') || document.createElement('div');
-                    errorElement.className = 'error';
-                    errorElement.textContent = result.error;
-                    errorElement.style.display = 'block';
-                }
+                const action = formId ? updateAuditoria(formId, formData) : createAuditoria(formData);
+                const result = await action;
+                alert(result.message || 'Operación exitosa');
+                closeModal();
+                loadAuditoria();
             } catch (error) {
                 console.error('Error al enviar formulario:', error);
-                const errorElement = form.querySelector('.error') || document.createElement('div');
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
                 errorElement.className = 'error';
-                errorElement.textContent = 'Error al procesar la solicitud. Intenta de nuevo.';
+                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });
 }
 
-loadAuditoria();
+document.addEventListener('DOMContentLoaded', () => {
+    loadAuditoria();
+});

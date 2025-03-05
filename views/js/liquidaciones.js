@@ -1,94 +1,59 @@
-async function loadLiquidaciones() {
-    // Verificar si la tabla existe antes de continuar
-    const tbody = document.querySelector('#liquidacionesTable tbody');
-    if (!tbody) {
-        console.log('Tabla #liquidacionesTable no encontrada, omitiendo carga de liquidaciones');
-        return;
-    }
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
 
+document.addEventListener('DOMContentLoaded', () => {
+    loadLiquidaciones();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id && modal) {
+        showEditForm(id);
+    }
+});
+
+function closeModal() {
+    if (modal) {
+        modal.classList.remove('active');
+        modalForm.innerHTML = '';
+    }
+}
+
+async function loadLiquidaciones() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode');
-        const isAutorizarMode = mode === 'autorizar';
-        const isRevisarMode = mode === 'revisar';
-        console.log('Modo actual:', mode);
-        console.log('isAutorizarMode:', isAutorizarMode);
-        console.log('isRevisarMode:', isRevisarMode);
-
-        const response = await fetch('index.php?controller=liquidacion&action=list', {
+        const mode = urlParams.get('mode') || '';
+        const response = await fetch(`index.php?controller=liquidacion&action=list${mode ? '&mode=' + mode : ''}`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
-            const text = await response.text();
-            try {
-                const errorData = JSON.parse(text);
-                throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
-            } catch (parseError) {
-                throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
+            const errorData = await response.json();
+            if (response.status === 401) {
+                throw new Error(errorData.error || 'No autorizado');
             }
+            throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
-        const liquidaciones = await response.json();
-        console.log('Liquidaciones recibidas:', liquidaciones);
-
+        const data = await response.json();
+        const tbody = document.querySelector('#liquidacionesTable tbody');
         tbody.innerHTML = '';
-        if (liquidaciones.length > 0) {
-            liquidaciones.forEach(liquidacion => {
-                console.log('Procesando liquidación:', liquidacion);
-                console.log('Estado de la liquidación:', liquidacion.estado);
-                let acciones = '';
-                if (isAutorizarMode) {
-                    if (liquidacion.estado.trim() === 'PENDIENTE') {
-                        acciones = `<a href="index.php?controller=liquidacion&action=autorizar&id=${liquidacion.id}">Autorizar/Rechazar</a>`;
-                    } else if (liquidacion.estado === 'PENDIENTE_CORRECCIÓN') {
-                        acciones = `Pendiente de corrección`;
-                    } else if (liquidacion.estado === 'AUTORIZADO_POR_SUPERVISOR') {
-                        acciones = `Autorizado por Supervisor`;
-                    } else if (liquidacion.estado === 'RECHAZADO_POR_SUPERVISOR') {
-                        acciones = `Rechazado por Supervisor`;
-                    } else if (liquidacion.estado === 'AUTORIZADO_POR_CONTABILIDAD') {
-                        acciones = `Autorizado por Contabilidad`;
-                    } else if (liquidacion.estado === 'RECHAZADO_POR_CONTABILIDAD') {
-                        acciones = `Rechazado por Contabilidad`;
-                    } else {
-                        acciones = `Estado no válido`;
-                    }
-                } else if (isRevisarMode) {
-                    if (liquidacion.estado === 'AUTORIZADO_POR_SUPERVISOR') {
-                        acciones = `<a href="index.php?controller=liquidacion&action=revisar&id=${liquidacion.id}">Revisar</a>`;
-                    } else if (liquidacion.estado === 'PENDIENTE') {
-                        acciones = `Pendiente de autorización del Supervisor`;
-                    } else if (liquidacion.estado === 'PENDIENTE_CORRECCIÓN') {
-                        acciones = `Pendiente de corrección`;
-                    } else if (liquidacion.estado === 'RECHAZADO_POR_SUPERVISOR') {
-                        acciones = `Rechazado por Supervisor`;
-                    } else if (liquidacion.estado === 'AUTORIZADO_POR_CONTABILIDAD') {
-                        if (liquidacion.exportado == 1) {
-                            acciones = `Exportado`;
-                        } else {
-                            acciones = `<a href="index.php?controller=liquidacion&action=exportar&id=${liquidacion.id}">Exportar a SAP</a>`;
-                        }
-                    } else if (liquidacion.estado === 'RECHAZADO_POR_CONTABILIDAD') {
-                        acciones = `Rechazado por Contabilidad`;
-                    } else {
-                        acciones = `Estado no válido`;
-                    }
-                } else {
-                    acciones = `
-                        <button onclick="showEditForm(${liquidacion.id})">Editar</button>
-                        <button onclick="deleteLiquidacion(${liquidacion.id})">Eliminar</button>
+        if (data.length > 0) {
+            data.forEach(liquidacion => {
+                const mode = urlParams.get('mode') || '';
+                const actions = mode === 'autorizar' || mode === 'revisar'
+                    ? `<button class="edit-btn" onclick="autorizarLiquidacion(${liquidacion.id}, '${mode}')">${mode === 'autorizar' ? 'Autorizar' : 'Revisar'}</button>`
+                    : `
+                        <button class="edit-btn" onclick="showEditForm(${liquidacion.id}); window.history.pushState({}, '', 'index.php?controller=liquidacion&action=update&id=${liquidacion.id}')">Editar</button>
+                        <button class="delete-btn" onclick="deleteLiquidacion(${liquidacion.id})">Eliminar</button>
                     `;
-                }
-
                 tbody.innerHTML += `
                     <tr>
-                        <td>${liquidacion.id}</td>
-                        <td>${liquidacion.id_caja_chica}</td>
-                        <td>${liquidacion.fecha_creacion}</td>
-                        <td>${liquidacion.monto_total}</td>
-                        <td>${liquidacion.estado || 'Sin estado'}</td>
-                        <td>${acciones}</td>
+                        <td data-label="ID">${liquidacion.id}</td>
+                        <td data-label="Caja Chica">${liquidacion.nombre_caja_chica || 'N/A'}</td>
+                        <td data-label="Fecha Creación">${liquidacion.fecha_creacion}</td>
+                        <td data-label="Monto Total">${parseFloat(liquidacion.monto_total).toFixed(2)}</td>
+                        <td data-label="Estado">${liquidacion.estado}</td>
+                        <td data-label="Acciones">${actions}</td>
                     </tr>
                 `;
             });
@@ -96,9 +61,71 @@ async function loadLiquidaciones() {
             tbody.innerHTML = '<tr><td colspan="6">No hay liquidaciones registradas.</td></tr>';
         }
     } catch (error) {
-        console.error('Error al cargar liquidaciones:', error.message);
-        alert('No se pudo cargar la lista de liquidaciones: ' + error.message + '. Por favor, inicia sesión nuevamente.');
+        console.error('Error al cargar liquidaciones:', error);
+        alert('No se pudo cargar la lista de liquidaciones. Por favor, inicia sesión nuevamente.');
         window.location.href = 'index.php?controller=login&action=login';
+    }
+}
+
+async function showCreateForm() {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
+    try {
+        const response = await fetch('index.php?controller=liquidacion&action=create', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+        }
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addFormValidations();
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    }
+}
+
+async function showEditForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=update&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+        }
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addFormValidations(id);
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
@@ -110,16 +137,11 @@ async function createLiquidacion(data) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     });
+    const result = await response.json();
     if (!response.ok) {
-        const text = await response.text();
-        try {
-            const errorData = JSON.parse(text);
-            throw new Error(`Error al crear liquidación: ${errorData.error || text}`);
-        } catch (parseError) {
-            throw new Error(`Error al crear liquidación: Respuesta no es JSON válida - ${text}`);
-        }
+        throw new Error(result.error || 'Error al crear liquidación');
     }
-    return response.json();
+    return result;
 }
 
 async function updateLiquidacion(id, data) {
@@ -130,84 +152,44 @@ async function updateLiquidacion(id, data) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     });
+    const result = await response.json();
     if (!response.ok) {
-        const text = await response.text();
-        try {
-            const errorData = JSON.parse(text);
-            throw new Error(`Error al actualizar liquidación: ${errorData.error || text}`);
-        } catch (parseError) {
-            throw new Error(`Error al actualizar liquidación: Respuesta no es JSON válida - ${text}`);
-        }
+        throw new Error(result.error || 'Error al actualizar liquidación');
     }
-    return response.json();
+    return result;
 }
 
 async function deleteLiquidacion(id) {
-    const response = await fetch(`index.php?controller=liquidacion&action=delete&id=${id}`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    if (!confirm('¿Estás seguro de que deseas eliminar esta liquidación?')) return;
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=delete&id=${id}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al eliminar liquidación');
         }
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Error al eliminar liquidación: ${errorData.error || await response.text()}`);
+        const result = await response.json();
+        alert(result.message || 'Liquidación eliminada');
+        loadLiquidaciones();
+    } catch (error) {
+        console.error('Error al eliminar liquidación:', error);
+        alert(error.message || 'Error al eliminar liquidación. Intenta de nuevo.');
     }
-    if (response.ok) loadLiquidaciones();
 }
 
-function showCreateForm() {
-    fetch('index.php?controller=liquidacion&action=create')
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(`Error al cargar formulario: ${response.status} - ${text}`);
-                });
-            }
-            return response.text();
-        })
-        .then(html => {
-            document.getElementById('liquidacionForm').innerHTML = html;
-            document.getElementById('liquidacionForm').style.display = 'block';
-            addValidations();
-        })
-        .catch(error => {
-            console.error('Error al cargar formulario:', error.message);
-            alert('No se pudo cargar el formulario: ' + error.message + '. Por favor, intenta de nuevo.');
-        });
+async function autorizarLiquidacion(id, mode) {
+    window.location.href = `index.php?controller=liquidacion&action=autorizar&id=${id}&mode=${mode}`;
 }
 
-function showEditForm(id) {
-    fetch(`index.php?controller=liquidacion&action=update&id=${id}`)
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(`Error al cargar formulario: ${response.status} - ${text}`);
-                });
-            }
-            return response.text();
-        })
-        .then(html => {
-            document.getElementById('liquidacionForm').innerHTML = html;
-            document.getElementById('liquidacionForm').style.display = 'block';
-            addValidations();
-        })
-        .catch(error => {
-            console.error('Error al cargar formulario:', error.message);
-            alert('No se pudo cargar el formulario: ' + error.message + '. Por favor, intenta de nuevo.');
-        });
-}
-
-function cancelForm() {
-    document.getElementById('liquidacionForm').style.display = 'none';
-    document.getElementById('liquidacionForm').innerHTML = '';
-}
-
-function addValidations() {
-    const form = document.getElementById('liquidacionFormInner');
-    if (!form || form.tagName !== 'FORM') {
-        console.error('No se encontró un elemento <form> con ID #liquidacionFormInner. Verifica el HTML cargado:', document.getElementById('liquidacionForm')?.innerHTML || 'No se encontró #liquidacionForm');
-        alert('No se pudo inicializar el formulario. Intenta de nuevo.');
+function addFormValidations(id = null) {
+    const form = document.querySelector('#modalForm #liquidacionFormInner');
+    if (!form) {
+        console.error('No se encontró un elemento <form> con id="liquidacionFormInner" dentro de #modalForm');
         return;
     }
 
@@ -222,41 +204,38 @@ function addValidations() {
         field.addEventListener('input', validateField);
     });
 
-    function validateField(e) {
+    async function validateField(e) {
         const fieldName = e.target.name;
         const value = e.target.value;
         const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
         errorElement.className = 'error';
         errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
+
+        errorElement.style.display = 'none';
+        e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
             if (fields[fieldName].type === 'number' && isNaN(value)) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser un número.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser un número.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
             if (fields[fieldName].min && value < fields[fieldName].min) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe ser mayor o igual a ${fields[fieldName].min}.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser mayor o igual a ${fields[fieldName].min}.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            errorElement.style.display = 'none';
-            e.target.classList.remove('invalid');
-            return true;
         }
         return true;
     }
@@ -264,48 +243,29 @@ function addValidations() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        form.querySelectorAll('input, select').forEach(field => {
-            if (!validateField({ target: field })) isValid = false;
-        });
+        const validations = await Promise.all(
+            Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
+        );
+        isValid = validations.every(valid => valid);
 
         if (isValid) {
             const formData = new FormData(form);
-            const id = formData.get('id');
             try {
-                if (id) {
-                    const result = await updateLiquidacion(id, formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                } else {
-                    const result = await createLiquidacion(formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                }
+                const action = id ? updateLiquidacion(id, formData) : createLiquidacion(formData);
+                const result = await action;
+                alert(result.message || 'Operación exitosa');
+                closeModal();
+                loadLiquidaciones();
             } catch (error) {
-                console.error('Error al enviar formulario:', error.message);
-                console.log('Respuesta del servidor:', error.message);
-                const errorElement = form.querySelector('.error') || document.createElement('div');
+                console.error('Error al enviar formulario:', error);
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
                 errorElement.className = 'error';
-                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });
-}
-
-// Ejecutar loadLiquidaciones solo si estamos en la página de lista
-if (document.querySelector('#liquidacionesTable')) {
-    loadLiquidaciones();
 }

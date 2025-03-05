@@ -203,16 +203,47 @@ class LiquidacionController {
             exit;
         }
     
-        $liquidacion = new Liquidacion();
-        if ($liquidacion->deleteLiquidacion($id)) {
-            $auditoria = new Auditoria();
-            $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
+        $liquidacionModel = new Liquidacion();
+        $liquidacionData = $liquidacionModel->getLiquidacionById($id);
+        if (!$liquidacionData) {
             header('Content-Type: application/json');
-            echo json_encode(['message' => 'Liquidación eliminada']);
-        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'Liquidación no encontrada']);
+            exit;
+        }
+    
+        try {
+            // Iniciar una transacción para asegurar integridad
+            $this->pdo->beginTransaction();
+    
+            // Eliminar registros dependientes en auditoria
+            $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
+            if (!$stmt->execute([$id])) {
+                throw new Exception('Error al eliminar registros de auditoría relacionados');
+            }
+    
+            // Eliminar registros dependientes en detalle_liquidaciones
+            $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE id_liquidacion = ?");
+            if (!$stmt->execute([$id])) {
+                throw new Exception('Error al eliminar detalles de liquidación relacionados');
+            }
+    
+            // Eliminar la liquidación
+            if ($liquidacionModel->deleteLiquidacion($id)) {
+                $auditoriaModel = new Auditoria();
+                $auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
+                $this->pdo->commit();
+                header('Content-Type: application/json');
+                echo json_encode(['message' => 'Liquidación eliminada']);
+            } else {
+                throw new Exception('Error al eliminar liquidación');
+            }
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            error_log('Error al eliminar liquidación: ' . $e->getMessage());
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'Error al eliminar liquidación']);
+            echo json_encode(['error' => $e->getMessage()]);
         }
         exit;
     }

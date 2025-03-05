@@ -140,7 +140,8 @@ class DetalleLiquidacionController {
         $liquidaciones = $liquidacion->getAllLiquidaciones();
         $selectLiquidaciones = '';
         foreach ($liquidaciones as $l) {
-            $selectLiquidaciones .= "<option value='{$l['id']}'>{$l['nombre_caja_chica']} - {$l['fecha_creacion']}</option>";
+            $nombreCajaChica = isset($l['nombre_caja_chica']) ? $l['nombre_caja_chica'] : 'N/A';
+            $selectLiquidaciones .= "<option value='{$l['id']}'>{$nombreCajaChica} - {$l['fecha_creacion']}</option>";
         }
     
         $tipoGasto = new TipoGasto();
@@ -240,7 +241,9 @@ class DetalleLiquidacionController {
     
                 $rutas_json = json_encode($rutas_archivos);
     
-                $detalle = new DetalleLiquidacion();
+                // Iniciar una transacción para asegurar integridad
+                $this->pdo->beginTransaction();
+    
                 if ($detalle->updateDetalleLiquidacion($id, $id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_json)) {
                     $auditoria = new Auditoria();
                     $auditoria->createAuditoria($id_liquidacion, $id, $_SESSION['user_id'], 'ACTUALIZADO', 'Detalle de liquidación actualizado');
@@ -251,16 +254,20 @@ class DetalleLiquidacionController {
     
                     if ($descartados == 0) {
                         $liquidacionModel = new Liquidacion();
-                        $liquidacionModel->updateEstado($id_liquidacion, 'PENDIENTE');
+                        if (!$liquidacionModel->updateEstado($id_liquidacion, 'PENDIENTE')) {
+                            throw new Exception('Error al actualizar el estado de la liquidación a PENDIENTE');
+                        }
                         $auditoria->createAuditoria($id_liquidacion, null, $_SESSION['user_id'], 'PENDIENTE', 'Liquidación restaurada a PENDIENTE tras corrección de detalles');
                     }
     
+                    $this->pdo->commit();
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Detalle de liquidación actualizado']);
                 } else {
                     throw new Exception('Error al actualizar detalle de liquidación en la base de datos.');
                 }
             } catch (Exception $e) {
+                $this->pdo->rollBack();
                 error_log('Error en updateDetalleLiquidacion: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(400);
@@ -284,7 +291,8 @@ class DetalleLiquidacionController {
         $selectLiquidaciones = '';
         foreach ($liquidaciones as $l) {
             $selected = $data['id_liquidacion'] == $l['id'] ? 'selected' : '';
-            $selectLiquidaciones .= "<option value='{$l['id']}' {$selected}>{$l['nombre_caja_chica']} - {$l['fecha_creacion']}</option>";
+            $nombreCajaChica = isset($l['nombre_caja_chica']) ? $l['nombre_caja_chica'] : 'N/A';
+            $selectLiquidaciones .= "<option value='{$l['id']}' {$selected}>{$nombreCajaChica} - {$l['fecha_creacion']}</option>";
         }
     
         $tipoGasto = new TipoGasto();
@@ -372,15 +380,18 @@ class DetalleLiquidacionController {
         $detalleModel = new DetalleLiquidacion();
         $data = $detalleModel->getDetalleLiquidacionById($id);
         if (!$data) {
-            require '../views/detalle_liquidaciones/revisar_individual.html';
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Detalle no encontrado']);
             exit;
         }
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $accion = $_POST['accion'] ?? '';
-            $motivo = $_POST['motivo'] ?? '';
+            $accion = $_POST['accion'] ?? 'EN_REVISIÓN'; // Estado por defecto si no se especifica acción
+            $motivo = $_POST['motivo'] ?? 'Enviado a revisión contable';
     
-            if (!in_array($accion, ['AUTORIZADO_POR_CONTABILIDAD', 'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO'])) {
+            // Si se proporciona una acción específica, validarla
+            if (isset($_POST['accion']) && !in_array($accion, ['AUTORIZADO_POR_CONTABILIDAD', 'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO'])) {
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => 'Acción no válida']);
@@ -388,6 +399,9 @@ class DetalleLiquidacionController {
             }
     
             try {
+                // Iniciar una transacción para asegurar integridad
+                $this->pdo->beginTransaction();
+    
                 $detalleModel->updateEstado($id, $accion);
                 $auditoria = new Auditoria();
                 $auditoria->createAuditoria($data['id_liquidacion'], $id, $_SESSION['user_id'], $accion, $motivo);
@@ -414,9 +428,11 @@ class DetalleLiquidacionController {
                     $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'AUTORIZADO_POR_CONTABILIDAD', 'Liquidación completamente autorizada tras revisión de detalles');
                 }
     
+                $this->pdo->commit();
                 header('Content-Type: application/json');
                 echo json_encode(['message' => 'Revisión registrada correctamente']);
             } catch (Exception $e) {
+                $this->pdo->rollBack();
                 error_log('Error al registrar revisión: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(500);

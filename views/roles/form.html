@@ -1,26 +1,19 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><?php echo isset($data) ? 'Editar Rol' : 'Crear Rol'; ?></title>
-    <link rel="stylesheet" href="../views/css/style.css">
-</head>
-<body>
-    <h2><?php echo isset($data) ? 'Editar Rol' : 'Crear Rol'; ?></h2>
-    <form id="rolFormInner">
-        <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
-        <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
-        <textarea name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
-        <select name="estado" required>
-            <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
-            <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
-        </select>
-        <div class="error" data-field="nombre"></div>
-        <div class="error" data-field="descripcion"></div>
-        <div class="error" data-field="estado"></div>
-        <div class="error"></div>
-        <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
-        <button type="button" onclick="cancelForm()">Cancelar</button>
-    </form>
-</body>
-</html>
+<h2><?php echo isset($data) ? 'Editar Rol' : 'Crear Rol'; ?></h2>
+<form id="rolFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <label for="nombre">Nombre</label>
+    <input type="text" id="nombre" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+    <div class="error" data-field="nombre"></div>
+    <label for="descripcion">Descripción</label>
+    <textarea id="descripcion" name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
+    <div class="error" data-field="descripcion"></div>
+    <label for="estado">Estado</label>
+    <select id="estado" name="estado" required>
+        <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
+    </select>
+    <div class="error" data-field="estado"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

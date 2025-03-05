@@ -1,7 +1,14 @@
-const rolForm = document.querySelector('#rolForm');
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
     loadRoles();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id && modal) {
+        showEditForm(id);
+    }
 });
 
 async function loadRoles() {
@@ -21,20 +28,24 @@ async function loadRoles() {
         const roles = await response.json();
         const tbody = document.querySelector('#rolesTable tbody');
         tbody.innerHTML = '';
-        roles.forEach(rol => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${rol.id}</td>
-                    <td>${rol.nombre}</td>
-                    <td>${rol.descripcion || ''}</td>
-                    <td>${rol.estado}</td>
-                    <td>
-                        <button onclick="showEditForm(${rol.id})">Editar</button>
-                        <button onclick="deleteRol(${rol.id})">Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        });
+        if (roles.length > 0) {
+            roles.forEach(rol => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td data-label="ID">${rol.id}</td>
+                        <td data-label="Nombre">${rol.nombre}</td>
+                        <td data-label="Descripción">${rol.descripcion || 'N/A'}</td>
+                        <td data-label="Estado">${rol.estado}</td>
+                        <td data-label="Acciones">
+                            <button class="edit-btn" onclick="showEditForm(${rol.id}); window.history.pushState({}, '', 'index.php?controller=rol&action=update&id=${rol.id}')">Editar</button>
+                            <button class="delete-btn" onclick="deleteRol(${rol.id})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5">No hay roles registrados.</td></tr>';
+        }
     } catch (error) {
         console.error('Error al cargar roles:', error);
         alert('No se pudo cargar la lista de roles. Por favor, inicia sesión nuevamente.');
@@ -51,8 +62,13 @@ async function createRol(data) {
         }
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Error al crear rol: ${errorData.error || await response.text()}`);
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
     }
     return response.json();
 }
@@ -69,160 +85,155 @@ async function updateRol(id, data) {
         const text = await response.text();
         try {
             const errorData = JSON.parse(text);
-            throw new Error(`Error al actualizar rol: ${errorData.error || 'Error desconocido'}`);
+            throw new Error(errorData.error || text);
         } catch (parseError) {
-            throw new Error(`Error al actualizar rol: Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
     }
     return response.json();
 }
 
 async function deleteRol(id) {
-    const response = await fetch(`index.php?controller=rol&action=delete&id=${id}`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    if (!confirm('¿Estás seguro de que deseas eliminar este rol?')) return;
+
+    try {
+        const response = await fetch(`index.php?controller=rol&action=delete&id=${id}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.error || 'Error al eliminar rol');
+            } catch (parseError) {
+                throw new Error(`Respuesta no es JSON válida: ${text}`);
+            }
         }
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Error al eliminar rol: ${errorData.error || await response.text()}`);
+        const result = await response.json();
+        alert(result.message || 'Rol eliminado');
+        loadRoles();
+    } catch (error) {
+        console.error('Error al eliminar rol:', error);
+        alert(error.message || 'Error al eliminar rol. Intenta de nuevo.');
     }
-    if (response.ok) loadRoles();
 }
 
-function showCreateForm() {
-    if (!rolForm) {
-        console.error('El elemento #rolForm no se encontró en el DOM');
+function closeModal() {
+    if (modal) {
+        modal.classList.remove('active');
+        modalForm.innerHTML = '';
+        window.history.pushState({}, '', 'index.php?controller=rol&action=list');
+    }
+}
+
+async function showCreateForm() {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch('index.php?controller=rol&action=create', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
+    try {
+        const response = await fetch('index.php?controller=rol&action=create', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
         if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.error || `Error HTTP: ${response.status} - ${response.statusText}`);
-            });
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
-        return response.text();
-    })
-    .then(html => {
-        console.log('HTML devuelto (create):', html);
-        rolForm.innerHTML = html;
-        rolForm.style.display = 'block';
-        const form = rolForm.querySelector('#rolFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
-            rolForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
         }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
         addValidations();
-    })
-    .catch(error => {
-        console.error('Error al cargar el formulario (create):', error);
-        if (rolForm) {
-            rolForm.innerHTML = `<div class="error">${error.message}</div>`;
-            rolForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
-    });
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    }
 }
 
-function showEditForm(id) {
-    if (!rolForm) {
-        console.error('El elemento #rolForm no se encontró en el DOM');
+async function showEditForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
         alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
-    fetch(`index.php?controller=rol&action=update&id=${id}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
+    try {
+        const response = await fetch(`index.php?controller=rol&action=update&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
         if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.error || `Error HTTP: ${response.status} - ${response.statusText}`);
-            });
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
-        return response.text();
-    })
-    .then(html => {
-        console.log('HTML devuelto (update):', html);
-        rolForm.innerHTML = html;
-        rolForm.style.display = 'block';
-        const form = rolForm.querySelector('#rolFormInner');
-        if (!form) {
-            console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
-            rolForm.innerHTML = '<div class="error">Error al cargar el formulario. Intenta de nuevo.</div>';
-            return;
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
         }
-        addValidations();
-    })
-    .catch(error => {
-        console.error('Error al cargar el formulario (update):', error);
-        if (rolForm) {
-            rolForm.innerHTML = `<div class="error">${error.message}</div>`;
-            rolForm.style.display = 'block';
-        } else {
-            alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
-        }
-    });
-}
-
-function cancelForm() {
-    const formContainer = document.getElementById('rolForm');
-    if (formContainer) {
-        formContainer.style.display = 'none';
-        formContainer.innerHTML = '';
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+        addValidations(id);
+    } catch (error) {
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
-function addValidations() {
-    const form = document.querySelector('#rolForm #rolFormInner');
+function addValidations(id = null) {
+    const form = document.querySelector('#modalForm #rolFormInner');
     if (!form) {
-        console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #rolForm');
+        console.error('No se encontró un elemento <form> con id="rolFormInner" dentro de #modalForm');
         return;
     }
 
     const fields = {
-        nombre: { required: true, minLength: 2 }
+        nombre: { required: true, minLength: 2 },
+        descripcion: { required: false },
+        estado: { required: true }
     };
 
     form.querySelectorAll('input, textarea, select').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
-    function validateField(e) {
+    async function validateField(e) {
         const fieldName = e.target.name;
-        const value = e.target.value;
+        const value = e.target.value.trim();
         const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
         errorElement.className = 'error';
         errorElement.setAttribute('data-field', fieldName);
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
+
+        errorElement.style.display = 'none';
+        e.target.classList.remove('invalid');
 
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
+            if (fields[fieldName].minLength && value && value.length < fields[fieldName].minLength) {
+                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
                 return false;
             }
-            errorElement.style.display = 'none';
-            e.target.classList.remove('invalid');
-            return true;
         }
         return true;
     }
@@ -230,41 +241,30 @@ function addValidations() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        form.querySelectorAll('input, textarea, select').forEach(field => {
-            if (!validateField({ target: field })) isValid = false;
-        });
+        const validations = await Promise.all(
+            Array.from(form.querySelectorAll('input, textarea, select')).map(field => validateField({ target: field }))
+        );
+        isValid = validations.every(valid => valid);
 
         if (isValid) {
             const formData = new FormData(form);
-            const id = formData.get('id');
+            const formId = formData.get('id') || id;
+
             try {
-                if (id) {
-                    const result = await updateRol(id, formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                } else {
-                    const result = await createRol(formData);
-                    if (result.message) {
-                        window.location.reload();
-                    } else if (result.error) {
-                        const errorElement = form.querySelector('.error') || document.createElement('div');
-                        errorElement.className = 'error';
-                        errorElement.textContent = result.error;
-                        errorElement.style.display = 'block';
-                    }
-                }
+                const action = formId ? updateRol(formId, formData) : createRol(formData);
+                const result = await action;
+                alert(result.message || 'Operación exitosa');
+                closeModal();
+                loadRoles();
             } catch (error) {
                 console.error('Error al enviar formulario:', error);
-                const errorElement = form.querySelector('.error') || document.createElement('div');
+                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
                 errorElement.className = 'error';
-                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
+                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
                 errorElement.style.display = 'block';
+                if (!form.contains(errorElement)) {
+                    form.appendChild(errorElement);
+                }
             }
         }
     });

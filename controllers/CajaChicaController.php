@@ -55,6 +55,7 @@ class CajaChicaController {
                 $monto_asignado = $_POST['monto_asignado'] ?? 0;
                 $id_usuario_encargado = $_POST['id_usuario_encargado'] ?? '';
                 $id_supervisor = $_POST['id_supervisor'] ?? '';
+                $estado = $_POST['estado'] ?? 'ACTIVA';
 
                 if (empty($nombre) || !is_numeric($monto_asignado) || empty($id_usuario_encargado) || empty($id_supervisor)) {
                     throw new Exception('Todos los campos son obligatorios');
@@ -70,7 +71,7 @@ class CajaChicaController {
                 }
 
                 $cajaChica = new CajaChica();
-                if ($cajaChica->createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor)) {
+                if ($cajaChica->createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor, $estado)) {
                     header('Content-Type: application/json');
                     http_response_code(201);
                     echo json_encode(['message' => 'Caja chica creada']);
@@ -132,10 +133,12 @@ class CajaChicaController {
             try {
                 $nombre = $_POST['nombre'] ?? '';
                 $monto_asignado = $_POST['monto_asignado'] ?? 0;
+                $monto_disponible = $_POST['monto_disponible'] ?? 0;
                 $id_usuario_encargado = $_POST['id_usuario_encargado'] ?? '';
                 $id_supervisor = $_POST['id_supervisor'] ?? '';
+                $estado = $_POST['estado'] ?? 'ACTIVA';
 
-                if (empty($nombre) || !is_numeric($monto_asignado) || empty($id_usuario_encargado) || empty($id_supervisor)) {
+                if (empty($nombre) || !is_numeric($monto_asignado) || !is_numeric($monto_disponible) || empty($id_usuario_encargado) || empty($id_supervisor)) {
                     throw new Exception('Todos los campos son obligatorios');
                 }
 
@@ -148,7 +151,7 @@ class CajaChicaController {
                 }
 
                 $cajaChica = new CajaChica();
-                if ($cajaChica->updateCajaChica($id, $nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor)) {
+                if ($cajaChica->updateCajaChica($id, $nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $estado)) {
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Caja chica actualizada']);
                 } else {
@@ -165,6 +168,12 @@ class CajaChicaController {
 
         $cajaChica = new CajaChica();
         $data = $cajaChica->getCajaChicaById($id);
+        if (!$data) {
+            echo "<h2>Error: Caja chica no encontrada</h2>";
+            echo "<p>No se pudo cargar la caja chica con ID " . htmlspecialchars($id) . ".</p>";
+            echo '<a href="index.php?controller=cajachica&action=list">Volver a Lista</a>';
+            exit;
+        }
 
         $usuarioModel = new Usuario();
         $encargados = $usuarioModel->getUsuariosByRol('ENCARGADO_CAJA_CHICA');

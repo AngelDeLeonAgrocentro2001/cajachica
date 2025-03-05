@@ -21,14 +21,14 @@ class CajaChica {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor) {
-        $stmt = $this->pdo->prepare("INSERT INTO cajas_chicas (nombre, monto_asignado, monto_disponible, id_usuario_encargado, id_supervisor, estado) VALUES (?, ?, ?, ?, ?, 'ACTIVA')");
-        return $stmt->execute([$nombre, $monto_asignado, $monto_asignado, $id_usuario_encargado, $id_supervisor]);
+    public function createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor, $estado) {
+        $stmt = $this->pdo->prepare("INSERT INTO cajas_chicas (nombre, monto_asignado, monto_disponible, id_usuario_encargado, id_supervisor, estado) VALUES (?, ?, ?, ?, ?, ?)");
+        return $stmt->execute([$nombre, $monto_asignado, $monto_asignado, $id_usuario_encargado, $id_supervisor, $estado]);
     }
 
-    public function updateCajaChica($id, $nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor) {
-        $stmt = $this->pdo->prepare("UPDATE cajas_chicas SET nombre = ?, monto_asignado = ?, monto_disponible = ?, id_usuario_encargado = ?, id_supervisor = ? WHERE id = ?");
-        return $stmt->execute([$nombre, $monto_asignado, $monto_asignado, $id_usuario_encargado, $id_supervisor, $id]);
+    public function updateCajaChica($id, $nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $estado) {
+        $stmt = $this->pdo->prepare("UPDATE cajas_chicas SET nombre = ?, monto_asignado = ?, monto_disponible = ?, id_usuario_encargado = ?, id_supervisor = ?, estado = ? WHERE id = ?");
+        return $stmt->execute([$nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $estado, $id]);
     }
 
     public function deleteCajaChica($id) {

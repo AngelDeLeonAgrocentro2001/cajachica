@@ -1,29 +1,23 @@
 <h2>Generar Reporte de Resumen</h2>
 <form id="resumenFormInner">
-    <div>
-        <label for="fecha_inicio">Fecha Inicio:</label>
-        <input type="date" id="fecha_inicio" name="fecha_inicio" value="<?php echo date('Y-m-d', strtotime('-1 month')); ?>" required>
-        <div class="error" data-field="fecha_inicio" style="display: none;"></div>
-    </div>
-    <div>
-        <label for="fecha_fin">Fecha Fin:</label>
-        <input type="date" id="fecha_fin" name="fecha_fin" value="<?php echo date('Y-m-d'); ?>" required>
-        <div class="error" data-field="fecha_fin" style="display: none;"></div>
-    </div>
-    <div>
-        <label for="id_caja_chica">Caja Chica:</label>
-        <select id="id_caja_chica" name="id_caja_chica">
-            <option value="">Todas las Cajas Chicas</option>
-            <?php foreach ($cajasChicas as $caja): ?>
-                <option value="<?php echo htmlspecialchars($caja['id']); ?>">
-                    <?php echo htmlspecialchars($caja['nombre']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <div class="error" data-field="id_caja_chica" style="display: none;"></div>
-    </div>
-    <div class="success" style="display: none;"></div>
-    <div class="error" style="display: none;"></div>
+    <label for="fecha_inicio">Fecha Inicio</label>
+    <input type="date" id="fecha_inicio" name="fecha_inicio" value="<?php echo date('Y-m-d', strtotime('-1 month')); ?>" required>
+    <div class="error" data-field="fecha_inicio"></div>
+    <label for="fecha_fin">Fecha Fin</label>
+    <input type="date" id="fecha_fin" name="fecha_fin" value="<?php echo date('Y-m-d'); ?>" required>
+    <div class="error" data-field="fecha_fin"></div>
+    <label for="id_caja_chica">Caja Chica</label>
+    <select id="id_caja_chica" name="id_caja_chica">
+        <option value="">Todas las Cajas Chicas</option>
+        <?php foreach ($cajasChicas as $caja): ?>
+            <option value="<?php echo htmlspecialchars($caja['id']); ?>">
+                <?php echo htmlspecialchars($caja['nombre']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <div class="error" data-field="id_caja_chica"></div>
+    <div class="success"></div>
+    <div class="error"></div>
     <button type="submit">Generar</button>
     <button type="button" onclick="closeModal()">Cancelar</button>
 </form>
