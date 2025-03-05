@@ -63,4 +63,24 @@ class DetalleLiquidacion {
         $stmt->execute([$id_liquidacion]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function getDetallesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
+        $query = "
+            SELECT dl.*, l.fecha_creacion as liquidacion_fecha, cc.nombre as caja_chica
+            FROM detalle_liquidaciones dl
+            LEFT JOIN liquidaciones l ON dl.id_liquidacion = l.id
+            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            WHERE dl.fecha BETWEEN ? AND ?
+        ";
+        $params = [$fechaInicio, $fechaFin];
+    
+        if (!empty($idCajaChica)) {
+            $query .= " AND l.id_caja_chica = ?";
+            $params[] = $idCajaChica;
+        }
+    
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

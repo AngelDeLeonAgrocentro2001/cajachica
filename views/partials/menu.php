@@ -49,6 +49,7 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         <?php if ($usuarioModel->tienePermiso($usuario, 'manage_auditoria')): ?>
             <li><a href="index.php?controller=auditoria&action=list">Consultar Auditoría</a></li>
         <?php endif; ?>
+        <li><a href="index.php?controller=reportes&action=list">Reportes</a></li>
         <li><a href="index.php?controller=login&action=logout">Cerrar Sesión</a></li>
     </ul>
 </nav>

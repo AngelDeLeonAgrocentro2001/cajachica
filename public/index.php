@@ -240,24 +240,24 @@ switch ($controller) {
         }
         break;
 
-    case 'reportes':
-        $reportesController = new ReportesController();
-        switch ($action) {
-            case 'list':
-                $reportesController->list();
-                break;
-            case 'generarResumen':
-                $reportesController->generarResumen();
-                break;
-            case 'generarDetalle':
-                $reportesController->generarDetalle();
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para reportes']);
-                exit;
-        }
-        break;
+        case 'reportes':
+            $reportesController = new ReportesController();
+            switch ($action) {
+                case 'list':
+                    $reportesController->list();
+                    break;
+                case 'generarResumen':
+                    $reportesController->generarResumen();
+                    break;
+                case 'generarDetalle':
+                    $reportesController->generarDetalle();
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para reportes']);
+                    exit;
+            }
+            break;
 
     case 'impuesto':
         $impuestoController = new ImpuestoController();
