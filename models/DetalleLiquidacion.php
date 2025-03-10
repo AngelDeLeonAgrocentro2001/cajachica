@@ -9,8 +9,33 @@ class DetalleLiquidacion {
     }
 
     public function getAllDetallesLiquidacion() {
-        $stmt = $this->pdo->query("SELECT d.*, l.id_caja_chica, l.fecha_creacion FROM detalle_liquidaciones d JOIN liquidaciones l ON d.id_liquidacion = l.id ORDER BY d.id ASC");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $query = "
+            SELECT d.*, l.id_caja_chica, l.fecha_creacion, cc.nombre as nombre_caja_chica
+            FROM detalle_liquidaciones d
+            JOIN liquidaciones l ON d.id_liquidacion = l.id
+            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            ORDER BY d.id ASC
+        ";
+        $stmt = $this->pdo->query($query);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+        // Procesar rutas_archivos para cada detalle
+        foreach ($detalles as &$detalle) {
+            if (isset($detalle['rutas_archivos'])) {
+                $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
+                // Asegurarse de que las rutas sean relativas correctas
+                foreach ($detalle['rutas_archivos'] as &$ruta) {
+                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
+                        $ruta = substr($ruta, 7); // Quitar 'uploads/' para evitar duplicación
+                    }
+                }
+            } else {
+                $detalle['rutas_archivos'] = [];
+            }
+            $detalle['liquidacion'] = $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'];
+        }
+    
+        return $detalles;
     }
 
     public function getDetalleLiquidacionById($id) {
@@ -59,7 +84,8 @@ class DetalleLiquidacion {
     }
     
     public function getDetallesByLiquidacionId($id_liquidacion) {
-        $stmt = $this->pdo->prepare("SELECT * FROM detalle_liquidaciones WHERE id_liquidacion = ?");
+        $query = "SELECT * FROM detalle_liquidaciones WHERE id_liquidacion = ?";
+        $stmt = $this->pdo->prepare($query);
         $stmt->execute([$id_liquidacion]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

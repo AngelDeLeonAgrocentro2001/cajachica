@@ -36,6 +36,7 @@
             font-size: 1rem;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            width: 50%;
         }
 
         button[onclick="showCreateForm()"]:hover {
@@ -289,32 +290,41 @@
             }
         }
     </style>
+    <script>
+        // Inyectar permisos desde PHP
+        const userPermissions = {
+            create_detalles: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_detalles')); ?>,
+            revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+        };
+    </script>
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Lista de Detalles de Liquidaciones</h2>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'create_detalles')): ?>
-        <button onclick="showCreateForm()">Crear Detalle de Liquidación</button>
-    <?php endif; ?>
-    <table id="detallesTable">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Liquidación</th>
-                <th>Factura</th>
-                <th>Proveedor</th>
-                <th>Fecha</th>
-                <th>Bien/Servicio</th>
-                <th>Tipo de Gasto</th>
-                <th>Precio Unitario</th>
-                <th>Total Factura</th>
-                <th>Estado</th>
-                <th>Archivos</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <div class="container">
+        <h2>Lista de Detalles de Liquidaciones</h2>
+        <?php if ($usuarioModel->tienePermiso($usuario, 'create_detalles')): ?>
+            <button onclick="showCreateForm()">Crear Detalle de Liquidación</button>
+        <?php endif; ?>
+        <table id="detallesLiquidacionesTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Liquidación</th>
+                    <th>Factura</th>
+                    <th>Proveedor</th>
+                    <th>Fecha</th>
+                    <th>Bien/Servicio</th>
+                    <th>Tipo de Gasto</th>
+                    <th>Precio Unitario</th>
+                    <th>Total Factura</th>
+                    <th>Estado</th>
+                    <th>Archivos</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
     <!-- Modal para el formulario -->
     <div id="modal" class="modal">

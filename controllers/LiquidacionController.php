@@ -6,9 +6,15 @@ require_once '../models/Auditoria.php';
 
 class LiquidacionController {
     private $pdo;
+    private $liquidacionModel; // Declarar la propiedad
+    private $detalleLiquidacionModel; // Declarar la propiedad
+    private $auditoriaModel;
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
+        $this->liquidacionModel = new Liquidacion();
+        $this->detalleLiquidacionModel = new DetalleLiquidacion();
+        $this->auditoriaModel = new Auditoria();
     }
 
     public function listLiquidaciones() {
@@ -21,6 +27,8 @@ class LiquidacionController {
             exit;
         }
     
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         $liquidacion = new Liquidacion();
         $liquidaciones = $liquidacion->getAllLiquidaciones();
         error_log('Liquidaciones obtenidas: ' . print_r($liquidaciones, true));
@@ -126,7 +134,9 @@ class LiquidacionController {
     
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
+        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones') && 
+            !$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && 
+            !$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
             error_log('Error: No tienes permiso para actualizar liquidaciones');
             header('Content-Type: application/json');
             http_response_code(403);
@@ -148,7 +158,7 @@ class LiquidacionController {
                 $liquidacion = new Liquidacion();
                 if ($liquidacion->updateLiquidacion($id, $id_caja_chica, $fecha_creacion, $monto_total, $estado)) {
                     $auditoria = new Auditoria();
-                    $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'ACTUALIZADO', 'Liquidación actualizada por encargado');
+                    $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'ACTUALIZADO', 'Liquidación actualizada por usuario');
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Liquidación actualizada']);
                 } else {
@@ -194,6 +204,7 @@ class LiquidacionController {
             exit;
         }
     
+        // Verificar si el usuario tiene permisos (por ejemplo, solo ENCARGADO o ADMIN puede eliminar)
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
@@ -203,47 +214,34 @@ class LiquidacionController {
             exit;
         }
     
-        $liquidacionModel = new Liquidacion();
-        $liquidacionData = $liquidacionModel->getLiquidacionById($id);
-        if (!$liquidacionData) {
+        // Verificar si la liquidación existe
+        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
+        if (!$liquidacion) {
             header('Content-Type: application/json');
             http_response_code(404);
             echo json_encode(['error' => 'Liquidación no encontrada']);
             exit;
         }
     
-        try {
-            // Iniciar una transacción para asegurar integridad
-            $this->pdo->beginTransaction();
-    
-            // Eliminar registros dependientes en auditoria
-            $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
-            if (!$stmt->execute([$id])) {
-                throw new Exception('Error al eliminar registros de auditoría relacionados');
-            }
-    
-            // Eliminar registros dependientes en detalle_liquidaciones
-            $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE id_liquidacion = ?");
-            if (!$stmt->execute([$id])) {
-                throw new Exception('Error al eliminar detalles de liquidación relacionados');
-            }
-    
-            // Eliminar la liquidación
-            if ($liquidacionModel->deleteLiquidacion($id)) {
-                $auditoriaModel = new Auditoria();
-                $auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
-                $this->pdo->commit();
-                header('Content-Type: application/json');
-                echo json_encode(['message' => 'Liquidación eliminada']);
-            } else {
-                throw new Exception('Error al eliminar liquidación');
-            }
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            error_log('Error al eliminar liquidación: ' . $e->getMessage());
+        // Verificar si existen detalles asociados
+        $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($id);
+        if (!empty($detalles)) {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => $e->getMessage()]);
+            echo json_encode(['error' => 'No se puede eliminar la liquidación porque tiene detalles asociados']);
+            exit;
+        }
+    
+        // Proceder con la eliminación
+        if ($this->liquidacionModel->deleteLiquidacion($id)) {
+            // Registrar la acción en la auditoría
+            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
+            header('Content-Type: application/json');
+            echo json_encode(['message' => 'Liquidación eliminada correctamente']);
+        } else {
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al eliminar la liquidación']);
         }
         exit;
     }
@@ -465,14 +463,16 @@ class LiquidacionController {
             exit;
         }
     
-        if ($liquidacion['estado'] !== 'AUTORIZADO_POR_CONTABILIDAD') {
+        if (!preg_match('/^AUTORIZADO_POR_/', $liquidacion['estado'])) {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'Solo se pueden exportar liquidaciones en estado AUTORIZADO_POR_CONTABILIDAD']);
+            echo json_encode(['error' => 'Solo se pueden exportar liquidaciones en estado AUTORIZADO_POR_']);
             exit;
         }
     
-        if ($liquidacion['exportado'] == 1) {
+        $forceExport = isset($_GET['force']) && $_GET['force'] === 'true';
+    
+        if ($liquidacion['exportado'] == 1 && !$forceExport) {
             header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => 'Esta liquidación ya ha sido exportada']);
@@ -484,15 +484,15 @@ class LiquidacionController {
     
         $filename = "liquidacion_{$id}_" . date('Ymd_His') . ".csv";
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
         header('Expires: 0');
     
         $output = fopen('php://output', 'w');
         fputcsv($output, [
-            'Liquidacion_ID', 'Caja_Chica', 'Fecha_Creacion', 'Monto_Total', 'Estado_Liquidacion', 
-            'Exportado', 'Detalle_ID', 'Numero_Factura', 'Proveedor', 'Fecha_Detalle', 
+            'Liquidacion_ID', 'Caja_Chica', 'Fecha_Creacion', 'Monto_Total', 'Estado_Liquidacion',
+            'Exportado', 'Detalle_ID', 'Numero_Factura', 'Proveedor', 'Fecha_Detalle',
             'Bien_Servicio', 'Tipo_Gasto', 'Precio_Unitario', 'Total_Factura', 'Estado_Detalle'
         ]);
     
@@ -518,10 +518,22 @@ class LiquidacionController {
     
         fclose($output);
     
-        $liquidacionModel->markAsExported($id);
-        $auditoria = new Auditoria();
-        $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO', 'Liquidación exportada a SAP');
+        // Si se fuerza la exportación, no actualizamos el estado de exportado para evitar conflictos
+        if ($forceExport) {
+            $liquidacionModel->markAsExported($id); // Esto marcará como exportado nuevamente
+            $auditoria = new Auditoria();
+            $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO', 'Liquidación reexportada a SAP como ' . $filename);
+        } else {
+            $liquidacionModel->markAsExported($id);
+            $auditoria = new Auditoria();
+            $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO', 'Liquidación exportada a SAP como ' . $filename);
+        }
     
         exit;
     }
+
+    // public function markAsExported($id) {
+    //     $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
+    //     return $stmt->execute([$id]);
+    // }
 }

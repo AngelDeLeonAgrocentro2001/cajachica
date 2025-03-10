@@ -2,27 +2,40 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Revisión de Detalles de Liquidaciones</title>
     <link rel="stylesheet" href="../views/css/style.css">
+    <script>
+        const userPermissions = {
+            create_detalles: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_detalles')); ?>,
+            revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+        };
+    </script>
 </head>
 <body>
-    <h2>Revisión de Detalles de Liquidaciones</h2>
-    <a href="index.php?controller=detalleliquidacion&action=list">Volver a Lista</a>
-    <table id="detallesLiquidacionesTable">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Liquidación</th>
-                <th>Número Factura</th>
-                <th>Proveedor</th>
-                <th>Total Factura</th>
-                <th>Estado</th>
-                <th>Archivos</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <div class="container">
+        <h1 class="page-title">Revisión de Detalles de Liquidaciones</h1>
+        <a href="index.php?controller=liquidacion&action=list" class="back-btn">Volver</a>
+        <table id="detallesLiquidacionesTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Liquidación</th>
+                    <th>Número Factura</th>
+                    <th>Proveedor</th>
+                    <th>Fecha</th>
+                    <th>Bien/servicio</th>
+                    <th>Tipo de Gasto</th>
+                    <th>Precio Unitario</th>
+                    <th>Total Factura</th>
+                    <th>Estado</th>
+                    <th>Archivos</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
     <script src="../views/js/detalle_liquidaciones.js"></script>
 </body>
 </html>

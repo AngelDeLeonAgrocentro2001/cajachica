@@ -20,50 +20,56 @@ function closeModal() {
 
 async function loadLiquidaciones() {
     try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode') || '';
-        const response = await fetch(`index.php?controller=liquidacion&action=list${mode ? '&mode=' + mode : ''}`, {
+        const response = await fetch('index.php?controller=liquidacion&action=list', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
             const errorData = await response.json();
-            if (response.status === 401) {
-                throw new Error(errorData.error || 'No autorizado');
+            if (response.status === 403) {
+                alert('No tienes permiso para ver esta lista. Serás redirigido.');
+                window.location.href = 'index.php?controller=dashboard&action=index';
+                return;
             }
-            throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        const data = await response.json();
+        const liquidaciones = await response.json();
         const tbody = document.querySelector('#liquidacionesTable tbody');
         tbody.innerHTML = '';
-        if (data.length > 0) {
-            data.forEach(liquidacion => {
-                const mode = urlParams.get('mode') || '';
-                const actions = mode === 'autorizar' || mode === 'revisar'
-                    ? `<button class="edit-btn" onclick="autorizarLiquidacion(${liquidacion.id}, '${mode}')">${mode === 'autorizar' ? 'Autorizar' : 'Revisar'}</button>`
-                    : `
-                        <button class="edit-btn" onclick="showEditForm(${liquidacion.id}); window.history.pushState({}, '', 'index.php?controller=liquidacion&action=update&id=${liquidacion.id}')">Editar</button>
-                        <button class="delete-btn" onclick="deleteLiquidacion(${liquidacion.id})">Eliminar</button>
-                    `;
+        if (liquidaciones.length > 0) {
+            liquidaciones.forEach(liquidacion => {
+                const actions = [];
+                if (userPermissions.create_liquidaciones) {
+                    actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
+                    actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
+                }
+                if (userPermissions.revisar_liquidaciones && !liquidacion.estado.includes('AUTORIZADO_POR_')) {
+                    actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
+                }
+                // Permitir "Exportar a SAP" para usuarios con revisar_liquidaciones o autorizar_liquidaciones
+                if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado.includes('AUTORIZADO_POR_')) {
+                    actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
+                }
+                const actionsHtml = actions.join(' ');
+
                 tbody.innerHTML += `
                     <tr>
                         <td data-label="ID">${liquidacion.id}</td>
                         <td data-label="Caja Chica">${liquidacion.nombre_caja_chica || 'N/A'}</td>
-                        <td data-label="Fecha Creación">${liquidacion.fecha_creacion}</td>
-                        <td data-label="Monto Total">${parseFloat(liquidacion.monto_total).toFixed(2)}</td>
-                        <td data-label="Estado">${liquidacion.estado}</td>
-                        <td data-label="Acciones">${actions}</td>
+                        <td data-label="Fecha">${liquidacion.fecha_creacion || 'N/A'}</td>
+                        <td data-label="Monto Total">${parseFloat(liquidacion.monto_total || 0).toFixed(2)}</td>
+                        <td data-label="Estado">${liquidacion.estado || 'N/A'}</td>
+                        <td data-label="Acciones">${actionsHtml}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay liquidaciones registradas.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">No hay liquidaciones disponibles.</td></tr>';
         }
     } catch (error) {
         console.error('Error al cargar liquidaciones:', error);
-        alert('No se pudo cargar la lista de liquidaciones. Por favor, inicia sesión nuevamente.');
-        window.location.href = 'index.php?controller=login&action=login';
+        alert('Error al cargar las liquidaciones. Intenta de nuevo.');
     }
 }
 
@@ -159,7 +165,7 @@ async function updateLiquidacion(id, data) {
     return result;
 }
 
-async function deleteLiquidacion(id) {
+async function deleteLiquidation(id) {
     if (!confirm('¿Estás seguro de que deseas eliminar esta liquidación?')) return;
 
     try {
@@ -169,21 +175,80 @@ async function deleteLiquidacion(id) {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
+
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al eliminar liquidación');
+            throw new Error(errorData.error || 'Error al eliminar la liquidación');
         }
+
         const result = await response.json();
-        alert(result.message || 'Liquidación eliminada');
+        alert(result.message || 'Liquidación eliminada correctamente');
         loadLiquidaciones();
     } catch (error) {
         console.error('Error al eliminar liquidación:', error);
-        alert(error.message || 'Error al eliminar liquidación. Intenta de nuevo.');
+        alert(error.message || 'Error al eliminar la liquidación. Intenta de nuevo.');
     }
 }
 
 async function autorizarLiquidacion(id, mode) {
-    window.location.href = `index.php?controller=liquidacion&action=autorizar&id=${id}&mode=${mode}`;
+    window.location.href = `index.php?controller=liquidacion&action=${mode}&id=${id}`;
+}
+
+async function exportToSap(id) {
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 400 && errorData.error === 'Esta liquidación ya ha sido exportada') {
+                const confirmExport = confirm('Esta liquidación ya fue exportada. ¿Deseas volver a exportarla?');
+                if (confirmExport) {
+                    // Intentar exportar nuevamente, forzando la actualización
+                    const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!forceExportResponse.ok) {
+                        const forceErrorData = await forceExportResponse.json();
+                        throw new Error(forceErrorData.error || `Error HTTP: ${forceExportResponse.status}`);
+                    }
+                    const blob = await forceExportResponse.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    alert('Exportación a SAP completada. Revisa tu carpeta de descargas.');
+                    loadLiquidaciones();
+                    return;
+                } else {
+                    return; // Si no confirma, simplemente sale
+                }
+            }
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        alert('Exportación a SAP completada. Revisa tu carpeta de descargas.');
+        loadLiquidaciones();
+    } catch (error) {
+        console.error('Error al exportar a SAP:', error);
+        alert(error.message || 'Error al exportar a SAP. Intenta de nuevo.');
+    }
 }
 
 function addFormValidations(id = null) {
@@ -251,7 +316,7 @@ function addFormValidations(id = null) {
         if (isValid) {
             const formData = new FormData(form);
             try {
-                const action = id ? updateLiquidacion(id, formData) : createLiquidacion(formData);
+                const action = id ? updateLiquidation(id, formData) : createLiquidation(formData);
                 const result = await action;
                 alert(result.message || 'Operación exitosa');
                 closeModal();

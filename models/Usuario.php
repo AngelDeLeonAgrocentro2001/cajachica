@@ -70,7 +70,7 @@ class Usuario {
     public function tienePermiso($usuario, $permiso) {
         $rol = $usuario['rol'] ?? '';
         if ($rol === 'ADMIN') {
-            return true; // ADMIN tiene acceso a todo
+            return true;
         }
     
         switch ($permiso) {
@@ -84,7 +84,7 @@ class Usuario {
             case 'manage_usuarios':
             case 'manage_impuestos':
             case 'manage_cuentas_contables':
-            case 'manage_tipos_gastos': // Nuevo permiso
+            case 'manage_tipos_gastos':
             case 'manage_roles':
             case 'manage_cajachica':
             case 'manage_reportes':

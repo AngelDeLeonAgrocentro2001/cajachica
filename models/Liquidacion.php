@@ -85,4 +85,9 @@ class Liquidacion {
         $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ? WHERE id = ?");
         return $stmt->execute([$estado, $id]);
     }
+
+    public function markAsExported($id) {
+        $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
 }

@@ -114,8 +114,8 @@ async function deleteCajaChica(id) {
         alert(result.message || 'Caja chica eliminada');
         loadCajasChicas();
     } catch (error) {
-        console.error('Error al eliminar caja chica:', error);
-        alert(error.message || 'Error al eliminar caja chica. Intenta de nuevo.');
+        console.error('Error al eliminar caja chica:');
+        alert( 'No se puede eliminar la caja chica porque tiene liquidaciones asociadas');
     }
 }
 

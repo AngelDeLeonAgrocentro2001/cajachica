@@ -32,18 +32,24 @@ class DetalleLiquidacionController {
         // Filtrar detalles en modo revisar para CONTABILIDAD
         $urlParams = $_GET['mode'] ?? '';
         $isRevisarMode = $urlParams === 'revisar';
-        if ($isRevisarMode) {
+        if ($isRevisarMode && $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
             $detalles = array_filter($detalles, function($detalle) {
                 return $detalle['estado'] !== 'DESCARTADO';
             });
+        } elseif (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
+            // Si no tiene permiso para crear ni revisar, devolver error
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para ver esta lista']);
+            exit;
         }
     
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
             echo json_encode(array_values($detalles));
         } else {
-            // Si el usuario tiene rol CONTABILIDAD y está en modo revisión
-            if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && $isRevisarMode) {
+            // Renderizar la vista adecuada según los permisos
+            if ($isRevisarMode && $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
                 require '../views/detalle_liquidaciones/revisar.html';
             } else {
                 require '../views/detalle_liquidaciones/list.html';
@@ -360,7 +366,7 @@ class DetalleLiquidacionController {
         exit;
     }
     
-    public function revisarDetalle($id) {
+    public function revisarDetalle($id = null) {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -378,6 +384,28 @@ class DetalleLiquidacionController {
         }
     
         $detalleModel = new DetalleLiquidacion();
+    
+        if ($id === null) {
+            $detalles = $detalleModel->getAllDetallesLiquidacion();
+            $detalles = array_filter($detalles, function($detalle) use ($usuario, $usuarioModel) {
+                $canReview = in_array($detalle['estado'], ['PENDIENTE', 'EN_REVISIÓN']);
+                if ($usuario['rol'] === 'CONTABILIDAD') {
+                    $liquidacionModel = new Liquidacion();
+                    $liquidacion = $liquidacionModel->getLiquidacionById($detalle['id_liquidacion']);
+                    return $canReview && $liquidacion && !in_array($liquidacion['estado'], ['DESCARTADO', 'AUTORIZADO_POR_CONTABILIDAD']);
+                }
+                return $canReview;
+            });
+    
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(array_values($detalles));
+            } else {
+                require '../views/detalle_liquidaciones/revisar.html';
+            }
+            exit;
+        }
+    
         $data = $detalleModel->getDetalleLiquidacionById($id);
         if (!$data) {
             header('Content-Type: application/json');
@@ -386,22 +414,32 @@ class DetalleLiquidacionController {
             exit;
         }
     
+        if ($usuario['rol'] === 'CONTABILIDAD' && !in_array($data['estado'], ['PENDIENTE', 'EN_REVISIÓN'])) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'Este detalle no puede ser revisado porque no está en estado PENDIENTE o EN_REVISIÓN']);
+            exit;
+        }
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $accion = $_POST['accion'] ?? 'EN_REVISIÓN'; // Estado por defecto si no se especifica acción
+            $accionBase = $_POST['accion'] ?? 'EN_REVISIÓN';
             $motivo = $_POST['motivo'] ?? 'Enviado a revisión contable';
     
-            // Si se proporciona una acción específica, validarla
-            if (isset($_POST['accion']) && !in_array($accion, ['AUTORIZADO_POR_CONTABILIDAD', 'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO'])) {
+            // Determinar la acción según el rol del usuario
+            $rol = strtoupper($usuario['rol']);
+            $validAcciones = ['AUTORIZADO', 'RECHAZADO', 'DESCARTADO'];
+            if (!in_array($accionBase, $validAcciones)) {
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => 'Acción no válida']);
                 exit;
             }
     
-            try {
-                // Iniciar una transacción para asegurar integridad
-                $this->pdo->beginTransaction();
+            // Construir el estado con el rol del usuario
+            $accion = $accionBase === 'AUTORIZADO' ? "AUTORIZADO_POR_{$rol}" : ($accionBase === 'RECHAZADO' ? "RECHAZADO_POR_{$rol}" : 'DESCARTADO');
     
+            try {
+                $this->pdo->beginTransaction();
                 $detalleModel->updateEstado($id, $accion);
                 $auditoria = new Auditoria();
                 $auditoria->createAuditoria($data['id_liquidacion'], $id, $_SESSION['user_id'], $accion, $motivo);
@@ -412,7 +450,7 @@ class DetalleLiquidacionController {
                 $anyDescartado = false;
     
                 foreach ($detalles as $d) {
-                    if ($d['estado'] !== 'AUTORIZADO_POR_CONTABILIDAD') {
+                    if (!preg_match('/^AUTORIZADO_POR_/', $d['estado'])) {
                         $allAutorizado = false;
                     }
                     if ($d['estado'] === 'DESCARTADO') {
@@ -422,10 +460,10 @@ class DetalleLiquidacionController {
     
                 if ($anyDescartado) {
                     $liquidacionModel->updateEstado($data['id_liquidacion'], 'PENDIENTE_CORRECCIÓN');
-                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'PENDIENTE_CORRECCIÓN', 'Liquidación marcada para corrección tras revisión de detalle');
+                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'PENDIENTE_CORRECCIÓN', 'Liquidación marcada para corrección');
                 } elseif ($allAutorizado) {
-                    $liquidacionModel->updateEstado($data['id_liquidacion'], 'AUTORIZADO_POR_CONTABILIDAD');
-                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], 'AUTORIZADO_POR_CONTABILIDAD', 'Liquidación completamente autorizada tras revisión de detalles');
+                    $liquidacionModel->updateEstado($data['id_liquidacion'], "AUTORIZADO_POR_{$rol}");
+                    $auditoria->createAuditoria($data['id_liquidacion'], null, $_SESSION['user_id'], "AUTORIZADO_POR_{$rol}", 'Liquidación autorizada por ' . $rol);
                 }
     
                 $this->pdo->commit();
@@ -441,7 +479,43 @@ class DetalleLiquidacionController {
             exit;
         }
     
+        ob_start();
         require '../views/detalle_liquidaciones/revisar_individual.html';
+        $html = ob_get_clean();
+        $html = str_replace('{{id}}', htmlspecialchars($id), $html);
+        $html = str_replace('{{no_factura}}', htmlspecialchars($data['no_factura']), $html);
+        $html = str_replace('{{nombre_proveedor}}', htmlspecialchars($data['nombre_proveedor']), $html);
+        $html = str_replace('{{total_factura}}', htmlspecialchars($data['total_factura']), $html);
+        $html = str_replace('{{estado}}', htmlspecialchars($data['estado']), $html);
+        echo $html;
+        exit;
+    }
+    
+    private function generateSapCsv($liquidacionId) {
+        $detalleModel = new DetalleLiquidacion();
+        $detalles = $detalleModel->getDetallesByLiquidacionId($liquidacionId);
+    
+        $csvData = "ID,Factura,Proveedor,Fecha,Total,Estado\n";
+        foreach ($detalles as $detalle) {
+            $csvData .= sprintf(
+                "%d,%s,%s,%s,%s,%s\n",
+                $detalle['id'],
+                $detalle['no_factura'],
+                $detalle['nombre_proveedor'],
+                $detalle['fecha'],
+                $detalle['total_factura'],
+                $detalle['estado']
+            );
+        }
+    
+        $filename = "sap_export_liquidacion_{$liquidacionId}_" . date('YmdHis') . ".csv";
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+    
+        echo $csvData;
         exit;
     }
 }

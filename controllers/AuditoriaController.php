@@ -41,7 +41,7 @@ class AuditoriaController {
             'CREADO', 'ACTUALIZADO', 'ELIMINADO', 'AUTORIZADO_POR_SUPERVISOR', 
             'RECHAZADO_POR_SUPERVISOR', 'AUTORIZADO_POR_CONTABILIDAD', 
             'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO', 'PENDIENTE_CORRECCIÓN', 
-            'EXPORTADO', 'REPORTE_GENERADO'
+            'EXPORTADO', 'REPORTE_GENERADO','CREAR_USUARIO','ACTUALIZAR_USUARIO','ELIMINAR_USUARIO'
         ];
         $selectTiposAcciones = '<option value="">Todos</option>';
         foreach ($tiposAcciones as $accion) {

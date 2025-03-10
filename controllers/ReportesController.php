@@ -110,7 +110,7 @@ class ReportesController {
                     </tbody>
                 </table>
                 <div class="export-buttons">
-                    <button class="btn-export" onclick="exportReport('resumen', 'pdf')">Exportar a PDF</button>
+                    <button class="btn-export btn-export-pdf" onclick="exportReport('resumen', 'pdf')">Exportar a PDF</button>
                     <button class="btn-export" onclick="exportReport('resumen', 'excel')">Exportar a Excel</button>
                 </div>
                 <?php

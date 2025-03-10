@@ -2,10 +2,12 @@ const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadDetalles();
-
     const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
     const id = urlParams.get('id');
+    if (action === 'list' || action === 'revisar') {
+        loadDetalles();
+    }
     if (id && modal) {
         showEditForm(id);
     }
@@ -19,62 +21,141 @@ function closeModal() {
 }
 
 async function loadDetalles() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+
+    if (!['list', 'revisar'].includes(action)) {
+        return;
+    }
+
+    const tbody = document.querySelector('#detallesLiquidacionesTable tbody');
+    if (!tbody) {
+        console.error('Tabla #detallesLiquidacionesTable tbody no encontrada en el DOM');
+        return;
+    }
+
     try {
-        const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode') || '';
-        const response = await fetch(`index.php?controller=detalleliquidacion&action=list${mode ? '&mode=' + mode : ''}`, {
+        let url = `index.php?controller=detalleliquidacion&action=list${mode ? '&mode=' + mode : ''}`;
+        if (action === 'revisar') {
+            url = `index.php?controller=detalleliquidacion&action=revisar`;
+        }
+
+        const response = await fetch(url, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
             const errorData = await response.json();
-            if (response.status === 401) {
-                throw new Error(errorData.error || 'No autorizado');
+            if (response.status === 403) {
+                alert('No tienes permiso para ver esta lista. Serás redirigido.');
+                window.location.href = 'index.php?controller=dashboard&action=index';
+                return;
             }
-            throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
         const data = await response.json();
-        const detalles = data;
-        const tbody = document.querySelector('#detallesTable tbody');
+        const detalles = Array.isArray(data) ? data : [];
         tbody.innerHTML = '';
         if (detalles.length > 0) {
             detalles.forEach(detalle => {
-                const mode = urlParams.get('mode') || '';
-                const archivos = detalle.rutas_archivos && typeof detalle.rutas_archivos === 'string' ? JSON.parse(detalle.rutas_archivos) : [];
-                const archivosLinks = Array.isArray(archivos) ? archivos.map(ruta => `<a href="../${ruta}" target="_blank">Ver</a>`).join(' ') : 'N/A';
-                const actions = mode === 'revisar'
-                    ? `<button class="revisar-btn" onclick="revisarDetalle(${detalle.id})">Revisar</button>`
-                    : `
-                        <button class="edit-btn" onclick="showEditForm(${detalle.id}); window.history.pushState({}, '', 'index.php?controller=detalleliquidacion&action=update&id=${detalle.id}')">Editar</button>
-                        <button class="delete-btn" onclick="deleteDetalle(${detalle.id})">Eliminar</button>
-                        ${detalle.estado === 'PENDIENTE' ? `<button class="revisar-btn" onclick="revisarDetalle(${detalle.id})">Revisar</button>` : ''}
+                const archivos = detalle.rutas_archivos && typeof detalle.rutas_archivos === 'string' ? JSON.parse(detalle.rutas_archivos) : (Array.isArray(detalle.rutas_archivos) ? detalle.rutas_archivos : []);
+                const archivosLinks = archivos.length > 0 ? archivos.map(ruta => `<a href="../uploads/${ruta}" target="_blank">Ver</a>`).join(' ') : 'Sin archivos';
+                let actions = '';
+                if (userPermissions.revisar_liquidaciones) {
+                    actions += `
+                        <a href="index.php?controller=detalleliquidacion&action=revisar&id=${detalle.id}" class="revisar-btn">Revisar</a>
                     `;
+                }
+                if (userPermissions.create_detalles) {
+                    actions += `
+                        <button onclick="showEditForm(${detalle.id})" class="edit-btn">Editar</button>
+                        <button onclick="deleteDetalle(${detalle.id})" class="delete-btn">Borrar</button>
+                    `;
+                }
                 tbody.innerHTML += `
                     <tr>
                         <td data-label="ID">${detalle.id}</td>
                         <td data-label="Liquidación">${detalle.liquidacion || 'N/A'}</td>
                         <td data-label="Factura">${detalle.no_factura}</td>
                         <td data-label="Proveedor">${detalle.nombre_proveedor || 'N/A'}</td>
-                        <td data-label="Fecha">${detalle.fecha}</td>
-                        <td data-label="Bien/Servicio">${detalle.bien_servicio}</td>
-                        <td data-label="Tipo de Gasto">${detalle.t_gasto}</td>
-                        <td data-label="Precio Unitario">${parseFloat(detalle.p_unitario).toFixed(2)}</td>
-                        <td data-label="Total Factura">${parseFloat(detalle.total_factura).toFixed(2)}</td>
-                        <td data-label="Estado">${detalle.estado}</td>
+                        <td data-label="Fecha">${detalle.fecha || 'N/A'}</td>
+                        <td data-label="Bien/Servicio">${detalle.bien_servicio || 'N/A'}</td>
+                        <td data-label="Tipo de Gasto">${detalle.t_gasto || 'N/A'}</td>
+                        <td data-label="Precio Unitario">${parseFloat(detalle.p_unitario || 0).toFixed(2)}</td>
+                        <td data-label="Total Factura">${parseFloat(detalle.total_factura || 0).toFixed(2)}</td>
+                        <td data-label="Estado">${detalle.estado || 'N/A'}</td>
                         <td data-label="Archivos">${archivosLinks}</td>
                         <td data-label="Acciones">${actions}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="12">No hay detalles de liquidaciones registrados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12">No hay detalles de liquidaciones disponibles.</td></tr>';
         }
         return detalles;
     } catch (error) {
         console.error('Error al cargar detalles:', error);
-        alert('No se pudo cargar la lista de detalles de liquidaciones. Por favor, inicia sesión nuevamente.');
-        window.location.href = 'index.php?controller=login&action=login';
+        tbody.innerHTML = '<tr><td colspan="12">Error al cargar la lista de detalles. Intenta de nuevo.</td></tr>';
+    }
+}
+
+async function showRevisarForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`index.php?controller=detalleliquidacion&action=revisar&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+        }
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+
+        const form = document.querySelector('#modalForm #detalleFormInner');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                try {
+                    const submitResponse = await fetch(`index.php?controller=detalleliquidacion&action=revisar&id=${id}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!submitResponse.ok) {
+                        const errorData = await submitResponse.json();
+                        throw new Error(errorData.error || 'Error al registrar la revisión');
+                    }
+                    const result = await submitResponse.json();
+                    alert(result.message || 'Revisión registrada correctamente');
+                    closeModal();
+                    loadDetalles();
+                } catch (error) {
+                    console.error('Error al registrar revisión:', error);
+                    alert(error.message || 'Error al registrar la revisión.');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar el formulario de revisión:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
@@ -233,25 +314,61 @@ async function deleteDetalle(id) {
 }
 
 async function revisarDetalle(id) {
-    if (!confirm('¿Estás seguro de que deseas enviar este detalle a revisión contable?')) return;
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
 
     try {
         const response = await fetch(`index.php?controller=detalleliquidacion&action=revisar&id=${id}`, {
-            method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al enviar a revisión');
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
-        const result = await response.json();
-        alert(result.message || 'Detalle enviado a revisión');
-        loadDetalles();
+        const html = await response.text();
+        if (!html.includes('<form')) {
+            throw new Error('El servidor no devolvió un formulario válido');
+        }
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+
+        // Añadir manejador de eventos para el formulario de revisión
+        const form = document.querySelector('#modalForm #detalleFormInner');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                try {
+                    const submitResponse = await fetch(`index.php?controller=detalleliquidacion&action=revisar&id=${id}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!submitResponse.ok) {
+                        const errorData = await submitResponse.json();
+                        throw new Error(errorData.error || 'Error al registrar la revisión');
+                    }
+                    const result = await submitResponse.json();
+                    alert(result.message || 'Revisión registrada correctamente');
+                    closeModal();
+                    loadDetalles();
+                } catch (error) {
+                    console.error('Error al registrar revisión:', error);
+                    alert(error.message || 'Error al registrar la revisión. Intenta de nuevo.');
+                }
+            });
+        }
     } catch (error) {
-        console.error('Error al enviar a revisión:', error);
-        alert(error.message || 'Error al enviar a revisión. Intenta de nuevo.');
+        console.error('Error al cargar el formulario de revisión:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
@@ -296,18 +413,31 @@ function addFormValidations(id = null) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
+                // Expandir la sección si está colapsada
+                const detailsElement = e.target.closest('details');
+                if (detailsElement && !detailsElement.open) {
+                    detailsElement.open = true;
+                }
                 return false;
             }
             if (fields[fieldName].type === 'number' && value && isNaN(value)) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser un número.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
+                const detailsElement = e.target.closest('details');
+                if (detailsElement && !detailsElement.open) {
+                    detailsElement.open = true;
+                }
                 return false;
             }
             if (fields[fieldName].min && value && parseFloat(value) < fields[fieldName].min) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser mayor o igual a ${fields[fieldName].min}.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
+                const detailsElement = e.target.closest('details');
+                if (detailsElement && !detailsElement.open) {
+                    detailsElement.open = true;
+                }
                 return false;
             }
         }

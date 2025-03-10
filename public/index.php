@@ -184,45 +184,40 @@ switch ($controller) {
         }
         break;
 
-    case 'detalleliquidacion':
-        $detalleLiquidacionController = new DetalleLiquidacionController();
-        switch ($action) {
-            case 'list':
-                $detalleLiquidacionController->listDetallesLiquidacion();
-                break;
-            case 'create':
-                $detalleLiquidacionController->createDetalleLiquidacion();
-                break;
-            case 'update':
-                if ($id) {
-                    $detalleLiquidacionController->updateDetalleLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $detalleLiquidacionController->deleteDetalleLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
-                }
-                break;
-            case 'revisar':
-                if ($id) {
-                    $detalleLiquidacionController->revisarDetalle($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de detalle requerido para revisar']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
-                exit;
-        }
-        break;
+        case 'detalleliquidacion':
+            $detalleLiquidacionController = new DetalleLiquidacionController();
+            switch ($action) {
+                case 'list':
+                    $detalleLiquidacionController->listDetallesLiquidacion();
+                    break;
+                case 'create':
+                    $detalleLiquidacionController->createDetalleLiquidacion();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $detalleLiquidacionController->updateDetalleLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $detalleLiquidacionController->deleteDetalleLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
+                    }
+                    break;
+                case 'revisar':
+                    $detalleLiquidacionController->revisarDetalle($id); // Permitir $id = null
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
+                    exit;
+            }
+            break;
 
     case 'auditoria':
         $auditoriaController = new AuditoriaController();
