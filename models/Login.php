@@ -1,23 +1,23 @@
 <?php
 require_once '../config/database.php';
+require_once '../models/Usuario.php';
 
 class Login {
-    private $pdo;
+    private $usuario;
 
     public function __construct() {
-        global $pdo;
-        $this->pdo = $pdo;
+        $this->usuario = new Usuario();
     }
 
     public function authenticate($email, $password) {
-        $stmt = $this->pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
-        $stmt->execute([$email]);
-        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $usuario = $this->usuario->getUsuarioByEmail($email);
+        error_log("Usuario obtenido en authenticate: " . print_r($usuario, true));
         if ($usuario && password_verify($password, $usuario['password'])) {
+            error_log("Autenticación exitosa para $email");
             unset($usuario['password']);
             return $usuario;
         }
+        error_log("Fallo en autenticación para $email");
         return false;
     }
 }

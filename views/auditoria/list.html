@@ -109,10 +109,15 @@
             padding: 12px 15px;
             text-align: left;
             font-size: 0.95rem;
+            box-sizing: border-box;
+            white-space: normal; /* Permitir que el texto se envuelva */
+            word-wrap: break-word; /* Asegurar que las palabras largas se dividan */
+            overflow-wrap: break-word; /* Compatibilidad moderna */
         }
     
         #auditoriaTable th {
             font-weight: 600;
+            white-space: nowrap; /* Los encabezados no se envuelven */
         }
     
         #auditoriaTable tbody tr {
@@ -284,6 +289,10 @@
                 background-color: #fff;
             }
     
+            #auditoriaTable tbody td:first-child {
+                font-weight: bold;
+            }
+    
             #auditoriaTable tbody td {
                 display: block;
                 text-align: right;
@@ -291,6 +300,9 @@
                 font-size: 0.9rem;
                 position: relative;
                 border-bottom: 1px solid #eee;
+                white-space: normal; /* Permitir que el texto se envuelva */
+                word-wrap: break-word; /* Asegurar que las palabras largas se dividan */
+                overflow-wrap: break-word; /* Compatibilidad moderna */
             }
     
             #auditoriaTable tbody td:last-child {
@@ -303,11 +315,48 @@
                 left: 10px;
                 font-weight: 600;
                 color: #2c3e50;
+                white-space: nowrap; /* Evitar que la etiqueta se envuelva */
             }
     
             .modal-content {
                 width: 95%;
                 padding: 15px;
+            }
+        }
+    
+        /* Estilo de la tabla de detalles */
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 0.85rem;
+        }
+    
+        .details-table th,
+        .details-table td {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+            white-space: normal; /* Permitir que el texto se envuelva */
+            word-wrap: break-word; /* Asegurar que las palabras largas se dividan */
+            overflow-wrap: break-word; /* Compatibilidad moderna */
+        }
+    
+        .details-table th {
+            background-color: #ecf0f1;
+            font-weight: 600;
+            color: #2c3e50;
+            white-space: nowrap; /* Los encabezados no se envuelven */
+        }
+    
+        .details-table td {
+            color: #333;
+        }
+    
+        @media (max-width: 768px) {
+            .details-table {
+                margin-top: 20px;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -354,57 +403,7 @@
         </div>
     </div>
 
-    <script>
-        async function loadAuditoria() {
-            const form = document.getElementById('auditoriaFilterForm');
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData).toString();
-            console.log('Parámetros enviados:', params);
-            try {
-                const response = await fetch(`index.php?controller=auditoria&action=getAuditoria&${params}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (!response.ok) {
-                    const text = await response.text();
-                    try {
-                        const errorData = JSON.parse(text);
-                        throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
-                    } catch (parseError) {
-                        throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
-                    }
-                }
-                const auditoria = await response.json();
-                console.log('Registros recibidos:', auditoria);
-                const tbody = document.querySelector('#auditoriaTable tbody');
-                tbody.innerHTML = '';
-                if (auditoria.length > 0) {
-                    auditoria.forEach(entry => {
-                        tbody.innerHTML += `
-                            <tr>
-                                <td data-label="ID">${entry.id}</td>
-                                <td data-label="Liquidación">${entry.id_liquidacion || '-'}</td>
-                                <td data-label="Detalle">${entry.id_detalle_liquidacion || '-'}</td>
-                                <td data-label="Usuario">${entry.usuario_nombre}</td>
-                                <td data-label="Tipo de Acción">${entry.tipo_accion}</td>
-                                <td data-label="Detalles">${entry.detalles || '-'}</td>
-                                <td data-label="Fecha">${entry.fecha}</td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="7">No hay registros de auditoría.</td></tr>';
-                }
-            } catch (error) {
-                console.error('Error al cargar auditoría:', error.message);
-                alert('No se pudo cargar el historial de auditoría: ' + error.message);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadAuditoria();
-        });
-    </script>
+    <!-- Cargar el script auditoria.js -->
+    <script src="../views/js/auditoria.js"></script>
 </body>
 </html>

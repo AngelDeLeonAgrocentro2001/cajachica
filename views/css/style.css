@@ -197,13 +197,15 @@ td {
 
 /* Estilos para los botones */
 button {
-    padding: 5px 10px;
+    /* padding: 5px 10px; */
     margin: 2px;
     background-color: #007BFF;
     color: white;
     border: none;
     cursor: pointer;
 }
+
+
 
 /* button:hover {
     background-color: #0056b3;
@@ -317,15 +319,20 @@ a:hover {
 }
 
 .revisar-btn {
-    padding: 8px 15px;
-    background-color: #2ecc71;
     color: #fff;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s;
+   
+}
+#detallesLiquidacionesTable button:nth-child(1){
+    background-color: #2ecc71;
 }
 
+#detallesLiquidacionesTable button:nth-child(3){
+    background-color: #ec4d42;
+}
 .revisar-btn:hover {
     background-color: #27ae60;
 }
@@ -619,4 +626,17 @@ a:hover {
         width: 100%;
         margin: 5px 0;
     }
+}
+
+
+
+.form-group .invalid {
+    border-color: red;
+}
+
+.form-group .error {
+    color: red;
+    font-size: 0.9em;
+    display: none;
+    margin-top: 5px;
 }

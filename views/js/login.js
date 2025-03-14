@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     data = JSON.parse(text);
                 } catch (jsonError) {
-                    throw new Error(`Respuesta no es JSON válido: ${text}`);
+                    console.error('Respuesta no es JSON válido:', text);
+                    throw new Error('Respuesta del servidor no válida');
                 }
 
                 if (!response.ok) {
@@ -39,6 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
                 errorElement.style.display = 'block';
                 form.appendChild(errorElement);
+                // Limpiar el mensaje de error después de 5 segundos
+                setTimeout(() => {
+                    errorElement.style.display = 'none';
+                }, 5000);
             }
         });
     }

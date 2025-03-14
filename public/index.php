@@ -1,14 +1,11 @@
 <?php
-// En public/index.php, al inicio del archivo
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Habilitar sesiones al inicio
 session_start();
 error_log(print_r($_SESSION, true));
 
-// Incluir configuraciones y controladores necesarios
 require_once '../config/database.php';
 require_once '../controllers/AuditoriaController.php';
 require_once '../controllers/CajaChicaController.php';
@@ -21,14 +18,16 @@ require_once '../controllers/ReportesController.php';
 require_once '../controllers/RoleController.php';
 require_once '../controllers/UsuarioController.php';
 require_once '../controllers/DashboardController.php';
-require_once '../controllers/TipoGastoController.php'; // Añadido
+require_once '../controllers/TipoGastoController.php';
+require_once '../controllers/AccesoController.php';
+require_once '../controllers/BaseController.php';
+require_once '../controllers/FacturaController.php';
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 
-// Redirigir a login si no hay sesión y no estamos en el controlador de login
-if (!isset($_SESSION['user_id']) && $controller !== 'login' && $action !== 'login') {
+if (!isset($_SESSION['user_id']) && $controller !== 'login' && $action !== 'resetPassword' && $action !== 'resetConfirm') {
     header('Location: index.php?controller=login&action=login');
     exit;
 }
@@ -55,6 +54,12 @@ switch ($controller) {
                 break;
             case 'logout':
                 $loginController->logout();
+                break;
+            case 'resetPassword':
+                $loginController->resetPassword();
+                break;
+            case 'resetConfirm':
+                $loginController->resetConfirm();
                 break;
             default:
                 header('HTTP/1.1 404 Not Found');
@@ -184,40 +189,40 @@ switch ($controller) {
         }
         break;
 
-        case 'detalleliquidacion':
-            $detalleLiquidacionController = new DetalleLiquidacionController();
-            switch ($action) {
-                case 'list':
-                    $detalleLiquidacionController->listDetallesLiquidacion();
-                    break;
-                case 'create':
-                    $detalleLiquidacionController->createDetalleLiquidacion();
-                    break;
-                case 'update':
-                    if ($id) {
-                        $detalleLiquidacionController->updateDetalleLiquidacion($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
-                    }
-                    break;
-                case 'delete':
-                    if ($id) {
-                        $detalleLiquidacionController->deleteDetalleLiquidacion($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
-                    }
-                    break;
-                case 'revisar':
-                    $detalleLiquidacionController->revisarDetalle($id); // Permitir $id = null
-                    break;
-                default:
-                    header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
-                    exit;
-            }
-            break;
+    case 'detalleliquidacion':
+        $detalleLiquidacionController = new DetalleLiquidacionController();
+        switch ($action) {
+            case 'list':
+                $detalleLiquidacionController->listDetallesLiquidacion();
+                break;
+            case 'create':
+                $detalleLiquidacionController->createDetalleLiquidacion();
+                break;
+            case 'update':
+                if ($id) {
+                    $detalleLiquidacionController->updateDetalleLiquidacion($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
+                }
+                break;
+            case 'delete':
+                if ($id) {
+                    $detalleLiquidacionController->deleteDetalleLiquidacion($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
+                }
+                break;
+            case 'revisar':
+                $detalleLiquidacionController->revisarDetalle($id);
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
+                exit;
+        }
+        break;
 
     case 'auditoria':
         $auditoriaController = new AuditoriaController();
@@ -235,24 +240,24 @@ switch ($controller) {
         }
         break;
 
-        case 'reportes':
-            $reportesController = new ReportesController();
-            switch ($action) {
-                case 'list':
-                    $reportesController->list();
-                    break;
-                case 'generarResumen':
-                    $reportesController->generarResumen();
-                    break;
-                case 'generarDetalle':
-                    $reportesController->generarDetalle();
-                    break;
-                default:
-                    header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para reportes']);
-                    exit;
-            }
-            break;
+    case 'reportes':
+        $reportesController = new ReportesController();
+        switch ($action) {
+            case 'list':
+                $reportesController->list();
+                break;
+            case 'generarResumen':
+                $reportesController->generarResumen();
+                break;
+            case 'generarDetalle':
+                $reportesController->generarDetalle();
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para reportes']);
+                exit;
+        }
+        break;
 
     case 'impuesto':
         $impuestoController = new ImpuestoController();
@@ -292,24 +297,41 @@ switch ($controller) {
             case 'list':
                 $cuentaContableController->listCuentas();
                 break;
+            case 'createForm':
+                $cuentaContableController->createForm();
+                break;
             case 'create':
                 $cuentaContableController->createCuenta();
                 break;
+            case 'checkCodigo':
+                $cuentaContableController->checkCodigo();
+                break;
             case 'update':
-                if ($id) {
-                    $cuentaContableController->updateCuenta($id);
-                } else {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
                     header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de cuenta contable requerido para actualizar']);
+                    echo json_encode(['error' => 'ID requerido']);
+                    exit;
                 }
+                $cuentaContableController->updateCuenta($id);
+                break;
+            case 'updateForm':
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID requerido']);
+                    exit;
+                }
+                $cuentaContableController->updateForm($id);
                 break;
             case 'delete':
-                if ($id) {
-                    $cuentaContableController->deleteCuenta($id);
-                } else {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
                     header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de cuenta contable requerido para eliminar']);
+                    echo json_encode(['error' => 'ID requerido']);
+                    exit;
                 }
+                $cuentaContableController->deleteCuenta($id);
                 break;
             default:
                 header('HTTP/1.1 404 Not Found');
@@ -350,7 +372,7 @@ switch ($controller) {
         }
         break;
 
-    case 'tipogasto': // Añadido
+    case 'tipogasto':
         $tipoGastoController = new TipoGastoController();
         switch ($action) {
             case 'list':
@@ -382,8 +404,126 @@ switch ($controller) {
         }
         break;
 
+    case 'base':
+        $baseController = new BaseController();
+        switch ($action) {
+            case 'listBases':
+                $baseController->listBases();
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para base']);
+                exit;
+        }
+        break;
+
+    case 'acceso':
+        $accesoController = new AccesoController();
+        $cuenta_id = $_GET['cuenta_id'] ?? null;
+        $usuario_id = $_GET['usuario_id'] ?? null;
+        switch ($action) {
+            case 'selectCuenta':
+                $accesoController->selectCuenta();
+                break;
+            case 'list':
+                if (!$cuenta_id) {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de cuenta requerido']);
+                    exit;
+                }
+                $accesoController->list($cuenta_id);
+                break;
+            case 'assignForm':
+                if (!$cuenta_id) {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de cuenta requerido']);
+                    exit;
+                }
+                $accesoController->assignForm($cuenta_id);
+                break;
+            case 'assign':
+                if (!$cuenta_id) {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de cuenta requerido']);
+                    exit;
+                }
+                $accesoController->assign($cuenta_id);
+                break;
+            case 'remove':
+                if (!$usuario_id || !$cuenta_id) {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de usuario y cuenta requeridos']);
+                    exit;
+                }
+                $accesoController->remove($cuenta_id, $usuario_id);
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para acceso']);
+                exit;
+        }
+        break;
+
+    case 'factura':
+        $facturaController = new FacturaController();
+        switch ($action) {
+            case 'list':
+                $facturaController->listFacturas();
+                break;
+            case 'showForm':
+                $facturaController->showForm();
+                break;
+            case 'createFactura':
+                $facturaController->createFactura();
+                break;
+            case 'checkNumeroFactura':
+                $facturaController->checkNumeroFactura();
+                break;
+            case 'delete':
+                if ($id) {
+                    $facturaController->deleteFactura();
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de factura requerido para eliminar']);
+                }
+                break;
+            case 'getFactura':
+                if ($id) {
+                    $facturaController->getFactura();
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de factura requerido']);
+                }
+                break;
+            case 'updateFactura':
+                $facturaController->updateFactura();
+                break;
+            case 'autorizarFactura':
+                if ($id) {
+                    $facturaController->autorizarFactura($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de factura requerido para autorizar']);
+                }
+                break;
+            case 'revisarFactura':
+                if ($id) {
+                    $facturaController->revisarFactura($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de factura requerido para revisar']);
+                }
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para factura']);
+                exit;
+        }
+        break;
+
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Ruta no encontrada']);
         exit;
 }
+//funciona

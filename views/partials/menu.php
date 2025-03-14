@@ -58,9 +58,21 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         <?php if ($usuarioModel->tienePermiso($usuario, 'manage_auditoria')): ?>
             <li><a href="index.php?controller=auditoria&action=list">Consultar Auditoría</a></li>
         <?php endif; ?>
+        <?php if ($usuarioModel->tienePermiso($usuario, 'manage_accesos')): ?>
+            <li><a href="index.php?controller=acceso&action=selectCuenta">Administración de Accesos</a></li>
+        <?php endif; ?>
+        <?php if ($usuarioModel->tienePermiso($usuario, 'manage_facturas')): ?>
+            <li><a href="index.php?controller=factura&action=list">Gestión de Facturas</a></li>
+        <?php endif; ?>
+        <?php if ($usuarioModel->tienePermiso($usuario, 'autorizar_facturas')): ?>
+            <li><a href="index.php?controller=factura&action=list&mode=autorizar">Autorizar Facturas</a></li>
+        <?php endif; ?>
+        <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_facturas')): ?>
+            <li><a href="index.php?controller=factura&action=list&mode=revisar">Revisar Facturas</a></li>
+        <?php endif; ?>
         <li><a href="index.php?controller=login&action=logout">Cerrar Sesión</a></li>
     </ul>
-</nav>
+    </nav>
 </div>
 
 <style>
@@ -73,7 +85,7 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
 /* Estilo del botón de hamburguesa */
 .menu-toggle {
     display: block; /* Visible en todos los dispositivos */
-    background:rgba(255, 255, 255, 0.31);
+    background: rgba(255, 255, 255, 0.31);
     border: none;
     cursor: pointer;
     padding: 10px;
@@ -82,7 +94,6 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
     left: 10px;
     z-index: 1001;
     width: auto;
-    
 }
 
 .menu-toggle .bar {
@@ -92,7 +103,6 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
     background-color: #333;
     margin: 5px 0;
     transition: all 0.3s ease;
-    
 }
 
 /* Estilo del menú principal */
@@ -114,7 +124,6 @@ $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
 
 /* Mostrar el menú cuando está activo */
 .main-menu.active {
-    
     transform: translateX(0); /* Mostrar el menú */
 }
 
@@ -169,14 +178,12 @@ body {
 
 /* Ajustar el margen del cuerpo cuando el menú está visible */
 body.menu-open {
-    
     margin-left: 250px; /* Espacio para el menú cuando está abierto */
 }
 
 /* Estilo responsivo */
 @media (max-width: 768px) {
     body.menu-open {
-       
         margin-left: 0; /* En pantallas pequeñas, el menú es un overlay */
     }
 

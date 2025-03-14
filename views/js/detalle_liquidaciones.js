@@ -65,7 +65,8 @@ async function loadDetalles() {
                 let actions = '';
                 if (userPermissions.revisar_liquidaciones) {
                     actions += `
-                        <a href="index.php?controller=detalleliquidacion&action=revisar&id=${detalle.id}" class="revisar-btn">Revisar</a>
+                      <button><a href="index.php?controller=detalleliquidacion&action=revisar&id=${detalle.id}" class="revisar-btn">Revisar</a></button>
+                      
                     `;
                 }
                 if (userPermissions.create_detalles) {

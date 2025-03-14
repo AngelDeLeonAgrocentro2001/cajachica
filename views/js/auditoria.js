@@ -24,6 +24,31 @@ async function loadAuditoria() {
         tbody.innerHTML = '';
         if (auditoria.length > 0) {
             auditoria.forEach(entry => {
+                let detallesHtml = '-';
+                try {
+                    const detalles = JSON.parse(entry.detalles || '{}');
+                    detallesHtml = '<table class="details-table">';
+                    detallesHtml += '<thead><tr><th>Campo</th><th>Valor</th></tr></thead>';
+                    detallesHtml += '<tbody>';
+                    for (const [key, value] of Object.entries(detalles)) {
+                        detallesHtml += `<tr><td>${key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</td><td>${value || 'N/A'}</td></tr>`;
+                    }
+                    detallesHtml += '</tbody></table>';
+                } catch (e) {
+                    console.error('Error al parsear detalles para entrada ID ' + entry.id + ':', e);
+                    detallesHtml = entry.detalles || '-';
+                }
+
+                // Formatear la fecha
+                const fecha = new Date(entry.fecha).toLocaleString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+
                 tbody.innerHTML += `
                     <tr>
                         <td data-label="ID">${entry.id}</td>
@@ -31,8 +56,8 @@ async function loadAuditoria() {
                         <td data-label="Detalle">${entry.id_detalle_liquidacion || '-'}</td>
                         <td data-label="Usuario">${entry.usuario_nombre}</td>
                         <td data-label="Tipo de Acción">${entry.tipo_accion}</td>
-                        <td data-label="Detalles">${entry.detalles || '-'}</td>
-                        <td data-label="Fecha">${entry.fecha}</td>
+                        <td data-label="Detalles">${detallesHtml}</td>
+                        <td data-label="Fecha">${fecha}</td>
                     </tr>
                 `;
             });

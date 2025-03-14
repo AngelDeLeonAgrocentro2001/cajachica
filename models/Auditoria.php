@@ -33,6 +33,7 @@ class Auditoria {
             return false;
         }
     }
+
     public function getAuditoria($filters = []) {
         $sql = "
             SELECT a.*, u.nombre AS usuario_nombre 

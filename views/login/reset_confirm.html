@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - AgroCaja Chica</title>
+    <title>Restablecer Contraseña - AgroCaja Chica</title>
     <link rel="stylesheet" href="../views/css/style.css">
     <style>
-        /* Estilo general del cuerpo */
         body {
             background: linear-gradient(135deg, #3498db, #2ecc71);
             font-family: 'Arial', sans-serif;
@@ -19,8 +18,7 @@
             overflow: auto;
         }
 
-        /* Contenedor del formulario */
-        #loginForm {
+        #resetConfirmForm {
             background-color: #fff;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -30,7 +28,6 @@
             text-align: center;
         }
 
-        /* Título */
         h2 {
             color: #2c3e50;
             margin-bottom: 30px;
@@ -38,8 +35,7 @@
             font-weight: 600;
         }
 
-        /* Campos del formulario */
-        #loginForm input {
+        #resetConfirmForm input {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -50,43 +46,20 @@
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
-        #loginForm input:focus {
+        #resetConfirmForm input:focus {
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
         }
 
-        #loginForm input::placeholder {
-            color: #999;
-        }
-
-        /* Mensaje de error */
-        #loginForm .error {
+        #resetConfirmForm .error {
             color: #e74c3c;
             font-size: 0.9rem;
             margin: 10px 0;
-            display: <?php echo isset($error) ? 'block' : 'none'; ?>;
+            display: <?php echo isset($_GET['error']) ? 'block' : 'none'; ?>;
         }
 
-        /* Enlace de recuperación */
-        #loginForm .forgot-password {
-            margin-top: 15px;
-        }
-
-        #loginForm .forgot-password a {
-            color: #3498db;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.3s ease;
-        }
-
-        #loginForm .forgot-password a:hover {
-            color: #2980b9;
-            text-decoration: underline;
-        }
-
-        /* Botón de inicio de sesión */
-        #loginForm button {
+        #resetConfirmForm button {
             width: 100%;
             padding: 12px;
             background-color: #3498db;
@@ -98,18 +71,17 @@
             transition: background-color 0.3s ease, transform 0.1s ease;
         }
 
-        #loginForm button:hover {
+        #resetConfirmForm button:hover {
             background-color: #2980b9;
             transform: scale(1.02);
         }
 
-        #loginForm button:active {
+        #resetConfirmForm button:active {
             transform: scale(0.98);
         }
 
-        /* Estilo responsivo */
         @media (max-width: 480px) {
-            #loginForm {
+            #resetConfirmForm {
                 padding: 20px;
                 max-width: 90%;
             }
@@ -118,8 +90,8 @@
                 font-size: 1.5rem;
             }
 
-            #loginForm input,
-            #loginForm button {
+            #resetConfirmForm input,
+            #resetConfirmForm button {
                 font-size: 0.95rem;
                 padding: 10px;
             }
@@ -127,18 +99,13 @@
     </style>
 </head>
 <body>
-    <form id="loginForm">
-        <h2>Iniciar Sesión</h2>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Contraseña" required>
+    <form id="resetConfirmForm" method="POST">
+        <h2>Restablecer Contraseña</h2>
         <div class="error">
-            <?php echo isset($error) ? htmlspecialchars($error) : ''; ?>
+            <?php echo isset($_GET['error']) ? htmlspecialchars($_GET['error']) : ''; ?>
         </div>
-        <button type="submit">Iniciar Sesión</button>
-        <div class="forgot-password">
-            <a href="index.php?controller=login&action=resetPassword">¿Olvidaste tu contraseña?</a>
-        </div>
+        <input type="password" name="password" placeholder="Nueva Contraseña" required>
+        <button type="submit">Restablecer</button>
     </form>
-    <script src="../views/js/login.js"></script>
 </body>
 </html>

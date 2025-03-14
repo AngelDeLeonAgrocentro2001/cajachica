@@ -1,19 +1,18 @@
-<h2><?php echo isset($cuenta['id']) ? 'Editar Cuenta Contable' : 'Crear Cuenta Contable'; ?></h2>
+<h3>Crear Cuenta Contable</h3>
 <form id="cuentaContableFormInner">
-    <input type="hidden" name="id" value="<?php echo htmlspecialchars($cuenta['id'] ?? ''); ?>">
-    <label for="codigo">Código</label>
-    <input type="text" id="codigo" name="codigo" placeholder="Código" value="<?php echo htmlspecialchars($cuenta['codigo'] ?? ''); ?>" required>
-    <div class="error" data-field="codigo"></div>
-    <label for="nombre">Nombre</label>
-    <input type="text" id="nombre" name="nombre" placeholder="Nombre" value="<?php echo htmlspecialchars($cuenta['nombre'] ?? ''); ?>" required>
-    <div class="error" data-field="nombre"></div>
-    <label for="estado">Estado</label>
-    <select id="estado" name="estado" required>
-        <option value="ACTIVO" <?php echo (isset($cuenta['estado']) && $cuenta['estado'] === 'ACTIVO') ? 'selected' : ''; ?>>Activo</option>
-        <option value="INACTIVO" <?php echo (isset($cuenta['estado']) && $cuenta['estado'] === 'INACTIVO') ? 'selected' : ''; ?>>Inactivo</option>
+    <label for="codigo">Código:</label>
+    <input type="text" id="codigo" name="codigo" required>
+    <label for="nombre">Nombre:</label>
+    <input type="text" id="nombre" name="nombre" required>
+    <label for="tipo">Tipo:</label>
+    <input type="text" id="tipo" name="tipo" value="5" required>
+    <label for="base_id">Base:</label>
+    <select id="base_id" name="base_id" required>
+        <option value="">Seleccione una base</option>
+        <!-- Las opciones se cargarán dinámicamente -->
     </select>
-    <div class="error" data-field="estado"></div>
-    <div class="error"></div>
-    <button type="submit"><?php echo isset($cuenta['id']) ? 'Actualizar' : 'Crear'; ?></button>
-    <button type="button" onclick="closeModal()">Cancelar</button>
+    <div class="buttons">
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="closeModal()">Cancelar</button>
+    </div>
 </form>

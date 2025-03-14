@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Cuentas Contables - AgroCaja Chica</title>
+    <title>Lista de Facturas - AgroCaja Chica</title>
     <style>
         body {
             background-color: #f4f7fa;
@@ -11,33 +11,33 @@
             margin: 0;
             padding: 20px;
         }
-    
+
         h2 {
             text-align: left;
             color: #2c3e50;
             margin: 20px 0;
             font-size: 1.8rem;
         }
-    
+
         .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
-    
+
         .header-container select {
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
         .search-container {
             display: flex;
             justify-content: flex-end;
             align-items: center;
         }
-    
+
         .search-container input {
             padding: 8px;
             border: 1px solid #ddd;
@@ -46,12 +46,12 @@
             font-size: 1rem;
             transition: border-color 0.3s;
         }
-    
+
         .search-container input:focus {
             border-color: #28a745;
             outline: none;
         }
-    
+
         button.create-btn {
             background-color: #28a745;
             color: #fff;
@@ -60,63 +60,73 @@
             border-radius: 4px;
             cursor: pointer;
         }
-    
+
         button.create-btn:hover {
             background-color: #218838;
         }
-    
+
         table {
             width: 100%;
             border-collapse: collapse;
             background-color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-    
+
         th, td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-    
+
         th {
             background-color: #f8f9fa;
             font-weight: bold;
         }
-    
+
         td button {
             padding: 5px 10px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-right: 5px;
         }
-    
-        td button.access-btn {
+
+        td button.view-btn {
             background-color: #007bff;
             color: #fff;
         }
-    
-        td button.access-btn:hover {
+
+        td button.view-btn:hover {
             background-color: #0056b3;
         }
-    
-        td button.update-btn {
-            background-color: #ffc107;
-            color: #fff;
-        }
-    
-        td button.update-btn:hover {
-            background-color: #e0a800;
-        }
-    
+
         td button.delete-btn {
             background-color: #dc3545;
             color: #fff;
         }
-    
+
         td button.delete-btn:hover {
             background-color: #c82333;
         }
-    
+
+        td button.authorize-btn {
+            background-color: #17a2b8;
+            color: #fff;
+        }
+
+        td button.authorize-btn:hover {
+            background-color: #138496;
+        }
+
+        td button.review-btn {
+            background-color: #ffc107;
+            color: #fff;
+        }
+
+        td button.review-btn:hover {
+            background-color: #e0a800;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -129,11 +139,11 @@
             justify-content: center;
             align-items: center;
         }
-    
+
         .modal.active {
             display: flex;
         }
-    
+
         .modal-content {
             background-color: #fff;
             padding: 20px;
@@ -142,12 +152,12 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-    
+
         .modal-content h3 {
             margin-top: 0;
             color: #2c3e50;
         }
-    
+
         .modal-content .close-modal {
             position: absolute;
             top: 10px;
@@ -155,76 +165,102 @@
             font-size: 1.5rem;
             cursor: pointer;
         }
-    
+
         .modal-content form label {
             display: block;
             margin-top: 10px;
             font-weight: bold;
         }
-    
+
         .modal-content form input,
-        .modal-content form select {
+        .modal-content form select,
+        .modal-content form textarea {
             width: 100%;
             padding: 8px;
             margin-top: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
+        .modal-content form textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
         .modal-content form .buttons {
             margin-top: 20px;
             text-align: right;
         }
-    
-        .modal-content form button {
+
+        .modal-content .factura-details p {
+            margin: 10px 0;
+        }
+
+        .modal-content .factura-details p strong {
+            display: inline-block;
+            width: 150px;
+        }
+
+        .modal-content form button,
+        .modal-content .buttons button {
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
-    
+
         .modal-content form button[type="submit"] {
             background-color: #28a745;
             color: #fff;
         }
-    
-        .modal-content form button[type="button"] {
+
+        .modal-content form button[type="button"],
+        .modal-content .buttons button {
             background-color: #dc3545;
             color: #fff;
             margin-left: 10px;
+        }
+
+        .error {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Lista de Cuentas Contables</h2>
+    <h2>Lista de Facturas</h2>
     <div style="text-align: center; margin-bottom: 20px;">
-        <select id="baseSelect" onchange="loadCuentasContables()">
-            <option value="">Seleccione la Base</option>
+        <select id="cuentaSelect">
+            <option value="">Seleccione una Cuenta</option>
         </select>
     </div>
     <div class="header-container">
         <div>
-            <button class="create-btn" onclick="showCreateForm()">Agregar Cuenta Contable</button>
-            <select id="entriesPerPage" onchange="loadCuentasContables()">
-                <option value="10">10 entries per page</option>
-                <option value="25">25 entries per page</option>
-                <option value="50">50 entries per page</option>
-            </select>
+            <?php if (isset($_GET['mode']) && $_GET['mode'] === 'autorizar'): ?>
+                <h3>Autorizar Facturas (Estado: PENDIENTE)</h3>
+            <?php elseif (isset($_GET['mode']) && $_GET['mode'] === 'revisar'): ?>
+                <h3>Revisar Facturas (Estado: APROBADO)</h3>
+            <?php else: ?>
+                <button class="create-btn" onclick="showCreateForm()">Agregar Factura</button>
+            <?php endif; ?>
         </div>
         <div class="search-container">
-            <input type="text" id="search" placeholder="Buscar por nombre...">
-            <!-- <input type="text" id="search" placeholder="Buscar por nombre..." onkeyup="loadCuentasContables()"> -->
+            <input type="text" id="search" placeholder="Buscar por número, estado o proveedor...">
         </div>
     </div>
-    <table id="cuentasContablesTable">
+    <table id="facturasTable">
         <thead>
             <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
+                <th>Número</th>
+                <th>Cuenta</th>
+                <th>Base</th>
+                <th>Proveedor</th>
+                <th>Fecha</th>
+                <th>Monto</th>
                 <th>Estado</th>
-                <th></th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -237,12 +273,6 @@
         </div>
     </div>
 
-    <script src="../views/js/cuentas_contables.js"></script>
+    <script src="../views/js/facturas.js"></script>
 </body>
 </html>
-
-agregar otra columna llamada data base 
-
-coneccion htbcobdc para sap y revisar agro presupuestos
-
-johanathan 

@@ -72,24 +72,32 @@ class Usuario {
         if ($rol === 'ADMIN') {
             return true;
         }
-    
+
         switch ($permiso) {
             case 'create_liquidaciones':
             case 'create_detalles':
                 return in_array($rol, ['ADMIN', 'ENCARGADO_CAJA_CHICA']);
             case 'autorizar_liquidaciones':
+            case 'autorizar_facturas':
                 return in_array($rol, ['ADMIN', 'SUPERVISOR_AUTORIZADOR']);
             case 'revisar_liquidaciones':
+            case 'revisar_facturas':
                 return in_array($rol, ['ADMIN', 'CONTABILIDAD']);
             case 'manage_usuarios':
             case 'manage_impuestos':
-            case 'manage_cuentas_contables':
             case 'manage_tipos_gastos':
             case 'manage_roles':
             case 'manage_cajachica':
             case 'manage_reportes':
             case 'manage_auditoria':
+            case 'manage_accesos':
                 return $rol === 'ADMIN';
+            case 'manage_cuentas_contables':
+                // Permitir a SUPERVISOR_AUTORIZADOR listar cuentas (solo lectura)
+                return in_array($rol, ['ADMIN', 'CONTABILIDAD', 'SUPERVISOR_AUTORIZADOR']);
+            case 'manage_facturas':
+                // Permitir a SUPERVISOR_AUTORIZADOR listar facturas, cuentas y bases (necesario para autorizar)
+                return in_array($rol, ['ADMIN', 'ENCARGADO_CAJA_CHICA', 'CONTABILIDAD', 'SUPERVISOR_AUTORIZADOR']);
             default:
                 return false;
         }

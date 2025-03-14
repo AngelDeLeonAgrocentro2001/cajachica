@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Cuentas Contables - AgroCaja Chica</title>
+    <title>Lista de Usuarios Asignados - AgroCaja Chica</title>
     <style>
         body {
             background-color: #f4f7fa;
@@ -11,48 +11,39 @@
             margin: 0;
             padding: 20px;
         }
-    
+
         h2 {
             text-align: left;
             color: #2c3e50;
             margin: 20px 0;
-            font-size: 1.8rem;
         }
-    
+
         .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
-    
+
         .header-container select {
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
         .search-container {
             display: flex;
             justify-content: flex-end;
-            align-items: center;
         }
-    
+
         .search-container input {
-            padding: 8px;
+            padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            width: 250px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            width: 200px;
         }
-    
-        .search-container input:focus {
-            border-color: #28a745;
-            outline: none;
-        }
-    
-        button.create-btn {
+
+        button.assign-btn {
             background-color: #28a745;
             color: #fff;
             border: none;
@@ -60,63 +51,42 @@
             border-radius: 4px;
             cursor: pointer;
         }
-    
-        button.create-btn:hover {
+
+        button.assign-btn:hover {
             background-color: #218838;
         }
-    
+
         table {
             width: 100%;
             border-collapse: collapse;
             background-color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-    
+
         th, td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-    
+
         th {
             background-color: #f8f9fa;
             font-weight: bold;
         }
-    
+
         td button {
             padding: 5px 10px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-        }
-    
-        td button.access-btn {
-            background-color: #007bff;
-            color: #fff;
-        }
-    
-        td button.access-btn:hover {
-            background-color: #0056b3;
-        }
-    
-        td button.update-btn {
-            background-color: #ffc107;
-            color: #fff;
-        }
-    
-        td button.update-btn:hover {
-            background-color: #e0a800;
-        }
-    
-        td button.delete-btn {
             background-color: #dc3545;
             color: #fff;
         }
-    
-        td button.delete-btn:hover {
+
+        td button:hover {
             background-color: #c82333;
         }
-    
+
         .modal {
             display: none;
             position: fixed;
@@ -129,11 +99,11 @@
             justify-content: center;
             align-items: center;
         }
-    
+
         .modal.active {
             display: flex;
         }
-    
+
         .modal-content {
             background-color: #fff;
             padding: 20px;
@@ -142,12 +112,12 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-    
+
         .modal-content h3 {
             margin-top: 0;
             color: #2c3e50;
         }
-    
+
         .modal-content .close-modal {
             position: absolute;
             top: 10px;
@@ -155,13 +125,13 @@
             font-size: 1.5rem;
             cursor: pointer;
         }
-    
+
         .modal-content form label {
             display: block;
             margin-top: 10px;
             font-weight: bold;
         }
-    
+
         .modal-content form input,
         .modal-content form select {
             width: 100%;
@@ -170,25 +140,31 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
         .modal-content form .buttons {
             margin-top: 20px;
             text-align: right;
         }
-    
+
         .modal-content form button {
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
-    
+
         .modal-content form button[type="submit"] {
             background-color: #28a745;
             color: #fff;
         }
-    
+
         .modal-content form button[type="button"] {
+            background-color: #dc3545;
+            color: #fff;
+            margin-left: 10px;
+        }
+
+        .modal-content form button.delete-btn {
             background-color: #dc3545;
             color: #fff;
             margin-left: 10px;
@@ -197,33 +173,24 @@
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Lista de Cuentas Contables</h2>
-    <div style="text-align: center; margin-bottom: 20px;">
-        <select id="baseSelect" onchange="loadCuentasContables()">
-            <option value="">Seleccione la Base</option>
-        </select>
-    </div>
+    <h2>Lista de Usuarios Asignados</h2>
     <div class="header-container">
         <div>
-            <button class="create-btn" onclick="showCreateForm()">Agregar Cuenta Contable</button>
-            <select id="entriesPerPage" onchange="loadCuentasContables()">
+            <button class="assign-btn" onclick="showAssignForm()">Asignar Usuario</button>
+            <select id="entriesPerPage" onchange="loadAccesos()">
                 <option value="10">10 entries per page</option>
                 <option value="25">25 entries per page</option>
                 <option value="50">50 entries per page</option>
             </select>
         </div>
         <div class="search-container">
-            <input type="text" id="search" placeholder="Buscar por nombre...">
-            <!-- <input type="text" id="search" placeholder="Buscar por nombre..." onkeyup="loadCuentasContables()"> -->
+            <input type="text" id="search" placeholder="Search..." onkeyup="loadAccesos()">
         </div>
     </div>
-    <table id="cuentasContablesTable">
+    <table id="accesosTable">
         <thead>
             <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Estado</th>
+                <th>Correo Usuario</th>
                 <th></th>
             </tr>
         </thead>
@@ -233,16 +200,10 @@
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal()">×</span>
-            <div id="modalContent"></div>
+            <div id="modalForm"></div>
         </div>
     </div>
 
-    <script src="../views/js/cuentas_contables.js"></script>
+    <script src="../views/js/accesos.js"></script>
 </body>
 </html>
-
-agregar otra columna llamada data base 
-
-coneccion htbcobdc para sap y revisar agro presupuestos
-
-johanathan 

@@ -1,0 +1,17 @@
+<h3>Actualizar Cuenta Contable</h3>
+<form id="cuentaContableFormInner">
+    <input type="hidden" name="id" value="<?php echo htmlspecialchars($cuenta['id']); ?>">
+    <label for="nombre">Nombre:</label>
+    <input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($cuenta['nombre']); ?>" required>
+    <label for="estado">Estado:</label>
+    <select id="estado" name="estado" required>
+        <option value="Y" <?php echo $cuenta['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>ACTIVO</option>
+        <option value="N" <?php echo $cuenta['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>INACTIVO</option>
+    </select>
+    <label for="tipo">Tipo:</label>
+    <input type="text" id="tipo" name="tipo" value="<?php echo htmlspecialchars($cuenta['tipo']); ?>" required>
+    <div class="buttons">
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="closeModal()">Cancelar</button>
+    </div>
+</form>

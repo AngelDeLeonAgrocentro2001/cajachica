@@ -1,0 +1,12 @@
+<h3>Agregar Usuario</h3>
+<form id="assignFormInner">
+    <label for="email">Correo Usuario</label>
+    <input type="email" id="email" name="email" required>
+    <div class="error" data-field="email"></div>
+    <label for="cuenta_id">Código Centro Costo</label>
+    <input type="text" id="cuenta_id" name="cuenta_id" value="<?php echo htmlspecialchars($cuenta['codigo'] ?? ''); ?>" readonly>
+    <div class="buttons">
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="closeModal()">Cancelar</button>
+    </div>
+</form>
