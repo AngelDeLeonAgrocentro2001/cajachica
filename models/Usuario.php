@@ -68,39 +68,69 @@ class Usuario {
     }
 
     public function tienePermiso($usuario, $permiso) {
-        $rol = $usuario['rol'] ?? '';
-        if ($rol === 'ADMIN') {
-            return true;
+        if (!$usuario || !isset($usuario['rol'])) {
+            error_log("Usuario no válido o sin rol: " . print_r($usuario, true));
+            return false;
         }
-
-        switch ($permiso) {
-            case 'create_liquidaciones':
-            case 'create_detalles':
-                return in_array($rol, ['ADMIN', 'ENCARGADO_CAJA_CHICA']);
-            case 'autorizar_liquidaciones':
-            case 'autorizar_facturas':
-                return in_array($rol, ['ADMIN', 'SUPERVISOR_AUTORIZADOR']);
-            case 'revisar_liquidaciones':
-            case 'revisar_facturas':
-                return in_array($rol, ['ADMIN', 'CONTABILIDAD']);
-            case 'manage_usuarios':
-            case 'manage_impuestos':
-            case 'manage_tipos_gastos':
-            case 'manage_roles':
-            case 'manage_cajachica':
-            case 'manage_reportes':
-            case 'manage_auditoria':
-            case 'manage_accesos':
-                return $rol === 'ADMIN';
-            case 'manage_cuentas_contables':
-                // Permitir a SUPERVISOR_AUTORIZADOR listar cuentas (solo lectura)
-                return in_array($rol, ['ADMIN', 'CONTABILIDAD', 'SUPERVISOR_AUTORIZADOR']);
-            case 'manage_facturas':
-                // Permitir a SUPERVISOR_AUTORIZADOR listar facturas, cuentas y bases (necesario para autorizar)
-                return in_array($rol, ['ADMIN', 'ENCARGADO_CAJA_CHICA', 'CONTABILIDAD', 'SUPERVISOR_AUTORIZADOR']);
-            default:
-                return false;
+    
+        // Permisos predeterminados por rol
+        $permisosPorRol = [
+            self::ROL_ADMIN => true, // Admin tiene acceso a todo
+            self::ROL_ENCARGADO_CAJA_CHICA => [
+                'create_liquidaciones' => true,
+                'create_detalles' => true,
+                'manage_facturas' => true,
+                'manage_cajachica' => true, // Agregado para que el encargado pueda gestionar cajas chicas
+            ],
+            self::ROL_SUPERVISOR => [
+                'autorizar_liquidaciones' => true,
+                'autorizar_facturas' => true,
+                'manage_cuentas_contables' => true,
+                'manage_facturas' => true,
+                'revisar_liquidaciones' => true, // Agregado
+                'revisar_detalles_liquidaciones' => true, // Agregado
+                'revisar_facturas' => true, // Agregado
+            ],
+            self::ROL_CONTABILIDAD => [
+                'revisar_liquidaciones' => true,
+                'revisar_detalles_liquidaciones' => true,
+                'revisar_facturas' => true,
+                'manage_reportes' => true,
+                'manage_auditoria' => true,
+                'manage_cuentas_contables' => true,
+                'manage_facturas' => true,
+                'manage_centros_costos' => true,
+                'manage_impuestos' => true, // Agregado
+                'manage_tipos_gastos' => true, // Agregado
+            ],
+        ];
+    
+        // Verificar permisos predeterminados
+        $rol = $usuario['rol'];
+        error_log("Verificando permiso '$permiso' para rol '$rol'");
+        if ($rol === self::ROL_ADMIN) {
+            error_log("Permiso concedido: Rol ADMIN tiene acceso a todo");
+            return true; // Admin siempre tiene permiso
         }
+    
+        $permisosPredeterminados = $permisosPorRol[$rol] ?? [];
+        $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
+        error_log("Permiso predeterminado para '$permiso': " . ($tienePermisoPredeterminado ? 'Sí' : 'No'));
+    
+        // Consultar permisos asignados dinámicamente desde accesos_permisos
+        $permisosAsignados = [];
+        if (isset($usuario['id'])) {
+            $query = "SELECT permiso FROM accesos_permisos WHERE id_usuario = ? AND estado = 'ACTIVO'";
+            $stmt = $this->pdo->prepare($query);
+            $stmt->execute([$usuario['id']]);
+            $permisosAsignados = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            error_log("Permisos asignados para usuario " . $usuario['id'] . ": " . print_r($permisosAsignados, true));
+        }
+    
+        // Combinar permisos predeterminados con permisos asignados
+        $tienePermiso = $tienePermisoPredeterminado || in_array($permiso, $permisosAsignados);
+        error_log("Resultado final de permiso '$permiso': " . ($tienePermiso ? 'Concedido' : 'Denegado'));
+        return $tienePermiso;
     }
 
     public function getAllRoles() {

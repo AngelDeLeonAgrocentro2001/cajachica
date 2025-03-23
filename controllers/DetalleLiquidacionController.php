@@ -29,11 +29,29 @@ class DetalleLiquidacionController {
         $detalles = $detalle->getAllDetallesLiquidacion();
         error_log('Detalles obtenidos: ' . print_r($detalles, true));
     
+        // Normalizar los nombres de los campos
+        $detallesNormalizados = array_map(function($detalle) {
+            return [
+                'id' => $detalle['id'],
+                'id_liquidacion' => $detalle['id_liquidacion'],
+                'liquidacion' => $detalle['liquidacion'] ?? $detalle['nombre_caja_chica'] ?? 'N/A',
+                'no_factura' => $detalle['no_factura'],
+                'nombre_proveedor' => $detalle['nombre_proveedor'],
+                'fecha' => $detalle['fecha'],
+                'bien_servicio' => $detalle['bien_servicio'],
+                't_gasto' => $detalle['t_gasto'],
+                'p_unitario' => $detalle['p_unitario'],
+                'total_factura' => $detalle['total_factura'],
+                'estado' => $detalle['estado'], // Asegúrate de que el campo se llame 'estado'
+                'rutas_archivos' => $detalle['rutas_archivos']
+            ];
+        }, $detalles);
+    
         // Filtrar detalles en modo revisar para CONTABILIDAD
         $urlParams = $_GET['mode'] ?? '';
         $isRevisarMode = $urlParams === 'revisar';
         if ($isRevisarMode && $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
-            $detalles = array_filter($detalles, function($detalle) {
+            $detallesNormalizados = array_filter($detallesNormalizados, function($detalle) {
                 return $detalle['estado'] !== 'DESCARTADO';
             });
         } elseif (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
@@ -46,7 +64,7 @@ class DetalleLiquidacionController {
     
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
-            echo json_encode(array_values($detalles));
+            echo json_encode(array_values($detallesNormalizados));
         } else {
             // Renderizar la vista adecuada según los permisos
             if ($isRevisarMode && $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
@@ -89,15 +107,51 @@ class DetalleLiquidacionController {
                 $total_factura = $_POST['total_factura'] ?? 0;
                 $estado = $_POST['estado'] ?? 'PENDIENTE';
     
+                // Transformar el estado según el rol del usuario
+                $rol = strtoupper($usuario['rol']);
+                if ($estado === 'APROBADO') {
+                    $estado = "AUTORIZADO_POR_{$rol}";
+                } elseif ($estado === 'RECHAZADO') {
+                    $estado = "RECHAZADO_POR_{$rol}";
+                }
+    
+                // Validar que el estado transformado sea un valor permitido en el ENUM
+                $allowedEstados = [
+                    'PENDIENTE',
+                    'EN_REVISIÓN',
+                    'AUTORIZADO_POR_ADMIN',
+                    'RECHAZADO_POR_ADMIN',
+                    'AUTORIZADO_POR_CONTABILIDAD',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'AUTORIZADO_POR_SUPERVISOR',
+                    'RECHAZADO_POR_SUPERVISOR',
+                    'DESCARTADO'
+                ];
+                if (!in_array($estado, $allowedEstados)) {
+                    throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
+                }
+    
+                // Log para verificar el estado recibido y transformado
+                error_log("Estado recibido en createDetalleLiquidacion: " . $_POST['estado']);
+                error_log("Estado transformado en createDetalleLiquidacion: " . $estado);
+    
                 // Validar datos antes de crear
                 if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
                     throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
     
-                // Verificar que id_liquidacion exista en la tabla liquidaciones
+                // Verificar que id_liquidacion exista y obtener su fecha_creacion
                 $liquidacionModel = new Liquidacion();
-                if (!$liquidacionModel->getLiquidacionById($id_liquidacion)) {
+                $liquidacion = $liquidacionModel->getLiquidacionById($id_liquidacion);
+                if (!$liquidacion) {
                     throw new Exception('El ID de liquidación ' . $id_liquidacion . ' no existe.');
+                }
+    
+                // Validación de fecha del detalle
+                $fechaDetalle = new DateTime($fecha);
+                $fechaCreacionLiquidacion = new DateTime($liquidacion['fecha_creacion']);
+                if ($fechaDetalle > $fechaCreacionLiquidacion) {
+                    throw new Exception('La fecha del detalle no puede ser mayor que la fecha de creación de la liquidación (' . $liquidacion['fecha_creacion'] . ').');
                 }
     
                 // Manejar la subida de múltiples archivos
@@ -107,16 +161,35 @@ class DetalleLiquidacionController {
                     mkdir($uploadDir, 0777, true);
                 }
     
+                // Definir tipos de archivo permitidos y tamaño máximo (5 MB)
+                $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+                $maxFileSize = 5 * 1024 * 1024; // 5 MB en bytes
+    
                 if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
                     foreach ($_FILES['archivos']['name'] as $key => $name) {
                         if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
+                            $fileType = $_FILES['archivos']['type'][$key];
+                            $fileSize = $_FILES['archivos']['size'][$key];
+    
+                            // Validar tipo de archivo
+                            if (!in_array($fileType, $allowedTypes)) {
+                                throw new Exception('Tipo de archivo no permitido: ' . $name . '. Solo se permiten PDF, PNG, JPG y JPEG.');
+                            }
+    
+                            // Validar tamaño de archivo
+                            if ($fileSize > $maxFileSize) {
+                                throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
+                            }
+    
                             $fileName = basename($name);
                             $filePath = $uploadDir . uniqid() . '_' . $fileName;
                             if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
                                 $rutas_archivos[] = 'uploads/' . basename($filePath);
                             } else {
-                                throw new Exception('Error al subir uno o más archivos.');
+                                throw new Exception('Error al subir el archivo: ' . $name);
                             }
+                        } elseif ($_FILES['archivos']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                            throw new Exception('Error al subir el archivo: ' . $name);
                         }
                     }
                 }
@@ -197,6 +270,34 @@ class DetalleLiquidacionController {
                 $total_factura = $_POST['total_factura'] ?? 0;
                 $estado = $_POST['estado'] ?? 'PENDIENTE';
     
+                // Transformar el estado según el rol del usuario
+                $rol = strtoupper($usuario['rol']);
+                if ($estado === 'APROBADO') {
+                    $estado = "AUTORIZADO_POR_{$rol}";
+                } elseif ($estado === 'RECHAZADO') {
+                    $estado = "RECHAZADO_POR_{$rol}";
+                }
+    
+                // Validar que el estado transformado sea un valor permitido en el ENUM
+                $allowedEstados = [
+                    'PENDIENTE',
+                    'EN_REVISIÓN',
+                    'AUTORIZADO_POR_ADMIN',
+                    'RECHAZADO_POR_ADMIN',
+                    'AUTORIZADO_POR_CONTABILIDAD',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'AUTORIZADO_POR_SUPERVISOR',
+                    'RECHAZADO_POR_SUPERVISOR',
+                    'DESCARTADO'
+                ];
+                if (!in_array($estado, $allowedEstados)) {
+                    throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
+                }
+    
+                // Log para verificar el estado recibido y transformado
+                error_log("Estado recibido en updateDetalleLiquidacion: " . $_POST['estado']);
+                error_log("Estado transformado en updateDetalleLiquidacion: " . $estado);
+    
                 if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura) || empty($estado)) {
                     throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
@@ -251,6 +352,9 @@ class DetalleLiquidacionController {
                 $this->pdo->beginTransaction();
     
                 if ($detalle->updateDetalleLiquidacion($id, $id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_json)) {
+                    // Log para confirmar que se actualizó
+                    error_log("Estado actualizado en la base de datos: " . $estado);
+    
                     $auditoria = new Auditoria();
                     $auditoria->createAuditoria($id_liquidacion, $id, $_SESSION['user_id'], 'ACTUALIZADO', 'Detalle de liquidación actualizado');
     

@@ -374,7 +374,7 @@ async function revisarDetalle(id) {
 }
 
 function addFormValidations(id = null) {
-    const form = document.querySelector('#modalForm #detalleFormInner');
+    const form = document.querySelector('#modalForm #detalleFormInner'); // Cambiado de detalleLiquidacionFormInner a detalleFormInner
     if (!form) {
         console.error('No se encontró un elemento <form> con id="detalleFormInner" dentro de #modalForm');
         return;
@@ -389,16 +389,25 @@ function addFormValidations(id = null) {
         t_gasto: { required: true },
         p_unitario: { required: true, type: 'number', min: 0 },
         total_factura: { required: true, type: 'number', min: 0 },
-        estado: { required: true }
+        estado: { required: true },
+        archivos: { maxSize: 5 * 1024 * 1024, allowedTypes: ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'] } // 5 MB
     };
 
-    form.querySelectorAll('input, select, textarea').forEach(field => {
-        field.addEventListener('input', validateField);
+    form.querySelectorAll('input, select').forEach(field => {
+        if (field.type !== 'file') {
+            field.addEventListener('input', validateField);
+        }
     });
+
+    // Validación específica para el campo de archivos
+    const fileInput = form.querySelector('input[name="archivos"]');
+    if (fileInput) {
+        fileInput.addEventListener('change', validateFiles);
+    }
 
     async function validateField(e) {
         const fieldName = e.target.name;
-        const value = e.target.value.trim();
+        const value = e.target.value;
         const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
         errorElement.className = 'error';
         errorElement.setAttribute('data-field', fieldName);
@@ -414,44 +423,90 @@ function addFormValidations(id = null) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
-                // Expandir la sección si está colapsada
-                const detailsElement = e.target.closest('details');
-                if (detailsElement && !detailsElement.open) {
-                    detailsElement.open = true;
-                }
                 return false;
             }
-            if (fields[fieldName].type === 'number' && value && isNaN(value)) {
+            if (fields[fieldName].type === 'number' && isNaN(value)) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser un número.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
-                const detailsElement = e.target.closest('details');
-                if (detailsElement && !detailsElement.open) {
-                    detailsElement.open = true;
-                }
                 return false;
             }
-            if (fields[fieldName].min && value && parseFloat(value) < fields[fieldName].min) {
+            if (fields[fieldName].min && value < fields[fieldName].min) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe ser mayor o igual a ${fields[fieldName].min}.`;
                 errorElement.style.display = 'block';
                 e.target.classList.add('invalid');
-                const detailsElement = e.target.closest('details');
-                if (detailsElement && !detailsElement.open) {
-                    detailsElement.open = true;
-                }
                 return false;
             }
         }
         return true;
     }
 
+    async function validateFiles(e) {
+        const files = e.target.files;
+        const errorElement = form.querySelector(`.error[data-field="archivos"]`) || document.createElement('div');
+        errorElement.className = 'error';
+        errorElement.setAttribute('data-field', 'archivos');
+        if (!form.contains(errorElement)) {
+            e.target.parentNode.appendChild(errorElement);
+        }
+
+        errorElement.style.display = 'none';
+        e.target.classList.remove('invalid');
+
+        const maxSize = fields.archivos.maxSize;
+        const allowedTypes = fields.archivos.allowedTypes;
+        const errors = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            // Validar tipo de archivo
+            if (!allowedTypes.includes(file.type)) {
+                errors.push(`El archivo ${file.name} tiene un tipo no permitido. Solo se permiten PDF, PNG, JPG y JPEG.`);
+            }
+
+            // Validar tamaño de archivo
+            if (file.size > maxSize) {
+                errors.push(`El archivo ${file.name} excede el tamaño máximo permitido de 5 MB.`);
+            }
+        }
+
+        if (errors.length > 0) {
+            // Crear una lista de errores
+            const errorList = document.createElement('ul');
+            errors.forEach(error => {
+                const li = document.createElement('li');
+                li.textContent = error;
+                errorList.appendChild(li);
+            });
+            errorElement.innerHTML = ''; // Limpiar contenido previo
+            errorElement.appendChild(errorList);
+            errorElement.style.display = 'block';
+            e.target.classList.add('invalid');
+            return false;
+        }
+
+        return true;
+    }
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         let isValid = true;
-        const validations = await Promise.all(
-            Array.from(form.querySelectorAll('input, select, textarea')).map(field => validateField({ target: field }))
+
+        // Validar campos de texto, select, etc.
+        const fieldValidations = await Promise.all(
+            Array.from(form.querySelectorAll('input, select')).map(field => {
+                if (field.type !== 'file') {
+                    return validateField({ target: field });
+                }
+                return true;
+            })
         );
-        isValid = validations.every(valid => valid);
+
+        // Validar archivos
+        const fileValidation = fileInput ? await validateFiles({ target: fileInput }) : true;
+
+        isValid = fieldValidations.every(valid => valid) && fileValidation;
 
         if (isValid) {
             const formData = new FormData(form);
@@ -465,12 +520,44 @@ function addFormValidations(id = null) {
                 console.error('Error al enviar formulario:', error);
                 const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
                 errorElement.className = 'error';
-                errorElement.textContent = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
-                errorElement.style.display = 'block';
+                errorElement.innerHTML = ''; // Limpiar contenido previo
                 if (!form.contains(errorElement)) {
                     form.appendChild(errorElement);
                 }
+
+                // Si el error viene del servidor, puede contener saltos de línea (\n)
+                const errorMessage = error.message || 'Error al enviar el formulario. Intenta de nuevo.';
+                if (errorMessage.includes('\n')) {
+                    const errorLines = errorMessage.split('\n').filter(line => line.trim() !== '');
+                    const errorList = document.createElement('ul');
+                    errorLines.forEach(line => {
+                        const li = document.createElement('li');
+                        li.textContent = line.replace(/^- /, ''); // Eliminar el prefijo "- " para evitar duplicados
+                        errorList.appendChild(li);
+                    });
+                    errorElement.appendChild(errorList);
+                } else {
+                    errorElement.textContent = errorMessage;
+                }
+
+                errorElement.style.display = 'block';
             }
         }
     });
 }
+
+async function createDetalle(data) {
+    const response = await fetch('index.php?controller=detalleliquidacion&action=create', {
+        method: 'POST',
+        body: data,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.error || 'Error al crear detalle de liquidación');
+    }
+    return result;
+}
+

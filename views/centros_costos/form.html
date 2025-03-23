@@ -1,0 +1,20 @@
+<h2><?php echo isset($data) ? 'Editar Centro de Costos' : 'Crear Centro de Costos'; ?></h2>
+<form id="centroCostoFormInner">
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <label for="nombre">Nombre</label>
+    <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+    <label for="descripcion">Descripción</label>
+    <textarea name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
+    <label for="estado">Estado</label>
+    <select name="estado" required>
+        <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
+    </select>
+    <div class="error" data-field="nombre"></div>
+    <div class="error" data-field="descripcion"></div>
+    <div class="error" data-field="estado"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
+</form>

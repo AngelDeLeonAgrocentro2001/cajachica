@@ -26,7 +26,7 @@ class CuentaContable {
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-//ya funciona
+
     public function getCuentaById($id) {
         try {
             $stmt = $this->pdo->prepare("SELECT * FROM cuentas_contables WHERE id = ?");

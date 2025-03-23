@@ -26,14 +26,13 @@ class LiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         $liquidacion = new Liquidacion();
         $liquidaciones = $liquidacion->getAllLiquidaciones();
         error_log('Liquidaciones obtenidas: ' . print_r($liquidaciones, true));
-    
-        // Filtrar liquidaciones en modo revisar
+
         $urlParams = $_GET['mode'] ?? '';
         $isRevisarMode = $urlParams === 'revisar';
         if ($isRevisarMode) {
@@ -41,7 +40,7 @@ class LiquidacionController {
                 return $liquidacion['estado'] !== 'PENDIENTE_CORRECCIÓN';
             });
         }
-    
+
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
             echo json_encode(array_values($liquidaciones));
@@ -74,21 +73,46 @@ class LiquidacionController {
             try {
                 $id_caja_chica = $_POST['id_caja_chica'] ?? '';
                 $fecha_creacion = $_POST['fecha_creacion'] ?? '';
+                $fecha_inicio = $_POST['fecha_inicio'] ?? null; // Nuevo campo
+                $fecha_fin = $_POST['fecha_fin'] ?? null; // Nuevo campo
                 $monto_total = $_POST['monto_total'] ?? 0;
                 $estado = $_POST['estado'] ?? 'PENDIENTE';
     
-                if (empty($id_caja_chica) || empty($fecha_creacion) || !is_numeric($monto_total)) {
-                    throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
+                // Transformar el estado según el rol del usuario
+                $rol = strtoupper($usuario['rol']);
+                if ($estado === 'APROBADO') {
+                    $estado = "AUTORIZADO_POR_{$rol}";
+                } elseif ($estado === 'RECHAZADO') {
+                    $estado = "RECHAZADO_POR_{$rol}";
                 }
     
-                // Forzar el estado inicial a PENDIENTE si no se especifica
-                $estado = !empty($estado) ? $estado : 'PENDIENTE';
+                // Validar que el estado transformado sea un valor permitido en el ENUM
+                $allowedEstados = [
+                    'PENDIENTE',
+                    'AUTORIZADO_POR_ADMIN',
+                    'RECHAZADO_POR_ADMIN',
+                    'AUTORIZADO_POR_CONTABILIDAD',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'AUTORIZADO_POR_SUPERVISOR',
+                    'RECHAZADO_POR_SUPERVISOR',
+                    'PENDIENTE_CORRECCIÓN',
+                    'DESCARTADO'
+                ];
+                if (!in_array($estado, $allowedEstados)) {
+                    throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
+                }
     
-                $liquidacion = new Liquidacion();
-                if ($liquidacion->createLiquidacion($id_caja_chica, $fecha_creacion, $monto_total, $estado)) {
+                // Log para verificar el estado recibido y transformado
+                error_log("Estado recibido en createLiquidacion: " . $_POST['estado']);
+                error_log("Estado transformado en createLiquidacion: " . $estado);
+    
+                if (empty($id_caja_chica) || empty($fecha_creacion) || !is_numeric($monto_total)) {
+                    throw new Exception('Campos obligatorios (id_caja_chica, fecha_creacion, monto_total) son requeridos y deben ser válidos.');
+                }
+    
+                if ($this->liquidacionModel->createLiquidacion($id_caja_chica, $fecha_creacion, $fecha_inicio, $fecha_fin, $monto_total, $estado)) {
                     $lastInsertId = $this->pdo->lastInsertId();
-                    $auditoria = new Auditoria();
-                    $auditoria->createAuditoria($lastInsertId, null, $_SESSION['user_id'], 'CREADO', 'Liquidación creada por encargado');
+                    $this->auditoriaModel->createAuditoria($lastInsertId, null, $_SESSION['user_id'], 'CREADO', 'Liquidación creada por encargado');
                     header('Content-Type: application/json');
                     http_response_code(201);
                     echo json_encode(['message' => 'Liquidación creada']);
@@ -148,17 +172,55 @@ class LiquidacionController {
             try {
                 $id_caja_chica = $_POST['id_caja_chica'] ?? '';
                 $fecha_creacion = $_POST['fecha_creacion'] ?? '';
+                $fecha_inicio = $_POST['fecha_inicio'] ?? null;
+                $fecha_fin = $_POST['fecha_fin'] ?? null;
                 $monto_total = $_POST['monto_total'] ?? 0;
                 $estado = $_POST['estado'] ?? 'PENDIENTE';
     
-                if (empty($id_caja_chica) || empty($fecha_creacion) || !is_numeric($monto_total) || empty($estado)) {
-                    throw new Exception('Todos los campos son obligatorios');
+                // Transformar el estado según el rol del usuario
+                $rol = strtoupper($usuario['rol']);
+                if ($estado === 'APROBADO') {
+                    $estado = "AUTORIZADO_POR_{$rol}";
+                } elseif ($estado === 'RECHAZADO') {
+                    $estado = "RECHAZADO_POR_{$rol}";
                 }
     
-                $liquidacion = new Liquidacion();
-                if ($liquidacion->updateLiquidacion($id, $id_caja_chica, $fecha_creacion, $monto_total, $estado)) {
-                    $auditoria = new Auditoria();
-                    $auditoria->createAuditoria($id, null, $_SESSION['user_id'], 'ACTUALIZADO', 'Liquidación actualizada por usuario');
+                // Validar que el estado transformado sea un valor permitido en el ENUM
+                $allowedEstados = [
+                    'PENDIENTE',
+                    'AUTORIZADO_POR_ADMIN',
+                    'RECHAZADO_POR_ADMIN',
+                    'AUTORIZADO_POR_CONTABILIDAD',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'AUTORIZADO_POR_SUPERVISOR',
+                    'RECHAZADO_POR_SUPERVISOR',
+                    'PENDIENTE_CORRECCIÓN',
+                    'DESCARTADO'
+                ];
+                if (!in_array($estado, $allowedEstados)) {
+                    throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
+                }
+    
+                // Log para verificar el estado recibido y transformado
+                error_log("Estado recibido en updateLiquidacion: " . $_POST['estado']);
+                error_log("Estado transformado en updateLiquidacion: " . $estado);
+    
+                // Validaciones existentes
+                if (empty($id_caja_chica) || empty($fecha_creacion) || !is_numeric($monto_total) || empty($estado)) {
+                    throw new Exception('Campos obligatorios (id_caja_chica, fecha_creacion, monto_total, estado) son requeridos.');
+                }
+    
+                // Nueva validación: fecha_inicio <= fecha_fin
+                if (!empty($fecha_inicio) && !empty($fecha_fin)) {
+                    $fechaInicioDate = new DateTime($fecha_inicio);
+                    $fechaFinDate = new DateTime($fecha_fin);
+                    if ($fechaInicioDate > $fechaFinDate) {
+                        throw new Exception('La fecha de inicio no puede ser mayor que la fecha de fin.');
+                    }
+                }
+    
+                if ($this->liquidacionModel->updateLiquidacion($id, $id_caja_chica, $fecha_creacion, $fecha_inicio, $fecha_fin, $monto_total, $estado)) {
+                    $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ACTUALIZADO', 'Liquidación actualizada por usuario');
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Liquidación actualizada']);
                 } else {
@@ -277,7 +339,19 @@ class LiquidacionController {
             $motivo = $_POST['motivo'] ?? '';
             $detallesSeleccionados = $_POST['detalles'] ?? [];
     
-            if (!in_array($accion, ['AUTORIZADO_POR_SUPERVISOR', 'RECHAZADO_POR_SUPERVISOR', 'DESCARTADO'])) {
+            // Obtener el rol del usuario
+            $rol = strtoupper($usuario['rol']);
+            $allowedAcciones = [
+                "AUTORIZADO_POR_{$rol}",
+                "RECHAZADO_POR_{$rol}",
+                'DESCARTADO'
+            ];
+    
+            // Log para depurar
+            error_log("Acción recibida: " . $accion);
+            error_log("Acciones permitidas: " . print_r($allowedAcciones, true));
+    
+            if (!in_array($accion, $allowedAcciones)) {
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => 'Acción no válida']);
@@ -307,14 +381,14 @@ class LiquidacionController {
                     echo json_encode(['message' => 'Detalles descartados y liquidación marcada para corrección']);
                 } else {
                     // Actualizar el estado de la liquidación
-                    $estado = $accion === 'AUTORIZADO_POR_SUPERVISOR' ? 'AUTORIZADO_POR_SUPERVISOR' : 'RECHAZADO_POR_SUPERVISOR';
+                    $estado = $accion; // El estado ya es dinámico (AUTORIZADO_POR_{$rol} o RECHAZADO_POR_{$rol})
                     $liquidacionModel->updateEstado($id, $estado);
     
                     // Actualizar los detalles seleccionados
                     foreach ($detalles as $detalle) {
                         $detalleId = $detalle['id'];
                         if (in_array($detalleId, $detallesSeleccionados)) {
-                            $detalleEstado = $accion === 'AUTORIZADO_POR_SUPERVISOR' ? 'AUTORIZADO_POR_SUPERVISOR' : 'RECHAZADO_POR_SUPERVISOR';
+                            $detalleEstado = $accion; // Usar el mismo estado para los detalles
                             $detalleModel->updateEstado($detalleId, $detalleEstado);
                         }
                     }
@@ -375,7 +449,19 @@ class LiquidacionController {
             $motivo = $_POST['motivo'] ?? '';
             $detallesSeleccionados = $_POST['detalles'] ?? [];
     
-            if (!in_array($accion, ['AUTORIZADO_POR_CONTABILIDAD', 'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO'])) {
+            // Obtener el rol del usuario
+            $rol = strtoupper($usuario['rol']);
+            $allowedAcciones = [
+                "AUTORIZADO_POR_{$rol}",
+                "RECHAZADO_POR_{$rol}",
+                'DESCARTADO'
+            ];
+    
+            // Log para depurar
+            error_log("Acción recibida en revisar: " . $accion);
+            error_log("Acciones permitidas en revisar: " . print_r($allowedAcciones, true));
+    
+            if (!in_array($accion, $allowedAcciones)) {
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => 'Acción no válida']);
@@ -401,13 +487,13 @@ class LiquidacionController {
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Detalles descartados y liquidación marcada para corrección']);
                 } else {
-                    $estado = $accion === 'AUTORIZADO_POR_CONTABILIDAD' ? 'AUTORIZADO_POR_CONTABILIDAD' : 'RECHAZADO_POR_CONTABILIDAD';
+                    $estado = $accion; // El estado ya es dinámico (AUTORIZADO_POR_{$rol} o RECHAZADO_POR_{$rol})
                     $liquidacionModel->updateEstado($id, $estado);
     
                     foreach ($detalles as $detalle) {
                         $detalleId = $detalle['id'];
                         if (in_array($detalleId, $detallesSeleccionados)) {
-                            $detalleEstado = $accion === 'AUTORIZADO_POR_CONTABILIDAD' ? 'AUTORIZADO_POR_CONTABILIDAD' : 'RECHAZADO_POR_CONTABILIDAD';
+                            $detalleEstado = $accion; // Usar el mismo estado para los detalles
                             $detalleModel->updateEstado($detalleId, $detalleEstado);
                         }
                     }
@@ -531,9 +617,9 @@ class LiquidacionController {
     
         exit;
     }
+}
 
-    // public function markAsExported($id) {
+ // public function markAsExported($id) {
     //     $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
     //     return $stmt->execute([$id]);
     // }
-}

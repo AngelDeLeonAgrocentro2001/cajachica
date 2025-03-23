@@ -44,10 +44,15 @@ async function loadLiquidaciones() {
                     actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
                     actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
                 }
+                // Mostrar botón "Revisar" para usuarios con permiso revisar_liquidaciones
                 if (userPermissions.revisar_liquidaciones && !liquidacion.estado.includes('AUTORIZADO_POR_')) {
                     actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
                 }
-                // Permitir "Exportar a SAP" para usuarios con revisar_liquidaciones o autorizar_liquidaciones
+                // Mostrar botón "Autorizar" para usuarios con permiso autorizar_liquidaciones
+                if (userPermissions.autorizar_liquidaciones && !liquidacion.estado.includes('AUTORIZADO_POR_')) {
+                    actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
+                }
+                // Mostrar botón "Exportar a SAP" para usuarios con permisos revisar_liquidaciones o autorizar_liquidaciones, y si el estado es AUTORIZADO_POR_*
                 if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado.includes('AUTORIZADO_POR_')) {
                     actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
                 }
@@ -57,7 +62,9 @@ async function loadLiquidaciones() {
                     <tr>
                         <td data-label="ID">${liquidacion.id}</td>
                         <td data-label="Caja Chica">${liquidacion.nombre_caja_chica || 'N/A'}</td>
-                        <td data-label="Fecha">${liquidacion.fecha_creacion || 'N/A'}</td>
+                        <td data-label="Fecha Creación">${liquidacion.fecha_creacion || 'N/A'}</td>
+                        <td data-label="Fecha Inicio">${liquidacion.fecha_inicio || 'N/A'}</td>
+                        <td data-label="Fecha Fin">${liquidacion.fecha_fin || 'N/A'}</td>
                         <td data-label="Monto Total">${parseFloat(liquidacion.monto_total || 0).toFixed(2)}</td>
                         <td data-label="Estado">${liquidacion.estado || 'N/A'}</td>
                         <td data-label="Acciones">${actionsHtml}</td>
@@ -65,7 +72,7 @@ async function loadLiquidaciones() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay liquidaciones disponibles.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8">No hay liquidaciones disponibles.</td></tr>';
         }
     } catch (error) {
         console.error('Error al cargar liquidaciones:', error);
@@ -135,7 +142,7 @@ async function showEditForm(id) {
     }
 }
 
-async function createLiquidacion(data) {
+async function createLiquidation(data) {
     const response = await fetch('index.php?controller=liquidacion&action=create', {
         method: 'POST',
         body: data,
@@ -150,7 +157,7 @@ async function createLiquidacion(data) {
     return result;
 }
 
-async function updateLiquidacion(id, data) {
+async function updateLiquidation(id, data) {
     const response = await fetch(`index.php?controller=liquidacion&action=update&id=${id}`, {
         method: 'POST',
         body: data,
@@ -261,6 +268,8 @@ function addFormValidations(id = null) {
     const fields = {
         id_caja_chica: { required: true },
         fecha_creacion: { required: true },
+        fecha_inicio: {}, // Opcional
+        fecha_fin: {},   // Opcional
         monto_total: { required: true, type: 'number', min: 0 },
         estado: { required: true }
     };
@@ -282,6 +291,7 @@ function addFormValidations(id = null) {
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
 
+        // Validaciones existentes
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
@@ -302,6 +312,25 @@ function addFormValidations(id = null) {
                 return false;
             }
         }
+
+        // Nueva validación para fechas: fecha_inicio <= fecha_fin
+        if (fieldName === 'fecha_inicio' || fieldName === 'fecha_fin') {
+            const fechaInicio = form.querySelector('[name="fecha_inicio"]').value;
+            const fechaFin = form.querySelector('[name="fecha_fin"]').value;
+
+            if (fechaInicio && fechaFin) {
+                const fechaInicioDate = new Date(fechaInicio);
+                const fechaFinDate = new Date(fechaFin);
+
+                if (fechaInicioDate > fechaFinDate) {
+                    errorElement.textContent = 'La fecha de inicio no puede ser mayor que la fecha de fin.';
+                    errorElement.style.display = 'block';
+                    e.target.classList.add('invalid');
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 

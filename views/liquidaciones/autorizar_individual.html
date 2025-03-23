@@ -246,15 +246,17 @@
     <form id="autorizarForm">
         <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
         <select name="accion" required>
-            <?php if (isset($mode) && $mode === 'revisar'): ?>
-                <option value="AUTORIZADO_POR_CONTABILIDAD">Autorizar</option>
-                <option value="RECHAZADO_POR_CONTABILIDAD">Rechazar</option>
-                <option value="DESCARTADO">Descartar</option>
-            <?php else: ?>
-                <option value="AUTORIZADO_POR_SUPERVISOR">Autorizar</option>
-                <option value="RECHAZADO_POR_SUPERVISOR">Rechazar</option>
-                <option value="DESCARTADO">Descartar</option>
-            <?php endif; ?>
+            <?php
+            // Obtener el rol del usuario desde la sesión
+            $usuarioModel = new Usuario();
+            $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+            $rol = strtoupper($usuario['rol']);
+            $autorizarEstado = "AUTORIZADO_POR_{$rol}";
+            $rechazarEstado = "RECHAZADO_POR_{$rol}";
+            ?>
+            <option value="<?php echo htmlspecialchars($autorizarEstado); ?>">Autorizar</option>
+            <option value="<?php echo htmlspecialchars($rechazarEstado); ?>">Rechazar</option>
+            <option value="DESCARTADO">Descartar</option>
         </select>
         <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
         <div class="error" data-field="accion"></div>
@@ -270,8 +272,13 @@
             e.preventDefault();
             const formData = new FormData(form);
             const id = formData.get('id');
+            const accion = formData.get('accion'); // Obtener el valor de la acción
             const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
             const action = mode === 'revisar' ? 'revisar' : 'autorizar';
+    
+            // Log para depurar el valor de la acción enviada
+            console.log('Acción enviada desde el formulario:', accion);
+    
             try {
                 const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
                     method: 'POST',

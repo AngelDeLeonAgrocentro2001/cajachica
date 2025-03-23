@@ -173,25 +173,13 @@
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Lista de Usuarios Asignados</h2>
-    <div class="header-container">
-        <div>
-            <button class="assign-btn" onclick="showAssignForm()">Asignar Usuario</button>
-            <select id="entriesPerPage" onchange="loadAccesos()">
-                <option value="10">10 entries per page</option>
-                <option value="25">25 entries per page</option>
-                <option value="50">50 entries per page</option>
-            </select>
-        </div>
-        <div class="search-container">
-            <input type="text" id="search" placeholder="Search..." onkeyup="loadAccesos()">
-        </div>
-    </div>
+    <h2>Administración de Accesos</h2>
     <table id="accesosTable">
         <thead>
             <tr>
-                <th>Correo Usuario</th>
-                <th></th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody></tbody>

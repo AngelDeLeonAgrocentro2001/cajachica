@@ -11,33 +11,33 @@
             margin: 0;
             padding: 20px;
         }
-    
+
         h2 {
             text-align: left;
             color: #2c3e50;
             margin: 20px 0;
             font-size: 1.8rem;
         }
-    
+
         .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
-    
+
         .header-container select {
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
         .search-container {
             display: flex;
             justify-content: flex-end;
             align-items: center;
         }
-    
+
         .search-container input {
             padding: 8px;
             border: 1px solid #ddd;
@@ -46,12 +46,12 @@
             font-size: 1rem;
             transition: border-color 0.3s;
         }
-    
+
         .search-container input:focus {
             border-color: #28a745;
             outline: none;
         }
-    
+
         button.create-btn {
             background-color: #28a745;
             color: #fff;
@@ -60,63 +60,64 @@
             border-radius: 4px;
             cursor: pointer;
         }
-    
+
         button.create-btn:hover {
             background-color: #218838;
         }
-    
+
         table {
             width: 100%;
             border-collapse: collapse;
             background-color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-    
+
         th, td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-    
+
         th {
             background-color: #f8f9fa;
             font-weight: bold;
         }
-    
+
         td button {
             padding: 5px 10px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-right: 5px;
         }
-    
+
         td button.access-btn {
             background-color: #007bff;
             color: #fff;
         }
-    
+
         td button.access-btn:hover {
             background-color: #0056b3;
         }
-    
+
         td button.update-btn {
             background-color: #ffc107;
             color: #fff;
         }
-    
+
         td button.update-btn:hover {
             background-color: #e0a800;
         }
-    
+
         td button.delete-btn {
             background-color: #dc3545;
             color: #fff;
         }
-    
+
         td button.delete-btn:hover {
             background-color: #c82333;
         }
-    
+
         .modal {
             display: none;
             position: fixed;
@@ -129,11 +130,11 @@
             justify-content: center;
             align-items: center;
         }
-    
+
         .modal.active {
             display: flex;
         }
-    
+
         .modal-content {
             background-color: #fff;
             padding: 20px;
@@ -142,12 +143,12 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-    
+
         .modal-content h3 {
             margin-top: 0;
             color: #2c3e50;
         }
-    
+
         .modal-content .close-modal {
             position: absolute;
             top: 10px;
@@ -155,13 +156,13 @@
             font-size: 1.5rem;
             cursor: pointer;
         }
-    
+
         .modal-content form label {
             display: block;
             margin-top: 10px;
             font-weight: bold;
         }
-    
+
         .modal-content form input,
         .modal-content form select {
             width: 100%;
@@ -170,28 +171,82 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-    
+
         .modal-content form .buttons {
             margin-top: 20px;
             text-align: right;
         }
-    
+
         .modal-content form button {
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
-    
+
         .modal-content form button[type="submit"] {
             background-color: #28a745;
             color: #fff;
         }
-    
+
         .modal-content form button[type="button"] {
             background-color: #dc3545;
             color: #fff;
             margin-left: 10px;
+        }
+
+        /* Estilos para responsividad */
+        @media (max-width: 768px) {
+            table {
+                width: 100%;
+            }
+
+            thead {
+                display: none;
+            }
+
+            tr {
+                display: block;
+                margin-bottom: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background-color: #fff;
+            }
+
+            td {
+                display: block;
+                text-align: right;
+                padding: 8px 10px;
+                font-size: 0.9rem;
+                position: relative;
+                border-bottom: 1px solid #eee;
+            }
+
+            td:last-child {
+                border-bottom: none;
+            }
+
+            td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+
+            .header-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .search-container {
+                justify-content: flex-start;
+                width: 100%;
+            }
+
+            .search-container input {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -214,7 +269,6 @@
         </div>
         <div class="search-container">
             <input type="text" id="search" placeholder="Buscar por nombre...">
-            <!-- <input type="text" id="search" placeholder="Buscar por nombre..." onkeyup="loadCuentasContables()"> -->
         </div>
     </div>
     <table id="cuentasContablesTable">
@@ -224,10 +278,14 @@
                 <th>Nombre</th>
                 <th>Tipo</th>
                 <th>Estado</th>
-                <th></th>
+                <th>Acciones</th>
             </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+            <tr>
+                <td colspan="5">Cargando cuentas contables...</td>
+            </tr>
+        </tbody>
     </table>
 
     <div id="modal" class="modal">
@@ -240,9 +298,3 @@
     <script src="../views/js/cuentas_contables.js"></script>
 </body>
 </html>
-
-agregar otra columna llamada data base 
-
-coneccion htbcobdc para sap y revisar agro presupuestos
-
-johanathan 

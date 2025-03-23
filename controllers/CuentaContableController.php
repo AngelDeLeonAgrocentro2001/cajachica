@@ -16,7 +16,7 @@ class CuentaContableController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if ($usuario === false || !isset($usuario['rol'])) {
@@ -26,22 +26,23 @@ class CuentaContableController {
             exit;
         }
 
-        // Permitir acceso a usuarios con manage_cuentas_contables o manage_facturas
         if (!$usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables') && !$usuarioModel->tienePermiso($usuario, 'manage_facturas')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para listar cuentas contables']);
             exit;
         }
-    
+
         $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
         $baseId = isset($_GET['base_id']) ? intval($_GET['base_id']) : null;
-    
+
         $cuentas = $this->cuentaContableModel->getAllCuentas($searchTerm, $baseId);
+
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             header('Content-Type: application/json');
             echo json_encode($cuentas);
         } else {
+            // Si no es una solicitud AJAX, renderizamos la vista
             require '../views/cuentacontable/list.html';
         }
         exit;
@@ -68,7 +69,8 @@ class CuentaContableController {
         error_log("Datos recibidos para crear cuenta: " . print_r($data, true)); // Depuración
         $required_fields = ['codigo', 'nombre', 'tipo'];
         foreach ($required_fields as $field) {
-            if (empty($data[$field])) {
+            if (!isset($data[$field]) || empty(trim($data[$field]))) {
+                error_log("Campo requerido faltante: $field"); // Depuración
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => ucfirst($field) . ' es obligatorio']);
@@ -87,7 +89,9 @@ class CuentaContableController {
         }
     
         try {
-            if ($this->cuentaContableModel->createCuenta($data)) {
+            $result = $this->cuentaContableModel->createCuenta($data);
+            error_log("Resultado de createCuenta: " . ($result ? 'Éxito' : 'Fallo')); // Depuración
+            if ($result) {
                 header('Content-Type: application/json');
                 echo json_encode(['message' => 'Cuenta contable creada']);
             } else {

@@ -1,0 +1,45 @@
+<h3>Asignar Módulos a <?php echo htmlspecialchars($targetUser['email']); ?></h3>
+<?php if ($success): ?>
+    <div class="success"><?php echo $success; ?></div>
+<?php endif; ?>
+<?php if ($error): ?>
+    <div class="error"><?php echo $error; ?></div>
+<?php endif; ?>
+<form method="POST">
+    <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+    <div class="module-list">
+        <?php foreach ($modules as $module): ?>
+            <?php
+                $modulePermiso = $module['permiso_predeterminado'];
+                $isDefault = in_array($modulePermiso, $defaultModules);
+                $isAssigned = false;
+                foreach ($userModules as $userModule) {
+                    if ($userModule['id'] == $module['id'] && $userModule['permiso'] == $modulePermiso) {
+                        $isAssigned = true;
+                        break;
+                    }
+                }
+                // Forzar que los permisos predeterminados estén marcados
+                $isChecked = $isDefault || $isAssigned;
+                if ($isDefault && !$isAssigned) {
+                    // Si es predeterminado pero no está asignado, aseguramos que se envíe como seleccionado
+                    $isChecked = true;
+                }
+            ?>
+            <label>
+                <input type="checkbox" name="modules[]"
+                       value="<?php echo htmlspecialchars($modulePermiso); ?>"
+                       <?php echo $isChecked ? 'checked' : ''; ?>
+                       <?php echo $isDefault ? 'disabled' : ''; ?>>
+                <?php echo htmlspecialchars($availableModules[$modulePermiso] ?? $module['nombre']); ?>
+                <?php if ($isDefault): ?>
+                    <span>(Predeterminado)</span>
+                <?php endif; ?>
+            </label><br>
+        <?php endforeach; ?>
+    </div>
+    <div class="buttons">
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="closeModal()">Cancelar</button>
+    </div>
+</form>

@@ -3,6 +3,7 @@ const modal = document.getElementById('modal');
 const modalContent = document.getElementById('modalContent');
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded disparado'); // Depuración
     loadCuentasContables();
     loadBases();
 
@@ -12,24 +13,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showEditForm(id);
     }
 
-    // Agregar el evento de búsqueda con debounce
     const searchInput = document.querySelector('#search');
-    searchInput.addEventListener('input', () => {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => {
-            loadCuentasContables();
-        }, 300); // Retardo de 300ms
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                loadCuentasContables();
+            }, 300);
+        });
+    } else {
+        console.error('Elemento #search no encontrado');
+    }
 });
-//ya funciona
+
 let cuentasContables = [];
 
 async function loadCuentasContables() {
     try {
-        const searchTerm = document.querySelector('#search').value.trim();
-        const selectedBaseId = document.querySelector('#baseSelect').value;
+        console.log('Iniciando loadCuentasContables'); // Depuración
+        const searchTerm = document.querySelector('#search')?.value.trim() || '';
+        const selectedBaseId = document.querySelector('#baseSelect')?.value || '';
 
-        // Construir la URL con los parámetros de búsqueda
         let url = 'index.php?controller=cuentacontable&action=list';
         if (searchTerm) {
             url += `&search=${encodeURIComponent(searchTerm)}`;
@@ -38,11 +42,14 @@ async function loadCuentasContables() {
             url += `&base_id=${encodeURIComponent(selectedBaseId)}`;
         }
 
+        console.log('URL de la solicitud:', url); // Depuración
         const response = await fetch(url, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
+
+        console.log('Respuesta del servidor (status):', response.status); // Depuración
         if (!response.ok) {
             const errorData = await response.json();
             if (response.status === 401) {
@@ -50,25 +57,30 @@ async function loadCuentasContables() {
             }
             throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
+
         const cuentas = await response.json();
+        console.log('Datos recibidos:', cuentas); // Depuración
         if (!Array.isArray(cuentas)) {
             throw new Error('La respuesta no es un array válido');
         }
         cuentasContables = cuentas;
 
         const tbody = document.querySelector('#cuentasContablesTable tbody');
+        if (!tbody) {
+            throw new Error('Elemento #cuentasContablesTable tbody no encontrado');
+        }
+
         tbody.innerHTML = '';
         if (cuentas.length > 0) {
             cuentas.forEach(cuenta => {
                 const estado = cuenta.estado === 'ACTIVO' ? 'Y' : 'N';
                 tbody.innerHTML += `
                     <tr>
-                        <td>${cuenta.codigo}</td>
-                        <td>${cuenta.nombre}</td>
-                        <td>${cuenta.tipo || '5'}</td>
-                        <td>${estado}</td>
-                        <td>
-                            <button class="access-btn" onclick="window.location.href='index.php?controller=acceso&action=list&cuenta_id=${cuenta.id}'">Accesos</button>
+                        <td data-label="Código">${cuenta.codigo}</td>
+                        <td data-label="Nombre">${cuenta.nombre}</td>
+                        <td data-label="Tipo">${cuenta.tipo || '5'}</td>
+                        <td data-label="Estado">${estado}</td>
+                        <td data-label="Acciones">
                             <button class="update-btn" onclick="showUpdateForm(${cuenta.id})">Actualizar</button>
                             <button class="delete-btn" onclick="deleteCuentaContable(${cuenta.id})">Eliminar</button>
                         </td>
@@ -76,17 +88,18 @@ async function loadCuentasContables() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5">No se encontraron cuentas contables con el nombre "' + searchTerm + '".</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="5">No se encontraron cuentas contables con el nombre "${searchTerm}".</td></tr>`;
         }
         return cuentas;
     } catch (error) {
         console.error('Error al cargar cuentas contables:', error);
-        alert('No se pudo cargar la lista de cuentas contables. Por favor, inicia sesión nuevamente.');
-        window.location.href = 'index.php?controller=login&action=login';
+        const tbody = document.querySelector('#cuentasContablesTable tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="5">Error al cargar las cuentas contables: ${error.message}</td></tr>`;
+        }
         return [];
     }
 }
-//ya funciona
 //ya funciona
 
 async function checkCodigoExists(codigo) {
@@ -533,7 +546,8 @@ function addCreateValidations() {
     const fields = {
         codigo: { required: true, minLength: 2 },
         nombre: { required: true, minLength: 2 },
-        tipo: { required: true }
+        tipo: { required: true, minLength: 1 },
+        estado: { required: true }
     };
 
     form.querySelectorAll('input, select').forEach(field => {
@@ -543,11 +557,10 @@ function addCreateValidations() {
     async function validateField(e) {
         const fieldName = e.target.name;
         const value = e.target.value.trim();
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
-        errorElement.className = 'error';
-        errorElement.setAttribute('data-field', fieldName);
-        if (!form.contains(errorElement)) {
-            e.target.parentNode.appendChild(errorElement);
+        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
+        if (!errorElement) {
+            console.error(`No se encontró un elemento .error para el campo ${fieldName}`);
+            return false;
         }
 
         errorElement.style.display = 'none';
@@ -596,13 +609,14 @@ function addCreateValidations() {
                 loadCuentasContables();
             } catch (error) {
                 console.error('Error al crear:', error);
-                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
-                errorElement.className = 'error';
-                errorElement.textContent = error.message || 'Error al crear. Intenta de nuevo.';
-                errorElement.style.display = 'block';
-                if (!form.contains(errorElement)) {
-                    form.appendChild(errorElement);
+                const errorElement = form.querySelector('.error:not([data-field])');
+                if (errorElement) {
+                    errorElement.textContent = error.message || 'Error al crear. Intenta de nuevo.';
+                    errorElement.style.display = 'block';
+                } else {
+                    console.error('No se encontró un elemento .error para mostrar el mensaje de error');
                 }
+                // No cerramos el modal ni recargamos la lista en caso de error
             }
         }
     });

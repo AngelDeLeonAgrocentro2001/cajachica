@@ -1,48 +1,48 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
-const cuentaId = new URLSearchParams(window.location.search).get('cuenta_id');
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadAccesos();
+    loadUsuarios();
 });
 
-async function loadAccesos() {
+async function loadUsuarios() {
     try {
-        const response = await fetch(`index.php?controller=acceso&action=list&cuenta_id=${cuentaId}`, {
+        const response = await fetch('index.php?controller=acceso&action=list', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al cargar accesos');
+            throw new Error(errorData.error || 'Error al cargar usuarios');
         }
-        const accesos = await response.json();
+        const usuarios = await response.json();
         const tbody = document.querySelector('#accesosTable tbody');
         tbody.innerHTML = '';
-        if (accesos.length > 0) {
-            accesos.forEach(acceso => {
+        if (usuarios.length > 0) {
+            usuarios.forEach(usuario => {
                 tbody.innerHTML += `
                     <tr>
-                        <td>${acceso.email}</td>
-                        <td>
-                            <button onclick="removeUsuario(${acceso.id})">Eliminar</button>
+                        <td data-label="Correo">${usuario.email}</td>
+                        <td data-label="Rol">${usuario.rol}</td>
+                        <td data-label="Acciones">
+                            <button onclick="showManageModules(${usuario.id})">Asignar Módulos</button>
                         </td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="2">No hay usuarios asignados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3">No hay usuarios registrados.</td></tr>';
         }
     } catch (error) {
-        console.error('Error al cargar accesos:', error);
-        alert(error.message || 'Error al cargar accesos');
+        console.error('Error al cargar usuarios:', error);
+        alert(error.message || 'Error al cargar usuarios');
     }
 }
 
-async function showAssignForm() {
+async function showManageModules(userId) {
     try {
-        const response = await fetch(`index.php?controller=acceso&action=assignForm&cuenta_id=${cuentaId}`, {
+        const response = await fetch(`index.php?controller=acceso&action=manageModules&user_id=${userId}`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -54,72 +54,51 @@ async function showAssignForm() {
         const html = await response.text();
         modalForm.innerHTML = html;
         modal.classList.add('active');
-        addAssignValidations();
-    } catch (error) {
-        console.error('Error al cargar formulario de asignación:', error);
-        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
-        modal.classList.add('active');
-    }
-}
 
-function addAssignValidations() {
-    const form = document.querySelector('#modalForm #assignFormInner');
-    if (!form) {
-        console.error('No se encontró el formulario de asignación');
-        return;
-    }
+        const form = modalForm.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                console.log('Datos del formulario antes de enviar:');
+                for (let pair of formData.entries()) {
+                    console.log('Dato enviado:', pair[0], pair[1]);
+                }
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-        try {
-            const response = await fetch(`index.php?controller=acceso&action=assign&cuenta_id=${cuentaId}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                try {
+                    const response = await fetch(`index.php?controller=acceso&action=manageModules&user_id=${userId}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al guardar módulos');
+                    }
+                    const result = await response.json();
+                    console.log('Respuesta del servidor:', result);
+                    alert(result.message || 'Módulos asignados correctamente');
+                    closeModal();
+                    loadUsuarios();
+                } catch (error) {
+                    console.error('Error al guardar módulos:', error);
+                    alert(error.message || 'Error al guardar módulos');
                 }
             });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al asignar usuario');
-            }
-            const result = await response.json();
-            alert(result.message || 'Usuario asignado');
-            closeModal();
-            loadAccesos();
-        } catch (error) {
-            console.error('Error al asignar usuario:', error);
-            const errorElement = form.querySelector('.error[data-field="email"]');
-            errorElement.textContent = error.message;
-            errorElement.style.display = 'block';
+        } else {
+            console.error('No se encontró el formulario en el modal');
         }
-    });
-}
-
-async function removeUsuario(usuarioId) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
-    try {
-        const response = await fetch(`index.php?controller=acceso&action=remove&cuenta_id=${cuentaId}&usuario_id=${usuarioId}`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al eliminar usuario');
-        }
-        const result = await response.json();
-        alert(result.message || 'Usuario eliminado');
-        loadAccesos();
     } catch (error) {
-        console.error('Error al eliminar usuario:', error);
-        alert(error.message || 'Error al eliminar usuario');
+        console.error('Error al cargar formulario de módulos:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
     }
 }
 
 function closeModal() {
     modal.classList.remove('active');
     modalForm.innerHTML = '';
+    loadUsuarios();
 }

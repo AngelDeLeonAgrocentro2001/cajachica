@@ -2,7 +2,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-
+// ini_set('error_log', 'C:/xampp/php/logs/php_error.log');
 session_start();
 error_log(print_r($_SESSION, true));
 
@@ -22,6 +22,7 @@ require_once '../controllers/TipoGastoController.php';
 require_once '../controllers/AccesoController.php';
 require_once '../controllers/BaseController.php';
 require_once '../controllers/FacturaController.php';
+require_once '../controllers/CentroCostoController.php';
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
@@ -417,53 +418,22 @@ switch ($controller) {
         }
         break;
 
-    case 'acceso':
-        $accesoController = new AccesoController();
-        $cuenta_id = $_GET['cuenta_id'] ?? null;
-        $usuario_id = $_GET['usuario_id'] ?? null;
-        switch ($action) {
-            case 'selectCuenta':
-                $accesoController->selectCuenta();
-                break;
-            case 'list':
-                if (!$cuenta_id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de cuenta requerido']);
+        case 'acceso':
+            $accesoController = new AccesoController();
+            $user_id = $_GET['user_id'] ?? null;
+            switch ($action) {
+                case 'list':
+                    $accesoController->list();
+                    break;
+                case 'manageModules':
+                    $accesoController->manageModules($user_id);
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para acceso']);
                     exit;
-                }
-                $accesoController->list($cuenta_id);
-                break;
-            case 'assignForm':
-                if (!$cuenta_id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de cuenta requerido']);
-                    exit;
-                }
-                $accesoController->assignForm($cuenta_id);
-                break;
-            case 'assign':
-                if (!$cuenta_id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de cuenta requerido']);
-                    exit;
-                }
-                $accesoController->assign($cuenta_id);
-                break;
-            case 'remove':
-                if (!$usuario_id || !$cuenta_id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de usuario y cuenta requeridos']);
-                    exit;
-                }
-                $accesoController->remove($cuenta_id, $usuario_id);
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para acceso']);
-                exit;
-        }
-        break;
-
+            }
+            break;
     case 'factura':
         $facturaController = new FacturaController();
         switch ($action) {
@@ -520,6 +490,37 @@ switch ($controller) {
                 exit;
         }
         break;
+    case 'centrocosto':
+        $centroCostoController = new CentroCostoController();
+        switch ($action) {
+            case 'list':
+                $centroCostoController->listCentrosCostos();
+                break;
+            case 'create':
+                $centroCostoController->createCentroCosto();
+                break;
+            case 'update':
+                if ($id) {
+                    $centroCostoController->updateCentroCosto($id);
+                } else {
+                     header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                 }
+                break;
+            case 'delete':
+                if ($id) {
+                    $centroCostoController->deleteCentroCosto($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
+                }
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
+                exit;
+            }
+        break;   
 
     default:
         header('HTTP/1.1 404 Not Found');

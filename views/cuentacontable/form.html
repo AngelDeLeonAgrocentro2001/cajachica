@@ -1,16 +1,27 @@
-<h3>Crear Cuenta Contable</h3>
+<h3 id="formTitle">Crear Cuenta Contable</h3>
 <form id="cuentaContableFormInner">
     <label for="codigo">Código:</label>
     <input type="text" id="codigo" name="codigo" required>
     <label for="nombre">Nombre:</label>
     <input type="text" id="nombre" name="nombre" required>
     <label for="tipo">Tipo:</label>
-    <input type="text" id="tipo" name="tipo" value="5" required>
+    <input type="text" id="tipo" name="tipo" required>
     <label for="base_id">Base:</label>
-    <select id="base_id" name="base_id" required>
-        <option value="">Seleccione una base</option>
+    <select id="base_id" name="base_id">
+        <option value="">Seleccione una base (opcional)</option>
         <!-- Las opciones se cargarán dinámicamente -->
     </select>
+    <label for="estado">Estado:</label>
+    <select id="estado" name="estado" required>
+        <option value="Y">Activo</option>
+        <option value="N">Inactivo</option>
+    </select>
+    <div class="error" data-field="codigo"></div>
+    <div class="error" data-field="nombre"></div>
+    <div class="error" data-field="tipo"></div>
+    <div class="error" data-field="base_id"></div>
+    <div class="error" data-field="estado"></div>
+    <div class="error"></div>
     <div class="buttons">
         <button type="submit">Guardar</button>
         <button type="button" onclick="closeModal()">Cancelar</button>

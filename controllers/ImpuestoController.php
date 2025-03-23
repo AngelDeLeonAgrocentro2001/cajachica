@@ -4,9 +4,11 @@ require_once '../models/Usuario.php';
 
 class ImpuestoController {
     private $pdo;
+    private $usuarioModel;
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
+        $this->usuarioModel = new Usuario();
     }
 
     public function listImpuestos() {
@@ -17,9 +19,8 @@ class ImpuestoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_impuestos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para gestionar impuestos']);
@@ -47,9 +48,8 @@ class ImpuestoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_impuestos')) {
             error_log('Error: No tienes permiso para crear impuestos');
             header('Content-Type: application/json');
             http_response_code(403);
@@ -107,9 +107,8 @@ class ImpuestoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_impuestos')) {
             error_log('Error: No tienes permiso para actualizar impuestos');
             header('Content-Type: application/json');
             http_response_code(403);
@@ -175,9 +174,8 @@ class ImpuestoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_impuestos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para eliminar impuestos']);

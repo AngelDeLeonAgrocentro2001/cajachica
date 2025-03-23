@@ -4,9 +4,11 @@ require_once '../models/Usuario.php';
 
 class TipoGastoController {
     private $tipoGastoModel;
+    private $usuarioModel;
 
     public function __construct() {
         $this->tipoGastoModel = new TipoGasto();
+        $this->usuarioModel = new Usuario();
     }
 
     public function listTiposGastos() {
@@ -17,9 +19,8 @@ class TipoGastoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para gestionar tipos de gastos']);
@@ -44,9 +45,8 @@ class TipoGastoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para crear tipos de gastos']);
@@ -109,9 +109,8 @@ class TipoGastoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para actualizar tipos de gastos']);
@@ -181,9 +180,8 @@ class TipoGastoController {
             exit;
         }
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if ($usuario === false || !isset($usuario['rol']) || $usuario['rol'] !== 'ADMIN') {
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if ($usuario === false || !$this->usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para eliminar tipos de gastos']);
