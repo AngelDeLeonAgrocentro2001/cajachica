@@ -20,8 +20,7 @@ class AuditoriaController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        $allowedRoles = [Usuario::ROL_ADMIN, Usuario::ROL_CONTABILIDAD];
-        if (!in_array($usuario['rol'], $allowedRoles)) {
+        if (!$usuarioModel->tienePermiso($usuario, 'manage_auditoria')) {
             error_log('Error: No tienes permiso para consultar auditoría');
             header('Content-Type: application/json');
             http_response_code(403);
@@ -29,7 +28,6 @@ class AuditoriaController {
             exit;
         }
 
-        // Obtener datos para los filtros
         $usuarioModel = new Usuario();
         $usuarios = $usuarioModel->getAllUsuarios();
         $selectUsuarios = '<option value="">Todos</option>';
@@ -65,8 +63,7 @@ class AuditoriaController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        $allowedRoles = [Usuario::ROL_ADMIN, Usuario::ROL_CONTABILIDAD];
-        if (!in_array($usuario['rol'], $allowedRoles)) {
+        if (!$usuarioModel->tienePermiso($usuario, 'manage_auditoria')) {
             error_log('Error: No tienes permiso para consultar auditoría');
             header('Content-Type: application/json');
             http_response_code(403);

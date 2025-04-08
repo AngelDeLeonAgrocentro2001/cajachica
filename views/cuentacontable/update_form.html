@@ -1,17 +1,22 @@
-<h3>Actualizar Cuenta Contable</h3>
+<h2>Actualizar Cuenta Contable</h2>
 <form id="cuentaContableFormInner">
-    <input type="hidden" name="id" value="<?php echo htmlspecialchars($cuenta['id']); ?>">
+    <input type="hidden" name="id" value="<?php echo htmlspecialchars($cuentaContable['id']); ?>">
     <label for="nombre">Nombre:</label>
-    <input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($cuenta['nombre']); ?>" required>
+    <input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($cuentaContable['nombre']); ?>" required>
+    <div class="error" data-field="nombre"></div>
+    <label for="descripcion">Descripción:</label>
+    <textarea id="descripcion" name="descripcion"><?php echo htmlspecialchars($cuentaContable['descripcion']); ?></textarea>
+    <div class="error" data-field="descripcion"></div>
     <label for="estado">Estado:</label>
     <select id="estado" name="estado" required>
-        <option value="Y" <?php echo $cuenta['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>ACTIVO</option>
-        <option value="N" <?php echo $cuenta['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>INACTIVO</option>
+        <option value="ACTIVO" <?php echo $cuentaContable['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo $cuentaContable['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
     </select>
-    <label for="tipo">Tipo:</label>
-    <input type="text" id="tipo" name="tipo" value="<?php echo htmlspecialchars($cuenta['tipo']); ?>" required>
+    <div class="error" data-field="estado"></div>
+    <div class="success"></div>
+    <div class="error"></div>
     <div class="buttons">
-        <button type="submit">Guardar</button>
+        <button type="submit">Actualizar</button>
         <button type="button" onclick="closeModal()">Cancelar</button>
     </div>
 </form>

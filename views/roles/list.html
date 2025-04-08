@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mantenimiento de Roles</title>
-    <!-- <link rel="stylesheet" href="../views/css/style.css"> -->
     <style>
         /* Estilo general del cuerpo */
         body {
@@ -113,6 +112,15 @@
             background-color: #c0392b;
         }
 
+        #rolesTable button.permissions-btn {
+            background-color: #f1c40f;
+            color: #fff;
+        }
+
+        #rolesTable button.permissions-btn:hover {
+            background-color: #d4ac0d;
+        }
+
         /* Estilo del modal */
         .modal {
             display: none;
@@ -143,7 +151,7 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
-        .modal-content h2 {
+        .modal-content h2, .modal-content h3 {
             font-size: 1.5rem;
             margin-top: 0;
             color: #2c3e50;
@@ -163,13 +171,13 @@
         }
 
         /* Estilo del formulario dentro del modal */
-        #rolFormInner {
+        #rolFormInner, .permission-list {
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
 
-        #rolFormInner label {
+        #rolFormInner label, .permission-list label {
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 5px;
@@ -199,19 +207,19 @@
             box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
 
-        #rolFormInner .error {
+        #rolFormInner .error, .modal-content .error {
             color: #e74c3c;
             font-size: 0.85rem;
             display: none;
         }
 
-        #rolFormInner .success {
+        #rolFormInner .success, .modal-content .success {
             color: #27ae60;
             font-size: 0.85rem;
             display: none;
         }
 
-        #rolFormInner button {
+        #rolFormInner button, .modal-content button {
             padding: 10px;
             border: none;
             border-radius: 4px;
@@ -220,21 +228,21 @@
             transition: background-color 0.3s ease;
         }
 
-        #rolFormInner button[type="submit"] {
+        #rolFormInner button[type="submit"], .modal-content button[type="submit"] {
             background-color: #3498db;
             color: #fff;
         }
 
-        #rolFormInner button[type="submit"]:hover {
+        #rolFormInner button[type="submit"]:hover, .modal-content button[type="submit"]:hover {
             background-color: #2980b9;
         }
 
-        #rolFormInner button[type="button"] {
+        #rolFormInner button[type="button"], .modal-content button[type="button"] {
             background-color: #e74c3c;
             color: #fff;
         }
 
-        #rolFormInner button[type="button"]:hover {
+        #rolFormInner button[type="button"]:hover, .modal-content button[type="button"]:hover {
             background-color: #c0392b;
         }
 
@@ -245,7 +253,7 @@
             }
 
             #rolesTable thead {
-                display: none; /* Ocultar encabezados en pantallas pequeñas */
+                display: none;
             }
 
             #rolesTable tbody tr {

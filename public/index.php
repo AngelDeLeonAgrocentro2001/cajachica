@@ -134,62 +134,77 @@ switch ($controller) {
         break;
 
     case 'liquidacion':
-        $liquidacionController = new LiquidacionController();
-        switch ($action) {
-            case 'list':
-                $mode = $_GET['mode'] ?? '';
-                $liquidacionController->listLiquidaciones($mode);
-                break;
-            case 'create':
-                $liquidacionController->createLiquidacion();
-                break;
-            case 'update':
-                if ($id) {
-                    $liquidacionController->updateLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $liquidacionController->deleteLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para eliminar']);
-                }
-                break;
-            case 'autorizar':
-                if ($id) {
-                    $liquidacionController->autorizar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para autorizar']);
-                }
-                break;
-            case 'revisar':
-                if ($id) {
-                    $liquidacionController->revisar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para revisar']);
-                }
-                break;
-            case 'exportar':
-                if ($id) {
-                    $liquidacionController->exportar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para exportar']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para liquidacion']);
-                exit;
-        }
-        break;
-
+            $liquidacionController = new LiquidacionController();
+            switch ($action) {
+                case 'list':
+                    $mode = $_GET['mode'] ?? '';
+                    $liquidacionController->listLiquidaciones($mode);
+                    break;
+                case 'create':
+                    $liquidacionController->createLiquidacion();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $liquidacionController->updateLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $liquidacionController->deleteLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para eliminar']);
+                    }
+                    break;
+                case 'autorizar':
+                    if ($id) {
+                        $liquidacionController->autorizar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para autorizar']);
+                    }
+                    break;
+                case 'revisar':
+                    if ($id) {
+                        $liquidacionController->revisar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para revisar']);
+                    }
+                    break;
+                case 'exportar':
+                    if ($id) {
+                        $liquidacionController->exportar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para exportar']);
+                    }
+                    break;
+                case 'manageFacturas':
+                    if ($id) {
+                        $liquidacionController->manageFacturas($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para gestionar facturas']);
+                    }
+                    break;
+                case 'finalizar': // Nueva acción
+                    if ($id) {
+                        $liquidacionController->finalizar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para finalizar']);
+                    }
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para liquidacion']);
+                    exit;
+            }
+            break;
     case 'detalleliquidacion':
         $detalleLiquidacionController = new DetalleLiquidacionController();
         switch ($action) {
@@ -293,85 +308,94 @@ switch ($controller) {
         break;
 
     case 'cuentacontable':
-        $cuentaContableController = new CuentaContableController();
-        switch ($action) {
-            case 'list':
-                $cuentaContableController->listCuentas();
-                break;
-            case 'createForm':
-                $cuentaContableController->createForm();
-                break;
-            case 'create':
-                $cuentaContableController->createCuenta();
-                break;
-            case 'checkCodigo':
-                $cuentaContableController->checkCodigo();
-                break;
-            case 'update':
-                $id = $_GET['id'] ?? null;
-                if (!$id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID requerido']);
+            $cuentaContableController = new CuentaContableController();
+            switch ($action) {
+                case 'list':
+                    $cuentaContableController->listCuentas();
+                    break;
+                case 'createForm':
+                    $cuentaContableController->createForm();
+                    break;
+                case 'create':
+                    $cuentaContableController->createCuenta();
+                    break;
+                case 'update':
+                    $id = $_GET['id'] ?? null;
+                    if (!$id) {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID requerido']);
+                        exit;
+                    }
+                    $cuentaContableController->updateCuenta($id);
+                    break;
+                case 'updateForm':
+                    $id = $_GET['id'] ?? null;
+                    if (!$id) {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID requerido']);
+                        exit;
+                    }
+                    $cuentaContableController->updateForm($id);
+                    break;
+                case 'delete':
+                    $id = $_GET['id'] ?? null;
+                    if (!$id) {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID requerido']);
+                        exit;
+                    }
+                    $cuentaContableController->deleteCuenta($id);
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para cuentacontable']);
                     exit;
-                }
-                $cuentaContableController->updateCuenta($id);
-                break;
-            case 'updateForm':
-                $id = $_GET['id'] ?? null;
-                if (!$id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID requerido']);
-                    exit;
-                }
-                $cuentaContableController->updateForm($id);
-                break;
-            case 'delete':
-                $id = $_GET['id'] ?? null;
-                if (!$id) {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID requerido']);
-                    exit;
-                }
-                $cuentaContableController->deleteCuenta($id);
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para cuentacontable']);
-                exit;
-        }
-        break;
+            }
+            break;
 
     case 'rol':
-        $roleController = new RoleController();
-        switch ($action) {
-            case 'list':
-                $roleController->listRoles();
-                break;
-            case 'create':
-                $roleController->createRol();
-                break;
-            case 'update':
-                if ($id) {
-                    $roleController->updateRol($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de rol requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $roleController->deleteRol($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de rol requerido para eliminar']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para rol']);
-                exit;
-        }
-        break;
+            $roleController = new RoleController();
+            $rol_id = $_GET['rol_id'] ?? null;
+            switch ($action) {
+                case 'list':
+                    $roleController->listRoles();
+                    break;
+                case 'create':
+                    $roleController->createRol();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $roleController->updateRol($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de rol requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $roleController->deleteRol($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de rol requerido para eliminar']);
+                    }
+                    break;
+                case 'managePermissions':
+                    if ($rol_id) {
+                        $roleController->managePermissions($rol_id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de rol requerido para gestionar permisos']);
+                    }
+                    break;
+                case 'addPermissionToRol':
+                    $roleController->addPermissionToRol();
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para rol']);
+                    exit;
+            }
+            break;
 
     case 'tipogasto':
         $tipoGastoController = new TipoGastoController();
@@ -418,22 +442,23 @@ switch ($controller) {
         }
         break;
 
-        case 'acceso':
-            $accesoController = new AccesoController();
-            $user_id = $_GET['user_id'] ?? null;
-            switch ($action) {
-                case 'list':
-                    $accesoController->list();
-                    break;
-                case 'manageModules':
-                    $accesoController->manageModules($user_id);
-                    break;
-                default:
-                    header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para acceso']);
-                    exit;
-            }
-            break;
+    case 'acceso':
+        $accesoController = new AccesoController();
+        $user_id = $_GET['user_id'] ?? null;
+        switch ($action) {
+            case 'list':
+                $accesoController->list();
+                break;
+            case 'manageModules':
+                $accesoController->manageModules($user_id);
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para acceso']);
+                exit;
+        }
+        break;
+
     case 'factura':
         $facturaController = new FacturaController();
         switch ($action) {
@@ -490,38 +515,52 @@ switch ($controller) {
                 exit;
         }
         break;
-    case 'centrocosto':
-        $centroCostoController = new CentroCostoController();
-        switch ($action) {
-            case 'list':
-                $centroCostoController->listCentrosCostos();
-                break;
-            case 'create':
-                $centroCostoController->createCentroCosto();
-                break;
-            case 'update':
-                if ($id) {
-                    $centroCostoController->updateCentroCosto($id);
-                } else {
-                     header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
-                 }
-                break;
-            case 'delete':
-                if ($id) {
-                    $centroCostoController->deleteCentroCosto($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
-                exit;
-            }
-        break;   
 
+    case 'centrocosto':
+            $centroCostoController = new CentroCostoController();
+            switch ($action) {
+                case 'list':
+                    $centroCostoController->listCentrosCostos();
+                    break;
+                case 'create':
+                    $centroCostoController->createCentroCosto();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $centroCostoController->updateCentroCosto($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $centroCostoController->deleteCentroCosto($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
+                    }
+                    break;
+                case 'createForm':
+                    $centroCostoController->createForm();
+                    break;
+                case 'updateForm':
+                    if ($id) {
+                        $centroCostoController->updateForm($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                    }
+                    break;
+                case 'checkCodigo':
+                    $centroCostoController->checkCodigo();
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
+                    exit;
+            }
+            break;
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Ruta no encontrada']);

@@ -1,189 +1,100 @@
-let debounceTimeout;
-const modal = document.getElementById('modal');
-const modalContent = document.getElementById('modalContent');
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded disparado'); // Depuración
-    loadCuentasContables();
-    loadBases();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id');
-    if (id && modal) {
-        showEditForm(id);
-    }
-
-    const searchInput = document.querySelector('#search');
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                loadCuentasContables();
-            }, 300);
-        });
-    } else {
-        console.error('Elemento #search no encontrado');
-    }
-});
-
-let cuentasContables = [];
+const modal = document.querySelector('#modal');
+const modalForm = document.querySelector('#modalForm');
 
 async function loadCuentasContables() {
+    console.log('Iniciando loadCuentasContables');
+    const tbody = document.querySelector('#cuentasContablesTable tbody');
+    if (!tbody) {
+        console.log('Tabla #cuentasContablesTable no encontrada, omitiendo carga de cuentas contables');
+        return;
+    }
+
+    const estadoFiltro = document.querySelector('#estadoFiltro')?.value || '';
+    const url = `index.php?controller=cuentacontable&action=list${estadoFiltro ? '&estado=' + estadoFiltro : ''}`;
+    console.log('URL de la solicitud:', url);
+
     try {
-        console.log('Iniciando loadCuentasContables'); // Depuración
-        const searchTerm = document.querySelector('#search')?.value.trim() || '';
-        const selectedBaseId = document.querySelector('#baseSelect')?.value || '';
-
-        let url = 'index.php?controller=cuentacontable&action=list';
-        if (searchTerm) {
-            url += `&search=${encodeURIComponent(searchTerm)}`;
-        }
-        if (selectedBaseId) {
-            url += `&base_id=${encodeURIComponent(selectedBaseId)}`;
-        }
-
-        console.log('URL de la solicitud:', url); // Depuración
         const response = await fetch(url, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
-
-        console.log('Respuesta del servidor (status):', response.status); // Depuración
+        console.log('Respuesta del servidor (status):', response.status);
         if (!response.ok) {
-            const errorData = await response.json();
-            if (response.status === 401) {
-                throw new Error(errorData.error || 'No autorizado');
+            const text = await response.text();
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
+            } catch (parseError) {
+                throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
             }
-            throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
-
-        const cuentas = await response.json();
-        console.log('Datos recibidos:', cuentas); // Depuración
-        if (!Array.isArray(cuentas)) {
-            throw new Error('La respuesta no es un array válido');
-        }
-        cuentasContables = cuentas;
-
-        const tbody = document.querySelector('#cuentasContablesTable tbody');
-        if (!tbody) {
-            throw new Error('Elemento #cuentasContablesTable tbody no encontrado');
-        }
-
+        const cuentasContables = await response.json();
+        console.log('Datos recibidos:', cuentasContables);
         tbody.innerHTML = '';
-        if (cuentas.length > 0) {
-            cuentas.forEach(cuenta => {
-                const estado = cuenta.estado === 'ACTIVO' ? 'Y' : 'N';
+        if (cuentasContables.length > 0) {
+            cuentasContables.forEach(cuenta => {
+                const rowClass = cuenta.estado === 'INACTIVO' ? 'class="inactive-row"' : '';
                 tbody.innerHTML += `
-                    <tr>
-                        <td data-label="Código">${cuenta.codigo}</td>
+                    <tr ${rowClass}>
+                        <td data-label="ID">${cuenta.id}</td>
                         <td data-label="Nombre">${cuenta.nombre}</td>
-                        <td data-label="Tipo">${cuenta.tipo || '5'}</td>
-                        <td data-label="Estado">${estado}</td>
+                        <td data-label="Descripción">${cuenta.descripcion || 'Sin descripción'}</td>
+                        <td data-label="Estado">${cuenta.estado || 'Sin estado'}</td>
                         <td data-label="Acciones">
-                            <button class="update-btn" onclick="showUpdateForm(${cuenta.id})">Actualizar</button>
+                            <button class="edit-btn" onclick="showEditForm(${cuenta.id}); window.history.pushState({}, '', 'index.php?controller=cuentacontable&action=update&id=${cuenta.id}')">Editar</button>
                             <button class="delete-btn" onclick="deleteCuentaContable(${cuenta.id})">Eliminar</button>
                         </td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="5">No se encontraron cuentas contables con el nombre "${searchTerm}".</td></tr>`;
+            tbody.innerHTML = '<tr><td colspan="5">No hay cuentas contables registradas.</td></tr>';
         }
-        return cuentas;
     } catch (error) {
-        console.error('Error al cargar cuentas contables:', error);
-        const tbody = document.querySelector('#cuentasContablesTable tbody');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5">Error al cargar las cuentas contables: ${error.message}</td></tr>`;
-        }
-        return [];
-    }
-}
-//ya funciona
-
-async function checkCodigoExists(codigo) {
-    try {
-        console.log('Verificando código:', codigo); // Depuración
-        const response = await fetch(`index.php?controller=cuentacontable&action=checkCodigo&codigo=${encodeURIComponent(codigo)}`, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        console.log('Respuesta del servidor (status):', response.status); // Depuración
-        if (!response.ok) {
-            const text = await response.text();
-            console.log('Respuesta del servidor (texto):', text); // Depuración
-            try {
-                const errorData = JSON.parse(text);
-                throw new Error(errorData.error || 'Error al verificar el código');
-            } catch (parseError) {
-                throw new Error('Respuesta no es JSON válida: ' + text);
-            }
-        }
-        const data = await response.json();
-        console.log('Resultado de checkCodigoExists:', data); // Depuración
-        return data.exists;
-    } catch (error) {
-        console.error('Error al verificar el código:', error);
-        return false; // En caso de error, asumimos que el código no existe
+        console.error('Error al cargar cuentas contables:', error.message);
+        tbody.innerHTML = `<tr><td colspan="5">Error al cargar cuentas contables: ${error.message}</td></tr>`;
     }
 }
 
-async function createCuentaContable(formData) {
-    try {
-        const response = await fetch('index.php?controller=cuentacontable&action=create', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
+async function createCuentaContable(data) {
+    const response = await fetch('index.php?controller=cuentacontable&action=create', {
+        method: 'POST',
+        body: data,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    if (!response.ok) {
         const text = await response.text();
-        let result;
         try {
-            result = JSON.parse(text);
-        } catch (e) {
-            throw new Error('Respuesta no es JSON válida: ' + text);
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
-        if (!response.ok) {
-            throw new Error(result.error || 'Error al crear la cuenta contable');
-        }
-        return result;
-    } catch (error) {
-        console.error('Error al enviar formulario:', error);
-        throw error;
     }
+    return response.json();
 }
 
-async function updateCuentaContable(id, formData) {
-    try {
-        console.log('Actualizando cuenta con ID:', id); // Depuración
-        console.log('Datos del formulario:', Object.fromEntries(formData)); // Depuración
-        const response = await fetch(`index.php?controller=cuentacontable&action=update&id=${id}`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        console.log('Respuesta del servidor (status):', response.status); // Depuración
+async function updateCuentaContable(id, data) {
+    const response = await fetch(`index.php?controller=cuentacontable&action=update&id=${id}`, {
+        method: 'POST',
+        body: data,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    if (!response.ok) {
         const text = await response.text();
-        console.log('Respuesta del servidor (texto):', text); // Depuración
-        let result;
         try {
-            result = JSON.parse(text);
-        } catch (e) {
-            throw new Error('Respuesta no es JSON válida: ' + text);
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || text);
+        } catch (parseError) {
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
-        if (!response.ok) {
-            throw new Error(result.error || 'Error al actualizar la cuenta contable');
-        }
-        return result;
-    } catch (error) {
-        console.error('Error al actualizar:', error);
-        throw error;
     }
+    return response.json();
 }
 
 async function deleteCuentaContable(id) {
@@ -210,41 +121,25 @@ async function deleteCuentaContable(id) {
         loadCuentasContables();
     } catch (error) {
         console.error('Error al eliminar cuenta contable:', error);
-        alert(error.message || 'Error al eliminar cuenta contable. Intenta de nuevo.');
-    }
-}
-
-async function deleteCuenta(id) {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta cuenta contable?')) return;
-    try {
-        const response = await fetch(`index.php?controller=cuentacontable&action=delete&id=${id}`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al eliminar la cuenta contable');
-        }
-        const result = await response.json();
-        alert(result.message || 'Cuenta contable eliminada');
-        loadCuentasContables();
-    } catch (error) {
-        console.error('Error al eliminar:', error);
-        alert(error.message || 'Error al eliminar la cuenta contable');
+        alert('No se puede eliminar la cuenta contable porque está asociada a otras entidades');
     }
 }
 
 function closeModal() {
     if (modal) {
         modal.classList.remove('active');
-        modalContent.innerHTML = '';
+        modalForm.innerHTML = '';
         window.history.pushState({}, '', 'index.php?controller=cuentacontable&action=list');
     }
 }
 
 async function showCreateForm() {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
     try {
         const response = await fetch('index.php?controller=cuentacontable&action=createForm', {
             headers: {
@@ -252,45 +147,30 @@ async function showCreateForm() {
             }
         });
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Error HTTP: ${response.status} - ${text}`);
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
         const html = await response.text();
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        modalContent.innerHTML = html;
+        modalForm.innerHTML = html;
         modal.classList.add('active');
-
-        // Cargar las bases en el select
-        const baseSelect = document.querySelector('#base_id');
-        if (baseSelect) {
-            const basesResponse = await fetch('index.php?controller=base&action=listBases', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            if (!basesResponse.ok) {
-                throw new Error('Error al cargar las bases');
-            }
-            const bases = await basesResponse.json();
-            bases.forEach(base => {
-                const option = document.createElement('option');
-                option.value = base.id;
-                option.textContent = base.nombre;
-                baseSelect.appendChild(option);
-            });
-        }
-
-        addCreateValidations();
+        addValidations();
     } catch (error) {
         console.error('Error al cargar el formulario:', error);
-        modalContent.innerHTML = `<div class="error">${error.message}</div>`;
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
         modal.classList.add('active');
     }
 }
 
-async function showUpdateForm(id) {
+async function showEditForm(id) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
     try {
         const response = await fetch(`index.php?controller=cuentacontable&action=updateForm&id=${id}`, {
             headers: {
@@ -298,37 +178,38 @@ async function showUpdateForm(id) {
             }
         });
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Error HTTP: ${response.status} - ${text}`);
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
         }
         const html = await response.text();
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        modalContent.innerHTML = html;
+        modalForm.innerHTML = html;
         modal.classList.add('active');
         addValidations(id);
     } catch (error) {
-        console.error('Error al cargar el formulario de actualización:', error);
-        modalContent.innerHTML = `<div class="error">${error.message}</div>`;
+        console.error('Error al cargar el formulario:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
         modal.classList.add('active');
     }
 }
 
 function addValidations(id = null) {
-    const form = document.querySelector('#modalContent #cuentaContableFormInner');
-    if (!form) {
-        console.error('No se encontró un elemento <form> con id="cuentaContableFormInner" dentro de #modalContent');
+    const form = document.querySelector('#modalForm #cuentaContableFormInner');
+    if (!form || form.tagName !== 'FORM') {
+        console.error('No se encontró un elemento <form> dentro de #cuentaContableFormInner');
+        alert('No se pudo inicializar el formulario. Intenta de nuevo.');
         return;
     }
 
     const fields = {
-        codigo: { required: true, minLength: 2 },
-        nombre: { required: true, minLength: 2 },
+        nombre: { required: true },
+        descripcion: { required: false },
         estado: { required: true }
     };
 
-    form.querySelectorAll('input, select').forEach(field => {
+    form.querySelectorAll('input, select, textarea').forEach(field => {
         field.addEventListener('input', validateField);
     });
 
@@ -352,21 +233,6 @@ function addValidations(id = null) {
                 e.target.classList.add('invalid');
                 return false;
             }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-            if (fieldName === 'codigo' && value && !id) {
-                const exists = await checkCodigoExists(value);
-                if (exists) {
-                    errorElement.textContent = `El código "${value}" ya está registrado. Por favor, usa un código diferente.`;
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-            }
         }
         return true;
     }
@@ -375,16 +241,14 @@ function addValidations(id = null) {
         e.preventDefault();
         let isValid = true;
         const validations = await Promise.all(
-            Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
+            Array.from(form.querySelectorAll('input, select, textarea')).map(field => validateField({ target: field }))
         );
         isValid = validations.every(valid => valid);
 
         if (isValid) {
             const formData = new FormData(form);
-            const formId = formData.get('id') || id;
-
             try {
-                const action = formId ? updateCuentaContable(formId, formData) : createCuentaContable(formData);
+                const action = id ? updateCuentaContable(id, formData) : createCuentaContable(formData);
                 const result = await action;
                 alert(result.message || 'Operación exitosa');
                 closeModal();
@@ -403,222 +267,13 @@ function addValidations(id = null) {
     });
 }
 
-async function loadBases() {
-    try {
-        const response = await fetch('index.php?controller=base&action=listBases', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            console.error('Respuesta del servidor:', text);
-            throw new Error(`Error HTTP: ${response.status} - ${text.replace(/<[^>]+>/g, '')}`);
-        }
-        const bases = await response.json();
-        if (!Array.isArray(bases)) {
-            throw new Error('La respuesta no es un array válido');
-        }
-        const baseSelect = document.querySelector('#baseSelect');
-        baseSelect.innerHTML = '<option value="">Seleccione la Base</option>';
-        bases.forEach(base => {
-            const option = document.createElement('option');
-            option.value = base.id;
-            option.textContent = base.nombre;
-            baseSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error al cargar bases:', error);
-        const baseSelect = document.querySelector('#baseSelect');
-        const errorMessage = error.message.replace(/<[^>]+>/g, '').trim() || 'Error desconocido';
-        baseSelect.innerHTML = `<option value="">${errorMessage}</option>`;
+// Cargar las cuentas contables al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded disparado');
+    loadCuentasContables();
+
+    const estadoFiltro = document.querySelector('#estadoFiltro');
+    if (estadoFiltro) {
+        estadoFiltro.addEventListener('change', loadCuentasContables);
     }
-}
-
-async function showUpdateForm(id) {
-    try {
-        const response = await fetch(`index.php?controller=cuentacontable&action=updateForm&id=${id}`, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Error HTTP: ${response.status} - ${text}`);
-        }
-        const html = await response.text();
-        if (!html.includes('<form')) {
-            throw new Error('El servidor no devolvió un formulario válido');
-        }
-        modalContent.innerHTML = html;
-        modal.classList.add('active');
-        addValidations(id);
-    } catch (error) {
-        console.error('Error al cargar el formulario de actualización:', error);
-        modalContent.innerHTML = `<div class="error">${error.message}</div>`;
-        modal.classList.add('active');
-    }
-}
-
-function addUpdateValidations(id) {
-    const form = document.querySelector('#modalContent #updateCuentaContableFormInner');
-    if (!form) {
-        console.error('No se encontró un elemento <form> con id="updateCuentaContableFormInner" dentro de #modalContent');
-        return;
-    }
-
-    const fields = {
-        nombre: { required: true, minLength: 2 },
-        estado: { required: true },
-        tipo: { required: true, minLength: 1 }
-    };
-
-    form.querySelectorAll('input, select').forEach(field => {
-        field.addEventListener('input', validateField);
-    });
-
-    async function validateField(e) {
-        const fieldName = e.target.name;
-        const value = e.target.value.trim();
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`) || document.createElement('div');
-        errorElement.className = 'error';
-        errorElement.setAttribute('data-field', fieldName);
-        if (!form.contains(errorElement)) {
-            e.target.parentNode.appendChild(errorElement);
-        }
-
-        errorElement.style.display = 'none';
-        e.target.classList.remove('invalid');
-
-        if (fields[fieldName]) {
-            if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-        }
-        return true;
-    }
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        let isValid = true;
-        const validations = await Promise.all(
-            Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
-        );
-        isValid = validations.every(valid => valid);
-
-        if (isValid) {
-            const formData = new FormData(form);
-            try {
-                const result = await updateCuentaContable(id, formData);
-                alert(result.message || 'Cuenta contable actualizada');
-                closeModal();
-                loadCuentasContables();
-            } catch (error) {
-                console.error('Error al actualizar:', error);
-                const errorElement = form.querySelector('.error:not([data-field])') || document.createElement('div');
-                errorElement.className = 'error';
-                errorElement.textContent = error.message || 'Error al actualizar. Intenta de nuevo.';
-                errorElement.style.display = 'block';
-                if (!form.contains(errorElement)) {
-                    form.appendChild(errorElement);
-                }
-            }
-        }
-    });
-}
-
-function addCreateValidations() {
-    const form = document.querySelector('#modalContent #cuentaContableFormInner');
-    if (!form) {
-        console.error('No se encontró un elemento <form> con id="cuentaContableFormInner" dentro de #modalContent');
-        return;
-    }
-
-    const fields = {
-        codigo: { required: true, minLength: 2 },
-        nombre: { required: true, minLength: 2 },
-        tipo: { required: true, minLength: 1 },
-        estado: { required: true }
-    };
-
-    form.querySelectorAll('input, select').forEach(field => {
-        field.addEventListener('input', validateField);
-    });
-
-    async function validateField(e) {
-        const fieldName = e.target.name;
-        const value = e.target.value.trim();
-        const errorElement = form.querySelector(`.error[data-field="${fieldName}"]`);
-        if (!errorElement) {
-            console.error(`No se encontró un elemento .error para el campo ${fieldName}`);
-            return false;
-        }
-
-        errorElement.style.display = 'none';
-        e.target.classList.remove('invalid');
-
-        if (fields[fieldName]) {
-            if (fields[fieldName].required && !value) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} es obligatorio.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-            if (fields[fieldName].minLength && value.length < fields[fieldName].minLength) {
-                errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} debe tener al menos ${fields[fieldName].minLength} caracteres.`;
-                errorElement.style.display = 'block';
-                e.target.classList.add('invalid');
-                return false;
-            }
-            if (fieldName === 'codigo') {
-                const exists = await checkCodigoExists(value);
-                if (exists) {
-                    errorElement.textContent = 'El código ya existe. Por favor, usa un código diferente.';
-                    errorElement.style.display = 'block';
-                    e.target.classList.add('invalid');
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        let isValid = true;
-        const validations = await Promise.all(
-            Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
-        );
-        isValid = validations.every(valid => valid);
-
-        if (isValid) {
-            const formData = new FormData(form);
-            try {
-                const result = await createCuentaContable(formData);
-                alert(result.message || 'Cuenta contable creada');
-                closeModal();
-                loadCuentasContables();
-            } catch (error) {
-                console.error('Error al crear:', error);
-                const errorElement = form.querySelector('.error:not([data-field])');
-                if (errorElement) {
-                    errorElement.textContent = error.message || 'Error al crear. Intenta de nuevo.';
-                    errorElement.style.display = 'block';
-                } else {
-                    console.error('No se encontró un elemento .error para mostrar el mensaje de error');
-                }
-                // No cerramos el modal ni recargamos la lista en caso de error
-            }
-        }
-    });
-}
-
+});

@@ -2,6 +2,7 @@ async function loadAuditoria() {
     const form = document.getElementById('auditoriaFilterForm');
     const formData = new FormData(form);
     const params = new URLSearchParams(formData).toString();
+    
     console.log('Parámetros enviados:', params);
     try {
         const response = await fetch(`index.php?controller=auditoria&action=getAuditoria&${params}`, {

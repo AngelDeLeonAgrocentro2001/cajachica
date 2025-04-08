@@ -20,64 +20,64 @@ error_log("Usuario cargado para el menú: " . print_r($usuario, true));
     </button>
 
     <nav class="main-menu">
-    <ul>
-    <li><a href="index.php?controller=dashboard&action=index">Dashboard</a></li>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')): ?>
+       <ul>
+           <li><a href="index.php?controller=dashboard&action=index">Dashboard</a></li>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')): ?>
         <li><a href="index.php?controller=liquidacion&action=list">Gestión de Liquidaciones</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'create_detalles')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'create_detalles')): ?>
         <li><a href="index.php?controller=detalleliquidacion&action=list">Gestión de Liquidaciones Detalles</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_cajachica')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_cajachica')): ?>
         <li><a href="index.php?controller=cajachica&action=list">Gestión de Cajas Chicas</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_impuestos')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_impuestos')): ?>
         <li><a href="index.php?controller=impuesto&action=list">Gestión de Impuestos</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')): ?>
         <li><a href="index.php?controller=cuentacontable&action=list">Gestión de Cuentas Contables</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos')): ?>
         <li><a href="index.php?controller=tipogasto&action=list">Gestión de Tipos de Gastos</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_centros_costos')): ?>
-    <li><a href="index.php?controller=centrocosto&action=list">Gestión de Centros de Costos</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_roles')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_centros_costos')): ?>
+           <li><a href="index.php?controller=centrocosto&action=list">Gestión de Centros de Costos</a></li>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_roles')): ?>
         <li><a href="index.php?controller=rol&action=list">Gestión de Roles</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_usuarios')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_usuarios')): ?>
         <li><a href="index.php?controller=usuario&action=list">Gestión de Usuarios</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')): ?>
         <li><a href="index.php?controller=liquidacion&action=list&mode=autorizar">Autorizar Liquidaciones</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')): ?>
         <li><a href="index.php?controller=liquidacion&action=list&mode=revisar">Revisar Liquidaciones</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_detalles_liquidaciones')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_detalles_liquidaciones')): ?>
         <li><a href="index.php?controller=detalleliquidacion&action=revisar">Revisar Detalles de Liquidaciones</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_reportes')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_reportes')): ?>
         <li><a href="index.php?controller=reportes&action=list">Generar Reportes</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_auditoria')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_auditoria')): ?>
         <li><a href="index.php?controller=auditoria&action=list">Consultar Auditoría</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_accesos')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_accesos')): ?>
         <li><a href="index.php?controller=acceso&action=list">Administración de Accesos</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'manage_facturas')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_facturas')): ?>
         <li><a href="index.php?controller=factura&action=list">Gestión de Facturas</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'autorizar_facturas')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'autorizar_facturas')): ?>
         <li><a href="index.php?controller=factura&action=list&mode=autorizar">Autorizar Facturas</a></li>
-    <?php endif; ?>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_facturas')): ?>
+           <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_facturas')): ?>
         <li><a href="index.php?controller=factura&action=list&mode=revisar">Revisar Facturas</a></li>
-    <?php endif; ?>
-    <li><a href="index.php?controller=login&action=logout">Cerrar Sesión</a></li>
-</ul>
+           <?php endif; ?>
+           <li><a href="index.php?controller=login&action=logout">Cerrar Sesión</a></li>
+       </ul>
     </nav>
 </div>
 

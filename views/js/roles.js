@@ -39,6 +39,7 @@ async function loadRoles() {
                         <td data-label="Acciones">
                             <button class="edit-btn" onclick="showEditForm(${rol.id}); window.history.pushState({}, '', 'index.php?controller=rol&action=update&id=${rol.id}')">Editar</button>
                             <button class="delete-btn" onclick="deleteRol(${rol.id})">Eliminar</button>
+                            <button class="permissions-btn" onclick="showManagePermissions(${rol.id})">Permisos</button>
                         </td>
                     </tr>
                 `;
@@ -113,11 +114,111 @@ async function deleteRol(id) {
             }
         }
         const result = await response.json();
-        alert(result.message || 'Rol eliminado');
+        alert(result.message || 'Rol eliminado con éxito');
         loadRoles();
     } catch (error) {
         console.error('Error al eliminar rol:', error);
         alert(error.message || 'Error al eliminar rol. Intenta de nuevo.');
+    }
+}
+
+async function showManagePermissions(rolId) {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`index.php?controller=rol&action=managePermissions&rol_id=${rolId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+        }
+        const html = await response.text();
+        modalForm.innerHTML = html;
+        modal.classList.add('active');
+
+        const form = modalForm.querySelector('#permissionsForm');
+        if (form) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                console.log('Datos del formulario antes de enviar:');
+                for (let pair of formData.entries()) {
+                    console.log('Dato enviado:', pair[0], pair[1]);
+                }
+
+                try {
+                    const response = await fetch(`index.php?controller=rol&action=managePermissions&rol_id=${rolId}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al guardar permisos');
+                    }
+                    const result = await response.json();
+                    console.log('Respuesta del servidor:', result);
+                    alert(result.message || 'Permisos asignados correctamente');
+
+                    // Recargar el formulario para reflejar los cambios
+                    await showManagePermissions(rolId);
+                    loadRoles();
+                } catch (error) {
+                    console.error('Error al guardar permisos:', error);
+                    alert(error.message || 'Error al guardar permisos');
+                }
+            });
+        } else {
+            console.error('No se encontró el formulario en el modal');
+        }
+    } catch (error) {
+        console.error('Error al cargar formulario de permisos:', error);
+        modalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        modal.classList.add('active');
+    }
+}
+
+function assignAdditionalPermissions() {
+    const form = modalForm.querySelector('#permissionsForm');
+    if (!form) {
+        console.error('Formulario no encontrado');
+        return;
+    }
+
+    const additionalPermissionsMessage = document.querySelector('#additionalPermissionsMessage');
+    if (!additionalPermissionsMessage) {
+        console.error('Mensaje de permisos adicionales no encontrado');
+        return;
+    }
+
+    const additionalPermissions = [];
+    additionalPermissionsMessage.querySelectorAll('li').forEach(li => {
+        const permisoText = li.textContent;
+        const inputs = form.querySelectorAll('input[name="permissions[]"]');
+        inputs.forEach(input => {
+            const label = input.parentElement;
+            if (label.textContent.includes(permisoText)) {
+                input.checked = true;
+            }
+        });
+    });
+
+    additionalPermissionsMessage.style.display = 'none';
+}
+
+function dismissAdditionalPermissions() {
+    const additionalPermissionsMessage = document.querySelector('#additionalPermissionsMessage');
+    if (additionalPermissionsMessage) {
+        additionalPermissionsMessage.style.display = 'none';
     }
 }
 
@@ -253,7 +354,7 @@ function addValidations(id = null) {
             try {
                 const action = formId ? updateRol(formId, formData) : createRol(formData);
                 const result = await action;
-                alert(result.message || 'Operación exitosa');
+                alert(result.message || (formId ? 'Rol actualizado con éxito' : 'Rol creado con éxito'));
                 closeModal();
                 loadRoles();
             } catch (error) {

@@ -125,7 +125,8 @@ class DetalleLiquidacionController {
                     'RECHAZADO_POR_CONTABILIDAD',
                     'AUTORIZADO_POR_SUPERVISOR',
                     'RECHAZADO_POR_SUPERVISOR',
-                    'DESCARTADO'
+                    'DESCARTADO',
+                    'FINALIZADO'
                 ];
                 if (!in_array($estado, $allowedEstados)) {
                     throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");

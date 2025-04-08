@@ -5,7 +5,7 @@ class DetalleLiquidacion {
     private $pdo;
 
     public function __construct() {
-        $this->pdo = Database::getInstance()->getPdo(); // Usar la clase Database
+        $this->pdo = Database::getInstance()->getPdo();
     }
 
     public function getAllDetallesLiquidacion() {
@@ -19,14 +19,12 @@ class DetalleLiquidacion {
         $stmt = $this->pdo->query($query);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-        // Procesar rutas_archivos para cada detalle
         foreach ($detalles as &$detalle) {
             if (isset($detalle['rutas_archivos'])) {
                 $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
-                // Asegurarse de que las rutas sean relativas correctas
                 foreach ($detalle['rutas_archivos'] as &$ruta) {
                     if ($ruta && strpos($ruta, 'uploads/') === 0) {
-                        $ruta = substr($ruta, 7); // Quitar 'uploads/' para evitar duplicación
+                        $ruta = substr($ruta, 7);
                     }
                 }
             } else {
@@ -48,20 +46,20 @@ class DetalleLiquidacion {
         return $row;
     }
 
-    public function createDetalleLiquidacion($id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos = '[]') {
+    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos = '[]') {
         try {
-            $stmt = $this->pdo->prepare("INSERT INTO detalle_liquidaciones (id_liquidacion, no_factura, nombre_proveedor, fecha, bien_servicio, t_gasto, p_unitario, total_factura, estado, rutas_archivos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            return $stmt->execute([$id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos]);
+            $stmt = $this->pdo->prepare("INSERT INTO detalle_liquidaciones (id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, fecha, bien_servicio, t_gasto, p_unitario, total_factura, estado, rutas_archivos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            return $stmt->execute([$id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos]);
         } catch (PDOException $e) {
             error_log("Error al crear detalle de liquidación: " . $e->getMessage());
             return false;
         }
     }
 
-    public function updateDetalleLiquidacion($id, $id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos = '[]') {
+    public function updateDetalleLiquidacion($id, $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos = '[]') {
         try {
-            $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET id_liquidacion = ?, no_factura = ?, nombre_proveedor = ?, fecha = ?, bien_servicio = ?, t_gasto = ?, p_unitario = ?, total_factura = ?, estado = ?, rutas_archivos = ? WHERE id = ?");
-            return $stmt->execute([$id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos, $id]);
+            $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET id_liquidacion = ?, tipo_documento = ?, no_factura = ?, nombre_proveedor = ?, nit_proveedor = ?, fecha = ?, bien_servicio = ?, t_gasto = ?, p_unitario = ?, total_factura = ?, estado = ?, rutas_archivos = ? WHERE id = ?");
+            return $stmt->execute([$id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_archivos, $id]);
         } catch (PDOException $e) {
             error_log("Error al actualizar detalle de liquidación: " . $e->getMessage());
             return false;

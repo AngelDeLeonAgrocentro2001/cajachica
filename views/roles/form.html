@@ -6,6 +6,7 @@
     <div class="error" data-field="nombre"></div>
     <label for="descripcion">Descripción</label>
     <textarea id="descripcion" name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
+    <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Por favor escribir en descripción Admin, Encargado, Supervisor o Contador</p>
     <div class="error" data-field="descripcion"></div>
     <label for="estado">Estado</label>
     <select id="estado" name="estado" required>

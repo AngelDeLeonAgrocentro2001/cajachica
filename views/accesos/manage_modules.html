@@ -1,39 +1,38 @@
-<h3>Asignar Módulos a <?php echo htmlspecialchars($targetUser['email']); ?></h3>
+<h3>Administrar Módulos para <?php echo htmlspecialchars($targetUser['email']); ?></h3>
 <?php if ($success): ?>
     <div class="success"><?php echo $success; ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
     <div class="error"><?php echo $error; ?></div>
 <?php endif; ?>
-<form method="POST">
-    <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+<form method="POST" id="modulesForm">
+    <input type="hidden" name="user_id" value="<?php echo $userId; ?>">
     <div class="module-list">
-        <?php foreach ($modules as $module): ?>
+        <?php foreach ($availableModules as $permiso => $nombre): ?>
             <?php
-                $modulePermiso = $module['permiso_predeterminado'];
-                $isDefault = in_array($modulePermiso, $defaultModules);
-                $isAssigned = false;
-                foreach ($userModules as $userModule) {
-                    if ($userModule['id'] == $module['id'] && $userModule['permiso'] == $modulePermiso) {
-                        $isAssigned = true;
-                        break;
-                    }
-                }
-                // Forzar que los permisos predeterminados estén marcados
-                $isChecked = $isDefault || $isAssigned;
-                if ($isDefault && !$isAssigned) {
-                    // Si es predeterminado pero no está asignado, aseguramos que se envíe como seleccionado
-                    $isChecked = true;
-                }
+                $isDefault = in_array($permiso, $defaultPermissions);
+                $isDynamic = in_array($permiso, $dynamicPermissions);
+                $isRolBased = in_array($permiso, $rolPermissions);
+                $isChecked = in_array($permiso, $effectivePermissions);
+                $origen = isset($origins[$permiso]) ? $origins[$permiso] : ($isRolBased ? 'ROL_MANUAL' : null);
+                $isDeactivatedIndividually = in_array($permiso, $deactivatedUserPermissions ?? []);
             ?>
             <label>
                 <input type="checkbox" name="modules[]"
-                       value="<?php echo htmlspecialchars($modulePermiso); ?>"
+                       value="<?php echo htmlspecialchars($permiso); ?>"
                        <?php echo $isChecked ? 'checked' : ''; ?>
-                       <?php echo $isDefault ? 'disabled' : ''; ?>>
-                <?php echo htmlspecialchars($availableModules[$modulePermiso] ?? $module['nombre']); ?>
+                       data-origen="<?php echo htmlspecialchars($origen ?? ''); ?>">
+                <?php echo htmlspecialchars($nombre); ?>
                 <?php if ($isDefault): ?>
-                    <span>(Predeterminado)</span>
+                    <span style="color: green;">(Predeterminado)</span>
+                <?php elseif ($isDynamic): ?>
+                    <span style="color: blue;">(Dinámico)</span>
+                <?php elseif ($isDeactivatedIndividually): ?>
+                    <span style="color: red;">(Desactivado Individualmente)</span>
+                <?php elseif ($origen === 'MANUAL'): ?>
+                    <span style="color: orange;">(Individual)</span>
+                <?php elseif ($origen === 'ROL_MANUAL'): ?>
+                    <span style="color: purple;">(Rol)</span>
                 <?php endif; ?>
             </label><br>
         <?php endforeach; ?>
@@ -43,3 +42,70 @@
         <button type="button" onclick="closeModal()">Cancelar</button>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('modulesForm');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        try {
+            let response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            let result = await response.json();
+
+            // Manejar confirmación para activar permisos en el rol
+            if (result.action === 'confirm_assign_to_role') {
+                const permissionsList = result.permissions.join(', ');
+                const confirmMessage = `${result.message}\nPermisos: ${permissionsList}`;
+                const assignToRole = confirm(confirmMessage);
+                formData.append('assign_to_role', assignToRole ? 'yes' : 'no');
+
+                // Reenviar el formulario con la respuesta
+                response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                result = await response.json();
+            }
+
+            // Manejar confirmación para desactivar permisos del rol
+            if (result.action === 'confirm_remove_from_role') {
+                const permissionsList = result.permissions.join(', ');
+                const confirmMessage = `${result.message}\nPermisos: ${permissionsList}`;
+                const removeFromRole = confirm(confirmMessage);
+                formData.append('remove_from_role', removeFromRole ? 'yes' : 'no');
+
+                // Reenviar el formulario con la respuesta
+                response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                result = await response.json();
+            }
+
+            if (result.message) {
+                alert(result.message);
+                window.location.reload();
+            } else if (result.error) {
+                alert(result.error);
+            }
+        } catch (error) {
+            console.error('Error al guardar módulos:', error);
+            alert('Error al guardar módulos');
+        }
+    });
+});
+</script>

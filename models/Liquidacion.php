@@ -85,4 +85,9 @@ class Liquidacion {
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function updateMontoTotal($id, $montoTotal) {
+        $stmt = $this->pdo->prepare("UPDATE liquidaciones SET monto_total = ? WHERE id = ?");
+        return $stmt->execute([$montoTotal, $id]);
+    }
 }

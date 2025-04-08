@@ -18,10 +18,12 @@
         <label for="fecha_fin">Fecha de Fin:</label>
         <input type="date" name="fecha_fin" id="fecha_fin" value="<?php echo isset($data['fecha_fin']) ? $data['fecha_fin'] : ''; ?>">
     </div>
-    <div>
+    <!-- Campo monto_total oculto -->
+    <!-- <div>
         <label for="monto_total">Monto Total:</label>
-        <input type="number" name="monto_total" id="monto_total" step="0.01" required value="<?php echo isset($data['monto_total']) ? $data['monto_total'] : ''; ?>">
-    </div>
+        <input type="number" name="monto_total" id="monto_total" step="0.01" required value="<?php echo isset($data['monto_total']) ? $data['monto_total'] : '0.00'; ?>">
+    </div> -->
+    <?php if (isset($data)): // Mostrar el campo de estado solo al editar ?>
     <div>
         <label for="estado">Estado:</label>
         <select name="estado" id="estado" required>
@@ -36,8 +38,10 @@
             <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD') ? 'selected' : ''; ?>>RECHAZADO POR CONTABILIDAD</option>
             <option value="PENDIENTE_CORRECCIÓN" <?php echo (isset($data['estado']) && $data['estado'] === 'PENDIENTE_CORRECCIÓN') ? 'selected' : ''; ?>>PENDIENTE CORRECCIÓN</option>
             <option value="DESCARTADO" <?php echo (isset($data['estado']) && $data['estado'] === 'DESCARTADO') ? 'selected' : ''; ?>>DESCARTADO</option>
+            <option value="FINALIZADO" <?php echo (isset($data['estado']) && $data['estado'] === 'FINALIZADO') ? 'selected' : ''; ?>>FINALIZADO</option>
         </select>
     </div>
+    <?php endif; ?>
     <button type="submit">Guardar</button>
     <button type="button" onclick="closeModal()">Cancelar</button>
 </form>

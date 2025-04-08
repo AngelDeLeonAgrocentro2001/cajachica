@@ -115,17 +115,22 @@ async function deleteUsuario(id) {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
-        if (!response.ok) {
+
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
-            try {
-                const errorData = JSON.parse(text);
-                throw new Error(errorData.error || 'Error al eliminar usuario');
-            } catch (parseError) {
-                throw new Error(`Respuesta no es JSON válida: ${text}`);
-            }
+            console.error('Respuesta del servidor no es JSON:', text);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
+
         const result = await response.json();
-        alert(result.message || 'Usuario eliminado');
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al eliminar usuario. Por favor, intenta de nuevo.');
+        }
+
+        alert(result.message || 'Usuario eliminado correctamente');
         loadUsuarios();
     } catch (error) {
         console.error('Error al eliminar usuario:', error);

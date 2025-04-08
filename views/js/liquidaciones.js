@@ -41,22 +41,22 @@ async function loadLiquidaciones() {
             liquidaciones.forEach(liquidacion => {
                 const actions = [];
                 if (userPermissions.create_liquidaciones) {
-                    actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
-                    actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
+                    if (['PENDIENTE', 'PENDIENTE_CORRECCIÓN'].includes(liquidacion.estado)) {
+                        actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
+                        actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
+                        actions.push(`<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`);
+                        actions.push(`<button onclick="finalizarLiquidacion(${liquidacion.id})" class="finalize-btn">Finalizar</button>`);
+                    }
                 }
-                // Mostrar botón "Revisar" para usuarios con permiso revisar_liquidaciones
-                if (userPermissions.revisar_liquidaciones && !liquidacion.estado.includes('AUTORIZADO_POR_')) {
-                    actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
-                }
-                // Mostrar botón "Autorizar" para usuarios con permiso autorizar_liquidaciones
-                if (userPermissions.autorizar_liquidaciones && !liquidacion.estado.includes('AUTORIZADO_POR_')) {
+                if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado === 'FINALIZADO') {
                     actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
                 }
-                // Mostrar botón "Exportar a SAP" para usuarios con permisos revisar_liquidaciones o autorizar_liquidaciones, y si el estado es AUTORIZADO_POR_*
                 if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado.includes('AUTORIZADO_POR_')) {
                     actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
                 }
                 const actionsHtml = actions.join(' ');
+
+                const estado = liquidacion.estado && liquidacion.estado !== 'N/A' ? liquidacion.estado : 'PENDIENTE';
 
                 tbody.innerHTML += `
                     <tr>
@@ -66,7 +66,7 @@ async function loadLiquidaciones() {
                         <td data-label="Fecha Inicio">${liquidacion.fecha_inicio || 'N/A'}</td>
                         <td data-label="Fecha Fin">${liquidacion.fecha_fin || 'N/A'}</td>
                         <td data-label="Monto Total">${parseFloat(liquidacion.monto_total || 0).toFixed(2)}</td>
-                        <td data-label="Estado">${liquidacion.estado || 'N/A'}</td>
+                        <td data-label="Estado">${estado}</td>
                         <td data-label="Acciones">${actionsHtml}</td>
                     </tr>
                 `;
@@ -78,6 +78,10 @@ async function loadLiquidaciones() {
         console.error('Error al cargar liquidaciones:', error);
         alert('Error al cargar las liquidaciones. Intenta de nuevo.');
     }
+}
+
+function manageFacturas(id) {
+    window.location.href = `index.php?controller=liquidacion&action=manageFacturas&id=${id}`;
 }
 
 async function showCreateForm() {
@@ -183,12 +187,19 @@ async function deleteLiquidation(id) {
             }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al eliminar la liquidación');
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
 
         const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al eliminar la liquidación');
+        }
+
         alert(result.message || 'Liquidación eliminada correctamente');
         loadLiquidaciones();
     } catch (error) {
@@ -255,6 +266,28 @@ async function exportToSap(id) {
     } catch (error) {
         console.error('Error al exportar a SAP:', error);
         alert(error.message || 'Error al exportar a SAP. Intenta de nuevo.');
+    }
+}
+
+async function finalizarLiquidacion(id) {
+    if (!confirm('¿Estás seguro de que deseas finalizar esta liquidación? Una vez finalizada, no podrás editarla ni agregar más facturas.')) return;
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=finalizar&id=${id}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al finalizar la liquidación');
+        }
+        alert(result.message || 'Liquidación finalizada correctamente');
+        loadLiquidaciones();
+    } catch (error) {
+        console.error('Error al finalizar liquidación:', error);
+        alert(error.message || 'Error al finalizar la liquidación. Intenta de nuevo.');
     }
 }
 

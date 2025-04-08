@@ -18,7 +18,7 @@ class Acceso {
     // Obtener todos los módulos y permisos asignados a un usuario
     public function getUserModulesAndPermisos($id_usuario) {
         $stmt = $this->pdo->prepare("
-            SELECT m.id, m.nombre, m.permiso_predeterminado, ap.permiso
+            SELECT m.id, m.nombre, m.permiso_predeterminado, ap.permiso, ap.estado
             FROM modulos m
             LEFT JOIN accesos_permisos ap ON m.id = ap.id_modulo AND ap.id_usuario = ? AND ap.estado = 'ACTIVO'
             WHERE m.estado = 'ACTIVO'

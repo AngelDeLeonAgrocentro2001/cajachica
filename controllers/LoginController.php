@@ -40,13 +40,13 @@ class LoginController {
                         $redirectUrl = 'index.php?controller=dashboard&action=index';
                         break;
                     case 'ENCARGADO_CAJA_CHICA':
-                        $redirectUrl = 'index.php?controller=liquidacion&action=list';
+                        $redirectUrl = 'index.php?controller=dashboard&action=index';
                         break;
                     case 'SUPERVISOR_AUTORIZADOR':
-                        $redirectUrl = 'index.php?controller=liquidacion&action=list&mode=autorizar';
+                        $redirectUrl = 'index.php?controller=dashboard&action=index';
                         break;
                     case 'CONTABILIDAD':
-                        $redirectUrl = 'index.php?controller=liquidacion&action=list&mode=revisar';
+                        $redirectUrl = 'index.php?controller=dashboard&action=index';
                         break;
                     default:
                         $redirectUrl = 'index.php?controller=dashboard&action=index';

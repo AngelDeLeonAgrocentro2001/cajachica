@@ -10,9 +10,17 @@ class Auditoria {
 
     public function createAuditoria($id_liquidacion, $id_detalle_liquidacion, $id_usuario, $tipo_accion, $detalles) {
         try {
+            // Validar que tipo_accion no esté vacío
+            if (empty($tipo_accion)) {
+                throw new Exception("El tipo de acción es obligatorio.");
+            }
+    
+            // Mapear tipo_accion a un valor permitido para la columna accion
+            $accion = $this->mapTipoAccionToAccion($tipo_accion);
+    
             $stmt = $this->pdo->prepare("
-                INSERT INTO auditoria (id_liquidacion, id_detalle_liquidacion, id_usuario, usuario_nombre, tipo_accion, detalles, fecha)
-                SELECT ?, ?, ?, nombre, ?, ?, NOW()
+                INSERT INTO auditoria (id_liquidacion, id_detalle_liquidacion, id_usuario, usuario_nombre, accion, tipo_accion, detalles, fecha)
+                SELECT ?, ?, ?, nombre, ?, ?, ?, NOW()
                 FROM usuarios
                 WHERE id = ?
             ");
@@ -20,18 +28,49 @@ class Auditoria {
                 $id_liquidacion,
                 $id_detalle_liquidacion,
                 $id_usuario,
-                $tipo_accion,
+                $accion, // Usar el valor mapeado para la columna accion
+                $tipo_accion, // Usar tipo_accion directamente para la columna tipo_accion
                 $detalles,
                 $id_usuario
             ]);
             if (!$result) {
                 error_log("Error al insertar en auditoria: " . print_r($stmt->errorInfo(), true));
+                throw new Exception("Error al insertar en auditoria: " . print_r($stmt->errorInfo(), true));
             }
             return $result;
-        } catch (PDOException $e) {
-            error_log("Error PDO al insertar en auditoria: " . $e->getMessage());
-            return false;
+        } catch (Exception $e) {
+            error_log("Error al crear auditoría: " . $e->getMessage());
+            throw $e; // Relanzar la excepción para que sea capturada por el controlador
         }
+    }
+    
+    private function mapTipoAccionToAccion($tipo_accion) {
+        // Mapear tipo_accion a un valor permitido para la columna accion
+        $mapping = [
+            'CREADO' => 'APROBADO',
+            'ACTUALIZADO' => 'APROBADO',
+            'ELIMINADO' => 'RECHAZADO',
+            'AUTORIZADO_POR_SUPERVISOR' => 'APROBADO',
+            'RECHAZADO_POR_SUPERVISOR' => 'RECHAZADO',
+            'AUTORIZADO_POR_CONTABILIDAD' => 'APROBADO',
+            'RECHAZADO_POR_CONTABILIDAD' => 'RECHAZADO',
+            'DESCARTADO' => 'RECHAZADO',
+            'PENDIENTE_CORRECCIÓN' => 'RECHAZADO',
+            'EXPORTADO' => 'EXPORTADO_SAP',
+            'REPORTE_GENERADO' => 'EXPORTADO_SAP',
+            'CREAR_USUARIO' => 'APROBADO',
+            'ACTUALIZAR_USUARIO' => 'APROBADO',
+            'ELIMINAR_USUARIO' => 'RECHAZADO',
+            'CREAR_FACTURA' => 'APROBADO',
+            'ACTUALIZAR_FACTURA' => 'APROBADO',
+            'ELIMINAR_FACTURA' => 'RECHAZADO',
+            'AUTORIZAR_FACTURA' => 'APROBADO',
+            'RECHAZAR_FACTURA' => 'RECHAZADO',
+            'PAGAR_FACTURA' => 'APROBADO',
+            'RECHAZAR_FACTURA_CONTABILIDAD' => 'RECHAZADO'
+        ];
+    
+        return $mapping[$tipo_accion] ?? 'RECHAZADO'; // Valor por defecto si no se encuentra en el mapeo
     }
 
     public function getAuditoria($filters = []) {

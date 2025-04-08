@@ -1,29 +1,20 @@
-<h3 id="formTitle">Crear Cuenta Contable</h3>
+<h2><?php echo isset($data) ? 'Editar Cuenta Contable' : 'Crear Cuenta Contable'; ?></h2>
 <form id="cuentaContableFormInner">
-    <label for="codigo">Código:</label>
-    <input type="text" id="codigo" name="codigo" required>
-    <label for="nombre">Nombre:</label>
-    <input type="text" id="nombre" name="nombre" required>
-    <label for="tipo">Tipo:</label>
-    <input type="text" id="tipo" name="tipo" required>
-    <label for="base_id">Base:</label>
-    <select id="base_id" name="base_id">
-        <option value="">Seleccione una base (opcional)</option>
-        <!-- Las opciones se cargarán dinámicamente -->
-    </select>
-    <label for="estado">Estado:</label>
-    <select id="estado" name="estado" required>
-        <option value="Y">Activo</option>
-        <option value="N">Inactivo</option>
-    </select>
-    <div class="error" data-field="codigo"></div>
+    <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
+    <label for="nombre">Nombre</label>
+    <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
     <div class="error" data-field="nombre"></div>
-    <div class="error" data-field="tipo"></div>
-    <div class="error" data-field="base_id"></div>
+    <label for="descripcion">Descripción</label>
+    <textarea name="descripcion" placeholder="Descripción"><?php echo isset($data) ? htmlspecialchars($data['descripcion']) : ''; ?></textarea>
+    <div class="error" data-field="descripcion"></div>
+    <label for="estado">Estado</label>
+    <select name="estado" required>
+        <option value="ACTIVO" <?php echo isset($data) && $data['estado'] === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+        <option value="INACTIVO" <?php echo isset($data) && $data['estado'] === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
+    </select>
     <div class="error" data-field="estado"></div>
+    <div class="success"></div>
     <div class="error"></div>
-    <div class="buttons">
-        <button type="submit">Guardar</button>
-        <button type="button" onclick="closeModal()">Cancelar</button>
-    </div>
+    <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
 </form>

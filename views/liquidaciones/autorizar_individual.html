@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?></title>
-    <!-- <link rel="stylesheet" href="../views/css/style.css"> -->
     <style>
         /* Estilo general del cuerpo */
         body {
@@ -247,7 +246,6 @@
         <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
         <select name="accion" required>
             <?php
-            // Obtener el rol del usuario desde la sesión
             $usuarioModel = new Usuario();
             $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
             $rol = strtoupper($usuario['rol']);
@@ -275,10 +273,10 @@
             const accion = formData.get('accion'); // Obtener el valor de la acción
             const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
             const action = mode === 'revisar' ? 'revisar' : 'autorizar';
-    
+
             // Log para depurar el valor de la acción enviada
             console.log('Acción enviada desde el formulario:', accion);
-    
+
             try {
                 const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
                     method: 'POST',
@@ -287,11 +285,10 @@
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Error al procesar la solicitud');
-                }
                 const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error al procesar la solicitud');
+                }
                 if (result.message) {
                     const successElement = form.querySelector('.success');
                     successElement.textContent = result.message;

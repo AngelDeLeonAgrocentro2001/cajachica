@@ -1,0 +1,48 @@
+<h3>Asignar Permisos al Rol <?php echo isset($targetRol['nombre']) ? htmlspecialchars($targetRol['nombre']) : 'Desconocido'; ?></h3>
+<?php if ($success): ?>
+    <div class="success"><?php echo $success; ?></div>
+<?php endif; ?>
+<?php if ($error): ?>
+    <div class="error"><?php echo $error; ?></div>
+<?php endif; ?>
+<?php if (!empty($additionalPermissions)): ?>
+    <div id="additionalPermissionsMessage" class="warning" style="color: #f39c12; margin-bottom: 15px;">
+        Los siguientes permisos están asignados a usuarios asociados a este rol, pero no al rol mismo: 
+        <ul>
+            <?php foreach ($additionalPermissions as $permiso): ?>
+                <li><?php echo htmlspecialchars($availablePermissions[$permiso]); ?></li>
+            <?php endforeach; ?>
+        </ul>
+        ¿Desea asignar estos permisos al rol?
+        <button type="button" onclick="assignAdditionalPermissions()">Sí</button>
+        <button type="button" onclick="dismissAdditionalPermissions()">No</button>
+    </div>
+<?php endif; ?>
+<form method="POST" id="permissionsForm">
+    <input type="hidden" name="rol_id" value="<?php echo $rolId; ?>">
+    <div class="permission-list">
+        <?php foreach ($availablePermissions as $permiso => $nombre): ?>
+            <?php
+                $isDefault = in_array($permiso, $defaultPermissions);
+                $isDynamic = in_array($permiso, $dynamicPermissions);
+                $isChecked = in_array($permiso, $effectivePermissions);
+            ?>
+            <label>
+                <input type="checkbox" name="permissions[]"
+                       value="<?php echo htmlspecialchars($permiso); ?>"
+                       <?php echo $isChecked ? 'checked' : ''; ?>
+                       <?php echo ($isDefault || $isDynamic) ? 'data-default="true"' : ''; ?>>
+                <?php echo htmlspecialchars($nombre); ?>
+                <?php if ($isDefault): ?>
+                    <span>(Predeterminado)</span>
+                <?php elseif ($isDynamic): ?>
+                    <span>(Dinámico)</span>
+                <?php endif; ?>
+            </label><br>
+        <?php endforeach; ?>
+    </div>
+    <div class="buttons">
+        <button type="submit">Guardar</button>
+        <button type="button" onclick="closeModal()">Cancelar</button>
+    </div>
+</form>

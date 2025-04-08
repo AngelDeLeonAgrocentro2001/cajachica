@@ -26,8 +26,8 @@ class BaseController {
             exit;
         }
     
-        // Permitir acceso a usuarios con manage_cuentas_contables o manage_facturas
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables') && !$usuarioModel->tienePermiso($usuario, 'manage_facturas')) {
+        // Verificar el permiso 'listar_bases'
+        if (!$usuarioModel->tienePermiso($usuario, 'listar_bases')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para listar bases']);
