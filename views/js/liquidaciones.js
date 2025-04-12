@@ -2,6 +2,13 @@ const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Asegurarnos de que userPermissions y userRole estén definidos
+    if (typeof window.userPermissions === 'undefined' || typeof window.userRole === 'undefined') {
+        console.error('Error: userPermissions o userRole no están definidos.');
+        alert('Error: No se pudieron cargar los permisos o el rol del usuario. Contacta al administrador.');
+        return;
+    }
+
     loadLiquidaciones();
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -40,23 +47,38 @@ async function loadLiquidaciones() {
         if (liquidaciones.length > 0) {
             liquidaciones.forEach(liquidacion => {
                 const actions = [];
-                if (userPermissions.create_liquidaciones) {
-                    if (['PENDIENTE', 'PENDIENTE_CORRECCIÓN'].includes(liquidacion.estado)) {
+                // Acciones para el encargado (permiso: create_liquidaciones)
+                if (window.userPermissions.create_liquidaciones) {
+                    if (liquidacion.estado === 'EN_PROCESO') {
                         actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
                         actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
                         actions.push(`<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`);
                         actions.push(`<button onclick="finalizarLiquidacion(${liquidacion.id})" class="finalize-btn">Finalizar</button>`);
                     }
+                    // Mostrar "Ver Liquidación" para estados posteriores a EN_PROCESO
+                    if (['PENDIENTE_AUTORIZACION', 'PENDIENTE_REVISION_CONTABILIDAD', 'FINALIZADO', 'RECHAZADO_AUTORIZACION', 'RECHAZADO_POR_CONTABILIDAD'].includes(liquidacion.estado)) {
+                        actions.push(`<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`);
+                    }
                 }
-                if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado === 'FINALIZADO') {
-                    actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
+                // Acciones para usuarios con permisos de autorización (Supervisor)
+                if (window.userPermissions.autorizar_liquidaciones && window.userRole === 'SUPERVISOR') {
+                    if (liquidacion.estado === 'PENDIENTE_AUTORIZACION') {
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
+                    }
                 }
-                if ((userPermissions.revisar_liquidaciones || userPermissions.autorizar_liquidaciones) && liquidacion.estado.includes('AUTORIZADO_POR_')) {
-                    actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
+                // Acciones para usuarios con permisos de revisión (Contabilidad)
+                if (window.userPermissions.revisar_liquidaciones && window.userRole === 'CONTABILIDAD') {
+                    if (liquidacion.estado === 'PENDIENTE_REVISION_CONTABILIDAD') {
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
+                    }
+                    if (liquidacion.estado === 'FINALIZADO') {
+                        actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
+                    }
                 }
+
                 const actionsHtml = actions.join(' ');
 
-                const estado = liquidacion.estado && liquidacion.estado !== 'N/A' ? liquidacion.estado : 'PENDIENTE';
+                const estado = liquidacion.estado && liquidacion.estado !== 'N/A' ? liquidacion.estado : 'EN_PROCESO';
 
                 tbody.innerHTML += `
                     <tr>
@@ -78,6 +100,11 @@ async function loadLiquidaciones() {
         console.error('Error al cargar liquidaciones:', error);
         alert('Error al cargar las liquidaciones. Intenta de nuevo.');
     }
+}
+
+// Nueva función para redirigir a la vista de la liquidación
+function verLiquidacion(id) {
+    window.location.href = `index.php?controller=liquidacion&action=ver&id=${id}`;
 }
 
 function manageFacturas(id) {
@@ -187,7 +214,6 @@ async function deleteLiquidation(id) {
             }
         });
 
-        // Verificar si la respuesta es JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -224,7 +250,6 @@ async function exportToSap(id) {
             if (response.status === 400 && errorData.error === 'Esta liquidación ya ha sido exportada') {
                 const confirmExport = confirm('Esta liquidación ya fue exportada. ¿Deseas volver a exportarla?');
                 if (confirmExport) {
-                    // Intentar exportar nuevamente, forzando la actualización
                     const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest'
@@ -247,7 +272,7 @@ async function exportToSap(id) {
                     loadLiquidaciones();
                     return;
                 } else {
-                    return; // Si no confirma, simplemente sale
+                    return;
                 }
             }
             throw new Error(errorData.error || `Error HTTP: ${response.status}`);
@@ -270,7 +295,9 @@ async function exportToSap(id) {
 }
 
 async function finalizarLiquidacion(id) {
-    if (!confirm('¿Estás seguro de que deseas finalizar esta liquidación? Una vez finalizada, no podrás editarla ni agregar más facturas.')) return;
+    if (!confirm('¿Estás seguro de que deseas finalizar esta liquidación?')) {
+        return;
+    }
 
     try {
         const response = await fetch(`index.php?controller=liquidacion&action=finalizar&id=${id}`, {
@@ -279,15 +306,22 @@ async function finalizarLiquidacion(id) {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
+
         const result = await response.json();
+
         if (!response.ok) {
             throw new Error(result.error || 'Error al finalizar la liquidación');
         }
+
+        // Notificar a otras pestañas que el estado ha cambiado
+        const channel = new BroadcastChannel('liquidacion-estado');
+        channel.postMessage({ id: id, action: 'estado-cambiado' });
+
         alert(result.message || 'Liquidación finalizada correctamente');
-        loadLiquidaciones();
+        window.location.href = 'index.php?controller=liquidacion&action=list';
     } catch (error) {
-        console.error('Error al finalizar liquidación:', error);
-        alert(error.message || 'Error al finalizar la liquidación. Intenta de nuevo.');
+        console.error('Error al finalizar la liquidación:', error);
+        alert('Error al finalizar la liquidación: ' + error.message);
     }
 }
 
@@ -324,7 +358,6 @@ function addFormValidations(id = null) {
         errorElement.style.display = 'none';
         e.target.classList.remove('invalid');
 
-        // Validaciones existentes
         if (fields[fieldName]) {
             if (fields[fieldName].required && !value) {
                 errorElement.textContent = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_/g, ' ')} es obligatorio.`;
@@ -346,7 +379,6 @@ function addFormValidations(id = null) {
             }
         }
 
-        // Nueva validación para fechas: fecha_inicio <= fecha_fin
         if (fieldName === 'fecha_inicio' || fieldName === 'fecha_fin') {
             const fechaInicio = form.querySelector('[name="fecha_inicio"]').value;
             const fechaFin = form.querySelector('[name="fecha_fin"]').value;

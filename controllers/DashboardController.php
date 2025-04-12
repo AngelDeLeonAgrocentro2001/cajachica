@@ -26,19 +26,23 @@ class DashboardController {
 
         // Resumen por estado
         $resumen = [
-            'PENDIENTE' => ['cantidad' => 0, 'monto' => 0],
-            'AUTORIZADO_POR_SUPERVISOR' => ['cantidad' => 0, 'monto' => 0],
-            'RECHAZADO_POR_SUPERVISOR' => ['cantidad' => 0, 'monto' => 0],
+            'EN_PROCESO' => ['cantidad' => 0, 'monto' => 0],
+            'PENDIENTE_AUTORIZACION' => ['cantidad' => 0, 'monto' => 0],
+            'PENDIENTE_REVISION_CONTABILIDAD' => ['cantidad' => 0, 'monto' => 0], // Reemplazado AUTORIZADO_POR_SUPERVISOR
+            'RECHAZADO_AUTORIZACION' => ['cantidad' => 0, 'monto' => 0], // Reemplazado RECHAZADO_POR_SUPERVISOR
             'AUTORIZADO_POR_CONTABILIDAD' => ['cantidad' => 0, 'monto' => 0],
             'RECHAZADO_POR_CONTABILIDAD' => ['cantidad' => 0, 'monto' => 0],
-            'PENDIENTE_CORRECCIÓN' => ['cantidad' => 0, 'monto' => 0]
+            'FINALIZADO' => ['cantidad' => 0, 'monto' => 0],
+            'DESCARTADO' => ['cantidad' => 0, 'monto' => 0],
         ];
 
         foreach ($liquidaciones as $liquidacion) {
             $estado = $liquidacion['estado'];
             if (isset($resumen[$estado])) {
                 $resumen[$estado]['cantidad']++;
-                $resumen[$estado]['monto'] += $liquidacion['monto_total'];
+                $resumen[$estado]['monto'] += (float) $liquidacion['monto_total'];
+            } else {
+                error_log("Estado de liquidación no reconocido: $estado");
             }
         }
 

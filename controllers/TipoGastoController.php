@@ -1,14 +1,20 @@
 <?php
 require_once '../models/TipoGasto.php';
 require_once '../models/Usuario.php';
+require_once '../models/Impuesto.php';
+require_once '../models/CuentaContable.php';
 
 class TipoGastoController {
     private $tipoGastoModel;
     private $usuarioModel;
+    private $impuestoModel;
+    private $cuentaContableModel;
 
     public function __construct() {
         $this->tipoGastoModel = new TipoGasto();
         $this->usuarioModel = new Usuario();
+        $this->impuestoModel = new Impuesto();
+        $this->cuentaContableModel = new CuentaContable();
     }
 
     public function listTiposGastos() {
@@ -57,6 +63,8 @@ class TipoGastoController {
             try {
                 $name = $_POST['name'] ?? '';
                 $description = $_POST['description'] ?? '';
+                $impuesto_id = $_POST['impuesto_id'] ? (int)$_POST['impuesto_id'] : null;
+                $cuenta_contable_id = $_POST['cuenta_contable_id'] ? (int)$_POST['cuenta_contable_id'] : null;
                 $estado = $_POST['estado'] ?? 'ACTIVO';
 
                 if (empty($name) || empty($description)) {
@@ -68,7 +76,7 @@ class TipoGastoController {
                     throw new Exception("El nombre '$name' ya está registrado. Por favor, usa un nombre diferente.");
                 }
 
-                if ($this->tipoGastoModel->createTipoGasto($name, $description, $estado)) {
+                if ($this->tipoGastoModel->createTipoGasto($name, $description, $impuesto_id, $cuenta_contable_id, $estado)) {
                     header('Content-Type: application/json');
                     http_response_code(201);
                     echo json_encode(['message' => 'Tipo de gasto creado']);
@@ -94,6 +102,8 @@ class TipoGastoController {
         }
 
         $tipoGasto = [];
+        $impuestos = $this->impuestoModel->getAllImpuestos();
+        $cuentasContables = $this->cuentaContableModel->getAllCuentasContables('ACTIVO');
         ob_start();
         require '../views/tipos_gastos/form.html';
         $html = ob_get_clean();
@@ -121,6 +131,8 @@ class TipoGastoController {
             try {
                 $name = $_POST['name'] ?? '';
                 $description = $_POST['description'] ?? '';
+                $impuesto_id = $_POST['impuesto_id'] ? (int)$_POST['impuesto_id'] : null;
+                $cuenta_contable_id = $_POST['cuenta_contable_id'] ? (int)$_POST['cuenta_contable_id'] : null;
                 $estado = $_POST['estado'] ?? 'ACTIVO';
 
                 if (empty($name) || empty($description)) {
@@ -133,7 +145,7 @@ class TipoGastoController {
                     throw new Exception("El nombre '$name' ya está registrado por otro tipo de gasto. Por favor, usa un nombre diferente.");
                 }
 
-                if ($this->tipoGastoModel->updateTipoGasto($id, $name, $description, $estado)) {
+                if ($this->tipoGastoModel->updateTipoGasto($id, $name, $description, $impuesto_id, $cuenta_contable_id, $estado)) {
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Tipo de gasto actualizado']);
                 } else {
@@ -165,6 +177,8 @@ class TipoGastoController {
             exit;
         }
 
+        $impuestos = $this->impuestoModel->getAllImpuestos();
+        $cuentasContables = $this->cuentaContableModel->getAllCuentasContables('ACTIVO');
         ob_start();
         require '../views/tipos_gastos/form.html';
         $html = ob_get_clean();

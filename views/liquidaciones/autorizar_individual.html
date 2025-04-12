@@ -53,12 +53,15 @@
             background-color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
+            display: block;
         }
 
-        table thead {
-            background-color: #2c3e50;
-            color: #fff;
+        table thead,
+        table tbody {
+            /* display: table; */
+            width: 100%;
+            table-layout: fixed;
         }
 
         table th,
@@ -66,6 +69,12 @@
             padding: 12px 15px;
             text-align: left;
             font-size: 0.95rem;
+            min-width: 100px;
+        }
+
+        table thead {
+            background-color: #2c3e50;
+            color: #fff;
         }
 
         table th {
@@ -168,10 +177,15 @@
         @media (max-width: 768px) {
             table {
                 width: 100%;
+                display: block;
             }
 
             table thead {
-                display: none; /* Ocultar encabezados en pantallas pequeñas */
+                display: none;
+            }
+
+            table tbody {
+                display: block;
             }
 
             table tbody tr {
@@ -218,42 +232,67 @@
     <p><strong>Monto Total:</strong> <?php echo htmlspecialchars($data['monto_total']); ?></p>
     <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
     <h3>Detalles de la Liquidación</h3>
-    <table>
-        <thead>
+    <h3>Detalles de la Liquidación</h3>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tipo de Documento</th>
+            <th>Número Factura</th>
+            <th>Proveedor</th>
+            <th>NIT</th>
+            <th>DPI</th>
+            <th>Cantidad</th>
+            <th>Serie</th>
+            <th>Centro de Costo</th>
+            <th>Tipo de Gasto</th>
+            <th>Fecha</th>
+            <th>Precio Unitario</th>
+            <th>Total Factura</th>
+            <th>Estado</th>
+            <th>Archivos</th> <!-- Nueva columna -->
+            <th>Seleccionar</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($detalles as $detalle): ?>
             <tr>
-                <th>ID</th>
-                <th>Número Factura</th>
-                <th>Proveedor</th>
-                <th>Total Factura</th>
-                <th>Estado</th>
-                <th>Seleccionar</th>
+                <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
+                <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
+                <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
+                <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
+                <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
+                <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
+                <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+                <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
+                <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
+                <td data-label="Precio Unitario"><?php echo number_format($detalle['p_unitario'], 2); ?></td>
+                <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
+                <td data-label="Archivos">
+                    <?php
+                    $rutas = !empty($detalle['rutas_archivos']) ? $detalle['rutas_archivos'] : [];
+                    if (is_array($rutas) && !empty($rutas)) {
+                        foreach ($rutas as $ruta) {
+                            echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                        }
+                    } else {
+                        echo 'N/A';
+                    }
+                    ?>
+                </td>
+                <td data-label="Seleccionar"><input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" checked></td>
             </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($detalles as $detalle): ?>
-                <tr>
-                    <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
-                    <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                    <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
-                    <td data-label="Total Factura"><?php echo htmlspecialchars($detalle['total_factura']); ?></td>
-                    <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                    <td data-label="Seleccionar"><input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" checked></td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+        <?php endforeach; ?>
+    </tbody>
+</table>
     <form id="autorizarForm">
         <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
         <select name="accion" required>
-            <?php
-            $usuarioModel = new Usuario();
-            $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-            $rol = strtoupper($usuario['rol']);
-            $autorizarEstado = "AUTORIZADO_POR_{$rol}";
-            $rechazarEstado = "RECHAZADO_POR_{$rol}";
-            ?>
-            <option value="<?php echo htmlspecialchars($autorizarEstado); ?>">Autorizar</option>
-            <option value="<?php echo htmlspecialchars($rechazarEstado); ?>">Rechazar</option>
+            <option value="APROBADO">Autorizar</option>
+            <option value="RECHAZADO">Rechazar</option>
             <option value="DESCARTADO">Descartar</option>
         </select>
         <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
@@ -270,11 +309,10 @@
             e.preventDefault();
             const formData = new FormData(form);
             const id = formData.get('id');
-            const accion = formData.get('accion'); // Obtener el valor de la acción
+            const accion = formData.get('accion');
             const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
             const action = mode === 'revisar' ? 'revisar' : 'autorizar';
 
-            // Log para depurar el valor de la acción enviada
             console.log('Acción enviada desde el formulario:', accion);
 
             try {

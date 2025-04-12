@@ -1,6 +1,6 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 // ini_set('error_log', 'C:/xampp/php/logs/php_error.log');
 session_start();
@@ -23,6 +23,9 @@ require_once '../controllers/AccesoController.php';
 require_once '../controllers/BaseController.php';
 require_once '../controllers/FacturaController.php';
 require_once '../controllers/CentroCostoController.php';
+
+
+
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
@@ -191,12 +194,20 @@ switch ($controller) {
                         echo json_encode(['error' => 'ID de liquidación requerido para gestionar facturas']);
                     }
                     break;
-                case 'finalizar': // Nueva acción
+                case 'finalizar':
                     if ($id) {
                         $liquidacionController->finalizar($id);
                     } else {
                         header('HTTP/1.1 400 Bad Request');
                         echo json_encode(['error' => 'ID de liquidación requerido para finalizar']);
+                    }
+                    break;
+                case 'ver':
+                    if ($id) {
+                        $liquidacionController->ver($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para ver']);
                     }
                     break;
                 default:

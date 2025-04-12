@@ -7,6 +7,26 @@
     <label for="description">Descripción</label>
     <textarea id="description" name="description" placeholder="Descripción" required><?php echo isset($tipoGasto['description']) ? htmlspecialchars($tipoGasto['description']) : ''; ?></textarea>
     <div class="error" data-field="description"></div>
+    <label for="impuesto_id">Impuesto</label>
+    <select id="impuesto_id" name="impuesto_id">
+        <option value="">Ninguno</option>
+        <?php foreach ($impuestos as $impuesto): ?>
+            <option value="<?php echo htmlspecialchars($impuesto['id']); ?>" <?php echo (isset($tipoGasto['impuesto_id']) && $tipoGasto['impuesto_id'] == $impuesto['id']) ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($impuesto['nombre'] . ' (' . $impuesto['porcentaje'] . '%)'); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <div class="error" data-field="impuesto_id"></div>
+    <label for="cuenta_contable_id">Cuenta Contable</label>
+    <select id="cuenta_contable_id" name="cuenta_contable_id">
+        <option value="">Ninguno</option>
+        <?php foreach ($cuentasContables as $cuenta): ?>
+            <option value="<?php echo htmlspecialchars($cuenta['id']); ?>" <?php echo (isset($tipoGasto['cuenta_contable_id']) && $tipoGasto['cuenta_contable_id'] == $cuenta['id']) ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($cuenta['nombre']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <div class="error" data-field="cuenta_contable_id"></div>
     <label for="estado">Estado</label>
     <select id="estado" name="estado" required>
         <option value="ACTIVO" <?php echo (isset($tipoGasto['estado']) && $tipoGasto['estado'] === 'ACTIVO') ? 'selected' : ''; ?>>Activo</option>

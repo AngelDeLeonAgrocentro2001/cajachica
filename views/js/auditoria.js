@@ -40,7 +40,6 @@ async function loadAuditoria() {
                     detallesHtml = entry.detalles || '-';
                 }
 
-                // Formatear la fecha
                 const fecha = new Date(entry.fecha).toLocaleString('es-ES', {
                     day: '2-digit',
                     month: '2-digit',

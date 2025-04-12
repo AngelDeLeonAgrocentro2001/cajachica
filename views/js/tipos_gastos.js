@@ -35,6 +35,8 @@ async function loadTiposGastos() {
                         <td data-label="ID">${tipo.id}</td>
                         <td data-label="Nombre">${tipo.name}</td>
                         <td data-label="Descripción">${tipo.description || 'N/A'}</td>
+                        <td data-label="Impuesto">${tipo.impuesto_nombre || 'N/A'}</td>
+                        <td data-label="Cuenta Contable">${tipo.cuenta_contable_nombre || 'N/A'}</td>
                         <td data-label="Estado">${tipo.estado}</td>
                         <td data-label="Acciones">
                             <button class="edit-btn" onclick="showEditForm(${tipo.id}); window.history.pushState({}, '', 'index.php?controller=tipogasto&action=update&id=${tipo.id}')">Editar</button>
@@ -44,7 +46,7 @@ async function loadTiposGastos() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5">No hay tipos de gastos registrados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7">No hay tipos de gastos registrados.</td></tr>';
         }
         return tipos;
     } catch (error) {
@@ -214,6 +216,7 @@ function addValidations(id = null) {
         name: { required: true, minLength: 2 },
         description: { required: true, minLength: 2 },
         estado: { required: true }
+        // No se requiere validación para impuesto_id y cuenta_contable_id ya que son opcionales
     };
 
     form.querySelectorAll('input, textarea, select').forEach(field => {

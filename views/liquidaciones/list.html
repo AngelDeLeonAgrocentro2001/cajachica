@@ -291,6 +291,15 @@
                 width: 95%;
                 padding: 15px;
             }
+
+            #liquidacionesTable button.view-btn {
+            background-color: #9b59b6; /* Color morado */
+            color: #fff;
+            }
+
+            #liquidacionesTable button.view-btn:hover {
+            background-color: #8e44ad;
+            }
         }
     </style>
     <script>
@@ -330,7 +339,16 @@
             <div id="modalForm"></div>
         </div>
     </div>
-
+    <script>
+    // Si userPermissions no está definido, lo inicializamos
+    window.userPermissions = window.userPermissions || {
+        create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
+        autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
+        revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+    };
+    // Si userRole no está definido, lo inicializamos
+    window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+</script>
     <script src="../views/js/liquidaciones.js"></script>
 </body>
 </html>

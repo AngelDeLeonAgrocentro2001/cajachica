@@ -101,8 +101,8 @@ class Usuario {
                 'autorizar_facturas' => true,
                 'manage_cuentas_contables' => true,
                 'manage_facturas' => true,
-                'revisar_liquidaciones' => true,
-                'revisar_detalles_liquidaciones' => true,
+                // 'revisar_liquidaciones' => true,
+                // 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
             ],
             self::ROL_CONTABILIDAD => [

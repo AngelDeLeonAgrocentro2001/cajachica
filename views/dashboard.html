@@ -68,16 +68,20 @@
         }
 
         /* Colores diferenciados según el estado */
-        .dashboard-card.pendiente {
-            border-left: 5px solid #f39c12; /* Amarillo para Pendiente */
+        .dashboard-card.en-proceso {
+            border-left: 5px solid #3498db; /* Azul para En Proceso */
         }
 
-        .dashboard-card.autorizado-supervisor {
-            border-left: 5px solid #27ae60; /* Verde para Autorizado por Supervisor */
+        .dashboard-card.pendiente-autorizacion {
+            border-left: 5px solid #f39c12; /* Amarillo para Pendiente Autorización */
         }
 
-        .dashboard-card.rechazado-supervisor {
-            border-left: 5px solid #e74c3c; /* Rojo para Rechazado por Supervisor */
+        .dashboard-card.pendiente-revision-contabilidad {
+            border-left: 5px solid #27ae60; /* Verde para Pendiente Revisión Contabilidad */
+        }
+
+        .dashboard-card.rechazado-autorizacion {
+            border-left: 5px solid #e74c3c; /* Rojo para Rechazado Autorización */
         }
 
         .dashboard-card.autorizado-contabilidad {
@@ -88,8 +92,12 @@
             border-left: 5px solid #c0392b; /* Rojo oscuro para Rechazado por Contabilidad */
         }
 
-        .dashboard-card.pendiente-correccion {
-            border-left: 5px solid #e67e22; /* Naranja para Pendiente de Corrección */
+        .dashboard-card.finalizado {
+            border-left: 5px solid #16a085; /* Verde oscuro para Finalizado */
+        }
+
+        .dashboard-card.descartado {
+            border-left: 5px solid #7f8c8d; /* Gris para Descartado */
         }
 
         /* Estilo responsivo */
@@ -123,20 +131,25 @@
     <?php include '../views/partials/menu.php'; ?>
     <h2>Dashboard - AgroCaja Chica</h2>
     <div class="dashboard-container">
-        <div class="dashboard-card pendiente">
-            <h3>Pendiente</h3>
-            <p>Cantidad: <?php echo $resumen['PENDIENTE']['cantidad']; ?></p>
-            <p>Monto: $<?php echo number_format($resumen['PENDIENTE']['monto'], 2); ?></p>
+        <div class="dashboard-card en-proceso">
+            <h3>En Proceso</h3>
+            <p>Cantidad: <?php echo $resumen['EN_PROCESO']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['EN_PROCESO']['monto'], 2); ?></p>
         </div>
-        <div class="dashboard-card autorizado-supervisor">
-            <h3>Autorizado por Supervisor</h3>
-            <p>Cantidad: <?php echo $resumen['AUTORIZADO_POR_SUPERVISOR']['cantidad']; ?></p>
-            <p>Monto: $<?php echo number_format($resumen['AUTORIZADO_POR_SUPERVISOR']['monto'], 2); ?></p>
+        <div class="dashboard-card pendiente-autorizacion">
+            <h3>Pendiente Autorización</h3>
+            <p>Cantidad: <?php echo $resumen['PENDIENTE_AUTORIZACION']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['PENDIENTE_AUTORIZACION']['monto'], 2); ?></p>
         </div>
-        <div class="dashboard-card rechazado-supervisor">
-            <h3>Rechazado por Supervisor</h3>
-            <p>Cantidad: <?php echo $resumen['RECHAZADO_POR_SUPERVISOR']['cantidad']; ?></p>
-            <p>Monto: $<?php echo number_format($resumen['RECHAZADO_POR_SUPERVISOR']['monto'], 2); ?></p>
+        <div class="dashboard-card pendiente-revision-contabilidad">
+            <h3>Pendiente Revisión Contabilidad</h3>
+            <p>Cantidad: <?php echo $resumen['PENDIENTE_REVISION_CONTABILIDAD']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['PENDIENTE_REVISION_CONTABILIDAD']['monto'], 2); ?></p>
+        </div>
+        <div class="dashboard-card rechazado-autorizacion">
+            <h3>Rechazado Autorización</h3>
+            <p>Cantidad: <?php echo $resumen['RECHAZADO_AUTORIZACION']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['RECHAZADO_AUTORIZACION']['monto'], 2); ?></p>
         </div>
         <div class="dashboard-card autorizado-contabilidad">
             <h3>Autorizado por Contabilidad</h3>
@@ -148,10 +161,15 @@
             <p>Cantidad: <?php echo $resumen['RECHAZADO_POR_CONTABILIDAD']['cantidad']; ?></p>
             <p>Monto: $<?php echo number_format($resumen['RECHAZADO_POR_CONTABILIDAD']['monto'], 2); ?></p>
         </div>
-        <div class="dashboard-card pendiente-correccion">
-            <h3>Pendiente de Corrección</h3>
-            <p>Cantidad: <?php echo $resumen['PENDIENTE_CORRECCIÓN']['cantidad']; ?></p>
-            <p>Monto: $<?php echo number_format($resumen['PENDIENTE_CORRECCIÓN']['monto'], 2); ?></p>
+        <div class="dashboard-card finalizado">
+            <h3>Finalizado</h3>
+            <p>Cantidad: <?php echo $resumen['FINALIZADO']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['FINALIZADO']['monto'], 2); ?></p>
+        </div>
+        <div class="dashboard-card descartado">
+            <h3>Descartado</h3>
+            <p>Cantidad: <?php echo $resumen['DESCARTADO']['cantidad']; ?></p>
+            <p>Monto: $<?php echo number_format($resumen['DESCARTADO']['monto'], 2); ?></p>
         </div>
     </div>
 </body>

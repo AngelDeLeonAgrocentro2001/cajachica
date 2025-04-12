@@ -59,11 +59,22 @@ class Liquidacion {
     }
 
     public function updateEstado($id, $estado) {
-        $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ? WHERE id = ?");
-        return $stmt->execute([$estado, $id]);
+        try {
+            $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ? WHERE id = ?");
+            $result = $stmt->execute([$estado, $id]);
+            if ($result === false) {
+                error_log("Error al ejecutar UPDATE en updateEstado: " . implode(', ', $stmt->errorInfo()));
+                return false;
+            }
+            $rowCount = $stmt->rowCount();
+            error_log("updateEstado ejecutado - ID: $id, Estado: $estado, Filas afectadas: $rowCount");
+            return $rowCount > 0;
+        } catch (PDOException $e) {
+            error_log("Error PDO en updateEstado: " . $e->getMessage());
+            return false;
+        }
     }
 
-    // Método existente para reportes (ajustado para incluir fechas)
     public function getLiquidacionesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
         $query = "
             SELECT l.*, cc.nombre as caja_chica, SUM(dl.total_factura) as total_gastos
