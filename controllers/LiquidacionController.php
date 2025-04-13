@@ -714,7 +714,7 @@ class LiquidacionController {
             }
         }
     
-        // Sugerir un Centro de Costo (por ejemplo, el primero activo o basado en id_caja_chica)
+        // Sugerir un Centro de Costo
         $suggestedCentroCostoId = null;
         foreach ($centrosCostos as $cc) {
             if ($cc['estado'] === 'ACTIVO') {
@@ -727,6 +727,43 @@ class LiquidacionController {
             $action = $_POST['action'] ?? '';
             try {
                 $this->pdo->beginTransaction();
+    
+                // Prepare file upload handling
+                $rutas_archivos = [];
+                $uploadDir = '../uploads/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+                $maxFileSize = 5 * 1024 * 1024; // 5 MB
+    
+                if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
+                    foreach ($_FILES['archivos']['name'] as $key => $name) {
+                        if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
+                            $fileType = $_FILES['archivos']['type'][$key];
+                            $fileSize = $_FILES['archivos']['size'][$key];
+    
+                            if (!in_array($fileType, $allowedTypes)) {
+                                throw new Exception('Tipo de archivo no permitido: ' . $name . '. Solo se permiten PDF, PNG, JPG y JPEG.');
+                            }
+    
+                            if ($fileSize > $maxFileSize) {
+                                throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
+                            }
+    
+                            $fileName = basename($name);
+                            $filePath = $uploadDir . uniqid() . '_' . $fileName;
+                            if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
+                                $rutas_archivos[] = 'uploads/' . basename($filePath);
+                            } else {
+                                throw new Exception('Error al subir el archivo: ' . $name);
+                            }
+                        } elseif ($_FILES['archivos']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                            throw new Exception('Error al subir el archivo: ' . $name);
+                        }
+                    }
+                }
+                $rutas_json = json_encode($rutas_archivos);
     
                 if ($action === 'create') {
                     $tipo_documento = $_POST['tipo_documento'] ?? '';
@@ -785,10 +822,14 @@ class LiquidacionController {
                     }
     
                     $detalleModel = new DetalleLiquidacion();
-                    if ($detalleModel->createDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie)) {
+                    if ($detalleModel->createDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json)) {
                         $lastInsertId = $this->pdo->lastInsertId();
                         $this->auditoriaModel->createAuditoria($id, $lastInsertId, $_SESSION['user_id'], 'CREAR_DETALLE', "Factura creada: $no_factura");
-                        $response = ['message' => 'Factura creada correctamente', 'detalle_id' => $lastInsertId];
+                        $response = [
+                            'message' => 'Factura creada correctamente',
+                            'detalle_id' => $lastInsertId,
+                            'rutas_archivos' => $rutas_archivos // Include file paths in response
+                        ];
                     } else {
                         throw new Exception('Error al crear la factura.');
                     }
@@ -849,10 +890,22 @@ class LiquidacionController {
                         throw new Exception("El número de factura '$no_factura' ya existe para esta liquidación.");
                     }
     
+                    // Get existing rutas_archivos to append new files
                     $detalleModel = new DetalleLiquidacion();
-                    if ($detalleModel->updateDetalleLiquidacion($detalle_id, $id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie)) {
+                    $existingDetalle = $detalleModel->getDetalleLiquidacionById($detalle_id);
+                    $existingRutas = !empty($existingDetalle['rutas_archivos']) ? json_decode($existingDetalle['rutas_archivos'], true) : [];
+                    if (!is_array($existingRutas)) {
+                        $existingRutas = [];
+                    }
+                    $rutas_archivos = array_merge($existingRutas, $rutas_archivos); // Append new files
+                    $rutas_json = json_encode($rutas_archivos);
+    
+                    if ($detalleModel->updateDetalleLiquidacion($detalle_id, $id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json)) {
                         $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE', "Factura actualizada: $no_factura");
-                        $response = ['message' => 'Factura actualizada correctamente'];
+                        $response = [
+                            'message' => 'Factura actualizada correctamente',
+                            'rutas_archivos' => $rutas_archivos // Include file paths in response
+                        ];
                     } else {
                         throw new Exception('Error al actualizar la factura.');
                     }

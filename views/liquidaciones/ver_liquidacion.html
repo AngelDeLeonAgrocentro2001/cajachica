@@ -59,7 +59,6 @@
 
         table thead,
         table tbody {
-            /* display: table; */
             width: 100%;
             table-layout: fixed;
         }
@@ -182,7 +181,7 @@
                 <th>Fecha</th>
                 <th>Precio Unitario</th>
                 <th>Total Factura</th>
-                <th>Archivos</th> <!-- Nueva columna -->
+                <th>Archivos</th>
             </tr>
         </thead>
         <tbody>
@@ -203,7 +202,8 @@
                     <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'], 2); ?></td>
                     <td data-label="Archivos">
                         <?php
-                        $rutas = !empty($detalle['rutas_archivos']) ? $detalle['rutas_archivos'] : [];
+                        // Decode the JSON string into an array
+                        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
                         if (is_array($rutas) && !empty($rutas)) {
                             foreach ($rutas as $ruta) {
                                 echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
@@ -219,5 +219,4 @@
     </table>
     <button class="back-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list'">Volver</button>
 </body>
-
 </html>

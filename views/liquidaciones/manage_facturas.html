@@ -514,9 +514,9 @@
           </tbody>
           <tfoot>
               <tr>
-                  <td colspan="13" data-label="Total"><strong>Total</strong></td>
+                  <td colspan="12" data-label="Total"><strong>Total</strong></td>
                   <td id="total_general" data-label="Monto"><?php echo number_format($data['monto_total'] ?? 0, 2); ?></td>
-                  <td colspan="2"></td>
+                  <td colspan="3"></td>
               </tr>
           </tfoot>
       </table>
@@ -546,22 +546,20 @@
           const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
           console.log('Tipo de Documento seleccionado:', tipoDocumento);
   
-          // Ajustar el campo NIT/DPI
           if (tipoDocumento === 'RECIBO') {
               console.log('Mostrando campo DPI');
               nitDpiLabel.textContent = 'DPI:';
               nitDpiInput.setAttribute('required', 'required');
-              nitInput.value = ''; // Limpiar NIT
-              dpiInput.value = nitDpiInput.value; // Asignar valor a DPI
+              nitInput.value = '';
+              dpiInput.value = nitDpiInput.value;
           } else {
               console.log('Mostrando campo NIT');
               nitDpiLabel.textContent = 'NIT:';
               nitDpiInput.setAttribute('required', 'required');
-              dpiInput.value = ''; // Limpiar DPI
-              nitInput.value = nitDpiInput.value; // Asignar valor a NIT
+              dpiInput.value = '';
+              nitInput.value = nitDpiInput.value;
           }
   
-          // Mostrar u ocultar los campos de Cantidad y Serie
           if (tipoDocumento === 'COMPROBANTE') {
               console.log('Mostrando campos Cantidad y Serie');
               comprobanteFields.style.display = 'block';
@@ -576,7 +574,6 @@
               serieInput.value = '';
           }
   
-          // Sincronizar los valores de los campos ocultos
           nitDpiInput.addEventListener('input', () => {
               if (tipoDocumento === 'RECIBO') {
                   dpiInput.value = nitDpiInput.value;
@@ -588,7 +585,6 @@
           });
       }
   
-      // Inicializar la página
       document.addEventListener('DOMContentLoaded', () => {
           console.log('DOM completamente cargado');
   
@@ -598,20 +594,17 @@
               return;
           }
   
-          // Establecer el Centro de Costo sugerido
           const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
           const centroCostoSelect = document.getElementById('id_centro_costo');
           if (centroCostoSelect && suggestedCentroCostoId) {
               centroCostoSelect.value = suggestedCentroCostoId;
           }
   
-          // Agregar el evento change al select
           tipoDocumentoSelect.addEventListener('change', () => {
               console.log('Evento change disparado en tipo_documento');
               updateFormFields();
           });
   
-          // Ejecutar la función al cargar la página
           setTimeout(() => {
               calculateTotal();
               updateFormFields();
@@ -670,7 +663,7 @@
                   const centroCostoText = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
                   // Manejar los archivos subidos
                   let archivosHtml = 'N/A';
-                  if (result.rutas_archivos && result.rutas_archivos.length > 0) {
+                  if (result.rutas_archivos && Array.isArray(result.rutas_archivos) && result.rutas_archivos.length > 0) {
                       archivosHtml = result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('');
                   }
                   newRow.innerHTML = `
@@ -702,7 +695,7 @@
                   const centroCostoText = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
                   // Manejar los archivos subidos
                   let archivosHtml = 'N/A';
-                  if (result.rutas_archivos && result.rutas_archivos.length > 0) {
+                  if (result.rutas_archivos && Array.isArray(result.rutas_archivos) && result.rutas_archivos.length > 0) {
                       archivosHtml = result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('');
                   }
                   row.cells[1].textContent = formData.get('tipo_documento');
@@ -751,7 +744,6 @@
           }
           document.getElementById('cantidad').value = row.cells[6].textContent === 'N/A' ? '' : row.cells[6].textContent;
           document.getElementById('serie').value = row.cells[7].textContent === 'N/A' ? '' : row.cells[7].textContent;
-          // Obtener el id_centro_costo buscando el valor en el select
           const centroCostoText = row.cells[8].textContent;
           const centroCostoSelect = document.getElementById('id_centro_costo');
           let centroCostoId = '';
@@ -766,7 +758,6 @@
           document.getElementById('fecha').value = row.cells[10].textContent;
           document.getElementById('p_unitario').value = row.cells[11].textContent;
           document.getElementById('total_factura').value = row.cells[12].textContent;
-          // No podemos preseleccionar archivos, pero podemos mostrar los existentes
           document.querySelector('input[name="action"]').value = 'update';
           form.querySelector('button[type="submit"]').textContent = 'Actualizar';
           updateFormFields();

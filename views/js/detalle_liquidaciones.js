@@ -560,4 +560,3 @@ async function createDetalle(data) {
     }
     return result;
 }
-

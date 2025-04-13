@@ -19,12 +19,10 @@
             <div class="form-group">
                 <label for="estado">Estado</label>
                 <select id="estado" name="estado" required>
-                    <option value="PENDIENTE" <?php echo (isset($data['estado']) && $data['estado'] == 'PENDIENTE') ? 'selected' : ''; ?>>Pendiente</option>
-                    <option value="APROBADO" <?php echo (isset($data['estado']) && $data['estado'] == 'APROBADO') ? 'selected' : ''; ?>>Aprobado</option>
-                    <option value="RECHAZADO" <?php echo (isset($data['estado']) && $data['estado'] == 'RECHAZADO') ? 'selected' : ''; ?>>Rechazado</option>
-                    <option value="EN_REVISIÓN" <?php echo (isset($data['estado']) && $data['estado'] == 'EN_REVISIÓN') ? 'selected' : ''; ?>>En Revisión</option>
-                    <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] == 'AUTORIZADO_POR_CONTABILIDAD') ? 'selected' : ''; ?>>Autorizado por Contabilidad</option>
-                    <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] == 'RECHAZADO_POR_CONTABILIDAD') ? 'selected' : ''; ?>>Rechazado por Contabilidad</option>
+                    <option value="EN_PROCESO" <?php echo (isset($data['estado']) && $data['estado'] == 'EN_PROCESO') ? 'selected' : ''; ?>>En Proceso</option>
+                    <option value="PENDIENTE_AUTORIZACION" <?php echo (isset($data['estado']) && $data['estado'] == 'PENDIENTE_AUTORIZACION') ? 'selected' : ''; ?>>Pendiente Autorización</option>
+                    <option value="PENDIENTE_REVISION_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] == 'PENDIENTE_REVISION_CONTABILIDAD') ? 'selected' : ''; ?>>Pendiente Revisión Contabilidad</option>
+                    <option value="FINALIZADO" <?php echo (isset($data['estado']) && $data['estado'] == 'FINALIZADO') ? 'selected' : ''; ?>>Finalizado</option>
                     <option value="DESCARTADO" <?php echo (isset($data['estado']) && $data['estado'] == 'DESCARTADO') ? 'selected' : ''; ?>>Descartado</option>
                 </select>
                 <div class="error" data-field="estado"></div>
@@ -68,6 +66,39 @@
                 <label for="total_factura">Total Factura</label>
                 <input type="number" step="0.01" id="total_factura" name="total_factura" value="<?php echo isset($data['total_factura']) ? htmlspecialchars($data['total_factura']) : ''; ?>" required>
                 <div class="error" data-field="total_factura"></div>
+            </div>
+            <div class="form-group">
+                <label for="tipo_documento">Tipo de Documento</label>
+                <select id="tipo_documento" name="tipo_documento" required>
+                    <option value="FACTURA" <?php echo (isset($data['tipo_documento']) && $data['tipo_documento'] == 'FACTURA') ? 'selected' : ''; ?>>Factura</option>
+                    <option value="RECIBO" <?php echo (isset($data['tipo_documento']) && $data['tipo_documento'] == 'RECIBO') ? 'selected' : ''; ?>>Recibo</option>
+                </select>
+                <div class="error" data-field="tipo_documento"></div>
+            </div>
+            <div class="form-group">
+                <label for="nit_proveedor">NIT Proveedor</label>
+                <input type="text" id="nit_proveedor" name="nit_proveedor" value="<?php echo isset($data['nit_proveedor']) ? htmlspecialchars($data['nit_proveedor']) : ''; ?>">
+                <div class="error" data-field="nit_proveedor"></div>
+            </div>
+            <div class="form-group">
+                <label for="dpi">DPI</label>
+                <input type="text" id="dpi" name="dpi" value="<?php echo isset($data['dpi']) ? htmlspecialchars($data['dpi']) : ''; ?>">
+                <div class="error" data-field="dpi"></div>
+            </div>
+            <div class="form-group">
+                <label for="id_centro_costo">Centro de Costo</label>
+                <input type="number" id="id_centro_costo" name="id_centro_costo" value="<?php echo isset($data['id_centro_costo']) ? htmlspecialchars($data['id_centro_costo']) : ''; ?>">
+                <div class="error" data-field="id_centro_costo"></div>
+            </div>
+            <div class="form-group">
+                <label for="cantidad">Cantidad</label>
+                <input type="number" id="cantidad" name="cantidad" value="<?php echo isset($data['cantidad']) ? htmlspecialchars($data['cantidad']) : ''; ?>">
+                <div class="error" data-field="cantidad"></div>
+            </div>
+            <div class="form-group">
+                <label for="serie">Serie</label>
+                <input type="text" id="serie" name="serie" value="<?php echo isset($data['serie']) ? htmlspecialchars($data['serie']) : ''; ?>">
+                <div class="error" data-field="serie"></div>
             </div>
         </div>
     </details>

@@ -97,91 +97,96 @@ class DetalleLiquidacionController {
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
+                error_log('POST data: ' . print_r($_POST, true));
+                error_log('FILES data: ' . print_r($_FILES, true));
+        
                 $id_liquidacion = $_POST['id_liquidacion'] ?? '';
+                $tipo_documento = $_POST['tipo_documento'] ?? 'FACTURA';
                 $no_factura = $_POST['no_factura'] ?? '';
                 $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
+                $nit_proveedor = $_POST['nit_proveedor'] ?? null;
+                $dpi = $_POST['dpi'] ?? null;
                 $fecha = $_POST['fecha'] ?? '';
                 $bien_servicio = $_POST['bien_servicio'] ?? '';
                 $t_gasto = $_POST['t_gasto'] ?? '';
                 $p_unitario = $_POST['p_unitario'] ?? 0;
                 $total_factura = $_POST['total_factura'] ?? 0;
-                $estado = $_POST['estado'] ?? 'PENDIENTE';
-    
+                $estado = $_POST['estado'] ?? 'EN_PROCESO';
+                $id_centro_costo = $_POST['id_centro_costo'] ?? null;
+                $cantidad = $_POST['cantidad'] ?? null;
+                $serie = $_POST['serie'] ?? null;
+        
                 // Transformar el estado según el rol del usuario
                 $rol = strtoupper($usuario['rol']);
                 if ($estado === 'APROBADO') {
-                    $estado = "AUTORIZADO_POR_{$rol}";
+                    if ($rol === 'CONTABILIDAD') {
+                        $estado = 'PENDIENTE_REVISION_CONTABILIDAD';
+                    } else {
+                        $estado = 'PENDIENTE_AUTORIZACION';
+                    }
                 } elseif ($estado === 'RECHAZADO') {
-                    $estado = "RECHAZADO_POR_{$rol}";
+                    $estado = 'DESCARTADO';
+                } else {
+                    $estado = 'EN_PROCESO';
                 }
-    
+        
                 // Validar que el estado transformado sea un valor permitido en el ENUM
                 $allowedEstados = [
-                    'PENDIENTE',
-                    'EN_REVISIÓN',
-                    'AUTORIZADO_POR_ADMIN',
-                    'RECHAZADO_POR_ADMIN',
-                    'AUTORIZADO_POR_CONTABILIDAD',
-                    'RECHAZADO_POR_CONTABILIDAD',
-                    'AUTORIZADO_POR_SUPERVISOR',
-                    'RECHAZADO_POR_SUPERVISOR',
-                    'DESCARTADO',
-                    'FINALIZADO'
+                    'EN_PROCESO',
+                    'PENDIENTE_AUTORIZACION',
+                    'PENDIENTE_REVISION_CONTABILIDAD',
+                    'FINALIZADO',
+                    'DESCARTADO'
                 ];
                 if (!in_array($estado, $allowedEstados)) {
                     throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
                 }
-    
-                // Log para verificar el estado recibido y transformado
-                error_log("Estado recibido en createDetalleLiquidacion: " . $_POST['estado']);
-                error_log("Estado transformado en createDetalleLiquidacion: " . $estado);
-    
+        
+                error_log("Estado transformado: " . $estado);
+        
                 // Validar datos antes de crear
                 if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
                     throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
-    
-                // Verificar que id_liquidacion exista y obtener su fecha_creacion
+        
+                // Verificar que id_liquidacion exista
                 $liquidacionModel = new Liquidacion();
                 $liquidacion = $liquidacionModel->getLiquidacionById($id_liquidacion);
                 if (!$liquidacion) {
                     throw new Exception('El ID de liquidación ' . $id_liquidacion . ' no existe.');
                 }
-    
+        
                 // Validación de fecha del detalle
                 $fechaDetalle = new DateTime($fecha);
                 $fechaCreacionLiquidacion = new DateTime($liquidacion['fecha_creacion']);
                 if ($fechaDetalle > $fechaCreacionLiquidacion) {
                     throw new Exception('La fecha del detalle no puede ser mayor que la fecha de creación de la liquidación (' . $liquidacion['fecha_creacion'] . ').');
                 }
-    
+        
                 // Manejar la subida de múltiples archivos
                 $rutas_archivos = [];
                 $uploadDir = '../uploads/';
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0777, true);
                 }
-    
-                // Definir tipos de archivo permitidos y tamaño máximo (5 MB)
+        
                 $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
-                $maxFileSize = 5 * 1024 * 1024; // 5 MB en bytes
-    
+                $maxFileSize = 5 * 1024 * 1024;
+        
                 if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
                     foreach ($_FILES['archivos']['name'] as $key => $name) {
                         if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
                             $fileType = $_FILES['archivos']['type'][$key];
                             $fileSize = $_FILES['archivos']['size'][$key];
-    
-                            // Validar tipo de archivo
+        
                             if (!in_array($fileType, $allowedTypes)) {
                                 throw new Exception('Tipo de archivo no permitido: ' . $name . '. Solo se permiten PDF, PNG, JPG y JPEG.');
                             }
-    
-                            // Validar tamaño de archivo
+        
                             if ($fileSize > $maxFileSize) {
                                 throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
                             }
-    
+        
                             $fileName = basename($name);
                             $filePath = $uploadDir . uniqid() . '_' . $fileName;
                             if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
@@ -195,9 +200,25 @@ class DetalleLiquidacionController {
                     }
                 }
                 $rutas_json = json_encode($rutas_archivos);
-    
+        
                 $detalle = new DetalleLiquidacion();
-                if ($detalle->createDetalleLiquidacion($id_liquidacion, $no_factura, $nombre_proveedor, $fecha, $bien_servicio, $t_gasto, $p_unitario, $total_factura, $estado, $rutas_json)) {
+                if ($detalle->createDetalleLiquidacion(
+                    $id_liquidacion,
+                    $tipo_documento,
+                    $no_factura,
+                    $nombre_proveedor,
+                    $nit_proveedor,
+                    $dpi,
+                    $fecha,
+                    $t_gasto,
+                    $p_unitario,
+                    $total_factura,
+                    $estado,
+                    $id_centro_costo,
+                    $cantidad,
+                    $serie,
+                    $rutas_json
+                )) {
                     $lastInsertId = $this->pdo->lastInsertId();
                     $auditoria = new Auditoria();
                     $auditoria->createAuditoria($id_liquidacion, $lastInsertId, $_SESSION['user_id'], 'CREADO', 'Detalle de liquidación creado por encargado');
