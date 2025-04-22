@@ -1,22 +1,34 @@
 <?php
+require_once '../config/database.php';
 require_once '../models/Liquidacion.php';
 require_once '../models/DetalleLiquidacion.php';
-require_once '../models/Auditoria.php';
-require_once '../models/Usuario.php';
 require_once '../models/CajaChica.php';
-require_once '../models/TipoGasto.php';
 require_once '../models/TipoDocumento.php';
+require_once '../models/TipoGasto.php';
+require_once '../models/CentroCosto.php';
+require_once '../models/CuentaContable.php';
+require_once '../models/Auditoria.php';
 
 class LiquidacionController {
     private $pdo;
     private $liquidacionModel;
-    private $detalleLiquidacionModel;
+    private $detalleModel;
+    private $cajaChicaModel;
+    private $tipoDocumentoModel;
+    private $tipoGastoModel;
+    private $centroCostoModel;
+    private $cuentaContableModel;
     private $auditoriaModel;
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
         $this->liquidacionModel = new Liquidacion();
-        $this->detalleLiquidacionModel = new DetalleLiquidacion();
+        $this->detalleModel = new DetalleLiquidacion();
+        $this->cajaChicaModel = new CajaChica();
+        $this->tipoDocumentoModel = new TipoDocumento();
+        $this->tipoGastoModel = new TipoGasto();
+        $this->centroCostoModel = new CentroCosto();
+        $this->cuentaContableModel = new CuentaContable();
         $this->auditoriaModel = new Auditoria();
     }
 
@@ -281,24 +293,29 @@ class LiquidacionController {
             exit;
         }
     
-        $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($id);
+        // Inicializar el modelo de detalles
+        $this->detalleModel = new DetalleLiquidacion();
+        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
         if (!empty($detalles)) {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'No se puede eliminar la liquidación porque tiene detalles asociados']);
+            echo json_encode(['error' => 'No se puede eliminar la liquidación porque tiene facturas asociadas']);
             exit;
         }
     
         try {
             $this->pdo->beginTransaction();
     
+            // Registrar auditoría antes de eliminar
             $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
             error_log("Auditoría registrada para la liquidación ID $id antes de eliminarla");
     
+            // Eliminar registros de auditoría asociados
             $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
             $stmt->execute([$id]);
             error_log("Registros de auditoría eliminados para la liquidación ID $id");
     
+            // Eliminar la liquidación
             if (!$this->liquidacionModel->deleteLiquidation($id)) {
                 throw new Exception('Error al eliminar la liquidación en la base de datos');
             }
@@ -667,61 +684,55 @@ class LiquidacionController {
     
     public function manageFacturas($id) {
         if (!isset($_SESSION['user_id'])) {
-            error_log('Error: No hay session user_id en manageFacturas');
-            header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado']);
+            header('Location: index.php?controller=auth&action=login');
             exit;
         }
     
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
-            error_log('Error: No tienes permiso para gestionar facturas');
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para gestionar facturas']);
-            exit;
-        }
-    
-        $liquidacionModel = new Liquidacion();
-        $liquidacion = $liquidacionModel->getLiquidacionById($id);
+        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
-            header('Content-Type: application/json');
-            http_response_code(404);
-            echo json_encode(['error' => 'Liquidación no encontrada']);
-            exit;
+            die("Liquidación no encontrada.");
         }
     
-        if ($liquidacion['estado'] !== 'EN_PROCESO') {
-            header('Content-Type: application/json');
-            http_response_code(400);
-            echo json_encode(['error' => 'Solo se pueden gestionar facturas de liquidaciones en estado EN_PROCESO']);
-            exit;
+        $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
+        if (!$cajaChica) {
+            die("Caja chica no encontrada.");
         }
     
-        // Obtener la lista de Centros de Costo
+        // Obtener el nombre del Centro de Costo asociado a id_centros_de_costos (de la liquidación)
         $centroCostoModel = new CentroCosto();
-        $centrosCostos = $centroCostoModel->getAllCentrosCostos();
-        $select_centros_costos = '';
-        if (empty($centrosCostos)) {
-            $select_centros_costos = '<option value="">No hay centros de costo disponibles</option>';
+        $centroCostoLiquidacion = $centroCostoModel->getCentroCostoById($liquidacion['id_centros_de_costos']);
+        $nombreCentroCostoLiquidacion = $centroCostoLiquidacion ? $centroCostoLiquidacion['nombre'] : 'N/A';
+    
+        // Obtener el nombre del Centro de Costo al que pertenece la Caja Chica
+        $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo']);
+        $nombreCentroCostoCajaChica = $centroCostoCajaChica ? $centroCostoCajaChica['nombre'] : 'N/A';
+    
+        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
+        $tiposDocumentos = $this->tipoDocumentoModel->getAllTiposDocumentos();
+        $tiposGastos = $this->tipoGastoModel->getAllTiposGastos();
+        $centrosCostos = $this->centroCostoModel->getAllCentrosCostos();
+    
+        // Generar opciones para tipos de documentos
+        $select_tipos_documentos = '';
+        if (empty($tiposDocumentos)) {
+            $select_tipos_documentos = "<option value=''>No hay tipos de documentos disponibles</option>";
         } else {
-            foreach ($centrosCostos as $cc) {
-                if ($cc['estado'] === 'ACTIVO') {
-                    $select_centros_costos .= "<option value='{$cc['id']}'>{$cc['nombre']}</option>";
-                }
+            foreach ($tiposDocumentos as $tipo) {
+                $select_tipos_documentos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
             }
         }
     
-        // Sugerir un Centro de Costo
-        $suggestedCentroCostoId = null;
-        foreach ($centrosCostos as $cc) {
-            if ($cc['estado'] === 'ACTIVO') {
-                $suggestedCentroCostoId = $cc['id'];
-                break;
-            }
+        $select_tipos_gastos = '';
+        foreach ($tiposGastos as $tipo) {
+            $select_tipos_gastos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
         }
+    
+        $select_centros_costos = '';
+        foreach ($centrosCostos as $centro) {
+            $select_centros_costos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
+        }
+    
+        $suggestedCentroCostoId = $cajaChica['id_centro_costo'] ?? $centrosCostos[0]['id'] ?? null;
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $_POST['action'] ?? '';
@@ -773,9 +784,14 @@ class LiquidacionController {
                     $dpi = $_POST['dpi'] ?? null;
                     $fecha = $_POST['fecha'] ?? '';
                     $t_gasto = $_POST['t_gasto'] ?? '';
-                    $p_unitario = $_POST['p_unitario'] ?? 0;
+                    $tipo_combustible = $_POST['tipo_combustible'] ?? null;
+                    $subtotal = $_POST['subtotal'] ?? 0;
                     $total_factura = $_POST['total_factura'] ?? 0;
+                    $iva = isset($_POST['iva']) && $_POST['iva'] !== '' ? floatval($_POST['iva']) : null;
+                    $idp = isset($_POST['idp']) && $_POST['idp'] !== '' ? floatval($_POST['idp']) : null;
+                    $inguat = isset($_POST['inguat']) && $_POST['inguat'] !== '' ? floatval($_POST['inguat']) : null;
                     $id_centro_costo = $_POST['id_centro_costo'] ?? $suggestedCentroCostoId;
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                     $cantidad = $_POST['cantidad'] ?? null;
                     $serie = $_POST['serie'] ?? null;
                     $estado = 'EN_PROCESO';
@@ -788,15 +804,15 @@ class LiquidacionController {
                     }
     
                     // Validaciones
-                    if (empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
-                        throw new Exception('Los campos obligatorios (tipo_documento, no_factura, nombre_proveedor, fecha, t_gasto, p_unitario, total_factura) deben ser válidos.');
+                    if (empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
+                        throw new Exception('Los campos obligatorios (tipo_documento, no_factura, nombre_proveedor, fecha, t_gasto, subtotal, total_factura) deben ser válidos.');
                     }
     
                     if (empty($id_centro_costo)) {
                         throw new Exception('El Centro de Costo es obligatorio.');
                     }
     
-                    if ($tipo_documento === 'Comprobante' && (empty($cantidad) || empty($serie))) {
+                    if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
                         throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                     }
     
@@ -806,6 +822,23 @@ class LiquidacionController {
     
                     if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE']) && empty($nit_proveedor)) {
                         throw new Exception('NIT es obligatorio para el tipo de documento Factura o Comprobante.');
+                    }
+    
+                    // Validar tipo_combustible y cantidad para Combustible y Gasto Operativo
+                    if ($tipo_documento === 'FACTURA') {
+                        if ($t_gasto === 'Combustible' && empty($tipo_combustible)) {
+                            throw new Exception('El tipo de combustible es obligatorio para el tipo de gasto Combustible.');
+                        }
+                        if (in_array($t_gasto, ['Combustible', 'Gasto Operativo']) && (empty($cantidad) || $cantidad <= 0)) {
+                            throw new Exception('La cantidad de galones es obligatoria y debe ser mayor a 0 para el tipo de gasto ' . $t_gasto . '.');
+                        }
+                    }
+    
+                    // Ajustar tipo_combustible según el tipo de gasto
+                    if ($t_gasto === 'Gasto Operativo') {
+                        $tipo_combustible = 'Gasolina'; // Gasto Operativo siempre es gasolina
+                    } elseif ($t_gasto !== 'Combustible') {
+                        $tipo_combustible = null; // Para otros tipos de gasto, tipo_combustible debe ser null
                     }
     
                     $fechaFactura = new DateTime($fecha);
@@ -821,19 +854,30 @@ class LiquidacionController {
                         throw new Exception("El número de factura '$no_factura' ya existe para esta liquidación.");
                     }
     
+                    // Establecer valores predeterminados si no se calcularon impuestos
+                    $iva = $iva ?? 0;
+                    $idp = $idp ?? 0;
+                    $inguat = $inguat ?? 0;
+    
                     $detalleModel = new DetalleLiquidacion();
-                    if ($detalleModel->createDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json)) {
+                    if ($detalleModel->createDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $subtotal, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible)) {
                         $lastInsertId = $this->pdo->lastInsertId();
                         $this->auditoriaModel->createAuditoria($id, $lastInsertId, $_SESSION['user_id'], 'CREAR_DETALLE', "Factura creada: $no_factura");
+    
+                        // Recalcular el monto_total después de crear el detalle
+                        $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
+                        $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
+                        $this->liquidacionModel->updateMontoTotal($id, $monto_total);
+    
                         $response = [
                             'message' => 'Factura creada correctamente',
                             'detalle_id' => $lastInsertId,
-                            'rutas_archivos' => $rutas_archivos // Include file paths in response
+                            'rutas_archivos' => $rutas_archivos,
+                            'monto_total' => $monto_total // Opcional: para depuración
                         ];
                     } else {
                         throw new Exception('Error al crear la factura.');
                     }
-    
                 } elseif ($action === 'update') {
                     $detalle_id = $_POST['detalle_id'] ?? '';
                     $tipo_documento = $_POST['tipo_documento'] ?? '';
@@ -843,38 +887,56 @@ class LiquidacionController {
                     $dpi = $_POST['dpi'] ?? null;
                     $fecha = $_POST['fecha'] ?? '';
                     $t_gasto = $_POST['t_gasto'] ?? '';
-                    $p_unitario = $_POST['p_unitario'] ?? 0;
+                    $tipo_combustible = $_POST['tipo_combustible'] ?? null;
+                    $subtotal = $_POST['subtotal'] ?? 0;
                     $total_factura = $_POST['total_factura'] ?? 0;
+                    $iva = isset($_POST['iva']) && $_POST['iva'] !== '' ? floatval($_POST['iva']) : null;
+                    $idp = isset($_POST['idp']) && $_POST['idp'] !== '' ? floatval($_POST['idp']) : null;
+                    $inguat = isset($_POST['inguat']) && $_POST['inguat'] !== '' ? floatval($_POST['inguat']) : null;
                     $id_centro_costo = $_POST['id_centro_costo'] ?? $suggestedCentroCostoId;
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                     $cantidad = $_POST['cantidad'] ?? null;
                     $serie = $_POST['serie'] ?? null;
-                    $estado = 'EN_PROCESO';
     
-                    // Ajustar nit_proveedor y dpi según el tipo de documento
-                    if ($tipo_documento === 'RECIBO') {
-                        $nit_proveedor = null;
-                    } else {
-                        $dpi = null;
-                    }
-    
-                    if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
-                        throw new Exception('Los campos obligatorios (detalle_id, tipo_documento, no_factura, nombre_proveedor, fecha, t_gasto, p_unitario, total_factura) deben ser válidos.');
+                    if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
+                        throw new Exception('Los campos obligatorios deben ser válidos.');
                     }
     
                     if (empty($id_centro_costo)) {
                         throw new Exception('El Centro de Costo es obligatorio.');
                     }
     
-                    if ($tipo_documento === 'Comprobante' && (empty($cantidad) || empty($serie))) {
-                        throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
+                    // Validar tipo_combustible y cantidad para Combustible y Gasto Operativo
+                    if ($tipo_documento === 'FACTURA') {
+                        if ($t_gasto === 'Combustible' && empty($tipo_combustible)) {
+                            throw new Exception('El tipo de combustible es obligatorio para el tipo de gasto Combustible.');
+                        }
+                        if (in_array($t_gasto, ['Combustible', 'Gasto Operativo']) && (empty($cantidad) || $cantidad <= 0)) {
+                            throw new Exception('La cantidad de galones es obligatoria y debe ser mayor a 0 para el tipo de gasto ' . $t_gasto . '.');
+                        }
                     }
     
-                    if ($tipo_documento === 'RECIBO' && empty($dpi)) {
-                        throw new Exception('DPI es obligatorio para el tipo de documento Recibo.');
+                    // Ajustar tipo_combustible según el tipo de gasto
+                    if ($t_gasto === 'Gasto Operativo') {
+                        $tipo_combustible = 'Gasolina'; // Gasto Operativo siempre es gasolina
+                    } elseif ($t_gasto !== 'Combustible') {
+                        $tipo_combustible = null; // Para otros tipos de gasto, tipo_combustible debe ser null
                     }
     
-                    if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE']) && empty($nit_proveedor)) {
-                        throw new Exception('NIT es obligatorio para el tipo de documento Factura o Comprobante.');
+                    $detalle = $this->detalleModel->getDetalleById($detalle_id);
+                    if (!$detalle) {
+                        throw new Exception('Detalle no encontrado.');
+                    }
+    
+                    $existing_rutas = json_decode($detalle['rutas_archivos'], true) ?? [];
+                    $rutas_archivos = array_merge($existing_rutas, $rutas_archivos);
+                    $rutas_json = json_encode($rutas_archivos);
+    
+                    // Ajustar nit_proveedor y dpi según el tipo de documento
+                    if ($tipo_documento === 'RECIBO') {
+                        $nit_proveedor = null;
+                    } else {
+                        $dpi = null;
                     }
     
                     $fechaFactura = new DateTime($fecha);
@@ -884,102 +946,142 @@ class LiquidacionController {
                         throw new Exception("La fecha de la factura debe estar entre {$liquidacion['fecha_inicio']} y {$liquidacion['fecha_fin']}.");
                     }
     
-                    $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM detalle_liquidaciones WHERE id_liquidacion = ? AND no_factura = ? AND id != ?");
-                    $stmt->execute([$id, $no_factura, $detalle_id]);
-                    if ($stmt->fetchColumn() > 0) {
-                        throw new Exception("El número de factura '$no_factura' ya existe para esta liquidación.");
-                    }
+                    // Establecer valores predeterminados si no se calcularon impuestos
+                    $iva = $iva ?? 0;
+                    $idp = $idp ?? 0;
+                    $inguat = $inguat ?? 0;
     
-                    // Get existing rutas_archivos to append new files
-                    $detalleModel = new DetalleLiquidacion();
-                    $existingDetalle = $detalleModel->getDetalleLiquidacionById($detalle_id);
-                    $existingRutas = !empty($existingDetalle['rutas_archivos']) ? json_decode($existingDetalle['rutas_archivos'], true) : [];
-                    if (!is_array($existingRutas)) {
-                        $existingRutas = [];
-                    }
-                    $rutas_archivos = array_merge($existingRutas, $rutas_archivos); // Append new files
-                    $rutas_json = json_encode($rutas_archivos);
-    
-                    if ($detalleModel->updateDetalleLiquidacion($detalle_id, $id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json)) {
+                    if ($this->detalleModel->updateDetalleLiquidacion($detalle_id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible)) {
                         $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE', "Factura actualizada: $no_factura");
+    
+                        // Recalcular el monto_total después de actualizar el detalle
+                        $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
+                        $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
+                        $this->liquidacionModel->updateMontoTotal($id, $monto_total);
+    
                         $response = [
                             'message' => 'Factura actualizada correctamente',
-                            'rutas_archivos' => $rutas_archivos // Include file paths in response
+                            'detalle_id' => $detalle_id,
+                            'rutas_archivos' => $rutas_archivos,
+                            'monto_total' => $monto_total // Opcional: para depuración
                         ];
                     } else {
                         throw new Exception('Error al actualizar la factura.');
                     }
-    
                 } elseif ($action === 'delete') {
                     $detalle_id = $_POST['detalle_id'] ?? '';
                     if (empty($detalle_id)) {
-                        throw new Exception('ID de detalle requerido para eliminar.');
+                        throw new Exception('ID de detalle no proporcionado.');
                     }
     
-                    $detalleModel = new DetalleLiquidacion();
-                    $detalle = $detalleModel->getDetalleLiquidacionById($detalle_id);
+                    $detalle = $this->detalleModel->getDetalleById($detalle_id);
                     if (!$detalle) {
-                        throw new Exception('Factura no encontrada.');
+                        throw new Exception('Detalle no encontrado.');
                     }
     
-                    if ($detalleModel->deleteDetalleLiquidacion($detalle_id)) {
+                    if ($this->detalleModel->deleteDetalleLiquidacion($detalle_id)) {
                         $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ELIMINAR_DETALLE', "Factura eliminada: {$detalle['no_factura']}");
-                        $response = ['message' => 'Factura eliminada correctamente'];
+    
+                        // Recalcular el monto_total después de eliminar el detalle
+                        $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
+                        $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
+                        $this->liquidacionModel->updateMontoTotal($id, $monto_total);
+    
+                        $response = [
+                            'message' => 'Factura eliminada correctamente',
+                            'monto_total' => $monto_total // Opcional: para depuración
+                        ];
                     } else {
                         throw new Exception('Error al eliminar la factura.');
                     }
+                } else {
+                    throw new Exception('Acción no válida.');
                 }
-    
-                $detalleModel = new DetalleLiquidacion();
-                $detalles = $detalleModel->getDetallesByLiquidacionId($id);
-                $monto_total = array_sum(array_column($detalles, 'total_factura'));
-                $liquidacionModel->updateLiquidacion($id, $liquidacion['id_caja_chica'], $liquidacion['fecha_creacion'], $liquidacion['fecha_inicio'], $liquidacion['fecha_fin'], $monto_total, $liquidacion['estado']);
     
                 $this->pdo->commit();
                 header('Content-Type: application/json');
                 echo json_encode($response);
+                exit;
             } catch (Exception $e) {
                 $this->pdo->rollBack();
-                error_log('Error en manageFacturas: ' . $e->getMessage());
+                if (!empty($rutas_archivos)) {
+                    foreach ($rutas_archivos as $ruta) {
+                        $filePath = '../' . $ruta;
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                }
                 header('Content-Type: application/json');
                 http_response_code(400);
                 echo json_encode(['error' => $e->getMessage()]);
+                exit;
             }
+        }
+    
+        // Recalcular el monto_total para pasar a la vista
+        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id); // Refrescar los detalles
+        $monto_total = array_sum(array_column($detalles, 'total_factura'));
+    
+        $data = [
+            'id' => $liquidacion['id'],
+            'nombre_caja_chica' => $cajaChica['nombre'],
+            'id_caja_chica' => $liquidacion['id_caja_chica'],
+            'centro_costo_caja_chica_id' => $cajaChica['id_centro_costo'], // ID del Centro de Costo de la Caja Chica
+            'centro_costo_caja_chica_nombre' => $nombreCentroCostoCajaChica,
+            'centro_costo_liquidacion_id' => $liquidacion['id_centros_de_costos'], // ID del Centro de Costo de la Liquidación
+            'centro_costo_liquidacion_nombre' => $nombreCentroCostoLiquidacion,
+            'fecha_inicio' => $liquidacion['fecha_inicio'],
+            'fecha_fin' => $liquidacion['fecha_fin'],
+            'updated_at' => $liquidacion['updated_at'],
+            'suggested_centro_costo_id' => $suggestedCentroCostoId,
+            'monto_total' => $monto_total,
+        ];
+    
+        require_once '../views/liquidaciones/manage_facturas.html';
+    }
+
+    public function getCuentasByCentroCosto($id_centro_costo) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
             exit;
         }
     
-        $tipoGastoModel = new TipoGasto();
-        $tiposGastos = $tipoGastoModel->getAllTiposGastos();
-        $select_tipos_gastos = '';
-        if (empty($tiposGastos)) {
-            $select_tipos_gastos = '<option value="">No hay tipos de gastos disponibles</option>';
-        } else {
-            foreach ($tiposGastos as $tipo) {
-                if ($tipo['estado'] === 'ACTIVO') {
-                    $select_tipos_gastos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
-                }
-            }
+        try {
+            $cuentaContableModel = new CuentaContable();
+            $cuentas = $cuentaContableModel->getCuentasByCentroCosto($id_centro_costo);
+            header('Content-Type: application/json');
+            http_response_code(200);
+            echo json_encode($cuentas);
+        } catch (Exception $e) {
+            error_log("Error in getCuentasByCentroCosto: " . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al obtener cuentas contables']);
+        }
+    }
+
+    public function getImpuestosByTipoGasto($name) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
         }
     
-        $tipoDocumentoModel = new TipoDocumento();
-        $tiposDocumentos = $tipoDocumentoModel->getAllTiposDocumentos();
-        $select_tipos_documentos = '';
-        if (empty($tiposDocumentos)) {
-            $select_tipos_documentos = '<option value="">No hay tipos de documentos disponibles</option>';
-        } else {
-            foreach ($tiposDocumentos as $tipo) {
-                if ($tipo['estado'] === 'ACTIVO') {
-                    $select_tipos_documentos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
-                }
-            }
+        $tipoGasto = $this->tipoGastoModel->getTipoGastoByName($name);
+        if (!$tipoGasto) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Tipo de gasto no encontrado']);
+            exit;
         }
     
-        $detalleModel = new DetalleLiquidacion();
-        $detalles = $detalleModel->getDetallesByLiquidacionId($id);
-        $data = $liquidacion;
-        $data['suggested_centro_costo_id'] = $suggestedCentroCostoId;
-        $data['select_centros_costos'] = $select_centros_costos;
-        require '../views/liquidaciones/manage_facturas.html';
+        $impuestos = $tipoGasto['impuestos'] ?? [];
+        header('Content-Type: application/json');
+        echo json_encode($impuestos);
         exit;
     }
 

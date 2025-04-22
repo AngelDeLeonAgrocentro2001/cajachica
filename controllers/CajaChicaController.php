@@ -39,7 +39,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
@@ -49,7 +49,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No tienes permiso para crear cajas chicas']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $nombre = $_POST['nombre'] ?? '';
@@ -58,11 +58,11 @@ class CajaChicaController {
                 $id_supervisor = $_POST['id_supervisor'] ?? '';
                 $id_centro_costo = $_POST['id_centro_costo'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVA';
-
+    
                 if (empty($nombre) || !is_numeric($monto_asignado) || empty($id_usuario_encargado) || empty($id_supervisor) || empty($id_centro_costo)) {
                     throw new Exception('Todos los campos son obligatorios');
                 }
-
+    
                 // Verificar que los usuarios existan
                 $usuarioModel = new Usuario();
                 if (!$usuarioModel->getUsuarioById($id_usuario_encargado)) {
@@ -71,13 +71,13 @@ class CajaChicaController {
                 if (!$usuarioModel->getUsuarioById($id_supervisor)) {
                     throw new Exception('El supervisor no existe');
                 }
-
+    
                 // Verificar que el centro de costos exista
                 $centroCostoModel = new CentroCosto();
                 if (!$centroCostoModel->getCentroCostoById($id_centro_costo)) {
                     throw new Exception('El centro de costos no existe');
                 }
-
+    
                 $cajaChica = new CajaChica();
                 if ($cajaChica->createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor, $id_centro_costo, $estado)) {
                     header('Content-Type: application/json');
@@ -94,28 +94,28 @@ class CajaChicaController {
             }
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $encargados = $usuarioModel->getUsuariosByRol('ENCARGADO_CAJA_CHICA');
-        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR_AUTORIZADOR');
+        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR'); // Corrección aquí
         $centroCostoModel = new CentroCosto();
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
-
+    
         $selectEncargados = '';
         foreach ($encargados as $encargado) {
             $selectEncargados .= "<option value='{$encargado['id']}'>{$encargado['nombre']}</option>";
         }
-
+    
         $selectSupervisores = '';
         foreach ($supervisores as $supervisor) {
             $selectSupervisores .= "<option value='{$supervisor['id']}'>{$supervisor['nombre']}</option>";
         }
-
+    
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
             $selectCentrosCostos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
         }
-
+    
         ob_start();
         require '../views/cajas_chicas/form.html';
         $html = ob_get_clean();
@@ -134,7 +134,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
@@ -144,7 +144,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No tienes permiso para actualizar cajas chicas']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $nombre = $_POST['nombre'] ?? '';
@@ -154,11 +154,11 @@ class CajaChicaController {
                 $id_supervisor = $_POST['id_supervisor'] ?? '';
                 $id_centro_costo = $_POST['id_centro_costo'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVA';
-
+    
                 if (empty($nombre) || !is_numeric($monto_asignado) || !is_numeric($monto_disponible) || empty($id_usuario_encargado) || empty($id_supervisor) || empty($id_centro_costo)) {
                     throw new Exception('Todos los campos son obligatorios');
                 }
-
+    
                 $usuarioModel = new Usuario();
                 if (!$usuarioModel->getUsuarioById($id_usuario_encargado)) {
                     throw new Exception('El usuario encargado no existe');
@@ -166,12 +166,12 @@ class CajaChicaController {
                 if (!$usuarioModel->getUsuarioById($id_supervisor)) {
                     throw new Exception('El supervisor no existe');
                 }
-
+    
                 $centroCostoModel = new CentroCosto();
                 if (!$centroCostoModel->getCentroCostoById($id_centro_costo)) {
                     throw new Exception('El centro de costos no existe');
                 }
-
+    
                 $cajaChica = new CajaChica();
                 if ($cajaChica->updateCajaChica($id, $nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $id_centro_costo, $estado)) {
                     header('Content-Type: application/json');
@@ -187,7 +187,7 @@ class CajaChicaController {
             }
             exit;
         }
-
+    
         $cajaChica = new CajaChica();
         $data = $cajaChica->getCajaChicaById($id);
         if (!$data) {
@@ -196,31 +196,31 @@ class CajaChicaController {
             echo '<a href="index.php?controller=cajachica&action=list">Volver a Lista</a>';
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $encargados = $usuarioModel->getUsuariosByRol('ENCARGADO_CAJA_CHICA');
-        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR_AUTORIZADOR');
+        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR'); // Corrección aquí
         $centroCostoModel = new CentroCosto();
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
-
+    
         $selectEncargados = '';
         foreach ($encargados as $encargado) {
             $selected = $data['id_usuario_encargado'] == $encargado['id'] ? 'selected' : '';
             $selectEncargados .= "<option value='{$encargado['id']}' {$selected}>{$encargado['nombre']}</option>";
         }
-
+    
         $selectSupervisores = '';
         foreach ($supervisores as $supervisor) {
             $selected = $data['id_supervisor'] == $supervisor['id'] ? 'selected' : '';
             $selectSupervisores .= "<option value='{$supervisor['id']}' {$selected}>{$supervisor['nombre']}</option>";
         }
-
+    
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
             $selected = $data['id_centro_costo'] == $centro['id'] ? 'selected' : '';
             $selectCentrosCostos .= "<option value='{$centro['id']}' {$selected}>{$centro['nombre']}</option>";
         }
-
+    
         ob_start();
         require '../views/cajas_chicas/form.html';
         $html = ob_get_clean();
@@ -260,5 +260,3 @@ class CajaChicaController {
         exit;
     }
 }
-
-

@@ -10,52 +10,85 @@ class TipoGasto {
 
     public function getAllTiposGastos() {
         $stmt = $this->pdo->query("
-            SELECT tg.*, i.nombre AS impuesto_nombre, cc.nombre AS cuenta_contable_nombre
+            SELECT tg.*, cc.nombre AS cuenta_contable_nombre
             FROM tipos_gastos tg
-            LEFT JOIN impuestos i ON tg.impuesto_id = i.id
             LEFT JOIN cuentas_contables cc ON tg.cuenta_contable_id = cc.id
         ");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $tiposGastos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Fetch associated taxes for each tipo_gasto
+        foreach ($tiposGastos as &$tipo) {
+            $tipo['impuestos'] = $this->getImpuestosByTipoGastoId($tipo['id']);
+        }
+        return $tiposGastos;
     }
 
     public function getTipoGastoById($id) {
         $stmt = $this->pdo->prepare("
-            SELECT tg.*, i.nombre AS impuesto_nombre, cc.nombre AS cuenta_contable_nombre
+            SELECT tg.*, cc.nombre AS cuenta_contable_nombre
             FROM tipos_gastos tg
-            LEFT JOIN impuestos i ON tg.impuesto_id = i.id
             LEFT JOIN cuentas_contables cc ON tg.cuenta_contable_id = cc.id
             WHERE tg.id = ?
         ");
         $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $tipo = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($tipo) {
+            $tipo['impuestos'] = $this->getImpuestosByTipoGastoId($id);
+        }
+        return $tipo;
     }
 
     public function getTipoGastoByName($name, $excludeId = null) {
         if ($excludeId) {
-            $stmt = $this->pdo->prepare("SELECT * FROM tipos_gastos WHERE name = ? AND id != ?");
+            $stmt = $this->pdo->prepare("
+                SELECT tg.*, cc.nombre AS cuenta_contable_nombre
+                FROM tipos_gastos tg
+                LEFT JOIN cuentas_contables cc ON tg.cuenta_contable_id = cc.id
+                WHERE tg.name = ? AND tg.id != ?
+            ");
             $stmt->execute([$name, $excludeId]);
         } else {
-            $stmt = $this->pdo->prepare("SELECT * FROM tipos_gastos WHERE name = ?");
+            $stmt = $this->pdo->prepare("
+                SELECT tg.*, cc.nombre AS cuenta_contable_nombre
+                FROM tipos_gastos tg
+                LEFT JOIN cuentas_contables cc ON tg.cuenta_contable_id = cc.id
+                WHERE tg.name = ?
+            ");
             $stmt->execute([$name]);
         }
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $tipo = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($tipo) {
+            $tipo['impuestos'] = $this->getImpuestosByTipoGastoId($tipo['id']);
+        }
+        return $tipo;
     }
 
-    public function createTipoGasto($name, $description, $impuesto_id, $cuenta_contable_id, $estado = 'ACTIVO') {
+    private function getImpuestosByTipoGastoId($tipo_gasto_id) {
         $stmt = $this->pdo->prepare("
-            INSERT INTO tipos_gastos (name, description, impuesto_id, cuenta_contable_id, estado)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT i.*
+            FROM impuestos i
+            INNER JOIN tipo_gasto_impuestos tgi ON i.id = tgi.impuesto_id
+            WHERE tgi.tipo_gasto_id = ?
         ");
-        return $stmt->execute([$name, $description, $impuesto_id, $cuenta_contable_id, $estado]);
+        $stmt->execute([$tipo_gasto_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function updateTipoGasto($id, $name, $description, $impuesto_id, $cuenta_contable_id, $estado) {
+    public function createTipoGasto($name, $description, $cuenta_contable_id, $estado = 'ACTIVO') {
+        $stmt = $this->pdo->prepare("
+            INSERT INTO tipos_gastos (name, description, cuenta_contable_id, estado)
+            VALUES (?, ?, ?, ?)
+        ");
+        return $stmt->execute([$name, $description, $cuenta_contable_id, $estado]);
+    }
+
+    public function updateTipoGasto($id, $name, $description, $cuenta_contable_id, $estado) {
         $stmt = $this->pdo->prepare("
             UPDATE tipos_gastos
-            SET name = ?, description = ?, impuesto_id = ?, cuenta_contable_id = ?, estado = ?
+            SET name = ?, description = ?, cuenta_contable_id = ?, estado = ?
             WHERE id = ?
         ");
-        return $stmt->execute([$name, $description, $impuesto_id, $cuenta_contable_id, $estado, $id]);
+        return $stmt->execute([$name, $description, $cuenta_contable_id, $estado, $id]);
     }
 
     public function deleteTipoGasto($id) {
