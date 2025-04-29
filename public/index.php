@@ -26,6 +26,7 @@ require_once '../controllers/CentroCostoController.php';
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
+$subaction = isset($_GET['subaction']) ? $_GET['subaction'] : ''; // Add this line
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 $name = isset($_GET['name']) ? $_GET['name'] : null;
 $mode = isset($_GET['mode']) ? $_GET['mode'] : '';
@@ -234,6 +235,25 @@ switch ($controller) {
                 } else {
                     header('HTTP/1.1 400 Bad Request');
                     echo json_encode(['error' => 'Nombre del tipo de gasto requerido para obtener impuestos']);
+                }
+                break;
+            case 'listCorrecciones':
+                $liquidacionController->listCorrecciones();
+                break;
+            case 'updateCorreccion':
+                if ($id) {
+                    $liquidacionController->updateCorreccion($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de liquidación requerido para updateCorreccion']);
+                }
+                break;
+            case 'submitCorreccion':
+                if ($id) {
+                    $liquidacionController->submitCorreccion($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de liquidación requerido para submitCorreccion']);
                 }
                 break;
             default:

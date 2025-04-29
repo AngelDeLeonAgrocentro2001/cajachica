@@ -185,8 +185,8 @@
                 <th>IVA</th>
                 <th>IDP</th>
                 <th>INGUAT</th>
-                <th>Total Factura</th>
-                <th>Cuenta Contable</th>
+                <th>Total Bruto</th>
+                <!-- <th>Cuenta Contable</th> -->
                 <th>Archivos</th>
             </tr>
         </thead>
@@ -210,8 +210,8 @@
                     <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
                     <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
                     <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-                    <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                    <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['id_cuenta_contable'] ?? 'N/A'); ?></td>
+                    <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                    <!-- <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['id_cuenta_contable'] ?? 'N/A'); ?></td> -->
                     <td data-label="Archivos">
                         <?php
                         // Decode the JSON string into an array

@@ -545,18 +545,3 @@ function addFormValidations(id = null) {
         }
     });
 }
-
-async function createDetalle(data) {
-    const response = await fetch('index.php?controller=detalleliquidacion&action=create', {
-        method: 'POST',
-        body: data,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    });
-    const result = await response.json();
-    if (!response.ok) {
-        throw new Error(result.error || 'Error al crear detalle de liquidación');
-    }
-    return result;
-}

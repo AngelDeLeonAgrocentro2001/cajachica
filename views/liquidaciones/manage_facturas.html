@@ -183,6 +183,11 @@
         background-color: #2980b9;
       }
 
+      #facturaForm button[type="submit"][disabled] {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+
       #facturaForm button[type="button"] {
         background-color: #e74c3c;
         color: #fff;
@@ -366,7 +371,7 @@
 
       <h3>Agregar Nueva Factura</h3>
       <form id="facturaForm" enctype="multipart/form-data">
-        <input type="hidden" name="action" value="create" />
+        <input type="hidden" name="action" id="action" value="create" />
         <input type="hidden" name="detalle_id" id="detalle_id" />
         <div>
           <label for="tipo_documento">Tipo de Documento:</label>
@@ -448,8 +453,8 @@
           </select>
         </div>
         <div>
-          <label for="cuenta_contable">Cuenta Contable:</label>
-          <select name="cuenta_contable" id="cuenta_contable" required>
+          <label for="id_cuenta_contable">Cuenta Contable:</label>
+          <select name="id_cuenta_contable" id="id_cuenta_contable" required>
             <option value="">Selecciona una cuenta contable</option>
           </select>
         </div>
@@ -457,7 +462,7 @@
           <label for="archivos">Subir Archivos:</label>
           <input type="file" name="archivos[]" id="archivos" multiple accept="application/pdf, image/*" />
         </div>
-        <button type="submit">Agregar</button>
+        <button type="submit" id="submitBtn">Agregar</button>
         <button type="button" onclick="resetForm()">Cancelar</button>
       </form>
 
@@ -518,9 +523,9 @@
               <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
               <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
               <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-              <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable'] ?? 'N/A'); ?></td>
+              <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
               <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
-              <td data-label="Subtotal"><?php echo number_format($detalle['p_unitario'], 2); ?></td>
+              <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
               <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
               <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
               <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
@@ -579,30 +584,18 @@
         if (files.length > 0) {
           if (!validateFileTypes(files)) {
             alert('Solo se permiten archivos JPG y PDF.');
-            fileInput.value = ''; // Limpiar el input
+            fileInput.value = '';
           }
         }
       });
 
-      // Simulación de datos de cuentas contables por centro de costo
-      const cuentasPorCentroCosto = {
-        '1': [
-          { id: 1, nombre: 'Cuenta 1 - Centro 1' },
-          { id: 2, nombre: 'Cuenta 2 - Centro 1' }
-        ],
-        '2': [
-          { id: 3, nombre: 'Cuenta 3 - Centro 2' },
-          { id: 4, nombre: 'Cuenta 4 - Centro 2' }
-        ]
-      };
-
       // Definición de impuestos según el tipo de gasto (basado en leyes de Guatemala)
       const impuestosPorTipoGasto = {
-        'Gasto Operativo': { iva: 12, idp: 4.70, inguat: 0, cuenta_contable: 'Cuenta 1 - Centro 1' }, // Gasolina, IDP Q4.70 por galón
-        'Combustible': { iva: 12, idp_gasolina: 4.70, idp_diesel: 2.00, inguat: 0, cuenta_contable: 'Cuenta 1 - Centro 1' }, // IDP depende del tipo de combustible
-        'Hospedaje': { iva: 12, idp: 0, inguat: 10, cuenta_contable: 'Cuenta 2 - Centro 1' }, // INGUAT 10%
-        'Alimentos': { iva: 12, idp: 0, inguat: 0, cuenta_contable: 'Cuenta 3 - Centro 1' },
-        'otros...': { iva: 12, idp: 0, inguat: 0, cuenta_contable: 'Cuenta 4 - Centro 1' }
+        'Gasto Operativo': { iva: 12, idp: 4.70, inguat: 0 },
+        'Combustible': { iva: 12, idp_gasolina: 4.70, idp_diesel: 2.00, inguat: 0 },
+        'Hospedaje': { iva: 12, idp: 0, inguat: 10 },
+        'Alimentos': { iva: 12, idp: 0, inguat: 0 },
+        'otros...': { iva: 12, idp: 0, inguat: 0 }
       };
 
       // Función para mostrar u ocultar los campos de impuestos según el tipo de gasto
@@ -623,7 +616,6 @@
         const tipoGasto = tipoGastoSelect.value;
         const impuestos = impuestosPorTipoGasto[tipoGasto] || { iva: 0, idp: 0, idp_gasolina: 0, idp_diesel: 0, inguat: 0 };
 
-        // Mostrar u ocultar cada campo de impuesto según corresponda
         ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
         idpField.style.display = (impuestos.idp > 0 || impuestos.idp_gasolina > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
         inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
@@ -646,16 +638,13 @@
         }
 
         const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
-        console.log('Tipo de Documento seleccionado:', tipoDocumento);
 
         if (tipoDocumento === 'RECIBO') {
-          console.log('Mostrando campo DPI');
           nitDpiLabel.textContent = 'DPI:';
           nitDpiInput.setAttribute('required', 'required');
           nitInput.value = '';
           dpiInput.value = nitDpiInput.value;
         } else {
-          console.log('Mostrando campo NIT');
           nitDpiLabel.textContent = 'NIT:';
           nitDpiInput.setAttribute('required', 'required');
           dpiInput.value = '';
@@ -663,11 +652,9 @@
         }
 
         if (tipoDocumento === 'COMPROBANTE') {
-          console.log('Mostrando campo Serie');
           comprobanteFields.style.display = 'block';
           serieInput.setAttribute('required', 'required');
         } else {
-          console.log('Ocultando campo Serie');
           comprobanteFields.style.display = 'none';
           serieInput.removeAttribute('required');
           serieInput.value = '';
@@ -691,7 +678,7 @@
           document.getElementById('iva').value = '';
           document.getElementById('idp').value = '';
           document.getElementById('inguat').value = '';
-          document.getElementById('subtotal').value = document.getElementById('total_factura').value; // Sin impuestos
+          document.getElementById('subtotal').value = document.getElementById('total_factura').value;
         }
 
         nitDpiInput.addEventListener('input', () => {
@@ -773,7 +760,6 @@
         const cantidadInput = document.getElementById('cantidad');
 
         if (tipoDocumento !== 'FACTURA') {
-          console.log('No es FACTURA, impuestos en 0');
           ivaInput.value = '';
           idpInput.value = '';
           inguatInput.value = '';
@@ -785,333 +771,179 @@
         const tipoCombustible = tipoCombustibleSelect.value;
         const impuestos = impuestosPorTipoGasto[tipoGasto] || { iva: 0, idp: 0, idp_gasolina: 0, idp_diesel: 0, inguat: 0 };
 
-        console.log('Tipo de Gasto:', tipoGasto);
-        console.log('Tipo de Combustible:', tipoCombustible);
-        console.log('Impuestos:', impuestos);
-
         let totalBruto = parseFloat(totalFacturaInput.value) || 0;
         let iva = 0, idp = 0, inguat = 0;
         const cantidadGalones = parseFloat(cantidadInput.value) || 0;
 
-        console.log('Total Bruto:', totalBruto);
-        console.log('Cantidad (galones):', cantidadGalones);
-
-        // Calcular IDP (por galón, requiere la cantidad)
         if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
-          idp = cantidadGalones * impuestos.idp; // Gasolina: Q4.70 por galón
-          console.log('IDP para Gasto Operativo (Gasolina):', idp);
+          idp = cantidadGalones * impuestos.idp;
         } else if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
           if (tipoCombustible === 'Gasolina') {
-            idp = cantidadGalones * impuestos.idp_gasolina; // Q4.70 por galón
-            console.log('IDP para Combustible (Gasolina):', idp);
+            idp = cantidadGalones * impuestos.idp_gasolina;
           } else if (tipoCombustible === 'Diesel') {
-            idp = cantidadGalones * impuestos.idp_diesel; // Q2.00 por galón
-            console.log('IDP para Combustible (Diésel):', idp);
+            idp = cantidadGalones * impuestos.idp_diesel;
           } else {
-            console.log('Tipo de combustible no seleccionado, IDP en 0');
             idp = 0;
           }
         } else {
-          console.log('No se calcula IDP (tipo de gasto no aplicable o cantidad inválida)');
           idp = 0;
         }
 
-        // Calcular IVA e INGUAT a partir del total bruto
-        let subtotalSinImpuestos = totalBruto - idp; // Restar IDP primero, ya que IVA e INGUAT se calculan sobre el monto restante
-
-        // Si hay IVA e INGUAT, necesitamos calcular el subtotal base (sin impuestos porcentuales)
-        const ivaRate = impuestos.iva / 100; // Ejemplo: 12% -> 0.12
-        const inguatRate = impuestos.inguat / 100; // Ejemplo: 10% -> 0.10
-        const totalTaxRate = ivaRate + inguatRate; // Suma de tasas porcentuales
-
-        // Fórmula: Subtotal = (Total Bruto - IDP) / (1 + ivaRate + inguatRate)
+        let subtotalSinImpuestos = totalBruto - idp;
+        const ivaRate = impuestos.iva / 100;
+        const inguatRate = impuestos.inguat / 100;
+        const totalTaxRate = ivaRate + inguatRate;
         let subtotal = totalTaxRate > 0 ? subtotalSinImpuestos / (1 + totalTaxRate) : subtotalSinImpuestos;
 
-        // Calcular IVA e INGUAT basados en el subtotal derivado
         if (impuestos.iva > 0) {
           iva = subtotal * ivaRate;
-          console.log('IVA calculado:', iva);
         }
 
         if (impuestos.inguat > 0) {
           inguat = subtotal * inguatRate;
-          console.log('INGUAT calculado:', inguat);
         }
 
-        // Actualizar campos de impuestos
         ivaInput.value = iva > 0 ? iva.toFixed(2) : '';
         idpInput.value = idp > 0 ? idp.toFixed(2) : '';
         inguatInput.value = inguat > 0 ? inguat.toFixed(2) : '';
-
-        // Actualizar el subtotal (sin impuestos)
         subtotalInput.value = subtotal.toFixed(2);
 
-        console.log('Subtotal calculado:', subtotal);
-
-        // Actualizar visibilidad de los campos de impuestos
         updateTaxFieldsVisibility();
       }
 
       // Función para actualizar el catálogo de cuentas contables según el centro de costo
-      function updateCuentaContableOptions() {
+      async function updateCuentaContableOptions() {
         const centroCostoSelect = document.getElementById('id_centro_costo');
-        const cuentaContableSelect = document.getElementById('cuenta_contable');
+        const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+        const submitBtn = document.getElementById('submitBtn');
         const selectedCentroCosto = centroCostoSelect.value;
 
-        cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
-        const cuentas = cuentasPorCentroCosto[selectedCentroCosto] || [];
-        cuentas.forEach(cuenta => {
-          const option = document.createElement('option');
-          option.value = cuenta.nombre;
-          option.textContent = cuenta.nombre;
-          cuentaContableSelect.appendChild(option);
-        });
-
-        updateTaxesAndTotal();
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM completamente cargado');
-
-        const tipoDocumentoSelect = document.getElementById('tipo_documento');
-        const tipoGastoSelect = document.getElementById('t_gasto');
-        const tipoCombustibleSelect = document.getElementById('tipo_combustible');
-        const centroCostoSelect = document.getElementById('id_centro_costo');
-        const totalFacturaInput = document.getElementById('total_factura');
-        const cantidadInput = document.getElementById('cantidad');
-
-        if (!tipoDocumentoSelect || !tipoGastoSelect || !tipoCombustibleSelect || !centroCostoSelect || !totalFacturaInput || !cantidadInput) {
-          console.error('Error: No se encontraron todos los elementos necesarios en el DOM');
+        if (!selectedCentroCosto) {
+          cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+          submitBtn.disabled = true;
           return;
         }
 
-        const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
-        if (centroCostoSelect && suggestedCentroCostoId) {
-          centroCostoSelect.value = suggestedCentroCostoId;
-          updateCuentaContableOptions();
-        }
-
-        tipoDocumentoSelect.addEventListener('change', () => {
-          console.log('Evento change disparado en tipo_documento');
-          updateFormFields();
-        });
-
-        tipoGastoSelect.addEventListener('change', () => {
-          updateTipoCombustibleField();
-          updateCantidadField();
-          updateTaxFieldsVisibility();
-          updateTaxesAndTotal();
-        });
-
-        tipoCombustibleSelect.addEventListener('change', () => {
-          updateTaxesAndTotal();
-        });
-
-        centroCostoSelect.addEventListener('change', () => {
-          updateCuentaContableOptions();
-        });
-
-        totalFacturaInput.addEventListener('input', () => {
-          updateTaxesAndTotal();
-        });
-
-        cantidadInput.addEventListener('input', () => {
-          updateTaxesAndTotal();
-        });
-
-        setTimeout(() => {
-          calculateTotal();
-          updateFormFields();
-          updateTipoCombustibleField();
-          updateCantidadField();
-          updateTaxFieldsVisibility();
-          updateTaxesAndTotal();
-        }, 0);
-      });
-
-      function calculateTotal() {
-        const rows = document.querySelectorAll('#facturasTable tbody tr');
-        let totalGeneral = 0;
-
-        rows.forEach(row => {
-          const totalText = row.cells[17].textContent.trim().replace(/,/g, '');
-          const total = parseFloat(totalText) || 0;
-          totalGeneral += total;
-        });
-
-        document.getElementById('total_general').textContent = totalGeneral.toFixed(2);
-      }
-
-      const form = document.getElementById('facturaForm');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        // Validar los archivos antes de enviar el formulario
-        const files = document.getElementById('archivos').files;
-        if (files.length > 0) {
-          if (!validateFileTypes(files)) {
-            alert('Solo se permiten archivos JPG y PDF.');
-            return;
-          }
-        }
-
-        const fechaFactura = document.getElementById('fecha').value;
-        const fechaInicio = new Date(fechaInicioLiquidacion);
-        const fechaFin = new Date(fechaFinLiquidacion);
-        const fecha = new Date(fechaFactura);
-
-        if (fechaInicio && fechaFin && fecha) {
-          if (fecha < fechaInicio || fecha > fechaFin) {
-            alert(`La fecha de la factura debe estar entre ${fechaInicioLiquidacion} y ${fechaFinLiquidacion}.`);
-            return;
-          }
-        }
-
-        const formData = new FormData(form);
-        formData.append('id_liquidacion', '<?php echo htmlspecialchars($data['id']); ?>');
-
         try {
-          const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>`, {
-            method: 'POST',
-            body: formData,
+          const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>&subaction=getCuentasContables&id_centro_costo=${selectedCentroCosto}`, {
+            method: 'GET',
             headers: {
               'X-Requested-With': 'XMLHttpRequest'
             }
           });
-          const result = await response.json();
+          const cuentas = await response.json();
           if (!response.ok) {
-            throw new Error(result.error || 'Error al procesar la solicitud');
+            throw new Error(cuentas.error || 'Error al obtener las cuentas contables');
           }
 
-          if (formData.get('action') === 'create') {
-            const newRow = document.createElement('tr');
-            newRow.setAttribute('data-id', result.detalle_id);
-            const tipoDocumento = formData.get('tipo_documento').toUpperCase();
-            const centroCostoText = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
-            const cuentaContableText = document.querySelector(`#cuenta_contable option[value="${formData.get('cuenta_contable')}"]`).textContent;
-            let archivosHtml = 'N/A';
-            if (result.rutas_archivos && Array.isArray(result.rutas_archivos) && result.rutas_archivos.length > 0) {
-              archivosHtml = result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('');
-            }
-            newRow.innerHTML = `
-              <td data-label="ID">${result.detalle_id}</td>
-              <td data-label="Tipo de Documento">${formData.get('tipo_documento')}</td>
-              <td data-label="No. Factura">${formData.get('no_factura')}</td>
-              <td data-label="Proveedor">${formData.get('nombre_proveedor')}</td>
-              <td data-label="NIT">${tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A'}</td>
-              <td data-label="DPI">${tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A'}</td>
-              <td data-label="Cantidad">${tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? formData.get('cantidad') : 'N/A'}</td>
-              <td data-label="Serie">${tipoDocumento === 'COMPROBANTE' ? formData.get('serie') : 'N/A'}</td>
-              <td data-label="Centro de Costo">${centroCostoText}</td>
-              <td data-label="Tipo de Gasto">${formData.get('t_gasto')}</td>
-              <td data-label="Tipo de Combustible">${formData.get('t_gasto') === 'Combustible' ? formData.get('tipo_combustible') : formData.get('t_gasto') === 'Gasto Operativo' ? 'Gasolina' : 'N/A'}</td>
-              <td data-label="Cuenta Contable">${formData.get('cuenta_contable')}</td>
-              <td data-label="Fecha">${formData.get('fecha')}</td>
-              <td data-label="Subtotal">${parseFloat(formData.get('subtotal')).toFixed(2)}</td>
-              <td data-label="IVA">${tipoDocumento === 'FACTURA' ? parseFloat(formData.get('iva')).toFixed(2) : '0.00'}</td>
-              <td data-label="IDP">${tipoDocumento === 'FACTURA' ? parseFloat(formData.get('idp')).toFixed(2) : '0.00'}</td>
-              <td data-label="INGUAT">${tipoDocumento === 'FACTURA' ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00'}</td>
-              <td data-label="Total Bruto">${parseFloat(formData.get('total_factura')).toFixed(2)}</td>
-              <td data-label="Estado">PENDIENTE</td>
-              <td data-label="Archivos">${archivosHtml}</td>
-              <td data-label="Acciones">
-                <button class="edit-btn" onclick="editFactura(${result.detalle_id})">Editar</button>
-                <button class="delete-btn" onclick="deleteFactura(${result.detalle_id})">Eliminar</button>
-              </td>
-            `;
-            document.querySelector('#facturasTable tbody').appendChild(newRow);
-            resetForm();
-          } else if (formData.get('action') === 'update') {
-            const row = document.querySelector(`#facturasTable tbody tr[data-id="${formData.get('detalle_id')}"]`);
-            const tipoDocumento = formData.get('tipo_documento').toUpperCase();
-            const centroCostoText = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
-            const cuentaContableText = document.querySelector(`#cuenta_contable option[value="${formData.get('cuenta_contable')}"]`).textContent;
-            let archivosHtml = 'N/A';
-            if (result.rutas_archivos && Array.isArray(result.rutas_archivos) && result.rutas_archivos.length > 0) {
-              archivosHtml = result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('');
-            }
-            row.cells[1].textContent = formData.get('tipo_documento');
-            row.cells[2].textContent = formData.get('no_factura');
-            row.cells[3].textContent = formData.get('nombre_proveedor');
-            row.cells[4].textContent = tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A';
-            row.cells[5].textContent = tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A';
-            row.cells[6].textContent = tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? formData.get('cantidad') : 'N/A';
-            row.cells[7].textContent = tipoDocumento === 'COMPROBANTE' ? formData.get('serie') : 'N/A';
-            row.cells[8].textContent = centroCostoText;
-            row.cells[9].textContent = formData.get('t_gasto');
-            row.cells[10].textContent = formData.get('t_gasto') === 'Combustible' ? formData.get('tipo_combustible') : formData.get('t_gasto') === 'Gasto Operativo' ? 'Gasolina' : 'N/A';
-            row.cells[11].textContent = formData.get('cuenta_contable');
-            row.cells[12].textContent = formData.get('fecha');
-            row.cells[13].textContent = parseFloat(formData.get('subtotal')).toFixed(2);
-            row.cells[14].textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('iva')).toFixed(2) : '0.00';
-            row.cells[15].textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('idp')).toFixed(2) : '0.00';
-            row.cells[16].textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00';
-            row.cells[17].textContent = parseFloat(formData.get('total_factura')).toFixed(2);
-            row.cells[19].innerHTML = archivosHtml;
-            resetForm();
-          }
+          cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+          cuentas.forEach(cuenta => {
+            const option = document.createElement('option');
+            option.value = cuenta.id;
+            option.textContent = cuenta.nombre;
+            cuentaContableSelect.appendChild(option);
+          });
 
-          calculateTotal();
-          updateFormFields();
-          updateTipoCombustibleField();
-          updateCantidadField();
-          updateTaxesAndTotal();
-          alert(result.message || 'Operación exitosa');
+          submitBtn.disabled = cuentas.length === 0;
+          if (cuentas.length === 0) {
+            alert('No hay cuentas contables disponibles para el centro de costo seleccionado. Por favor, selecciona otro centro de costo o agrega cuentas contables.');
+          }
         } catch (error) {
-          console.error('Error al enviar formulario:', error);
-          alert(error.message || 'Error al procesar la solicitud. Intenta de nuevo.');
+          console.error('Error al actualizar cuentas contables:', error);
+          cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+          submitBtn.disabled = true;
+          alert(error.message || 'No se pudieron cargar las cuentas contables. Intenta de nuevo.');
         }
-      });
 
-      async function editFactura(id) {
-        const row = document.querySelector(`#facturasTable tbody tr[data-id="${id}"]`);
-        document.getElementById('detalle_id').value = id;
-        document.getElementById('tipo_documento').value = row.cells[1].textContent;
-        document.getElementById('no_factura').value = row.cells[2].textContent;
-        document.getElementById('nombre_proveedor').value = row.cells[3].textContent;
-        const nitDpiInput = document.getElementById('nit_dpi_input');
-        const nitInput = document.getElementById('nit_proveedor');
-        const dpiInput = document.getElementById('dpi');
-        const tipoDocumento = row.cells[1].textContent.toUpperCase();
-        if (tipoDocumento === 'RECIBO') {
-          nitDpiInput.value = row.cells[5].textContent === 'N/A' ? '' : row.cells[5].textContent;
-          dpiInput.value = row.cells[5].textContent === 'N/A' ? '' : row.cells[5].textContent;
-          nitInput.value = '';
-        } else {
-          nitDpiInput.value = row.cells[4].textContent === 'N/A' ? '' : row.cells[4].textContent;
-          nitInput.value = row.cells[4].textContent === 'N/A' ? '' : row.cells[4].textContent;
-          dpiInput.value = '';
-        }
-        document.getElementById('cantidad').value = row.cells[6].textContent === 'N/A' ? '' : row.cells[6].textContent;
-        document.getElementById('serie').value = row.cells[7].textContent === 'N/A' ? '' : row.cells[7].textContent;
-        const centroCostoText = row.cells[8].textContent;
-        const centroCostoSelect = document.getElementById('id_centro_costo');
-        let centroCostoId = '';
-        for (let option of centroCostoSelect.options) {
-          if (option.textContent === centroCostoText) {
-            centroCostoId = option.value;
-            break;
-          }
-        }
-        document.getElementById('id_centro_costo').value = centroCostoId;
-        document.getElementById('t_gasto').value = row.cells[9].textContent;
-        document.getElementById('tipo_combustible').value = row.cells[10].textContent === 'N/A' ? '' : row.cells[10].textContent;
-        document.getElementById('cuenta_contable').value = row.cells[11].textContent;
-        document.getElementById('fecha').value = row.cells[12].textContent;
-        document.getElementById('subtotal').value = row.cells[13].textContent;
-        document.getElementById('iva').value = row.cells[14].textContent;
-        document.getElementById('idp').value = row.cells[15].textContent;
-        document.getElementById('inguat').value = row.cells[16].textContent;
-        document.getElementById('total_factura').value = row.cells[17].textContent;
-        document.querySelector('input[name="action"]').value = 'update';
-        form.querySelector('button[type="submit"]').textContent = 'Actualizar';
-        updateFormFields();
-        updateTipoCombustibleField();
-        updateCantidadField();
-        updateCuentaContableOptions();
         updateTaxesAndTotal();
       }
 
+      // Función para resetear el formulario
+      function resetForm() {
+        const form = document.getElementById('facturaForm');
+        form.reset();
+        document.getElementById('action').value = 'create';
+        document.getElementById('detalle_id').value = '';
+        document.getElementById('submitBtn').textContent = 'Agregar';
+        document.getElementById('nit_dpi_label').textContent = 'NIT:';
+        document.getElementById('comprobante_fields').style.display = 'none';
+        document.getElementById('tax_fields').style.display = 'none';
+        document.getElementById('tipo_combustible_field').style.display = 'none';
+        document.getElementById('cantidad_field').style.display = 'none';
+        document.getElementById('serie').removeAttribute('required');
+        document.getElementById('tipo_combustible').removeAttribute('required');
+        document.getElementById('cantidad').removeAttribute('required');
+        document.getElementById('iva_field').style.display = 'none';
+        document.getElementById('idp_field').style.display = 'none';
+        document.getElementById('inguat_field').style.display = 'none';
+        document.getElementById('nit_dpi_input').setAttribute('required', 'required');
+        const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
+        if (suggestedCentroCostoId) {
+          document.getElementById('id_centro_costo').value = suggestedCentroCostoId;
+          updateCuentaContableOptions();
+        }
+      }
+
+      // Función para editar una factura
+      async function editFactura(id) {
+        const row = document.querySelector(`#facturasTable tbody tr[data-id="${id}"]`);
+        if (!row) return;
+
+        const tipoDocumento = row.cells[1].textContent.trim();
+        const noFactura = row.cells[2].textContent.trim();
+        const nombreProveedor = row.cells[3].textContent.trim();
+        const nitProveedor = row.cells[4].textContent.trim();
+        const dpi = row.cells[5].textContent.trim();
+        const cantidad = row.cells[6].textContent.trim();
+        const serie = row.cells[7].textContent.trim();
+        const idCentroCosto = Array.from(document.getElementById('id_centro_costo').options).find(option => option.text === row.cells[8].textContent.trim())?.value || '';
+        const tipoGasto = row.cells[9].textContent.trim();
+        const tipoCombustible = row.cells[10].textContent.trim();
+        const cuentaContableText = row.cells[11].textContent.trim();
+        const fecha = row.cells[12].textContent.trim();
+        const subtotal = parseFloat(row.cells[13].textContent.trim().replace(/,/g, '')) || 0;
+        const iva = parseFloat(row.cells[14].textContent.trim().replace(/,/g, '')) || 0;
+        const idp = parseFloat(row.cells[15].textContent.trim().replace(/,/g, '')) || 0;
+        const inguat = parseFloat(row.cells[16].textContent.trim().replace(/,/g, '')) || 0;
+        const totalFactura = parseFloat(row.cells[17].textContent.trim().replace(/,/g, '')) || 0;
+
+        document.getElementById('action').value = 'update';
+        document.getElementById('detalle_id').value = id;
+        document.getElementById('tipo_documento').value = tipoDocumento;
+        document.getElementById('no_factura').value = noFactura;
+        document.getElementById('nombre_proveedor').value = nombreProveedor;
+        document.getElementById('nit_dpi_input').value = tipoDocumento === 'RECIBO' ? dpi : nitProveedor;
+        document.getElementById('nit_proveedor').value = tipoDocumento === 'RECIBO' ? '' : nitProveedor;
+        document.getElementById('dpi').value = tipoDocumento === 'RECIBO' ? dpi : '';
+        document.getElementById('cantidad').value = cantidad !== 'N/A' ? cantidad : '';
+        document.getElementById('serie').value = serie !== 'N/A' ? serie : '';
+        document.getElementById('id_centro_costo').value = idCentroCosto;
+        await updateCuentaContableOptions();
+
+        const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+        const cuentaOption = Array.from(cuentaContableSelect.options).find(option => option.text === cuentaContableText);
+        if (cuentaOption) {
+          cuentaContableSelect.value = cuentaOption.value;
+        } else {
+          console.warn(`Cuenta contable "${cuentaContableText}" no encontrada en las opciones.`);
+        }
+
+        document.getElementById('t_gasto').value = tipoGasto;
+        document.getElementById('tipo_combustible').value = tipoCombustible !== 'N/A' ? tipoCombustible : '';
+        document.getElementById('fecha').value = fecha;
+        document.getElementById('total_factura').value = totalFactura.toFixed(2);
+        document.getElementById('subtotal').value = subtotal.toFixed(2);
+        document.getElementById('iva').value = iva > 0 ? iva.toFixed(2) : '';
+        document.getElementById('idp').value = idp > 0 ? idp.toFixed(2) : '';
+        document.getElementById('inguat').value = inguat > 0 ? inguat.toFixed(2) : '';
+        document.getElementById('submitBtn').textContent = 'Actualizar';
+
+        updateFormFields();
+        updateTipoCombustibleField();
+        updateTaxFieldsVisibility();
+      }
+
+      // Función para eliminar una factura
       async function deleteFactura(id) {
         if (!confirm('¿Estás seguro de que deseas eliminar esta factura?')) return;
 
@@ -1120,7 +952,7 @@
         formData.append('detalle_id', id);
 
         try {
-          const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+          const response = await fetch('index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>', {
             method: 'POST',
             body: formData,
             headers: {
@@ -1128,31 +960,136 @@
             }
           });
           const result = await response.json();
-          if (!response.ok) {
+
+          if (response.ok) {
+            const row = document.querySelector(`#facturasTable tbody tr[data-id="${id}"]`);
+            if (row) row.remove();
+            document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
+            alert(result.message);
+          } else {
             throw new Error(result.error || 'Error al eliminar la factura');
           }
-
-          const row = document.querySelector(`#facturasTable tbody tr[data-id="${id}"]`);
-          row.remove();
-          calculateTotal();
-          alert(result.message || 'Factura eliminada correctamente');
         } catch (error) {
           console.error('Error al eliminar factura:', error);
-          alert(error.message || 'Error al eliminar la factura. Intenta de nuevo.');
+          alert(error.message || 'No se pudo eliminar la factura. Intenta de nuevo.');
         }
       }
 
-      function resetForm() {
-        form.reset();
-        document.getElementById('detalle_id').value = '';
-        document.querySelector('input[name="action"]').value = 'create';
-        form.querySelector('button[type="submit"]').textContent = 'Agregar';
-        updateFormFields();
+      // Evento para manejar el envío del formulario
+      document.getElementById('facturaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const fechaFactura = new Date(formData.get('fecha'));
+        const fechaInicio = new Date(fechaInicioLiquidacion);
+        const fechaFin = new Date(fechaFinLiquidacion);
+
+        if (fechaFactura < fechaInicio || fechaFactura > fechaFin) {
+          alert(`La fecha de la factura debe estar entre ${fechaInicioLiquidacion} y ${fechaFinLiquidacion}.`);
+          return;
+        }
+
+        try {
+          const response = await fetch('index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          const result = await response.json();
+
+          if (response.ok) {
+            const action = formData.get('action');
+            if (action === 'create') {
+              const newRow = document.createElement('tr');
+              newRow.setAttribute('data-id', result.detalle_id);
+              newRow.innerHTML = `
+                <td data-label="ID">${result.detalle_id}</td>
+                <td data-label="Tipo de Documento">${formData.get('tipo_documento')}</td>
+                <td data-label="No. Factura">${formData.get('no_factura')}</td>
+                <td data-label="Proveedor">${formData.get('nombre_proveedor')}</td>
+                <td data-label="NIT">${formData.get('tipo_documento') === 'RECIBO' ? 'N/A' : (formData.get('nit_proveedor') || 'N/A')}</td>
+                <td data-label="DPI">${formData.get('tipo_documento') === 'RECIBO' ? (formData.get('dpi') || 'N/A') : 'N/A'}</td>
+                <td data-label="Cantidad">${formData.get('cantidad') || 'N/A'}</td>
+                <td data-label="Serie">${formData.get('serie') || 'N/A'}</td>
+                <td data-label="Centro de Costo">${document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent}</td>
+                <td data-label="Tipo de Gasto">${formData.get('t_gasto')}</td>
+                <td data-label="Tipo de Combustible">${formData.get('tipo_combustible') || 'N/A'}</td>
+                <td data-label="Cuenta Contable">${result.cuenta_contable_nombre || 'N/A'}</td>
+                <td data-label="Fecha">${formData.get('fecha')}</td>
+                <td data-label="Subtotal">${parseFloat(formData.get('subtotal')).toFixed(2)}</td>
+                <td data-label="IVA">${parseFloat(formData.get('iva') || 0).toFixed(2)}</td>
+                <td data-label="IDP">${parseFloat(formData.get('idp') || 0).toFixed(2)}</td>
+                <td data-label="INGUAT">${parseFloat(formData.get('inguat') || 0).toFixed(2)}</td>
+                <td data-label="Total Bruto">${parseFloat(formData.get('total_factura')).toFixed(2)}</td>
+                <td data-label="Estado">EN_PROCESO</td>
+                <td data-label="Archivos">
+                  ${result.rutas_archivos && result.rutas_archivos.length > 0
+                    ? result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('')
+                    : 'N/A'}
+                </td>
+                <td data-label="Acciones">
+                  <button class="edit-btn" onclick="editFactura(${result.detalle_id})">Editar</button>
+                  <button class="delete-btn" onclick="deleteFactura(${result.detalle_id})">Eliminar</button>
+                </td>
+              `;
+              document.querySelector('#facturasTable tbody').appendChild(newRow);
+            } else if (action === 'update') {
+              const row = document.querySelector(`#facturasTable tbody tr[data-id="${formData.get('detalle_id')}"]`);
+              if (row) {
+                row.cells[1].textContent = formData.get('tipo_documento');
+                row.cells[2].textContent = formData.get('no_factura');
+                row.cells[3].textContent = formData.get('nombre_proveedor');
+                row.cells[4].textContent = formData.get('tipo_documento') === 'RECIBO' ? 'N/A' : (formData.get('nit_proveedor') || 'N/A');
+                row.cells[5].textContent = formData.get('tipo_documento') === 'RECIBO' ? (formData.get('dpi') || 'N/A') : 'N/A';
+                row.cells[6].textContent = formData.get('cantidad') || 'N/A';
+                row.cells[7].textContent = formData.get('serie') || 'N/A';
+                row.cells[8].textContent = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
+                row.cells[9].textContent = formData.get('t_gasto');
+                row.cells[10].textContent = formData.get('tipo_combustible') || 'N/A';
+                row.cells[11].textContent = result.cuenta_contable_nombre || 'N/A';
+                row.cells[12].textContent = formData.get('fecha');
+                row.cells[13].textContent = parseFloat(formData.get('subtotal')).toFixed(2);
+                row.cells[14].textContent = parseFloat(formData.get('iva') || 0).toFixed(2);
+                row.cells[15].textContent = parseFloat(formData.get('idp') || 0).toFixed(2);
+                row.cells[16].textContent = parseFloat(formData.get('inguat') || 0).toFixed(2);
+                row.cells[17].textContent = parseFloat(formData.get('total_factura')).toFixed(2);
+                row.cells[19].innerHTML = result.rutas_archivos && result.rutas_archivos.length > 0
+                  ? result.rutas_archivos.map(ruta => `<div><a href="../${ruta}" target="_blank">Ver Archivo</a></div>`).join('')
+                  : 'N/A';
+              }
+            }
+            document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
+            alert(result.message);
+            resetForm();
+          } else {
+            throw new Error(result.error || 'Error al procesar la factura');
+          }
+        } catch (error) {
+          console.error('Error al procesar la factura:', error);
+          alert(error.message || 'No se pudo procesar la factura. Intenta de nuevo.');
+        }
+      });
+
+      // Inicializar eventos y estado
+      document.getElementById('tipo_documento').addEventListener('change', updateFormFields);
+      document.getElementById('t_gasto').addEventListener('change', () => {
         updateTipoCombustibleField();
-        updateCantidadField();
-        updateCuentaContableOptions();
+        updateTaxFieldsVisibility();
         updateTaxesAndTotal();
-      }
+      });
+      document.getElementById('tipo_combustible').addEventListener('change', updateTaxesAndTotal);
+      document.getElementById('total_factura').addEventListener('input', updateTaxesAndTotal);
+      document.getElementById('cantidad').addEventListener('input', updateTaxesAndTotal);
+      document.getElementById('id_centro_costo').addEventListener('change', updateCuentaContableOptions);
+      document.addEventListener('DOMContentLoaded', () => {
+        const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
+        if (suggestedCentroCostoId) {
+          document.getElementById('id_centro_costo').value = suggestedCentroCostoId;
+          updateCuentaContableOptions();
+        }
+      });
     </script>
   </body>
 </html>

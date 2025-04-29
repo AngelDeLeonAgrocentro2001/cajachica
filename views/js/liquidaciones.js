@@ -1,6 +1,9 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
+// Store liquidations data globally to access in autorizarLiquidacion
+let liquidacionesData = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     // Asegurarnos de que userPermissions y userRole estén definidos
     if (typeof window.userPermissions === 'undefined' || typeof window.userRole === 'undefined') {
@@ -27,7 +30,11 @@ function closeModal() {
 
 async function loadLiquidaciones() {
     try {
-        const response = await fetch('index.php?controller=liquidacion&action=list', {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || '';
+        const fetchUrl = mode ? `index.php?controller=liquidacion&action=list&mode=${mode}` : 'index.php?controller=liquidacion&action=list';
+
+        const response = await fetch(fetchUrl, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -41,35 +48,39 @@ async function loadLiquidaciones() {
             }
             throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        const liquidaciones = await response.json();
+        liquidacionesData = await response.json(); // Store the liquidations data globally
         const tbody = document.querySelector('#liquidacionesTable tbody');
         tbody.innerHTML = '';
-        if (liquidaciones.length > 0) {
-            liquidaciones.forEach(liquidacion => {
+        if (liquidacionesData.length > 0) {
+            liquidacionesData.forEach(liquidacion => {
                 const actions = [];
+                // Check if there are any detalles in EN_CORRECCION
+                const hasCorrections = liquidacion.detalles && Array.isArray(liquidacion.detalles) && liquidacion.detalles.some(detalle => detalle.estado === 'EN_CORRECCION');
+
                 // Acciones para el encargado (permiso: create_liquidaciones)
                 if (window.userPermissions.create_liquidaciones) {
                     if (liquidacion.estado === 'EN_PROCESO') {
                         actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
                         actions.push(`<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`);
                         actions.push(`<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`);
-                        actions.push(`<button onclick="finalizarLiquidacion(${liquidacion.id})" class="finalize-btn">Finalizar</button>`);
+                        actions.push(`<button onclick="finalizarLiquidacion(${liquidacion.id})" class="finalize-btn" ${hasCorrections ? 'disabled' : ''}>Finalizar</button>`);
                     }
                     // Mostrar "Ver Liquidación" para estados posteriores a EN_PROCESO
                     if (['PENDIENTE_AUTORIZACION', 'PENDIENTE_REVISION_CONTABILIDAD', 'FINALIZADO', 'RECHAZADO_AUTORIZACION', 'RECHAZADO_POR_CONTABILIDAD'].includes(liquidacion.estado)) {
                         actions.push(`<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`);
                     }
                 }
+
                 // Acciones para usuarios con permisos de autorización (Supervisor)
                 if (window.userPermissions.autorizar_liquidaciones && window.userRole === 'SUPERVISOR') {
                     if (liquidacion.estado === 'PENDIENTE_AUTORIZACION') {
-                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn" ${hasCorrections ? 'disabled' : ''}>Autorizar</button>`);
                     }
                 }
                 // Acciones para usuarios con permisos de revisión (Contabilidad)
                 if (window.userPermissions.revisar_liquidaciones && window.userRole === 'CONTABILIDAD') {
                     if (liquidacion.estado === 'PENDIENTE_REVISION_CONTABILIDAD') {
-                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn" ${hasCorrections ? 'disabled' : ''}>Revisar</button>`);
                     }
                     if (liquidacion.estado === 'FINALIZADO') {
                         actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
@@ -235,6 +246,21 @@ async function deleteLiquidation(id) {
 }
 
 async function autorizarLiquidacion(id, mode) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentMode = urlParams.get('mode') || '';
+
+    // Check for corrections across all liquidations if in revisar mode and user is CONTABILIDAD
+    if (mode === 'revisar' && window.userRole === 'CONTABILIDAD' && currentMode === 'revisar') {
+        const hasCorrections = liquidacionesData.some(liquidacion =>
+            liquidacion.detalles && Array.isArray(liquidacion.detalles) && liquidacion.detalles.some(detalle => detalle.estado === 'EN_CORRECCION')
+        );
+
+        if (hasCorrections) {
+            alert('Hay liquidaciones con detalles en corrección. Por favor, revisa las liquidaciones en estado "EN_PROCESO" para resolver las correcciones antes de continuar.');
+        }
+    }
+
+    // Proceed with redirection
     window.location.href = `index.php?controller=liquidacion&action=${mode}&id=${id}`;
 }
 

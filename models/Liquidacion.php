@@ -101,4 +101,22 @@ class Liquidacion {
         $stmt = $this->pdo->prepare("UPDATE liquidaciones SET monto_total = ? WHERE id = ?");
         return $stmt->execute([$montoTotal, $id]);
     }
+
+    public function getLiquidacionesWithCorrections() {
+        $query = "
+            SELECT l.*, cc.nombre as nombre_caja_chica
+            FROM liquidaciones l
+            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            WHERE EXISTS (
+                SELECT 1 
+                FROM detalle_liquidaciones dl 
+                WHERE dl.id_liquidacion = l.id 
+                AND dl.estado = 'EN_CORRECCION'
+            )
+            ORDER BY l.fecha_creacion DESC
+        ";
+        $stmt = $this->pdo->query($query);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
+?>

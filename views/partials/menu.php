@@ -58,6 +58,9 @@ error_log("Usuario cargado para el menú: " . print_r($usuario, true));
            <?php if ($usuarioModel->tienePermiso($usuario, 'revisar_detalles_liquidaciones')): ?>
         <li><a href="index.php?controller=detalleliquidacion&action=revisar">Revisar Detalles de Liquidaciones</a></li>
            <?php endif; ?>
+           <?php if ($usuarioModel->tienePermiso($usuario, 'manage_correcciones')): ?>
+        <li><a href="index.php?controller=liquidacion&action=listCorrecciones">Corrección de Liquidaciones</a></li>
+           <?php endif; ?>
            <?php if ($usuarioModel->tienePermiso($usuario, 'manage_reportes')): ?>
         <li><a href="index.php?controller=reportes&action=list">Generar Reportes</a></li>
            <?php endif; ?>

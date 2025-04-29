@@ -95,18 +95,18 @@ class Usuario {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
+                'manage_correcciones' => true, // Agregado para permitir correcciones
             ],
             self::ROL_SUPERVISOR => [
                 'autorizar_liquidaciones' => true,
                 'autorizar_facturas' => true,
                 'manage_cuentas_contables' => true,
                 'manage_facturas' => true,
-                // 'revisar_liquidaciones' => true,
-                // 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
+                'manage_correcciones' => true, // Agregado para permitir correcciones
             ],
             self::ROL_CONTABILIDAD => [
-                'autorizar_liquidaciones' => true, // Agregado
+                'autorizar_liquidaciones' => true,
                 'revisar_liquidaciones' => true,
                 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
@@ -117,6 +117,7 @@ class Usuario {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
+                'manage_correcciones' => true, // Agregado para permitir correcciones
             ],
         ];
     

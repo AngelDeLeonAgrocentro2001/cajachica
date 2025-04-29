@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?></title>
     <style>
-        /* Estilo general del cuerpo */
         body {
             background-color: #f4f7fa;
             font-family: 'Arial', sans-serif;
@@ -14,7 +13,6 @@
             transition: margin-left 0.3s ease-in-out;
         }
 
-        /* Título principal */
         h2 {
             text-align: center;
             color: #2c3e50;
@@ -23,7 +21,6 @@
             font-weight: 600;
         }
 
-        /* Subtítulo */
         h3 {
             color: #2c3e50;
             margin: 20px 0 10px;
@@ -32,7 +29,6 @@
             text-align: center;
         }
 
-        /* Información de la liquidación */
         p {
             text-align: center;
             color: #333;
@@ -44,7 +40,6 @@
             color: #2c3e50;
         }
 
-        /* Estilo de la tabla */
         table {
             width: 90%;
             max-width: 1200px;
@@ -59,7 +54,6 @@
 
         table thead,
         table tbody {
-            /* display: table; */
             width: 100%;
             table-layout: fixed;
         }
@@ -98,7 +92,19 @@
             cursor: pointer;
         }
 
-        /* Estilo del formulario */
+        tr.in-correction {
+            background-color: #e0e0e0;
+            opacity: 0.7;
+        }
+
+        tr.in-correction td {
+            color: #666;
+        }
+
+        tr.in-correction input[type="checkbox"] {
+            pointer-events: none;
+        }
+
         #autorizarForm {
             width: 90%;
             max-width: 500px;
@@ -164,6 +170,11 @@
             background-color: #2980b9;
         }
 
+        #autorizarForm button[type="submit"][disabled] {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
         #autorizarForm button[type="button"] {
             background-color: #e74c3c;
             color: #fff;
@@ -173,7 +184,46 @@
             background-color: #c0392b;
         }
 
-        /* Estilo responsivo */
+        .correccion-comment {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .send-to-correction-btn {
+            background-color: #f39c12;
+            color: #fff;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .send-to-correction-btn:hover {
+            background-color: #e67e22;
+        }
+
+        .bulk-action-btn {
+            background-color: #f39c12;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 auto;
+            display: block;
+            width: fit-content;
+        }
+
+        .bulk-action-btn:hover {
+            background-color: #e67e22;
+        }
+
+        .hidden {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             table {
                 width: 100%;
@@ -217,9 +267,18 @@
                 color: #2c3e50;
             }
 
+            tr.in-correction {
+                background-color: #e0e0e0;
+                opacity: 0.7;
+            }
+
             #autorizarForm {
                 width: 95%;
                 padding: 15px;
+            }
+
+            .correccion-comment {
+                width: 100%;
             }
         }
     </style>
@@ -232,62 +291,69 @@
     <p><strong>Monto Total:</strong> <?php echo htmlspecialchars($data['monto_total']); ?></p>
     <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
     <h3>Detalles de la Liquidación</h3>
-    <h3>Detalles de la Liquidación</h3>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Tipo de Documento</th>
-            <th>Número Factura</th>
-            <th>Proveedor</th>
-            <th>NIT</th>
-            <th>DPI</th>
-            <th>Cantidad</th>
-            <th>Serie</th>
-            <th>Centro de Costo</th>
-            <th>Tipo de Gasto</th>
-            <th>Fecha</th>
-            <th>Precio Unitario</th>
-            <th>Total Factura</th>
-            <th>Estado</th>
-            <th>Archivos</th> <!-- Nueva columna -->
-            <th>Seleccionar</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($detalles as $detalle): ?>
+    <table>
+        <thead>
             <tr>
-                <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
-                <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
-                <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
-                <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
-                <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
-                <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
-                <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-                <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
-                <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
-                <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
-                <td data-label="Precio Unitario"><?php echo number_format($detalle['p_unitario'], 2); ?></td>
-                <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                <td data-label="Archivos">
-                    <?php
-                    $rutas = !empty($detalle['rutas_archivos']) ? $detalle['rutas_archivos'] : [];
-                    if (is_array($rutas) && !empty($rutas)) {
-                        foreach ($rutas as $ruta) {
-                            echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                        }
-                    } else {
-                        echo 'N/A';
-                    }
-                    ?>
-                </td>
-                <td data-label="Seleccionar"><input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" checked></td>
+                <th>ID</th>
+                <th>Tipo de Documento</th>
+                <th>Número Factura</th>
+                <th>Proveedor</th>
+                <th>NIT</th>
+                <th>DPI</th>
+                <th>Cantidad</th>
+                <th>Serie</th>
+                <th>Centro de Costo</th>
+                <th>Tipo de Gasto</th>
+                <th>Fecha</th>
+                <th>Precio Unitario</th>
+                <th>Total Factura</th>
+                <th>Estado</th>
+                <th>Archivos</th>
+                <th class="comment-header hidden">Comentario</th>
+                <th>Seleccionar</th>
             </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            <?php foreach ($detalles as $detalle): ?>
+                <tr class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>" data-id="<?php echo htmlspecialchars($detalle['id']); ?>">
+                    <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                    <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
+                    <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
+                    <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                    <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
+                    <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
+                    <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
+                    <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
+                    <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+                    <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
+                    <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
+                    <td data-label="Precio Unitario"><?php echo number_format($detalle['p_unitario'], 2); ?></td>
+                    <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                    <td data-label="Estado"><?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'En Corrección' : htmlspecialchars($detalle['estado']); ?></td>
+                    <td data-label="Archivos">
+                        <?php
+                        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                        if (is_array($rutas) && !empty($rutas)) {
+                            foreach ($rutas as $ruta) {
+                                echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                            }
+                        } else {
+                            echo 'N/A';
+                        }
+                        ?>
+                    </td>
+                    <td data-label="Comentario" class="comment-column hidden">
+                        <input type="text" class="correccion-comment" name="correccion_comentario_<?php echo htmlspecialchars($detalle['id']); ?>" value="<?php echo htmlspecialchars($detalle['correccion_comentario'] ?? ''); ?>" <?php echo ($detalle['estado'] === 'EN_CORRECTION') ? 'disabled' : ''; ?>>
+                    </td>
+                    <td data-label="Seleccionar">
+                        <input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" 
+                            <?php echo ($detalle['estado'] !== 'EN_CORRECCION') ? 'checked' : 'disabled'; ?> onchange="toggleCorrectionFields(this)">
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <button class="bulk-action-btn hidden" id="bulkSendToCorrectionBtn" onclick="bulkSendToCorrection()">Enviar Seleccionados a Corrección</button>
     <form id="autorizarForm">
         <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
         <select name="accion" required>
@@ -300,10 +366,112 @@
         <div class="error" data-field="motivo"></div>
         <div class="success"></div>
         <div class="error"></div>
-        <button type="submit"><?php echo isset($mode) && $mode === 'revisar' ? 'Enviar Revisión' : 'Enviar Autorización'; ?></button>
+        <button type="submit" id="submitBtn"><?php echo isset($mode) && $mode === 'revisar' ? 'Enviar Revisión' : 'Enviar Autorización'; ?></button>
         <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
     </form>
     <script>
+        const userRole = '<?php echo strtoupper($usuario['rol']); ?>';
+        const submitBtn = document.getElementById('submitBtn');
+        const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
+        const commentHeader = document.querySelector('.comment-header');
+        let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
+    
+        document.querySelectorAll('input[name="detalles[]"]').forEach(checkbox => {
+            toggleCorrectionFields(checkbox);
+        });
+    
+        if (userRole === 'CONTABILIDAD' && hasCorrections) {
+            submitBtn.disabled = true;
+            submitBtn.title = 'No se puede autorizar/rechazar/descartar hasta que todas las correcciones estén resueltas.';
+        }
+    
+        function toggleCorrectionFields(checkbox) {
+            const row = checkbox.closest('tr');
+            const isChecked = checkbox.checked;
+            const commentColumn = row.querySelector('.comment-column');
+            const isInCorrection = row.classList.contains('in-correction');
+    
+            if (!isInCorrection) {
+                if (isChecked) {
+                    commentColumn.classList.add('hidden');
+                } else {
+                    commentColumn.classList.remove('hidden');
+                    commentHeader.classList.remove('hidden');
+                }
+            }
+    
+            const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
+            commentHeader.classList.toggle('hidden', !anyCommentVisible);
+            bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
+        }
+    
+        async function bulkSendToCorrection() {
+            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+            if (unselectedDetalles.length === 0) {
+                alert('Por favor, deselecciona al menos un detalle para enviar a corrección.');
+                return;
+            }
+    
+            const correccionComentarios = {};
+            for (const detalleId of unselectedDetalles) {
+                const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+                const row = commentInput.closest('tr');
+                if (!row.classList.contains('in-correction')) {
+                    const comment = commentInput.value.trim();
+                    if (!comment) {
+                        alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
+                        return;
+                    }
+                    correccionComentarios[detalleId] = comment;
+                }
+            }
+    
+            if (!confirm(`¿Estás seguro de que deseas enviar ${unselectedDetalles.length} detalle(s) a corrección?`)) return;
+    
+            const formData = new FormData();
+            formData.append('action', 'send_to_correction');
+            formData.append('detalle_ids', JSON.stringify(unselectedDetalles));
+            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+    
+            try {
+                const response = await fetch(`index.php?controller=liquidacion&action=autorizar&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error al enviar a corrección');
+                }
+    
+                alert(result.message);
+                unselectedDetalles.forEach(detalleId => {
+                    const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+                    row.classList.add('in-correction');
+                    row.querySelector('input[name="detalles[]"]').disabled = true;
+                    row.querySelector('input[name="detalles[]"]').checked = false;
+                    row.querySelector('.comment-column').classList.add('hidden');
+                    row.querySelector('.correccion-comment').disabled = true;
+                    row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
+                });
+    
+                hasCorrections = true;
+                if (userRole === 'CONTABILIDAD') {
+                    submitBtn.disabled = true;
+                    submitBtn.title = 'No se puede autorizar/rechazar/descartar hasta que todas las correcciones estén resueltas.';
+                }
+    
+                const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
+                commentHeader.classList.toggle('hidden', !anyCommentVisible);
+                bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
+            } catch (error) {
+                console.error('Error al enviar a corrección:', error);
+                alert(error.message || 'Error al enviar a corrección. Intenta de nuevo.');
+            }
+        }
+    
         const form = document.getElementById('autorizarForm');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -312,9 +480,29 @@
             const accion = formData.get('accion');
             const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
             const action = mode === 'revisar' ? 'revisar' : 'autorizar';
-
-            console.log('Acción enviada desde el formulario:', accion);
-
+    
+            const allDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]')).map(input => input.value);
+            const selectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:checked')).map(input => input.value);
+            const unselectedDetalles = allDetalles.filter(detalleId => !selectedDetalles.includes(detalleId));
+    
+            const correccionComentarios = {};
+            unselectedDetalles.forEach(detalleId => {
+                const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+                const row = commentInput.closest('tr');
+                if (!row.classList.contains('in-correction')) {
+                    const comment = commentInput.value.trim();
+                    if (comment) {
+                        correccionComentarios[detalleId] = comment;
+                    } else {
+                        alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
+                        throw new Error('Comentario requerido');
+                    }
+                }
+            });
+    
+            formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
+            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+    
             try {
                 const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
                     method: 'POST',
@@ -327,23 +515,42 @@
                 if (!response.ok) {
                     throw new Error(result.error || 'Error al procesar la solicitud');
                 }
-                if (result.message) {
-                    const successElement = form.querySelector('.success');
-                    successElement.textContent = result.message;
-                    successElement.style.display = 'block';
-                    setTimeout(() => {
-                        window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                    }, 1000);
-                } else if (result.error) {
-                    const errorElement = form.querySelector('.error:not([data-field])');
-                    errorElement.textContent = result.error;
-                    errorElement.style.display = 'block';
+    
+                const numCorrections = result.num_corrections || 0;
+                let message = '';
+                if (numCorrections > 0 && selectedDetalles.length > 0) {
+                    message = `${numCorrections} detalle(s) fueron enviados a corrección y las demás fueron procesadas.`;
+                } else if (numCorrections > 0) {
+                    message = `${numCorrections} detalle(s) fueron enviados a corrección.`;
+                } else if (selectedDetalles.length > 0) {
+                    if (userRole === 'CONTABILIDAD') {
+                        if (accion === 'APROBADO') {
+                            message = 'Se autorizaron por contabilidad.';
+                        } else if (accion === 'RECHAZADO') {
+                            message = 'Rechazado por contabilidad.';
+                        } else if (accion === 'DESCARTADO') {
+                            message = 'Descartado por contabilidad.';
+                        }
+                    } else {
+                        if (accion === 'APROBADO') {
+                            message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
+                        } else if (accion === 'RECHAZADO') {
+                            message = 'Liquidación rechazada correctamente.';
+                        } else if (accion === 'DESCARTADO') {
+                            message = 'Liquidación descartada correctamente.';
+                        }
+                    }
                 }
+    
+                alert(message);
+                setTimeout(() => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                }, 1000);
             } catch (error) {
                 console.error('Error al enviar solicitud:', error);
-                const errorElement = form.querySelector('.error:not([data-field])');
-                errorElement.textContent = error.message || 'Error al procesar la solicitud. Intenta de nuevo.';
-                errorElement.style.display = 'block';
+                if (error.message !== 'Comentario requerido') {
+                    alert('Error al procesar la solicitud: ' + (error.message || 'Intenta de nuevo.'));
+                }
             }
         });
     </script>

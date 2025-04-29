@@ -107,7 +107,6 @@ class DetalleLiquidacion {
     }
 
     public function updateEstado($id, $estado) {
-        // Lista de estados válidos según el ENUM en la tabla detalle_liquidaciones
         $estadosValidos = [
             'EN_PROCESO',
             'PENDIENTE_AUTORIZACION',
@@ -116,15 +115,15 @@ class DetalleLiquidacion {
             'RECHAZADO_POR_CONTABILIDAD',
             'FINALIZADO',
             'DESCARTADO',
-            'ENVIADO_A_CORRECCION' // Nuevo estado añadido
+            'ENVIADO_A_CORRECCION',
+            'EN_CORRECCION'
         ];
-    
-        // Validar que el estado sea válido
+
         if (!in_array($estado, $estadosValidos)) {
             error_log("Estado no válido para el detalle ID $id: $estado. Estados válidos: " . implode(', ', $estadosValidos));
             throw new Exception("Estado no válido: $estado. Debe ser uno de: " . implode(', ', $estadosValidos));
         }
-    
+
         try {
             $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ? WHERE id = ?");
             $result = $stmt->execute([$estado, $id]);
@@ -140,6 +139,87 @@ class DetalleLiquidacion {
         } catch (Exception $e) {
             error_log("Error general al actualizar el estado del detalle ID $id a $estado: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    public function updateEstadoWithRole($id, $estado, $rol) {
+        $estadosValidos = [
+            'EN_PROCESO',
+            'PENDIENTE_AUTORIZACION',
+            'PENDIENTE_REVISION_CONTABILIDAD',
+            'RECHAZADO_AUTORIZACION',
+            'RECHAZADO_POR_CONTABILIDAD',
+            'FINALIZADO',
+            'DESCARTADO',
+            'ENVIADO_A_CORRECCION',
+            'EN_CORRECCION'
+        ];
+
+        if (!in_array($estado, $estadosValidos)) {
+            error_log("Estado no válido para el detalle ID $id: $estado. Estados válidos: " . implode(', ', $estadosValidos));
+            throw new Exception("Estado no válido: $estado. Debe ser uno de: " . implode(', ', $estadosValidos));
+        }
+
+        try {
+            if ($rol === null) {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = NULL WHERE id = ?");
+                $result = $stmt->execute([$estado, $id]);
+            } else {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ? WHERE id = ?");
+                $result = $stmt->execute([$estado, $rol, $id]);
+            }
+
+            if (!$result) {
+                error_log("Fallo al actualizar el estado del detalle ID $id a $estado con rol $rol. No se afectaron filas.");
+                throw new Exception("No se pudo actualizar el estado del detalle ID $id a $estado con rol $rol");
+            }
+            error_log("Estado del detalle ID $id actualizado a $estado con rol $rol con éxito.");
+            return true;
+        } catch (PDOException $e) {
+            error_log("Error al actualizar el estado del detalle ID $id a $estado con rol $rol: " . $e->getMessage());
+            throw new Exception("Error al actualizar el estado del detalle: " . $e->getMessage());
+        } catch (Exception $e) {
+            error_log("Error general al actualizar el estado del detalle ID $id a $estado con rol $rol: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function updateEstadoWithComment($id, $estado, $rol, $comment) {
+        $estadosValidos = [
+            'EN_PROCESO',
+            'PENDIENTE_AUTORIZACION',
+            'PENDIENTE_REVISION_CONTABILIDAD',
+            'RECHAZADO_AUTORIZACION',
+            'RECHAZADO_POR_CONTABILIDAD',
+            'FINALIZADO',
+            'DESCARTADO',
+            'ENVIADO_A_CORRECCION',
+            'EN_CORRECCION'
+        ];
+
+        if (!in_array($estado, $estadosValidos)) {
+            error_log("Estado no válido para el detalle ID $id: $estado. Estados válidos: " . implode(', ', $estadosValidos));
+            throw new Exception("Estado no válido: $estado. Debe ser uno de: " . implode(', ', $estadosValidos));
+        }
+
+        try {
+            if ($rol === null) {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = NULL, correccion_comentario = ? WHERE id = ?");
+                $result = $stmt->execute([$estado, $comment, $id]);
+            } else {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ? WHERE id = ?");
+                $result = $stmt->execute([$estado, $rol, $comment, $id]);
+            }
+
+            if (!$result) {
+                error_log("Fallo al actualizar el estado del detalle ID $id a $estado con comentario. No se afectaron filas.");
+                throw new Exception("No se pudo actualizar el estado del detalle ID $id a $estado con comentario");
+            }
+            error_log("Estado del detalle ID $id actualizado a $estado con comentario con éxito.");
+            return true;
+        } catch (PDOException $e) {
+            error_log("Error al actualizar el estado del detalle ID $id a $estado con comentario: " . $e->getMessage());
+            throw new Exception("Error al actualizar el estado del detalle: " . $e->getMessage());
         }
     }
 
@@ -176,6 +256,19 @@ class DetalleLiquidacion {
 
         $stmt = $this->pdo->prepare($query);
         $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getDetallesByLiquidacionIdAndEstado($id_liquidacion, $estado) {
+        $stmt = $this->pdo->prepare("
+            SELECT dl.*, cc.nombre AS nombre_centro_costo, tg.name AS tipo_gasto, cc2.nombre AS cuenta_contable
+            FROM detalle_liquidaciones dl
+            LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
+            LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+            LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
+            WHERE dl.id_liquidacion = ? AND dl.estado = ?
+        ");
+        $stmt->execute([$id_liquidacion, $estado]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
