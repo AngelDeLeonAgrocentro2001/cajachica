@@ -56,7 +56,8 @@ class AccesoController {
             'manage_facturas' => 'Gestión de Facturas',
             'autorizar_facturas' => 'Autorizar Facturas',
             'revisar_facturas' => 'Revisar Facturas',
-            'manage_centros_costos' => 'Gestión de Centros de Costos'
+            'manage_centros_costos' => 'Gestión de Centros de Costos',
+            'manage_correcciones' => 'Corrección de Liquidaciones'
         ];
     }
 
@@ -311,8 +312,8 @@ class AccesoController {
     private function getDefaultPermissions($rolNombre) {
         $defaultPermissions = [
             'ADMIN' => array_keys($this->getAvailableModules()),
-            'ENCARGADO_CAJA_CHICA' => ['create_liquidaciones', 'create_detalles', 'manage_facturas', 'manage_cajachica'],
-            'SUPERVISOR_AUTORIZADOR' => ['autorizar_liquidaciones', 'autorizar_facturas', 'manage_cuentas_contables', 'manage_facturas', 'revisar_liquidaciones', 'revisar_detalles_liquidaciones', 'revisar_facturas'],
+            'ENCARGADO_CAJA_CHICA' => ['create_liquidaciones', 'create_detalles', 'manage_facturas', 'manage_cajachica','manage_correcciones'],
+            'SUPERVISOR_AUTORIZADOR' => ['autorizar_liquidaciones', 'autorizar_facturas', 'manage_cuentas_contables', 'manage_facturas', 'revisar_liquidaciones', 'revisar_detalles_liquidaciones', 'revisar_facturas','manage_correcciones'],
             'CONTABILIDAD' => [
                 'revisar_liquidaciones',
                 'revisar_detalles_liquidaciones',
@@ -323,7 +324,8 @@ class AccesoController {
                 'manage_facturas',
                 'manage_centros_costos',
                 'manage_impuestos',
-                'manage_tipos_gastos'
+                'manage_tipos_gastos',
+                'manage_correcciones'
             ],
         ];
 
@@ -351,6 +353,7 @@ class AccesoController {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
+                'manage_correcciones' => true,
             ],
             'SUPERVISOR_AUTORIZADOR' => [
                 'autorizar_liquidaciones' => true,
@@ -360,6 +363,7 @@ class AccesoController {
                 'revisar_liquidaciones' => true,
                 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
+                'manage_correcciones' => true,
             ],
             'CONTABILIDAD' => [
                 'revisar_liquidaciones' => true,
@@ -372,6 +376,7 @@ class AccesoController {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
+                'manage_correcciones' => true,
             ],
         ];
 

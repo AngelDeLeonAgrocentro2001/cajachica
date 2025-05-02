@@ -1408,7 +1408,6 @@ class LiquidacionController {
             exit;
         }
     
-        $rol = strtoupper($usuario['rol']);
         $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
             header('Content-Type: application/json');
@@ -1468,13 +1467,13 @@ class LiquidacionController {
                     $fecha = $_POST['fecha'] ?? '';
                     $t_gasto = $_POST['t_gasto'] ?? '';
                     $tipo_combustible = $_POST['tipo_combustible'] ?? null;
-                    $subtotal = $_POST['subtotal'] ?? 0;
-                    $total_factura = $_POST['total_factura'] ?? 0;
-                    $iva = isset($_POST['iva']) && $_POST['iva'] !== '' ? floatval($_POST['iva']) : null;
-                    $idp = isset($_POST['idp']) && $_POST['idp'] !== '' ? floatval($_POST['idp']) : null;
-                    $inguat = isset($_POST['inguat']) && $_POST['inguat'] !== '' ? floatval($_POST['inguat']) : null;
+                    $subtotal = floatval($_POST['subtotal'] ?? 0);
+                    $total_factura = floatval($_POST['total_factura'] ?? 0);
+                    $iva = isset($_POST['iva']) && $_POST['iva'] !== '' ? floatval($_POST['iva']) : 0;
+                    $idp = isset($_POST['idp']) && $_POST['idp'] !== '' ? floatval($_POST['idp']) : 0;
+                    $inguat = isset($_POST['inguat']) && $_POST['inguat'] !== '' ? floatval($_POST['inguat']) : 0;
                     $id_centro_costo = $_POST['id_centro_costo'] ?? null;
-                    $id_cuenta_cont蛋able = $_POST['id_cuenta_contable'] ?? null;
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                     $cantidad = $_POST['cantidad'] ?? null;
                     $serie = $_POST['serie'] ?? null;
     
@@ -1486,6 +1485,29 @@ class LiquidacionController {
                         throw new Exception('El Centro de Costo es obligatorio.');
                     }
     
+                    if (empty($id_cuenta_contable)) {
+                        throw new Exception('La Cuenta Contable es obligatoria.');
+                    }
+    
+                    $cuentaContableModel = new CuentaContable();
+                    $cuentaContable = $cuentaContableModel->getCuentaContableById($id_cuenta_contable);
+                    if (!$cuentaContable) {
+                        throw new Exception('La Cuenta Contable seleccionada no es válida.');
+                    }
+    
+                    // Validations aligned with manageFacturas
+                    if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
+                        throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
+                    }
+    
+                    if ($tipo_documento === 'RECIBO' && empty($dpi)) {
+                        throw new Exception('DPI es obligatorio para el tipo de documento Recibo.');
+                    }
+    
+                    if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE']) && empty($nit_proveedor)) {
+                        throw new Exception('NIT es obligatorio para el tipo de documento Factura o Comprobante.');
+                    }
+    
                     if ($tipo_documento === 'FACTURA') {
                         if ($t_gasto === 'Combustible' && empty($tipo_combustible)) {
                             throw new Exception('El tipo de combustible es obligatorio para el tipo de gasto Combustible.');
@@ -1495,6 +1517,7 @@ class LiquidacionController {
                         }
                     }
     
+                    // Adjust tipo_combustible based on tipo_gasto
                     if ($t_gasto === 'Gasto Operativo') {
                         $tipo_combustible = 'Gasolina';
                     } elseif ($t_gasto !== 'Combustible') {
@@ -1514,6 +1537,7 @@ class LiquidacionController {
                     $rutas_archivos = array_merge($existing_rutas, $rutas_archivos);
                     $rutas_json = json_encode($rutas_archivos);
     
+                    // Adjust nit_proveedor and dpi based on tipo_documento
                     if ($tipo_documento === 'RECIBO') {
                         $nit_proveedor = null;
                     } else {
@@ -1527,19 +1551,14 @@ class LiquidacionController {
                         throw new Exception("La fecha de la factura debe estar entre {$liquidacion['fecha_inicio']} y {$liquidacion['fecha_fin']}.");
                     }
     
-                    // Automatically calculate taxes based on subtotal (like manageFacturas)
-                    $iva = $subtotal * 0.12; // 12% IVA
-                    $idp = $t_gasto === 'Combustible' ? $subtotal * 0.02 : 0; // 2% IDP for Combustible
-                    $inguat = 0; // Assuming INGUAT is not applicable or 0
-                    $total_factura = $subtotal + $iva + $idp + $inguat;
-    
+                    // Use user-provided taxes without overriding based on tipo_gasto
                     if ($this->detalleModel->updateDetalleLiquidacion(
                         $detalle_id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto,
                         $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible
                     )) {
                         $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE_EN_CORRECCION', "Factura actualizada en corrección: $no_factura");
     
-                        // Send directly to Contabilidad after correction
+                        // Transition state to PENDIENTE_REVISION_CONTABILIDAD
                         $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
                         $this->detalleModel->updateEstado($detalle_id, $nuevoEstado);
     
@@ -1547,11 +1566,11 @@ class LiquidacionController {
                         $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
                         $this->liquidacionModel->updateMontoTotal($id, $monto_total);
     
-                        // Check if all details are now in a state that allows the liquidation to move to Contabilidad
+                        // Check if all details are ready for Contabilidad
                         $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                         $allReadyForContabilidad = true;
-                        foreach ($allDetalles as $detalle) {
-                            if ($detalle['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD' && $detalle['estado'] !== 'EN_CORRECCION') {
+                        foreach ($allDetalles as $detalleItem) {
+                            if ($detalleItem['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD' && $detalleItem['estado'] !== 'EN_CORRECCION') {
                                 $allReadyForContabilidad = false;
                                 break;
                             }
@@ -1566,7 +1585,8 @@ class LiquidacionController {
                             'message' => 'Factura actualizada correctamente y enviada a Contabilidad',
                             'detalle_id' => $detalle_id,
                             'rutas_archivos' => $rutas_archivos,
-                            'monto_total' => $monto_total
+                            'monto_total' => $monto_total,
+                            'cuenta_contable_nombre' => $cuentaContable['nombre'] ?? 'N/A'
                         ];
                     } else {
                         throw new Exception('Error al actualizar la factura.');
@@ -1644,10 +1664,15 @@ class LiquidacionController {
             exit;
         }
     
+        $centroCostoModel = new CentroCosto();
+        $cuentaContableModel = new CuentaContable();
         foreach ($detalles as &$detalle) {
-            $centroCosto = $this->centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
+            $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
             $detalle['nombre_centro_costo'] = $centroCosto['nombre'] ?? 'N/A';
-            // Keep actual values or null, avoid 'N/A' for fields used in logic
+            
+            $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
+            $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+            
             $detalle['tipo_documento'] = $detalle['tipo_documento'] ?? null;
             $detalle['no_factura'] = $detalle['no_factura'] ?? null;
             $detalle['nombre_proveedor'] = $detalle['nombre_proveedor'] ?? null;
@@ -1658,7 +1683,7 @@ class LiquidacionController {
             $detalle['tipo_combustible'] = $detalle['tipo_combustible'] ?? null;
             $detalle['cantidad'] = $detalle['cantidad'] ?? null;
             $detalle['serie'] = $detalle['serie'] ?? null;
-            $detalle['subtotal'] = $detalle['p_unitario'] ?? 0; // Use p_unitario for subtotal
+            $detalle['subtotal'] = $detalle['p_unitario'] ?? 0;
             $detalle['total_factura'] = $detalle['total_factura'] ?? 0;
             $detalle['iva'] = $detalle['iva'] ?? 0;
             $detalle['idp'] = $detalle['idp'] ?? 0;
@@ -1680,14 +1705,14 @@ class LiquidacionController {
         $tiposDocumentos = $tipoDocumentoModel->getAllTiposDocumentos();
         $select_tipos_documentos = '';
         foreach ($tiposDocumentos as $tipo) {
-            $select_tipos_documentos .= "<option value='{$tipo['nombre']}'>{$tipo['nombre']}</option>";
+            $select_tipos_documentos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
         }
     
         $tipoGastoModel = new TipoGasto();
         $tiposGastos = $tipoGastoModel->getAllTiposGastos();
         $select_tipos_gastos = '';
         foreach ($tiposGastos as $tipo) {
-            $select_tipos_gastos .= "<option value='{$tipo['nombre']}'>{$tipo['nombre']}</option>";
+            $select_tipos_gastos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
         }
     
         $centroCostoModel = new CentroCosto();
@@ -1698,7 +1723,7 @@ class LiquidacionController {
         }
     
         $data = $liquidacion;
-        $data['nombre_caja_chica'] = $cajaChica['nombre'];
+        $data['nombre_caja_chica'] = $cajaChica['name'];
         $data['suggested_centro_costo_id'] = $cajaChica['id_centro_costo'] ?? null;
     
         require '../views/liquidaciones/correccion.html';

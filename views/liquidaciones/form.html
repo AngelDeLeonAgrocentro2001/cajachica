@@ -23,7 +23,7 @@
         <label for="monto_total">Monto Total:</label>
         <input type="number" name="monto_total" id="monto_total" step="0.01" required value="<?php echo isset($data['monto_total']) ? $data['monto_total'] : '0.00'; ?>">
     </div> -->
-    <?php if (isset($data)): // Mostrar el campo de estado solo al editar ?>
+    <!-- <?php if (isset($data)): // Mostrar el campo de estado solo al editar ?>
     <div>
         <label for="estado">Estado:</label>
         <select name="estado" id="estado" required>
@@ -41,7 +41,7 @@
             <option value="FINALIZADO" <?php echo (isset($data['estado']) && $data['estado'] === 'FINALIZADO') ? 'selected' : ''; ?>>FINALIZADO</option>
         </select>
     </div>
-    <?php endif; ?>
+    <?php endif; ?> -->
     <button type="submit">Guardar</button>
     <button type="button" onclick="closeModal()">Cancelar</button>
 </form>
