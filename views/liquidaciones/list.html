@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mantenimiento de Liquidaciones</title>
     <style>
-        /* Estilos existentes */
         body {
             background-color: #f4f7fa;
             font-family: 'Arial', sans-serif;
@@ -293,12 +292,12 @@
             }
 
             #liquidacionesTable button.view-btn {
-            background-color: #9b59b6; /* Color morado */
-            color: #fff;
+                background-color: #9b59b6;
+                color: #fff;
             }
 
             #liquidacionesTable button.view-btn:hover {
-            background-color: #8e44ad;
+                background-color: #8e44ad;
             }
         }
     </style>
@@ -332,7 +331,6 @@
         <tbody></tbody>
     </table>
 
-    <!-- Modal para el formulario -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal()">×</span>
@@ -340,15 +338,13 @@
         </div>
     </div>
     <script>
-    // Si userPermissions no está definido, lo inicializamos
-    window.userPermissions = window.userPermissions || {
-        create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
-        autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
-        revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
-    };
-    // Si userRole no está definido, lo inicializamos
-    window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
-</script>
+        window.userPermissions = window.userPermissions || {
+            create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
+            autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
+            revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+        };
+        window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+    </script>
     <script src="../views/js/liquidaciones.js"></script>
 </body>
 </html>

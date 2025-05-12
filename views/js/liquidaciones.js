@@ -74,13 +74,13 @@ async function loadLiquidaciones() {
                 // Acciones para usuarios con permisos de autorización (Supervisor)
                 if (window.userPermissions.autorizar_liquidaciones && window.userRole === 'SUPERVISOR') {
                     if (liquidacion.estado === 'PENDIENTE_AUTORIZACION') {
-                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn" ${hasCorrections ? 'disabled' : ''}>Autorizar</button>`);
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
                     }
                 }
                 // Acciones para usuarios con permisos de revisión (Contabilidad)
                 if (window.userPermissions.revisar_liquidaciones && window.userRole === 'CONTABILIDAD') {
                     if (liquidacion.estado === 'PENDIENTE_REVISION_CONTABILIDAD') {
-                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn" ${hasCorrections ? 'disabled' : ''}>Revisar</button>`);
+                        actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
                     }
                     if (liquidacion.estado === 'FINALIZADO') {
                         actions.push(`<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`);
@@ -249,18 +249,7 @@ async function autorizarLiquidacion(id, mode) {
     const urlParams = new URLSearchParams(window.location.search);
     const currentMode = urlParams.get('mode') || '';
 
-    // Check for corrections across all liquidations if in revisar mode and user is CONTABILIDAD
-    if (mode === 'revisar' && window.userRole === 'CONTABILIDAD' && currentMode === 'revisar') {
-        const hasCorrections = liquidacionesData.some(liquidacion =>
-            liquidacion.detalles && Array.isArray(liquidacion.detalles) && liquidacion.detalles.some(detalle => detalle.estado === 'EN_CORRECCION')
-        );
-
-        if (hasCorrections) {
-            alert('Hay liquidaciones con detalles en corrección. Por favor, revisa las liquidaciones en estado "EN_PROCESO" para resolver las correcciones antes de continuar.');
-        }
-    }
-
-    // Proceed with redirection
+    // Proceed with redirection without checking for corrections
     window.location.href = `index.php?controller=liquidacion&action=${mode}&id=${id}`;
 }
 

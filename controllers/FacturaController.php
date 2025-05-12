@@ -107,7 +107,7 @@ class FacturaController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if ($usuario === false || !isset($usuario['rol']) || !$usuarioModel->tienePermiso($usuario, 'manage_facturas')) {
@@ -116,14 +116,14 @@ class FacturaController {
             echo json_encode(['error' => 'No tienes permiso para gestionar facturas']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Content-Type: application/json');
             http_response_code(405);
             echo json_encode(['error' => 'Método no permitido']);
             exit;
         }
-
+    
         $data = [
             'cuenta_id' => isset($_POST['cuenta_id']) ? intval($_POST['cuenta_id']) : null,
             'base_id' => isset($_POST['base_id']) ? intval($_POST['base_id']) : null,
@@ -133,34 +133,61 @@ class FacturaController {
             'monto' => isset($_POST['monto']) ? floatval($_POST['monto']) : 0.0,
             'estado' => 'PENDIENTE' // Siempre se crea como PENDIENTE
         ];
-
+    
         if (!$data['cuenta_id'] || !$data['base_id'] || !$data['numero_factura'] || !$data['fecha'] || !$data['proveedor'] || $data['monto'] <= 0) {
             header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => 'Campos obligatorios faltantes o inválidos']);
             exit;
         }
-
+    
         if ($this->facturaModel->numeroFacturaExists($data['numero_factura'])) {
             header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => 'El número de factura ya está registrado']);
             exit;
         }
-
-        $result = $this->facturaModel->createFactura($data);
-        if ($result) {
+    
+        try {
+            // Iniciar transacción
+            $this->facturaModel->getPdo()->beginTransaction();
+    
+            // Crear la factura
+            $result = $this->facturaModel->createFactura($data);
+            if (!$result) {
+                throw new Exception('No se pudo crear la factura');
+            }
+    
             // Obtener el ID de la factura recién creada
             $facturaId = $this->facturaModel->getLastInsertId();
+            if (!$facturaId) {
+                throw new Exception('No se pudo obtener el ID de la factura creada');
+            }
+    
             // Registrar en auditoría
             $detalles = json_encode($data);
-            $this->auditoriaModel->createAuditoria(null, $facturaId, $_SESSION['user_id'], 'CREAR_FACTURA', $detalles);
+            $auditResult = $this->auditoriaModel->createAuditoria(null, $facturaId, $_SESSION['user_id'], 'CREAR_FACTURA', $detalles);
+            if (!$auditResult) {
+                throw new Exception('No se pudo registrar la auditoría');
+            }
+    
+            // Confirmar transacción
+            $this->facturaModel->getPdo()->commit();
+    
+            // Limpiar el buffer de salida para evitar contenido no deseado
+            ob_clean();
             header('Content-Type: application/json');
             echo json_encode(['message' => 'Factura creada exitosamente']);
-        } else {
+        } catch (Exception $e) {
+            // Revertir transacción en caso de error
+            $this->facturaModel->getPdo()->rollBack();
+            error_log('Error al crear factura: ' . $e->getMessage());
+            
+            // Limpiar el buffer de salida para evitar contenido no deseado
+            ob_clean();
             header('Content-Type: application/json');
             http_response_code(500);
-            echo json_encode(['error' => 'Error al crear la factura']);
+            echo json_encode(['error' => 'Error al crear la factura: ' . $e->getMessage()]);
         }
         exit;
     }

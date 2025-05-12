@@ -101,7 +101,7 @@ class LoginController {
 
                     // Credenciales (ajusta con tus datos reales)
                     $mail->Username = 'angel.deleon@agrocentro.com'; // Reemplaza con tu email
-                    $mail->Password = 'Simbanala20012020'; // Reemplaza con tu contraseña
+                    $mail->Password = 'ElcorreodeSimba2001'; // Reemplaza con tu contraseña
 
                     // Remitente y destinatario
                     $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');

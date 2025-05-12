@@ -1,6 +1,8 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 const reportesOutput = document.querySelector('#reportesOutput');
+const detallesModal = document.querySelector('#detallesModal');
+const detallesModalForm = document.querySelector('#detallesModalForm');
 
 document.addEventListener('DOMContentLoaded', () => {
     // Cargar inicialmente la vista básica
@@ -72,6 +74,47 @@ function closeModal() {
     if (modal) {
         modal.classList.remove('active');
         modalForm.innerHTML = '';
+    }
+}
+
+function closeDetallesModal() {
+    if (detallesModal) {
+        detallesModal.classList.remove('active');
+        detallesModalForm.innerHTML = '';
+    }
+}
+
+async function showDetalles(idLiquidacion) {
+    if (!detallesModal || !detallesModalForm) {
+        console.error('DetallesModal o detallesModalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del modal de detalles. Intenta de nuevo.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('id_liquidacion', idLiquidacion);
+
+        const response = await fetch('index.php?controller=reportes&action=getDetallesByLiquidacion', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+        }
+
+        const html = await response.text();
+        detallesModalForm.innerHTML = html;
+        detallesModal.classList.add('active');
+    } catch (error) {
+        console.error('Error al cargar los detalles:', error);
+        detallesModalForm.innerHTML = `<div class="error">${error.message}</div>`;
+        detallesModal.classList.add('active');
     }
 }
 
@@ -305,4 +348,54 @@ function addDetalleValidations() {
             }
         }
     });
+}
+
+async function exportDetallesToPDF(idLiquidacion) {
+    const formData = new FormData();
+    formData.append('id_liquidacion', idLiquidacion);
+
+    try {
+        const response = await fetch('index.php?controller=reportes&action=exportDetallesToPDF', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        // Check if the response is successful
+        if (!response.ok) {
+            let errorMessage = 'Error al exportar los detalles';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (jsonError) {
+                // If JSON parsing fails, fall back to plain text
+                const errorText = await response.text();
+                errorMessage = errorText || 'Error desconocido del servidor';
+            }
+            throw new Error(errorMessage);
+        }
+
+        // Check the content type to ensure it's a PDF
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/pdf')) {
+            const errorText = await response.text();
+            throw new Error('Respuesta no es un PDF válido: ' + errorText);
+        }
+
+        // Get the blob and create a downloadable link
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `detalles_liquidacion_${idLiquidacion}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error al exportar a PDF:', error);
+        alert('Error al exportar los detalles a PDF: ' + error.message);
+    }
 }

@@ -155,7 +155,12 @@ class LiquidacionController {
         }
         unset($liquidacion);
     
-        if ($isRevisarMode && $rol === 'CONTABILIDAD') {
+        // Filtrar liquidaciones según el rol
+        if ($rol === 'ENCARGADO_CAJA_CHICA') {
+            $liquidaciones = array_filter($liquidaciones, function($liquidacion) use ($usuario) {
+                return $liquidacion['id_usuario'] == $usuario['id'];
+            });
+        } elseif ($isRevisarMode && $rol === 'CONTABILIDAD') {
             $liquidaciones = array_filter($liquidaciones, function($liquidacion) {
                 return in_array($liquidacion['estado'], [
                     'PENDIENTE_REVISION_CONTABILIDAD',
@@ -208,12 +213,13 @@ class LiquidacionController {
                 $fecha_fin = $_POST['fecha_fin'] ?? null;
                 $monto_total = 0; // Inicializamos en 0, se calculará después si hay detalles
                 $estado = 'EN_PROCESO'; // Nuevo estado inicial
+                $id_usuario = $_SESSION['user_id']; // Asignar el ID del usuario actual
     
                 if (empty($id_caja_chica) || empty($fecha_creacion)) {
                     throw new Exception('Campos obligatorios (id_caja_chica, fecha_creacion) son requeridos y deben ser válidos.');
                 }
     
-                if ($this->liquidacionModel->createLiquidacion($id_caja_chica, $fecha_creacion, $fecha_inicio, $fecha_fin, $monto_total, $estado)) {
+                if ($this->liquidacionModel->createLiquidacion($id_caja_chica, $fecha_creacion, $fecha_inicio, $fecha_fin, $monto_total, $estado, $id_usuario)) {
                     $lastInsertId = $this->pdo->lastInsertId();
                     $this->auditoriaModel->createAuditoria($lastInsertId, null, $_SESSION['user_id'], 'CREADO', 'Liquidación creada por encargado');
                     header('Content-Type: application/json');
@@ -279,18 +285,22 @@ class LiquidacionController {
                 $fecha_fin = $_POST['fecha_fin'] ?? null;
                 $estado = $_POST['estado'] ?? 'EN_PROCESO';
     
-                // Obtener la liquidación actual para preservar el monto_total
+                // Obtener la liquidación actual para verificar el creador
                 $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
                 if (!$liquidacion) {
                     throw new Exception('Liquidación no encontrada');
                 }
                 $monto_total = $liquidacion['monto_total']; // Mantener el monto_total actual
     
+                // Solo el creador o usuarios con permisos de autorización/revisión pueden actualizar
+                if ($usuario['id'] != $liquidacion['id_usuario'] && !$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones') && !$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
+                    throw new Exception('No tienes permiso para editar esta liquidación');
+                }
+    
                 // Solo usuarios con permisos de autorización pueden cambiar el estado
-                if (!$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
+                if ($usuario['id'] != $liquidacion['id_usuario'] && !$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
                     $estado = $liquidacion['estado']; // Mantener el estado actual
                 } else {
-                    // Transformar el estado según el rol del usuario
                     $rol = strtoupper($usuario['rol']);
                     if ($estado === 'APROBADO') {
                         if ($rol === 'SUPERVISOR') {
@@ -310,7 +320,6 @@ class LiquidacionController {
                         }
                     }
     
-                    // Validar que el estado transformado sea un valor permitido en el ENUM
                     $allowedEstados = [
                         'EN_PROCESO',
                         'PENDIENTE_AUTORIZACION',
@@ -324,18 +333,27 @@ class LiquidacionController {
                     }
                 }
     
-                // Validaciones existentes
                 if (empty($id_caja_chica) || empty($fecha_creacion)) {
                     throw new Exception('Campos obligatorios (id_caja_chica, fecha_creacion) son requeridos.');
                 }
     
-                // Nueva validación: fecha_inicio <= fecha_fin
                 if (!empty($fecha_inicio) && !empty($fecha_fin)) {
                     $fechaInicioDate = new DateTime($fecha_inicio);
                     $fechaFinDate = new DateTime($fecha_fin);
                     if ($fechaInicioDate > $fechaFinDate) {
                         throw new Exception('La fecha de inicio no puede ser mayor que la fecha de fin.');
                     }
+                }
+    
+                $fechaActual = new DateTime();
+                if (!empty($fecha_creacion) && new DateTime($fecha_creacion) > $fechaActual) {
+                    throw new Exception('La fecha de creación no puede ser posterior a la fecha actual.');
+                }
+                if (!empty($fecha_inicio) && new DateTime($fecha_inicio) > $fechaActual) {
+                    throw new Exception('La fecha de inicio no puede ser posterior a la fecha actual.');
+                }
+                if (!empty($fecha_fin) && new DateTime($fecha_fin) > $fechaActual) {
+                    throw new Exception('La fecha de fin no puede ser posterior a la fecha actual.');
                 }
     
                 if ($this->liquidacionModel->updateLiquidacion($id, $id_caja_chica, $fecha_creacion, $fecha_inicio, $fecha_fin, $monto_total, $estado)) {
@@ -409,7 +427,14 @@ class LiquidacionController {
             exit;
         }
     
-        // Inicializar el modelo de detalles
+        // Solo el creador puede eliminar
+        if ($usuario['id'] != $liquidacion['id_usuario']) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para eliminar esta liquidación']);
+            exit;
+        }
+    
         $this->detalleModel = new DetalleLiquidacion();
         $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
         if (!empty($detalles)) {
@@ -422,16 +447,13 @@ class LiquidacionController {
         try {
             $this->pdo->beginTransaction();
     
-            // Registrar auditoría antes de eliminar
             $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
             error_log("Auditoría registrada para la liquidación ID $id antes de eliminarla");
     
-            // Eliminar registros de auditoría asociados
             $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
             $stmt->execute([$id]);
             error_log("Registros de auditoría eliminados para la liquidación ID $id");
     
-            // Eliminar la liquidación
             if (!$this->liquidacionModel->deleteLiquidation($id)) {
                 throw new Exception('Error al eliminar la liquidación en la base de datos');
             }
@@ -457,7 +479,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+        
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuario) {
@@ -467,7 +489,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'Usuario no encontrado']);
             exit;
         }
-    
+        
         if (!$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
             error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para autorizar liquidaciones. Rol: " . $usuario['rol']);
             header('Content-Type: application/json');
@@ -475,7 +497,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'No tienes permiso para autorizar liquidaciones']);
             exit;
         }
-    
+        
         $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
             error_log("Liquidación no encontrada para ID: $id");
@@ -484,36 +506,66 @@ class LiquidacionController {
             echo json_encode(['error' => 'Liquidación no encontrada']);
             exit;
         }
-    
+        
         $rol = strtoupper($usuario['rol']);
         $expectedEstado = $rol === 'SUPERVISOR' ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
-        if ($liquidacion['estado'] !== $expectedEstado) {
+        
+        // Permitir procesamiento si viene de updateCorreccion y hay facturas corregidas
+        $isFromCorrection = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_correccion';
+        if (!$isFromCorrection && $liquidacion['estado'] !== $expectedEstado) {
             error_log("Estado de la liquidación no válido. Esperado: $expectedEstado, Actual: " . $liquidacion['estado']);
             header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => "Solo se pueden autorizar liquidaciones en estado $expectedEstado"]);
             exit;
         }
-    
-        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-    
+        
+        $detalleModel = new DetalleLiquidacion();
+        $detalles = $detalleModel->getDetallesByLiquidacionId($id);
+        
+        // Debug: Log the states of all details for this liquidation
+        if (empty($detalles)) {
+            error_log("No se encontraron detalles para la liquidación ID: $id");
+        } else {
+            $states = array_column($detalles, 'estado');
+            error_log("Estados de los detalles para la liquidación ID $id: " . json_encode($states));
+        }
+        
+        // Enrich detalles with cuenta_contable_nombre
+        $cuentaContableModel = new CuentaContable();
+        foreach ($detalles as &$detalle) {
+            $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
+            $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+        }
+        unset($detalle);
+        
+        $cajaChicaModel = new CajaChica();
+        $cajaChica = $cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
+        $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+        
+        $centroCostoModel = new CentroCosto();
+        $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
+        $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
+        
+        $monto_total = array_sum(array_column($detalles, 'total_factura'));
+        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $_POST['action'] ?? '';
-    
+        
             if ($action === 'send_to_correction') {
                 $detalleIds = json_decode($_POST['detalle_ids'] ?? '[]', true);
                 $correccionComentarios = json_decode($_POST['correccion_comentarios'] ?? '{}', true);
-    
+        
                 if (empty($detalleIds)) {
                     header('Content-Type: application/json');
                     http_response_code(400);
                     echo json_encode(['error' => 'No se proporcionaron IDs de detalle']);
                     exit;
                 }
-    
+        
                 try {
                     $this->pdo->beginTransaction();
-    
+        
                     $numCorrections = 0;
                     foreach ($detalleIds as $detalleId) {
                         $comment = $correccionComentarios[$detalleId] ?? '';
@@ -524,7 +576,7 @@ class LiquidacionController {
                         $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment");
                         $numCorrections++;
                     }
-    
+        
                     // Check if all details are in correction after this action
                     $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                     $allInCorrection = true;
@@ -534,12 +586,12 @@ class LiquidacionController {
                             break;
                         }
                     }
-    
+        
                     if ($allInCorrection) {
                         $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                         $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                     }
-    
+        
                     $this->pdo->commit();
                     header('Content-Type: application/json');
                     echo json_encode(['message' => "$numCorrections detalle(s) enviado(s) a corrección correctamente"]);
@@ -552,19 +604,19 @@ class LiquidacionController {
                 }
                 exit;
             }
-    
+        
             $accion = $_POST['accion'] ?? '';
             $motivo = $_POST['motivo'] ?? '';
             $detallesSeleccionados = $_POST['detalles'] ?? [];
             $detallesNoSeleccionados = json_decode($_POST['unselected_detalles'] ?? '[]', true);
             $correccionComentarios = json_decode($_POST['correccion_comentarios'] ?? '{}', true);
-    
+        
             error_log("Rol del usuario: $rol");
             error_log("Acción recibida en autorizar: " . $accion);
             error_log("Estado actual de la liquidación: " . $liquidacion['estado']);
             error_log("Detalles seleccionados: " . json_encode($detallesSeleccionados));
             error_log("Detalles no seleccionados: " . json_encode($detallesNoSeleccionados));
-    
+        
             $allowedAcciones = ['APROBADO', 'RECHAZADO', 'DESCARTADO'];
             if (!in_array($accion, $allowedAcciones)) {
                 error_log("Acción no válida: " . $accion . ". Acciones permitidas: " . implode(', ', $allowedAcciones));
@@ -573,29 +625,14 @@ class LiquidacionController {
                 echo json_encode(['error' => 'Acción no válida']);
                 exit;
             }
-    
+        
             try {
                 $this->pdo->beginTransaction();
-    
+        
                 $nuevoEstado = '';
                 $auditoriaAccion = '';
                 $message = '';
-    
-                $hasCorrections = false;
-                foreach ($detalles as $detalle) {
-                    if ($detalle['estado'] === 'EN_CORRECCION') {
-                        $hasCorrections = true;
-                        break;
-                    }
-                }
-    
-                if ($rol === 'CONTABILIDAD' && $hasCorrections) {
-                    header('Content-Type: application/json');
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No se puede autorizar/rechazar/descartar hasta que todas las correcciones estén resueltas']);
-                    exit;
-                }
-    
+        
                 if ($accion === 'APROBADO') {
                     if ($rol === 'SUPERVISOR') {
                         $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
@@ -621,9 +658,9 @@ class LiquidacionController {
                     $auditoriaAccion = 'DESCARTADO';
                     $message = 'Liquidación descartada';
                 }
-    
+        
                 error_log("Nuevo estado asignado: $nuevoEstado");
-    
+        
                 // Process unselected details (send to correction)
                 $detailsToCorrect = [];
                 foreach ($detalles as $detalle) {
@@ -638,47 +675,70 @@ class LiquidacionController {
                         $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment");
                     }
                 }
-    
-                // Update selected details (if any)
-                $anySelected = !empty($detallesSeleccionados);
-                foreach ($detalles as $detalle) {
-                    $detalleId = $detalle['id'];
-                    if (in_array($detalleId, $detallesSeleccionados)) {
-                        $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
-                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
-                    } elseif (!in_array($detalleId, $detallesNoSeleccionados) && $detalle['estado'] !== 'EN_CORRECCION') {
-                        // Update unselected details that were not sent to correction to match the new state
-                        // This ensures all non-corrected details are in the same state
-                        $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
-                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+        
+                // Process selected details from updateCorreccion
+                if ($isFromCorrection && !empty($detallesSeleccionados)) {
+                    foreach ($detalles as $detalle) {
+                        $detalleId = $detalle['id'];
+                        if (in_array($detalleId, $detallesSeleccionados) && $detalle['estado'] === 'EN_CORRECCION') {
+                            $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                            $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                        }
+                    }
+                } else {
+                    // Update selected details (if any) and skip those in correction
+                    $anySelected = !empty($detallesSeleccionados);
+                    foreach ($detalles as $detalle) {
+                        $detalleId = $detalle['id'];
+                        if (in_array($detalleId, $detallesSeleccionados) && $detalle['estado'] !== 'EN_CORRECCION') {
+                            $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                            $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                        } elseif (!in_array($detalleId, $detallesNoSeleccionados) && $detalle['estado'] !== 'EN_CORRECCION') {
+                            // Update unselected details that were not sent to correction to match the new state
+                            $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                            $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                        }
                     }
                 }
-    
+        
                 // Update liquidation state based on the state of details
                 $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                 $allInCorrection = true;
                 $hasApprovedDetails = false;
-    
+                $hasNonCorrectionDetails = false;
+        
                 foreach ($allDetalles as $detalle) {
                     if ($detalle['estado'] === 'PENDIENTE_REVISION_CONTABILIDAD') {
                         $hasApprovedDetails = true;
                     }
                     if ($detalle['estado'] !== 'EN_CORRECCION') {
                         $allInCorrection = false;
+                        $hasNonCorrectionDetails = true;
                     }
                 }
-    
+        
                 if ($allInCorrection && !$anySelected) {
                     $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
-                } elseif ($hasApprovedDetails) {
+                } elseif ($rol === 'SUPERVISOR' && $accion === 'APROBADO' && $hasApprovedDetails) {
                     $this->liquidacionModel->updateEstado($id, 'PENDIENTE_REVISION_CONTABILIDAD');
+                    $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                } elseif ($rol === 'CONTABILIDAD' && $accion === 'APROBADO' && $hasNonCorrectionDetails) {
+                    $this->liquidacionModel->updateEstado($id, 'FINALIZADO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
                 } else {
                     $this->liquidacionModel->updateEstado($id, $nuevoEstado);
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
                 }
-    
+        
+                // Check if liquidation was already exported
+                $isExported = $this->liquidacionModel->isExported($id); // Assuming this method exists or needs to be added
+                if ($isExported && $rol === 'CONTABILIDAD' && $accion === 'APROBADO') {
+                    $message .= "\nLa liquidación ya fue exportada. Se ha reenviado a corrección.";
+                    $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
+                    $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'REENVIADO_A_CORRECCION', 'Liquidación reenviada a corrección por exportación previa');
+                }
+        
                 $this->pdo->commit();
                 header('Content-Type: application/json');
                 echo json_encode(['message' => $message, 'num_corrections' => count($detailsToCorrect)]);
@@ -691,9 +751,21 @@ class LiquidacionController {
             }
             exit;
         }
-    
-        $data = $liquidacion;
+        
+        $data = [
+            'id' => $liquidacion['id'],
+            'id_caja_chica' => $liquidacion['id_caja_chica'],
+            'nombre_caja_chica' => $nombre_caja_chica,
+            'centro_costo_caja_chica_id' => $cajaChica['id_centro_costo'] ?? null,
+            'centro_costo_caja_chica_nombre' => $centro_costo_caja_chica_nombre,
+            'fecha_creacion' => $liquidacion['fecha_creacion'],
+            'monto_total' => $monto_total,
+            'estado' => $liquidacion['estado'],
+        ];
+        
         $mode = 'autorizar';
+        // Pass the user object to the view
+        $usuario_data = ['rol' => $rol];
         require '../views/liquidaciones/autorizar_individual.html';
         exit;
     } 
@@ -705,7 +777,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+        
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuario) {
@@ -715,7 +787,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'Usuario no encontrado']);
             exit;
         }
-    
+        
         if (!$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
             error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para revisar liquidaciones. Rol: " . $usuario['rol']);
             header('Content-Type: application/json');
@@ -723,7 +795,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'No tienes permiso para revisar liquidaciones']);
             exit;
         }
-    
+        
         $rol = strtoupper($usuario['rol']);
         if ($rol !== 'CONTABILIDAD') {
             header('Content-Type: application/json');
@@ -731,7 +803,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'Solo el rol CONTABILIDAD puede revisar liquidaciones']);
             exit;
         }
-    
+        
         $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
             error_log("Liquidación no encontrada para ID: $id");
@@ -740,24 +812,45 @@ class LiquidacionController {
             echo json_encode(['error' => 'Liquidación no encontrada']);
             exit;
         }
-    
-        if ($liquidacion['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD') {
+        
+        // Permitir procesamiento si viene de updateCorreccion y hay facturas corregidas
+        $isFromCorrection = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_correccion';
+        if (!$isFromCorrection && $liquidacion['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD') {
             error_log("Estado de la liquidación no válido. Esperado: PENDIENTE_REVISION_CONTABILIDAD, Actual: " . $liquidacion['estado']);
             header('Content-Type: application/json');
             http_response_code(400);
             echo json_encode(['error' => 'Solo se pueden revisar liquidaciones en estado PENDIENTE_REVISION_CONTABILIDAD']);
             exit;
         }
-    
-        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-    
+        
+        $detalleModel = new DetalleLiquidacion();
+        $detalles = $detalleModel->getDetallesByLiquidacionId($id);
+        
+        // Enrich detalles with cuenta_contable_nombre
+        $cuentaContableModel = new CuentaContable();
+        foreach ($detalles as &$detalle) {
+            $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
+            $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+        }
+        unset($detalle);
+        
+        $cajaChicaModel = new CajaChica();
+        $cajaChica = $cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
+        $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+        
+        $centroCostoModel = new CentroCosto();
+        $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
+        $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
+        
+        $monto_total = array_sum(array_column($detalles, 'total_factura'));
+        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
             $motivo = $_POST['motivo'] ?? '';
             $detallesSeleccionados = $_POST['detalles'] ?? [];
             $detallesNoSeleccionados = json_decode($_POST['unselected_detalles'] ?? '[]', true);
             $correccionComentarios = json_decode($_POST['correccion_comentarios'] ?? '{}', true);
-    
+        
             $allowedAcciones = ['APROBADO', 'RECHAZADO', 'DESCARTADO'];
             if (!in_array($accion, $allowedAcciones)) {
                 header('Content-Type: application/json');
@@ -765,29 +858,14 @@ class LiquidacionController {
                 echo json_encode(['error' => 'Acción no válida']);
                 exit;
             }
-    
+        
             try {
                 $this->pdo->beginTransaction();
-    
+        
                 $nuevoEstado = '';
                 $auditoriaAccion = '';
                 $message = '';
-    
-                $hasCorrections = false;
-                foreach ($detalles as $detalle) {
-                    if ($detalle['estado'] === 'EN_CORRECCION') {
-                        $hasCorrections = true;
-                        break;
-                    }
-                }
-    
-                if ($hasCorrections) {
-                    header('Content-Type: application/json');
-                    http_response_code(400);
-                    echo json_encode(['error' => 'No se puede autorizar/rechazar/descartar hasta que todas las correcciones estén resueltas']);
-                    exit;
-                }
-    
+        
                 if ($accion === 'APROBADO') {
                     $nuevoEstado = 'FINALIZADO';
                     $auditoriaAccion = 'AUTORIZADO_POR_CONTABILIDAD';
@@ -801,7 +879,7 @@ class LiquidacionController {
                     $auditoriaAccion = 'DESCARTADO_POR_CONTABILIDAD';
                     $message = 'Descartado por contabilidad.';
                 }
-    
+        
                 // Process unselected details (send to correction)
                 $detailsToCorrect = [];
                 foreach ($detalles as $detalle) {
@@ -816,42 +894,68 @@ class LiquidacionController {
                         $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment");
                     }
                 }
-    
-                // Update selected and non-corrected details to the new state
-                $anySelected = !empty($detallesSeleccionados);
-                foreach ($detalles as $detalle) {
-                    $detalleId = $detalle['id'];
-                    if (in_array($detalleId, $detallesSeleccionados)) {
-                        $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
-                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
-                    } elseif (!in_array($detalleId, $detallesNoSeleccionados) && $detalle['estado'] !== 'EN_CORRECCION') {
-                        // Update unselected details that were not sent to correction to match the new state
-                        $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
-                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+        
+                // Process selected details from updateCorreccion
+                if ($isFromCorrection && !empty($detallesSeleccionados)) {
+                    foreach ($detalles as $detalle) {
+                        $detalleId = $detalle['id'];
+                        if (in_array($detalleId, $detallesSeleccionados) && $detalle['estado'] === 'EN_CORRECCION') {
+                            $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                            $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                        }
+                    }
+                } else {
+                    // Update only selected and non-corrected details to the new state
+                    $anySelected = !empty($detallesSeleccionados);
+                    $nonCorrectedDetailsExist = false;
+                    foreach ($detalles as $detalle) {
+                        $detalleId = $detalle['id'];
+                        if ($detalle['estado'] !== 'EN_CORRECCION') {
+                            if (in_array($detalleId, $detallesSeleccionados)) {
+                                $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                                $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                                $nonCorrectedDetailsExist = true;
+                            } elseif (!in_array($detalleId, $detallesNoSeleccionados)) {
+                                // Update unselected details that were not sent to correction
+                                $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
+                                $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], $auditoriaAccion, $motivo);
+                                $nonCorrectedDetailsExist = true;
+                            }
+                        }
                     }
                 }
-    
+        
                 // Update liquidation state based on the state of details
                 $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                 $allInCorrection = true;
+                $hasNonCorrectionDetails = false;
+        
                 foreach ($allDetalles as $detalle) {
                     if ($detalle['estado'] !== 'EN_CORRECCION') {
                         $allInCorrection = false;
-                        break;
+                        $hasNonCorrectionDetails = true;
                     }
                 }
-    
+        
                 if ($allInCorrection && !$anySelected) {
                     $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
-                } elseif ($anySelected) {
+                } elseif ($anySelected && $hasNonCorrectionDetails) {
                     $this->liquidacionModel->updateEstado($id, $nuevoEstado);
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
                 } else {
                     $this->liquidacionModel->updateEstado($id, $nuevoEstado);
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
                 }
-    
+        
+                // Check if liquidation was already exported
+                $isExported = $this->liquidacionModel->isExported($id); // Assuming this method exists or needs to be added
+                if ($isExported && $accion === 'APROBADO') {
+                    $message .= "\nLa liquidación ya fue exportada. Se ha reenviado a corrección.";
+                    $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
+                    $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'REENVIADO_A_CORRECCION', 'Liquidación reenviada a corrección por exportación previa');
+                }
+        
                 $this->pdo->commit();
                 header('Content-Type: application/json');
                 echo json_encode(['message' => $message, 'num_corrections' => count($detailsToCorrect)]);
@@ -864,8 +968,18 @@ class LiquidacionController {
             }
             exit;
         }
-    
-        $data = $liquidacion;
+        
+        $data = [
+            'id' => $liquidacion['id'],
+            'id_caja_chica' => $liquidacion['id_caja_chica'],
+            'nombre_caja_chica' => $nombre_caja_chica,
+            'centro_costo_caja_chica_id' => $cajaChica['id_centro_costo'] ?? null,
+            'centro_costo_caja_chica_nombre' => $centro_costo_caja_chica_nombre,
+            'fecha_creacion' => $liquidacion['fecha_creacion'],
+            'monto_total' => $monto_total,
+            'estado' => $liquidacion['estado'],
+        ];
+        
         $mode = 'revisar';
         require '../views/liquidaciones/autorizar_individual.html';
         exit;
@@ -918,6 +1032,18 @@ class LiquidacionController {
         $detalleModel = new DetalleLiquidacion();
         $detalles = $detalleModel->getDetallesByLiquidacionId($id);
     
+        // Filter out details in EN_CORRECCION
+        $detallesToExport = array_filter($detalles, function($detalle) {
+            return $detalle['estado'] !== 'EN_CORRECCION';
+        });
+    
+        if (empty($detallesToExport)) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'No hay detalles para exportar que no estén en corrección']);
+            exit;
+        }
+    
         $filename = "liquidacion_{$id}_" . date('Ymd_His') . ".csv";
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -932,7 +1058,7 @@ class LiquidacionController {
             'Bien_Servicio', 'Tipo_Gasto', 'Precio_Unitario', 'Total_Factura', 'Estado_Detalle'
         ]);
     
-        foreach ($detalles as $detalle) {
+        foreach ($detallesToExport as $detalle) {
             fputcsv($output, [
                 $liquidacion['id'],
                 $liquidacion['nombre_caja_chica'],
@@ -1397,17 +1523,17 @@ class LiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+        
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
+        if (!$usuario || !$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
             error_log('Error: No tienes permiso para actualizar correcciones');
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para actualizar correcciones']);
             exit;
         }
-    
+        
         $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
             header('Content-Type: application/json');
@@ -1415,12 +1541,13 @@ class LiquidacionController {
             echo json_encode(['error' => 'Liquidación no encontrada']);
             exit;
         }
-    
+        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $_POST['action'] ?? '';
             try {
                 $this->pdo->beginTransaction();
     
+                // Handle file uploads
                 $rutas_archivos = [];
                 $uploadDir = '../uploads/';
                 if (!file_exists($uploadDir)) {
@@ -1445,11 +1572,10 @@ class LiquidacionController {
     
                             $fileName = basename($name);
                             $filePath = $uploadDir . uniqid() . '_' . $fileName;
-                            if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
-                                $rutas_archivos[] = 'uploads/' . basename($filePath);
-                            } else {
+                            if (!move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
                                 throw new Exception('Error al subir el archivo: ' . $name);
                             }
+                            $rutas_archivos[] = 'uploads/' . basename($filePath);
                         } elseif ($_FILES['archivos']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
                             throw new Exception('Error al subir el archivo: ' . $name);
                         }
@@ -1458,6 +1584,7 @@ class LiquidacionController {
                 $rutas_json = json_encode($rutas_archivos);
     
                 if ($action === 'update') {
+                    // Extract and validate form data
                     $detalle_id = $_POST['detalle_id'] ?? '';
                     $tipo_documento = $_POST['tipo_documento'] ?? '';
                     $no_factura = $_POST['no_factura'] ?? '';
@@ -1476,17 +1603,15 @@ class LiquidacionController {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                     $cantidad = $_POST['cantidad'] ?? null;
                     $serie = $_POST['serie'] ?? null;
+                    $correccion_comentario = $_POST['correccion_comentario'] ?? '';
     
+                    // Validate required fields
                     if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
                         throw new Exception('Los campos obligatorios deben ser válidos.');
                     }
     
-                    if (empty($id_centro_costo)) {
-                        throw new Exception('El Centro de Costo es obligatorio.');
-                    }
-    
-                    if (empty($id_cuenta_contable)) {
-                        throw new Exception('La Cuenta Contable es obligatoria.');
+                    if (empty($id_centro_costo) || empty($id_cuenta_contable)) {
+                        throw new Exception('El Centro de Costo y la Cuenta Contable son obligatorios.');
                     }
     
                     $cuentaContableModel = new CuentaContable();
@@ -1495,19 +1620,16 @@ class LiquidacionController {
                         throw new Exception('La Cuenta Contable seleccionada no es válida.');
                     }
     
-                    // Validations aligned with manageFacturas
+                    // Document-specific validations
                     if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
                         throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                     }
-    
                     if ($tipo_documento === 'RECIBO' && empty($dpi)) {
                         throw new Exception('DPI es obligatorio para el tipo de documento Recibo.');
                     }
-    
                     if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE']) && empty($nit_proveedor)) {
                         throw new Exception('NIT es obligatorio para el tipo de documento Factura o Comprobante.');
                     }
-    
                     if ($tipo_documento === 'FACTURA') {
                         if ($t_gasto === 'Combustible' && empty($tipo_combustible)) {
                             throw new Exception('El tipo de combustible es obligatorio para el tipo de gasto Combustible.');
@@ -1525,14 +1647,11 @@ class LiquidacionController {
                     }
     
                     $detalle = $this->detalleModel->getDetalleById($detalle_id);
-                    if (!$detalle) {
-                        throw new Exception('Detalle no encontrado.');
+                    if (!$detalle || $detalle['estado'] !== 'EN_CORRECCION') {
+                        throw new Exception('El detalle no está en estado EN_CORRECCION o no existe.');
                     }
     
-                    if ($detalle['estado'] !== 'EN_CORRECCION') {
-                        throw new Exception('El detalle no está en estado EN_CORRECCION y no puede ser actualizado desde este módulo.');
-                    }
-    
+                    // Merge existing and new file paths
                     $existing_rutas = json_decode($detalle['rutas_archivos'], true) ?? [];
                     $rutas_archivos = array_merge($existing_rutas, $rutas_archivos);
                     $rutas_json = json_encode($rutas_archivos);
@@ -1544,6 +1663,7 @@ class LiquidacionController {
                         $dpi = null;
                     }
     
+                    // Validate date range
                     $fechaFactura = new DateTime($fecha);
                     $fechaInicio = new DateTime($liquidacion['fecha_inicio']);
                     $fechaFin = new DateTime($liquidacion['fecha_fin']);
@@ -1551,88 +1671,59 @@ class LiquidacionController {
                         throw new Exception("La fecha de la factura debe estar entre {$liquidacion['fecha_inicio']} y {$liquidacion['fecha_fin']}.");
                     }
     
-                    // Use user-provided taxes without overriding based on tipo_gasto
-                    if ($this->detalleModel->updateDetalleLiquidacion(
+                    // Update detalle
+                    if (!$this->detalleModel->updateDetalleLiquidacion(
                         $detalle_id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto,
                         $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible
                     )) {
-                        $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE_EN_CORRECCION', "Factura actualizada en corrección: $no_factura");
-    
-                        // Transition state to PENDIENTE_REVISION_CONTABILIDAD
-                        $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
-                        $this->detalleModel->updateEstado($detalle_id, $nuevoEstado);
-    
-                        $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
-                        $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
-                        $this->liquidacionModel->updateMontoTotal($id, $monto_total);
-    
-                        // Check if all details are ready for Contabilidad
-                        $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-                        $allReadyForContabilidad = true;
-                        foreach ($allDetalles as $detalleItem) {
-                            if ($detalleItem['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD' && $detalleItem['estado'] !== 'EN_CORRECCION') {
-                                $allReadyForContabilidad = false;
-                                break;
-                            }
-                        }
-    
-                        if ($allReadyForContabilidad) {
-                            $this->liquidacionModel->updateEstado($id, 'PENDIENTE_REVISION_CONTABILIDAD');
-                            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'TODAS_CORRECCIONES_COMPLETADAS', "Todas las correcciones completadas, liquidación lista para PENDIENTE_REVISION_CONTABILIDAD");
-                        }
-    
-                        $response = [
-                            'message' => 'Factura actualizada correctamente y enviada a Contabilidad',
-                            'detalle_id' => $detalle_id,
-                            'rutas_archivos' => $rutas_archivos,
-                            'monto_total' => $monto_total,
-                            'cuenta_contable_nombre' => $cuentaContable['nombre'] ?? 'N/A'
-                        ];
-                    } else {
                         throw new Exception('Error al actualizar la factura.');
                     }
-                } elseif ($action === 'submit_corrections') {
-                    $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
-                    if (empty($detalles)) {
-                        $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-                        $allReadyForContabilidad = true;
-                        foreach ($allDetalles as $detalle) {
-                            if ($detalle['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD') {
-                                $allReadyForContabilidad = false;
-                                break;
-                            }
-                        }
     
-                        if ($allReadyForContabilidad) {
-                            $this->liquidacionModel->updateEstado($id, 'PENDIENTE_REVISION_CONTABILIDAD');
-                            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'TODAS_CORRECCIONES_COMPLETADAS', "Todas las correcciones completadas, liquidación lista para PENDIENTE_REVISION_CONTABILIDAD");
-                        } else {
-                            throw new Exception('No hay detalles en estado EN_CORRECCION para enviar a Contabilidad, pero no todos los detalles están listos para revisión.');
-                        }
-                    } else {
-                        $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
-                        foreach ($detalles as $detalle) {
-                            $detalleId = $detalle['id'];
-                            $this->detalleModel->updateEstado($detalleId, $nuevoEstado);
-                            $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'CORRECCION_COMPLETADA', "Corrección completada y enviada a $nuevoEstado");
-                        }
+                    $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE_EN_CORRECCION', "Factura actualizada en corrección: $no_factura");
     
-                        $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-                        $allReadyForContabilidad = true;
-                        foreach ($allDetalles as $detalle) {
-                            if ($detalle['estado'] !== 'PENDIENTE_REVISION_CONTABILIDAD') {
-                                $allReadyForContabilidad = false;
-                                break;
-                            }
-                        }
+                    // Update total amount for liquidation
+                    $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
+                    $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
+                    $this->liquidacionModel->updateMontoTotal($id, $monto_total);
     
-                        if ($allReadyForContabilidad) {
-                            $this->liquidacionModel->updateEstado($id, 'PENDIENTE_REVISION_CONTABILIDAD');
-                            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'TODAS_CORRECCIONES_COMPLETADAS', "Todas las correcciones completadas, liquidación lista para $nuevoEstado");
-                        }
+                    // Determine the originating role for forwarding
+                    $originatingRole = $detalle['original_role'] ?? 'CONTABILIDAD'; // Default to CONTABILIDAD if not set
+                    $targetAction = ($originatingRole === 'SUPERVISOR') ? 'autorizar' : 'revisar';
+    
+                    // Prepare data to send to autorizar/revisar
+                    $formData = [
+                        'action' => 'update_correccion',
+                        'id' => $id,
+                        'detalles' => [$detalle_id],
+                        'accion' => 'APROBADO', // Assume approval after correction
+                        'motivo' => $correccion_comentario,
+                        'unselected_detalles' => json_encode([]),
+                        'correccion_comentarios' => json_encode([])
+                    ];
+    
+                    // Forward to the appropriate action
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, "index.php?controller=liquidacion&action={$targetAction}&id={$id}");
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($formData));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HEADER, false);
+                    $response = curl_exec($ch);
+                    curl_close($ch);
+    
+                    $result = json_decode($response, true);
+                    if (isset($result['error'])) {
+                        throw new Exception($result['error']);
                     }
     
-                    $response = ['message' => "Correcciones enviadas correctamente a Contabilidad."];
+                    $response = [
+                        'message' => 'Factura actualizada y procesada correctamente.',
+                        'detalle_id' => $detalle_id,
+                        'rutas_archivos' => $rutas_archivos,
+                        'monto_total' => $monto_total,
+                        'cuenta_contable_nombre' => $cuentaContable['nombre'] ?? 'N/A'
+                    ];
+    
                 } else {
                     throw new Exception('Acción no válida.');
                 }
@@ -1643,36 +1734,37 @@ class LiquidacionController {
                 exit;
             } catch (Exception $e) {
                 $this->pdo->rollBack();
-                if (!empty($rutas_archivos)) {
-                    foreach ($rutas_archivos as $ruta) {
-                        $filePath = '../' . $ruta;
-                        if (file_exists($filePath)) {
-                            unlink($filePath);
-                        }
-                    }
-                }
+                error_log('Error en updateCorreccion: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(400);
-                echo json_encode(['error' => $e->getMessage()]);
+                echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
                 exit;
             }
         }
-    
+        
+        // Load correction view
         $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
         if (empty($detalles)) {
             header('Location: index.php?controller=liquidacion&action=list&mode=correccion');
             exit;
         }
-    
+        
+        // Determine the originating role from the details (assuming all details in correction have the same originating role)
+        $originating_role = null;
+        if (!empty($detalles)) {
+            $first_detalle = $detalles[0];
+            $originating_role = $first_detalle['original_role'] ?? 'CONTABILIDAD'; // Default to CONTABILIDAD if not set
+        }
+        
         $centroCostoModel = new CentroCosto();
         $cuentaContableModel = new CuentaContable();
         foreach ($detalles as &$detalle) {
             $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
             $detalle['nombre_centro_costo'] = $centroCosto['nombre'] ?? 'N/A';
-            
+        
             $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
             $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
-            
+        
             $detalle['tipo_documento'] = $detalle['tipo_documento'] ?? null;
             $detalle['no_factura'] = $detalle['no_factura'] ?? null;
             $detalle['nombre_proveedor'] = $detalle['nombre_proveedor'] ?? null;
@@ -1691,7 +1783,7 @@ class LiquidacionController {
             $detalle['correccion_comentario'] = $detalle['correccion_comentario'] ?? 'Sin comentario';
         }
         unset($detalle);
-    
+        
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         if (!$cajaChica) {
             error_log("Caja chica no encontrada para ID: " . $liquidacion['id_caja_chica']);
@@ -1700,32 +1792,33 @@ class LiquidacionController {
             echo json_encode(['error' => 'Caja chica no encontrada']);
             exit;
         }
-    
+        
         $tipoDocumentoModel = new TipoDocumento();
         $tiposDocumentos = $tipoDocumentoModel->getAllTiposDocumentos();
         $select_tipos_documentos = '';
         foreach ($tiposDocumentos as $tipo) {
             $select_tipos_documentos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
         }
-    
+        
         $tipoGastoModel = new TipoGasto();
         $tiposGastos = $tipoGastoModel->getAllTiposGastos();
         $select_tipos_gastos = '';
         foreach ($tiposGastos as $tipo) {
             $select_tipos_gastos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
         }
-    
+        
         $centroCostoModel = new CentroCosto();
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
         $select_centros_costos = '';
         foreach ($centrosCostos as $centro) {
             $select_centros_costos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
         }
-    
+        
         $data = $liquidacion;
         $data['nombre_caja_chica'] = $cajaChica['name'];
         $data['suggested_centro_costo_id'] = $cajaChica['id_centro_costo'] ?? null;
-    
+        $data['originating_role'] = $originating_role;
+        
         require '../views/liquidaciones/correccion.html';
         exit;
     }
@@ -1737,7 +1830,7 @@ class LiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
@@ -1746,14 +1839,14 @@ class LiquidacionController {
             echo json_encode(['error' => 'No tienes permiso para enviar correcciones']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Content-Type: application/json');
             http_response_code(405);
             echo json_encode(['error' => 'Método no permitido']);
             exit;
         }
-
+    
         $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
             header('Content-Type: application/json');
@@ -1761,40 +1854,137 @@ class LiquidacionController {
             echo json_encode(['error' => 'Liquidación no encontrada']);
             exit;
         }
-
+    
+        $input = json_decode(file_get_contents('php://input'), true);
+        $originating_role = $input['originating_role'] ?? null;
+    
+        if (!in_array($originating_role, ['SUPERVISOR', 'CONTABILIDAD'])) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'Rol de origen no válido']);
+            exit;
+        }
+    
         try {
             $this->pdo->beginTransaction();
-
+    
             $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
-            $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
+            if (empty($detalles)) {
+                throw new Exception('No hay detalles en estado EN_CORRECCION para procesar.');
+            }
+    
+            // Determine the new state based on the originating role
+            $nuevoEstado = $originating_role === 'SUPERVISOR' ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
             foreach ($detalles as $detalle) {
+                if ($detalle['original_role'] !== $originating_role) {
+                    throw new Exception("El rol de origen del detalle ID {$detalle['id']} no coincide con el proporcionado.");
+                }
                 $this->detalleModel->updateEstado($detalle['id'], $nuevoEstado);
                 $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'CORRECCION_ENVIADA', "Detalle corregido y enviado a $nuevoEstado");
             }
-
+    
+            // Check the overall state of the liquidation
             $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-            $allCorrected = true;
+            $allInTargetState = true;
+            $hasCorrectionsRemaining = false;
             foreach ($allDetalles as $detalle) {
+                if ($detalle['estado'] !== $nuevoEstado) {
+                    $allInTargetState = false;
+                }
                 if ($detalle['estado'] === 'EN_CORRECCION') {
-                    $allCorrected = false;
-                    break;
+                    $hasCorrectionsRemaining = true;
                 }
             }
-
-            if ($allCorrected) {
+    
+            if ($allInTargetState) {
                 $this->liquidacionModel->updateEstado($id, $nuevoEstado);
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'LIQUIDACION_ENVIADA', "Liquidación enviada a $nuevoEstado tras corrección");
+            } else {
+                // If there are still details in correction, keep the liquidation in EN_PROCESO
+                $this->liquidacionModel->updateEstado($id, $hasCorrectionsRemaining ? 'EN_PROCESO' : $nuevoEstado);
+                $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'CORRECCIONES_PARCIALES_COMPLETADAS', "Correcciones parciales completadas, liquidación en proceso");
             }
-
+    
             $this->pdo->commit();
             header('Content-Type: application/json');
-            echo json_encode(['message' => 'Correcciones enviadas correctamente a Contabilidad']);
+            echo json_encode(['message' => "Correcciones enviadas correctamente a $originating_role"]);
         } catch (Exception $e) {
             $this->pdo->rollBack();
             error_log('Error al enviar correcciones: ' . $e->getMessage());
             header('Content-Type: application/json');
             http_response_code(500);
             echo json_encode(['error' => 'Error al enviar correcciones: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function getLiquidacionState($id) {
+        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
+        if (!$liquidacion) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Liquidación no encontrada']);
+            exit;
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['estado' => $liquidacion['estado']]);
+        exit;
+    }
+    
+    public function deleteFacturaCorreccion($id, $detalle_id) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para eliminar facturas']);
+            exit;
+        }
+    
+        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
+        if (!$liquidacion) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Liquidación no encontrada']);
+            exit;
+        }
+    
+        $detalle = $this->detalleModel->getDetalleById($detalle_id);
+        if (!$detalle || $detalle['estado'] !== 'EN_CORRECCION') {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'El detalle no está en estado EN_CORRECCION o no existe']);
+            exit;
+        }
+    
+        try {
+            $this->pdo->beginTransaction();
+    
+            // Delete the invoice
+            $this->detalleModel->deleteDetalleLiquidacion($detalle_id);
+            $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'FACTURA_ELIMINADA_EN_CORRECCION', "Factura eliminada mientras estaba en corrección");
+    
+            // Update the liquidation's total amount
+            $detallesActualizados = $this->detalleModel->getDetallesByLiquidacionId($id);
+            $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
+            $this->liquidacionModel->updateMontoTotal($id, $monto_total);
+    
+            $this->pdo->commit();
+            header('Content-Type: application/json');
+            echo json_encode(['message' => 'Factura eliminada correctamente']);
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            error_log('Error al eliminar factura: ' . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al eliminar factura: ' . $e->getMessage()]);
         }
         exit;
     }
@@ -1942,7 +2132,36 @@ class LiquidacionController {
     
         $detalleModel = new DetalleLiquidacion();
         $detalles = $detalleModel->getDetallesByLiquidacionId($id);
-        $data = $liquidacion;
+    
+        // Enrich detalles with cuenta_contable_nombre
+        $cuentaContableModel = new CuentaContable();
+        foreach ($detalles as &$detalle) {
+            $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
+            $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+        }
+        unset($detalle);
+    
+        $cajaChicaModel = new CajaChica();
+        $cajaChica = $cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
+        $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+    
+        $centroCostoModel = new CentroCosto();
+        $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
+        $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
+    
+        $monto_total = array_sum(array_column($detalles, 'total_factura'));
+    
+        $data = [
+            'id' => $liquidacion['id'],
+            'id_caja_chica' => $liquidacion['id_caja_chica'],
+            'nombre_caja_chica' => $nombre_caja_chica,
+            'centro_costo_caja_chica_id' => $cajaChica['id_centro_costo'] ?? null,
+            'centro_costo_caja_chica_nombre' => $centro_costo_caja_chica_nombre,
+            'fecha_creacion' => $liquidacion['fecha_creacion'],
+            'monto_total' => $monto_total,
+            'estado' => $liquidacion['estado'],
+        ];
+    
         $mode = 'ver'; // Modo de solo lectura
         require '../views/liquidaciones/ver_liquidacion.html';
         exit;

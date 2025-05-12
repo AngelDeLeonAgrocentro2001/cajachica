@@ -22,21 +22,23 @@ class Liquidacion {
     public function getLiquidacionById($id) {
         $stmt = $this->pdo->prepare("
             SELECT l.*, 
-                   cc.nombre AS nombre_caja_chica
+                   cc.nombre AS nombre_caja_chica,
+                   u.nombre AS nombre_usuario
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
             WHERE l.id = ?
         ");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
+    public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario) {
         $stmt = $this->pdo->prepare("
-            INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
-        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado]);
+        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario]);
     }
 
     public function updateLiquidacion($id, $idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
@@ -117,6 +119,39 @@ class Liquidacion {
         ";
         $stmt = $this->pdo->query($query);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getLiquidacionesByUsuario($idUsuario) {
+        $stmt = $this->pdo->prepare("
+            SELECT l.*, 
+                   cc.nombre AS nombre_caja_chica
+            FROM liquidaciones l
+            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            WHERE l.id_usuario = ?
+            ORDER BY l.fecha_creacion DESC
+        ");
+        $stmt->execute([$idUsuario]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getLiquidacionesByEstado($estado) {
+        $stmt = $this->pdo->prepare("
+            SELECT l.*, 
+                   cc.nombre AS nombre_caja_chica
+            FROM liquidaciones l
+            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            WHERE l.estado = ?
+            ORDER BY l.fecha_creacion DESC
+        ");
+        $stmt->execute([$estado]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function isExported($id) {
+        $stmt = $this->pdo->prepare("SELECT exportado FROM liquidaciones WHERE id = ?");
+        $stmt->execute([$id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['exportado'] ?? 0;
     }
 }
 ?>

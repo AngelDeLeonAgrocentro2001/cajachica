@@ -8,6 +8,10 @@ class Factura {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    public function getPdo() {
+        return $this->pdo;
+    }
+
     public function getAllFacturas($searchTerm = '', $cuentaId = null) {
         $query = "SELECT f.*, c.nombre AS cuenta_nombre, b.nombre AS base_nombre 
                   FROM facturas f 

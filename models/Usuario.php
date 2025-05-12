@@ -87,7 +87,6 @@ class Usuario {
         $usuarioId = $usuario['id'];
         error_log("Verificando permiso '$permiso' para usuario ID $usuarioId con rol '$rol' (id_rol: $rolId)");
     
-        // 1. Obtener permisos predeterminados según el rol
         $permisosPorRol = [
             self::ROL_ADMIN => true,
             self::ROL_ENCARGADO_CAJA_CHICA => [
@@ -95,7 +94,7 @@ class Usuario {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
-                'manage_correcciones' => true, // Agregado para permitir correcciones
+                'manage_correcciones' => true,
             ],
             self::ROL_SUPERVISOR => [
                 'autorizar_liquidaciones' => true,
@@ -103,7 +102,7 @@ class Usuario {
                 'manage_cuentas_contables' => true,
                 'manage_facturas' => true,
                 'revisar_facturas' => true,
-                'manage_correcciones' => true, // Agregado para permitir correcciones
+                'manage_correcciones' => true,
             ],
             self::ROL_CONTABILIDAD => [
                 'autorizar_liquidaciones' => true,
@@ -117,7 +116,7 @@ class Usuario {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
-                'manage_correcciones' => true, // Agregado para permitir correcciones
+                'manage_correcciones' => true,
             ],
         ];
     
@@ -129,8 +128,6 @@ class Usuario {
             $allPermissions = $stmt->fetchAll(PDO::FETCH_COLUMN);
             $permisosPredeterminados = array_fill_keys($allPermissions, true);
             $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
-            error_log("Permiso predeterminado para '$permiso' (ADMIN): " . ($tienePermisoPredeterminado ? 'Sí' : 'No'));
-            error_log("Todos los permisos predeterminados para ADMIN: " . print_r($allPermissions, true));
         } else {
             $combinedPredeterminados = [];
             if (strpos($rol, self::ROL_ENCARGADO_CAJA_CHICA) !== false) {
@@ -144,11 +141,8 @@ class Usuario {
             }
             $permisosPredeterminados = $combinedPredeterminados;
             $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
-            error_log("Permiso predeterminado para '$permiso': " . ($tienePermisoPredeterminado ? 'Sí' : 'No'));
-            error_log("Permisos predeterminados combinados: " . print_r($combinedPredeterminados, true));
         }
     
-        // 2. Obtener permisos dinámicos del rol (basados en la descripción)
         $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
         $stmt->execute([$rolId]);
         $rolData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -172,10 +166,7 @@ class Usuario {
         }
         $permisosDinamicos = array_unique($permisosDinamicos);
         $tienePermisoDinamico = in_array($permiso, $permisosDinamicos);
-        error_log("Permiso dinámico para '$permiso': " . ($tienePermisoDinamico ? 'Sí' : 'No'));
-        error_log("Permisos dinámicos: " . print_r($permisosDinamicos, true));
     
-        // 3. Obtener permisos manuales del rol desde rol_permisos
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM rol_permisos WHERE id_rol = ?");
         $stmt->execute([$rolId]);
         $manualRolPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -187,10 +178,7 @@ class Usuario {
             }
             $manualOverrides[$perm['permiso']] = $perm['estado'];
         }
-        error_log("Permisos manuales del rol $rolId: " . print_r($manualRolPermissions, true));
-        error_log("Sobrescrituras manuales del rol $rolId: " . print_r($manualOverrides, true));
     
-        // 4. Combinar permisos efectivos del rol
         $rolPermissions = array_unique(array_merge(
             $permisosPredeterminados ? array_keys($permisosPredeterminados) : [],
             $permisosDinamicos,
@@ -202,10 +190,7 @@ class Usuario {
             }
         }
         $tienePermisoRol = in_array($permiso, $rolPermissions);
-        error_log("Permiso efectivo del rol para '$permiso': " . ($tienePermisoRol ? 'Sí' : 'No'));
-        error_log("Permisos efectivos del rol: " . print_r($rolPermissions, true));
     
-        // 5. Obtener permisos individuales del usuario desde accesos_permisos
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM accesos_permisos WHERE id_usuario = ?");
         $stmt->execute([$usuarioId]);
         $userPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -217,10 +202,7 @@ class Usuario {
             }
             $userOverrides[$perm['permiso']] = $perm['estado'];
         }
-        error_log("Permisos individuales del usuario $usuarioId: " . print_r($userPermissions, true));
-        error_log("Sobrescrituras individuales del usuario $usuarioId: " . print_r($userOverrides, true));
     
-        // 6. Combinar permisos efectivos finales
         $effectivePermissions = array_unique(array_merge($rolPermissions, $userPermissions));
         foreach ($userOverrides as $perm => $estado) {
             if ($estado === 'INACTIVO' && in_array($perm, $effectivePermissions)) {
@@ -228,8 +210,6 @@ class Usuario {
             }
         }
         $tienePermiso = in_array($permiso, $effectivePermissions);
-        error_log("Permisos efectivos finales para usuario $usuarioId: " . print_r($effectivePermissions, true));
-        error_log("Resultado final de permiso '$permiso': " . ($tienePermiso ? 'Concedido' : 'Denegado'));
     
         return $tienePermiso;
     }
@@ -239,3 +219,4 @@ class Usuario {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
+?>

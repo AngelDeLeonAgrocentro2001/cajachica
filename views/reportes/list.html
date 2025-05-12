@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generación de Reportes</title>
-    <!-- <link rel="stylesheet" href="../views/css/style.css"> -->
     <style>
         /* Estilo general del cuerpo */
         body {
@@ -43,11 +42,12 @@
             border-radius: 5px;
             font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.1s ease;
         }
 
         .btn-primary:hover {
             background-color: #2980b9;
+            transform: translateY(-2px);
         }
 
         /* Contenedor de salida de reportes */
@@ -115,15 +115,19 @@
             border-radius: 5px;
             font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.1s ease;
         }
 
-        .btn-export-pdf{
+        .btn-export-pdf {
             background-color: #c0392b;
         }
 
         .btn-export:hover {
             background-color: #219653;
+        }
+
+        .btn-export-pdf:hover {
+            background-color: #a93226;
         }
 
         /* Estilo del modal */
@@ -134,45 +138,63 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.6);
             z-index: 1002;
             justify-content: center;
             align-items: center;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease;
         }
 
         .modal.active {
             display: flex;
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         .modal-content {
             background-color: #fff;
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 25px;
             width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
+            max-width: 900px;
+            max-height: 85vh;
             overflow-y: auto;
             position: relative;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         .modal-content h2 {
-            font-size: 1.5rem;
-            margin-top: 0;
+            font-size: 1.8rem;
+            margin: 0 0 20px;
             color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            display: inline-block;
         }
 
         .close-modal {
             position: absolute;
-            top: 10px;
+            top: 15px;
             right: 15px;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             cursor: pointer;
             color: #666;
+            transition: color 0.3s ease, transform 0.2s ease;
         }
 
         .close-modal:hover {
-            color: #333;
+            color: #e74c3c;
+            transform: rotate(90deg);
         }
 
         /* Estilo del formulario dentro del modal */
@@ -200,6 +222,7 @@
             font-size: 1rem;
             width: 100%;
             box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         #resumenFormInner input:focus,
@@ -232,7 +255,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 1rem;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.1s ease;
         }
 
         #resumenFormInner button[type="submit"],
@@ -244,6 +267,7 @@
         #resumenFormInner button[type="submit"]:hover,
         #detalleFormInner button[type="submit"]:hover {
             background-color: #2980b9;
+            transform: translateY(-2px);
         }
 
         #resumenFormInner button[type="button"],
@@ -255,9 +279,132 @@
         #resumenFormInner button[type="button"]:hover,
         #detalleFormInner button[type="button"]:hover {
             background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* Estilo específico para el modal de detalles */
+        #detallesModalContent {
+            background: linear-gradient(145deg, #ffffff, #f9f9f9);
+            border-radius: 12px;
+            padding: 30px;
+            width: 95%;
+            max-width: 1100px;
+            max-height: 90vh;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        #detallesModalForm h2 {
+            font-size: 1.9rem;
+            color: #1a3c5e;
+            margin-bottom: 25px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #detallesModalForm h2::before {
+            content: '';
+            width: 40px;
+            height: 4px;
+            background: #3498db;
+            border-radius: 2px;
+        }
+
+        #detallesModalForm table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 15px;
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        #detallesModalForm table thead {
+            background: linear-gradient(90deg, #2c3e50, #4a6a8a);
+            color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        #detallesModalForm table th {
+            padding: 14px 16px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #detallesModalForm table td {
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            color: #333;
+            border-bottom: 1px solid #e8ecef;
+            transition: background-color 0.3s ease;
+        }
+
+        #detallesModalForm table tbody tr {
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        #detallesModalForm table tbody tr:hover {
+            background-color: #f1f5f9;
+            transform: scale(1.01);
+        }
+
+        #detallesModalForm table td a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        #detallesModalForm table td a:hover {
+            color: #1d6fa5;
+            text-decoration: underline;
+        }
+
+        #detallesModalForm .export-buttons {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        #detallesModalForm .btn-export-pdf {
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            padding: 12px 30px;
+            font-weight: 600;
+            border-radius: 25px;
+            box-shadow: 0 3px 10px rgba(231, 76, 60, 0.2);
+            transition: transform 0.1s ease, box-shadow 0.3s ease;
+        }
+
+        #detallesModalForm .btn-export-pdf:hover {
+            background: linear-gradient(90deg, #a93226, #c0392b);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
         }
 
         /* Estilo responsivo */
+        @media (max-width: 1024px) {
+            #detallesModalForm table {
+                font-size: 0.85rem;
+            }
+
+            #detallesModalForm table th,
+            #detallesModalForm table td {
+                padding: 10px 12px;
+            }
+
+            #detallesModalForm .btn-export-pdf {
+                padding: 10px 25px;
+            }
+        }
+
         @media (max-width: 768px) {
             .container {
                 width: 95%;
@@ -270,53 +417,88 @@
                 margin: 10px 0;
             }
 
-            #reportesOutput table thead {
-                display: none; /* Ocultar encabezados en pantallas pequeñas */
+            #reportesOutput table thead,
+            #detallesModalForm table thead {
+                display: none;
             }
 
-            #reportesOutput table tbody tr {
+            #reportesOutput table tbody tr,
+            #detallesModalForm table tbody tr {
                 display: block;
-                margin-bottom: 10px;
+                margin-bottom: 15px;
                 border: 1px solid #ddd;
-                border-radius: 5px;
+                border-radius: 8px;
                 background-color: #fff;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             }
 
-            #reportesOutput table tbody td {
-                display: block;
+            #reportesOutput table tbody td,
+            #detallesModalForm table tbody td {
+                display: flex;
+                justify-content: space-between;
                 text-align: right;
-                padding: 8px 10px;
+                padding: 10px 15px;
                 font-size: 0.9rem;
-                position: relative;
                 border-bottom: 1px solid #eee;
             }
 
-            #reportesOutput table tbody td:last-child {
+            #reportesOutput table tbody td:last-child,
+            #detallesModalForm table tbody td:last-child {
                 border-bottom: none;
             }
 
-            #reportesOutput table tbody td:before {
+            #reportesOutput table tbody td:before,
+            #detallesModalForm table tbody td:before {
                 content: attr(data-label);
-                position: absolute;
-                left: 10px;
                 font-weight: 600;
                 color: #2c3e50;
+                flex: 1;
+                text-align: left;
             }
 
-            .modal-content {
+            #reportesOutput table tbody td a,
+            #detallesModalForm table tbody td a {
+                display: inline-block;
+                margin-top: 5px;
+            }
+
+            .modal-content,
+            #detallesModalContent {
                 width: 95%;
-                padding: 15px;
+                padding: 20px;
+                max-height: 90vh;
+            }
+
+            #detallesModalForm h2 {
+                font-size: 1.5rem;
             }
 
             .export-buttons {
-                display: flex;
                 flex-direction: column;
                 gap: 10px;
             }
 
-            .btn-export {
+            .btn-export,
+            #detallesModalForm .btn-export-pdf {
                 width: 100%;
                 margin: 0;
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #detallesModalForm table tbody td {
+                font-size: 0.85rem;
+                padding: 8px 10px;
+            }
+
+            #detallesModalForm h2 {
+                font-size: 1.3rem;
+            }
+
+            #detallesModalForm h2::before {
+                width: 30px;
+                height: 3px;
             }
         }
     </style>
@@ -335,6 +517,14 @@
         <div class="modal-content" id="modalContent">
             <span class="close-modal" onclick="closeModal()">×</span>
             <div id="modalForm"></div>
+        </div>
+    </div>
+
+    <!-- Modal para detalles -->
+    <div id="detallesModal" class="modal">
+        <div class="modal-content" id="detallesModalContent">
+            <span class="close-modal" onclick="closeDetallesModal()">×</span>
+            <div id="detallesModalForm"></div>
         </div>
     </div>
 

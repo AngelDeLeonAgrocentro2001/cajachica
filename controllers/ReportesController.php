@@ -94,6 +94,7 @@ class ReportesController {
                             <th>Monto Total</th>
                             <th>Total Gastos</th>
                             <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -105,6 +106,9 @@ class ReportesController {
                                 <td data-label="Monto Total"><?php echo htmlspecialchars($liquidacion['monto_total']); ?></td>
                                 <td data-label="Total Gastos"><?php echo htmlspecialchars($liquidacion['total_gastos'] ?? '0.00'); ?></td>
                                 <td data-label="Estado"><?php echo htmlspecialchars($liquidacion['estado']); ?></td>
+                                <td data-label="Acciones">
+                                    <button class="btn-primary" onclick="showDetalles(<?php echo $liquidacion['id']; ?>)">Ver Detalles</button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -227,7 +231,7 @@ class ReportesController {
         try {
             $mpdf = new Mpdf([
                 'mode' => 'utf-8',
-                'format' => 'A4',
+                'format' => 'A4-L', // Landscape orientation
                 'margin_top' => 20,
                 'margin_bottom' => 20,
                 'margin_left' => 15,
@@ -274,6 +278,40 @@ class ReportesController {
                 $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalGastos) . '</td>';
                 $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($estado) . '</td>';
                 $html .= '</tr>';
+
+                // Fetch and add detalles for this liquidation
+                $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
+                if (!empty($detalles)) {
+                    $html .= '<tr>';
+                    $html .= '<td colspan="6" style="padding: 8px; background-color: #f0f0f0; font-weight: bold;">Detalles de Liquidación #' . htmlspecialchars($id) . '</td>';
+                    $html .= '</tr>';
+                    $html .= '<tr style="background-color:#4a6a8a; color:white;">';
+                    $html .= '<th style="padding: 8px;">ID Detalle</th>';
+                    $html .= '<th style="padding: 8px;">No. Factura</th>';
+                    $html .= '<th style="padding: 8px;">Nombre Proveedor</th>';
+                    $html .= '<th style="padding: 8px;">Fecha</th>';
+                    $html .= '<th style="padding: 8px;">Total Factura</th>';
+                    $html .= '<th style="padding: 8px;">Estado</th>';
+                    $html .= '</tr>';
+
+                    foreach ($detalles as $detalle) {
+                        $detalleId = isset($detalle['id']) ? (string)$detalle['id'] : '';
+                        $noFactura = isset($detalle['no_factura']) ? (string)$detalle['no_factura'] : '';
+                        $nombreProveedor = isset($detalle['nombre_proveedor']) ? (string)$detalle['nombre_proveedor'] : 'N/A';
+                        $fecha = isset($detalle['fecha']) ? (string)$detalle['fecha'] : '';
+                        $totalFactura = isset($detalle['total_factura']) ? (string)$detalle['total_factura'] : '';
+                        $estadoDetalle = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
+
+                        $html .= '<tr>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalleId) . '</td>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($noFactura) . '</td>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($nombreProveedor) . '</td>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fecha) . '</td>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalFactura) . '</td>';
+                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($estadoDetalle) . '</td>';
+                        $html .= '</tr>';
+                    }
+                }
             }
 
             $html .= '</tbody>';
@@ -500,5 +538,279 @@ class ReportesController {
         header('Cache-Control: max-age=0');
         $writer->save('php://output');
         exit;
+    }
+
+    // New method to fetch detalles for a specific liquidation
+    public function getDetallesByLiquidacion() {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+    
+        $idLiquidacion = $_POST['id_liquidacion'] ?? null;
+        if (!$idLiquidacion) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de liquidación no proporcionado']);
+            exit;
+        }
+    
+        try {
+            $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
+            ob_start();
+            ?>
+            <h2>Detalles de Liquidación #<?php echo htmlspecialchars($idLiquidacion); ?></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo de Documento</th>
+                        <th>No. Factura</th>
+                        <th>Proveedor</th>
+                        <th>NIT</th>
+                        <th>DPI</th>
+                        <th>Cantidad</th>
+                        <th>Serie</th>
+                        <th>Centro de Costo</th>
+                        <th>Tipo de Gasto</th>
+                        <th>Tipo de Combustible</th>
+                        <th>Cuenta Contable</th>
+                        <th>Fecha</th>
+                        <th>Subtotal</th>
+                        <th>IVA</th>
+                        <th>IDP</th>
+                        <th>INGUAT</th>
+                        <th>Total Bruto</th>
+                        <th>Estado</th>
+                        <th>Archivos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($detalles)): ?>
+                        <tr>
+                            <td colspan="20" style="text-align: center;">No hay detalles disponibles.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($detalles as $detalle): ?>
+                            <tr>
+                                <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                                <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
+                                <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
+                                <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                                <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
+                                <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
+                                <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
+                                <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
+                                <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+                                <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
+                                <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
+                                <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
+                                <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
+                                <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
+                                <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
+                                <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
+                                <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+                        <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                        <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
+                        <td data-label="Archivos">
+                            <?php
+                            $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                            if (is_array($rutas) && !empty($rutas)) {
+                                foreach ($rutas as $ruta) {
+                                    echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                                }
+                            } else {
+                                echo 'N/A';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
+        <div class="export-buttons">
+            <button class="btn-export btn-export-pdf" onclick="exportDetallesToPDF(<?php echo $idLiquidacion; ?>)">Exportar a PDF</button>
+        </div>
+        <?php
+        $html = ob_get_clean();
+        echo $html;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al obtener los detalles: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function exportDetallesToPDF($idLiquidacion) {
+        // Ensure no output occurs before PDF generation
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+    
+        try {
+            // Validate input
+            if (!is_numeric($idLiquidacion) || $idLiquidacion <= 0) {
+                throw new Exception('ID de liquidación inválido: ' . $idLiquidacion);
+            }
+    
+            // Log the start of the process
+            error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
+    
+            // Fetch data
+            $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
+            if ($detalles === false) {
+                throw new Exception('Error al obtener detalles de la liquidación: método getDetallesByLiquidacionId devolvió false');
+            }
+    
+            $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
+            if ($liquidacion === false) {
+                throw new Exception('Error al obtener liquidación: método getLiquidacionById devolvió false');
+            }
+    
+            error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
+    
+            // Initialize mPDF
+            $mpdf = new Mpdf([
+                'mode' => 'utf-8',
+                'format' => 'A4-L', // Landscape orientation
+                'margin_top' => 20,
+                'margin_bottom' => 20,
+                'margin_left' => 15,
+                'margin_right' => 15,
+            ]);
+            $mpdf->SetTitle('Reporte de Detalles de Liquidación');
+            $mpdf->SetAuthor('AgroCaja Chica');
+    
+            error_log('mPDF initialized successfully for liquidation #' . $idLiquidacion);
+    
+            // Build HTML for PDF
+            $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>';
+            $html .= '<p style="text-align: center; color: #555;">Caja Chica: ' . htmlspecialchars($liquidacion['caja_chica'] ?? 'N/A') . '</p>';
+            $html .= '<p style="text-align: center; color: #555;">Fecha Creación: ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
+    
+            $html .= '<table border="1" style="width:100%; border-collapse:collapse; font-size: 12px;">';
+            $html .= '<thead>';
+            $html .= '<tr style="background-color:#2c3e50; color:white;">';
+            $html .= '<th style="padding: 8px;">ID</th>';
+            $html .= '<th style="padding: 8px;">Tipo de Documento</th>';
+            $html .= '<th style="padding: 8px;">No. Factura</th>';
+            $html .= '<th style="padding: 8px;">Proveedor</th>';
+            $html .= '<th style="padding: 8px;">NIT</th>';
+            $html .= '<th style="padding: 8px;">DPI</th>';
+            $html .= '<th style="padding: 8px;">Cantidad</th>';
+            $html .= '<th style="padding: 8px;">Serie</th>';
+            $html .= '<th style="padding: 8px;">Centro de Costo</th>';
+            $html .= '<th style="padding: 8px;">Tipo de Gasto</th>';
+            $html .= '<th style="padding: 8px;">Tipo de Combustible</th>';
+            $html .= '<th style="padding: 8px;">Cuenta Contable</th>';
+            $html .= '<th style="padding: 8px;">Fecha</th>';
+            $html .= '<th style="padding: 8px;">Subtotal</th>';
+            $html .= '<th style="padding: 8px;">IVA</th>';
+            $html .= '<th style="padding: 8px;">IDP</th>';
+            $html .= '<th style="padding: 8px;">INGUAT</th>';
+            $html .= '<th style="padding: 8px;">Total Bruto</th>';
+            $html .= '<th style="padding: 8px;">Estado</th>';
+            $html .= '<th style="padding: 8px;">Archivos</th>';
+            $html .= '</tr>';
+            $html .= '</thead>';
+            $html .= '<tbody>';
+    
+            if (empty($detalles)) {
+                $html .= '<tr><td colspan="20" style="padding: 8px; text-align: center;">No hay detalles disponibles.</td></tr>';
+            } else {
+                foreach ($detalles as $detalle) {
+                    $detalle['id'] = isset($detalle['id']) ? (string)$detalle['id'] : '';
+                    $detalle['tipo_documento'] = isset($detalle['tipo_documento']) ? (string)$detalle['tipo_documento'] : '';
+                    $detalle['no_factura'] = isset($detalle['no_factura']) ? (string)$detalle['no_factura'] : '';
+                    $detalle['nombre_proveedor'] = isset($detalle['nombre_proveedor']) ? (string)$detalle['nombre_proveedor'] : '';
+                    $detalle['nit_proveedor'] = isset($detalle['nit_proveedor']) ? (string)$detalle['nit_proveedor'] : 'N/A';
+                    $detalle['dpi'] = isset($detalle['dpi']) ? (string)$detalle['dpi'] : 'N/A';
+                    $detalle['cantidad'] = isset($detalle['cantidad']) ? (string)$detalle['cantidad'] : 'N/A';
+                    $detalle['serie'] = isset($detalle['serie']) ? (string)$detalle['serie'] : 'N/A';
+                    $detalle['nombre_centro_costo'] = isset($detalle['nombre_centro_costo']) ? (string)$detalle['nombre_centro_costo'] : 'N/A';
+                    $detalle['t_gasto'] = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : '';
+                    $detalle['tipo_combustible'] = isset($detalle['tipo_combustible']) ? (string)$detalle['tipo_combustible'] : 'N/A';
+                    $detalle['cuenta_contable_nombre'] = isset($detalle['cuenta_contable_nombre']) ? (string)$detalle['cuenta_contable_nombre'] : 'N/A';
+                    $detalle['fecha'] = isset($detalle['fecha']) ? (string)$detalle['fecha'] : '';
+                    $detalle['subtotal'] = isset($detalle['subtotal']) ? (float)$detalle['subtotal'] : 0;
+                    $detalle['iva'] = isset($detalle['iva']) ? (float)$detalle['iva'] : 0;
+                    $detalle['idp'] = isset($detalle['idp']) ? (float)$detalle['idp'] : 0;
+                    $detalle['inguat'] = isset($detalle['inguat']) ? (float)$detalle['inguat'] : 0;
+                    $detalle['total_factura'] = isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+                    $detalle['estado'] = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
+                    $detalle['rutas_archivos'] = isset($detalle['rutas_archivos']) ? $detalle['rutas_archivos'] : '';
+    
+                    $html .= '<tr>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['id']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['tipo_documento']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['no_factura']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nombre_proveedor']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nit_proveedor']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['dpi']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['cantidad']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['serie']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nombre_centro_costo']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['t_gasto']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['tipo_combustible']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['cuenta_contable_nombre']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['fecha']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . number_format($detalle['subtotal'], 2) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . number_format($detalle['iva'], 2) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . number_format($detalle['idp'], 2) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . number_format($detalle['inguat'], 2) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . number_format($detalle['total_factura'], 2) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['estado']) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">';
+                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                    if (is_array($rutas) && !empty($rutas)) {
+                        foreach ($rutas as $ruta) {
+                            $html .= htmlspecialchars((string)$ruta) . '<br>';
+                        }
+                    } else {
+                        $html .= 'N/A';
+                    }
+                    $html .= '</td>';
+                    $html .= '</tr>';
+                }
+            }
+    
+            $html .= '</tbody>';
+            $html .= '</table>';
+    
+            // Write HTML to PDF
+            $mpdf->WriteHTML($html);
+    
+            error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
+    
+            // Set headers for PDF download
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+    
+            // Output the PDF
+            $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
+            error_log('PDF output completed for liquidation #' . $idLiquidacion);
+            exit;
+    
+        } catch (Exception $e) {
+            // Log the error
+            error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
+    
+            // Ensure no PDF data has been sent before switching to JSON
+            if (headers_sent()) {
+                exit;
+            }
+    
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
+            exit;
+        }
     }
 }

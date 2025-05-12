@@ -131,9 +131,9 @@ async function loadCuentas() {
         const cuentas = await response.json();
         const cuentaSelect = document.querySelector('#cuentaSelect');
         const cuentaFormSelect = document.querySelector('#cuenta_id');
-        cuentaSelect.innerHTML = '<option value="">Seleccione una Cuenta</option>';
+        cuentaSelect.innerHTML = '<option value="">Seleccione una Cuenta Contable</option>';
         if (cuentaFormSelect) {
-            cuentaFormSelect.innerHTML = '<option value="">Seleccione una cuenta</option>';
+            cuentaFormSelect.innerHTML = '<option value="">Seleccione una cuenta contable</option>';
             cuentas.forEach(cuenta => {
                 const formOption = document.createElement('option');
                 formOption.value = cuenta.id;
@@ -148,12 +148,12 @@ async function loadCuentas() {
             cuentaSelect.appendChild(option);
         });
     } catch (error) {
-        console.error('Error al cargar cuentas:', error);
+        console.error('Error al cargar cuentas contables:', error);
         const cuentaSelect = document.querySelector('#cuentaSelect');
         const cuentaFormSelect = document.querySelector('#cuenta_id');
-        cuentaSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+        cuentaSelect.innerHTML = '<option value="">Error al cargar cuentas contables</option>';
         if (cuentaFormSelect) {
-            cuentaFormSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+            cuentaFormSelect.innerHTML = '<option value="">Error al cargar cuentas contables</option>';
         }
         if (error.message.includes('403')) {
             alert('No tienes permiso para cargar la lista de cuentas contables. Contacta a un administrador.');

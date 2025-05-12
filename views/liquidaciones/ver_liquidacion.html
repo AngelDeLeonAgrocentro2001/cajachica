@@ -5,16 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ver Liquidación</title>
     <style>
-        /* Estilo general del cuerpo */
         body {
             background-color: #f4f7fa;
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            transition: margin-left 0.3s ease-in-out;
+            width: 100vw;
+            overflow-x: hidden;
         }
 
-        /* Título principal */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+            box-sizing: border-box;
+        }
+
         h2 {
             text-align: center;
             color: #2c3e50;
@@ -23,7 +30,6 @@
             font-weight: 600;
         }
 
-        /* Subtítulo */
         h3 {
             color: #2c3e50;
             margin: 20px 0 10px;
@@ -32,7 +38,6 @@
             text-align: center;
         }
 
-        /* Información de la liquidación */
         p {
             text-align: center;
             color: #333;
@@ -44,56 +49,53 @@
             color: #2c3e50;
         }
 
-        /* Estilo de la tabla */
-        table {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto 20px;
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            margin: 30px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #facturasTable {
+            width: 100%;
+            min-width: 1200px;
             border-collapse: collapse;
             background-color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
-            overflow-x: auto;
-            display: block;
+            margin: 0 auto;
         }
 
-        table thead,
-        table tbody {
-            width: 100%;
-            table-layout: fixed;
+        #facturasTable thead {
+            background-color: #2c3e50;
+            color: #fff;
         }
 
-        table th,
-        table td {
+        #facturasTable th,
+        #facturasTable td {
             padding: 12px 15px;
             text-align: left;
             font-size: 0.95rem;
             min-width: 100px;
         }
 
-        table thead {
-            background-color: #2c3e50;
-            color: #fff;
-        }
-
-        table th {
+        #facturasTable th {
             font-weight: 600;
         }
 
-        table tbody tr {
+        #facturasTable tbody tr {
             border-bottom: 1px solid #e0e0e0;
             transition: background-color 0.3s ease;
         }
 
-        table tbody tr:hover {
+        #facturasTable tbody tr:hover {
             background-color: #f9f9f9;
         }
 
-        table td {
+        #facturasTable td {
             color: #333;
         }
 
-        /* Botón de volver */
         .back-btn {
             display: block;
             margin: 20px auto;
@@ -111,22 +113,26 @@
             background-color: #c0392b;
         }
 
-        /* Estilo responsivo */
         @media (max-width: 768px) {
-            table {
-                width: 100%;
-                display: block;
+            .container {
+                padding: 0 10px;
             }
 
-            table thead {
+            .table-wrapper {
+                margin: 20px 0;
+                overflow-x: hidden;
+            }
+
+            #facturasTable {
+                min-width: 100%;
+                margin: 0;
+            }
+
+            #facturasTable thead {
                 display: none;
             }
 
-            table tbody {
-                display: block;
-            }
-
-            table tbody tr {
+            #facturasTable tbody tr {
                 display: block;
                 margin-bottom: 10px;
                 border: 1px solid #ddd;
@@ -134,7 +140,7 @@
                 background-color: #fff;
             }
 
-            table tbody td {
+            #facturasTable tbody td {
                 display: block;
                 text-align: right;
                 padding: 8px 10px;
@@ -143,11 +149,11 @@
                 border-bottom: 1px solid #eee;
             }
 
-            table tbody td:last-child {
+            #facturasTable tbody td:last-child {
                 border-bottom: none;
             }
 
-            table tbody td:before {
+            #facturasTable tbody td:before {
                 content: attr(data-label);
                 position: absolute;
                 left: 10px;
@@ -158,77 +164,80 @@
     </style>
 </head>
 <body>
-    <?php include '../views/partials/menu.php'; ?>
-    <h2>Ver Liquidación ID: <?php echo htmlspecialchars($data['id']); ?></h2>
-    <p><strong>Caja Chica:</strong> <?php echo htmlspecialchars($data['id_caja_chica']); ?></p>
-    <p><strong>Fecha Creación:</strong> <?php echo htmlspecialchars($data['fecha_creacion']); ?></p>
-    <p><strong>Monto Total:</strong> <?php echo htmlspecialchars($data['monto_total']); ?></p>
-    <p><strong>Estado:</strong> <span id="estado-liquidacion"><?php echo htmlspecialchars($data['estado']); ?></span></p>
-    <h3>Detalles de la Liquidación</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Tipo de Documento</th>
-                <th>Número Factura</th>
-                <th>Proveedor</th>
-                <th>NIT</th>
-                <th>DPI</th>
-                <th>Cantidad</th>
-                <th>Serie</th>
-                <th>Centro de Costo</th>
-                <th>Tipo de Gasto</th>
-                <th>Tipo de Combustible</th>
-                <th>Fecha</th>
-                <th>Precio Unitario</th>
-                <th>Subtotal</th>
-                <th>IVA</th>
-                <th>IDP</th>
-                <th>INGUAT</th>
-                <th>Total Bruto</th>
-                <!-- <th>Cuenta Contable</th> -->
-                <th>Archivos</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($detalles as $detalle): ?>
-                <tr>
-                    <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
-                    <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
-                    <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                    <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
-                    <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
-                    <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
-                    <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
-                    <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-                    <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
-                    <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
-                    <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-                    <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
-                    <td data-label="Precio Unitario"><?php echo number_format($detalle['p_unitario'], 2); ?></td>
-                    <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
-                    <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
-                    <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
-                    <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-                    <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                    <!-- <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['id_cuenta_contable'] ?? 'N/A'); ?></td> -->
-                    <td data-label="Archivos">
-                        <?php
-                        // Decode the JSON string into an array
-                        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                        if (is_array($rutas) && !empty($rutas)) {
-                            foreach ($rutas as $ruta) {
-                                echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                            }
-                        } else {
-                            echo 'N/A';
-                        }
-                        ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-    <button class="back-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list'">Volver</button>
+    <div class="container">
+        <?php include '../views/partials/menu.php'; ?>
+        <h2>Ver Liquidación ID: <?php echo htmlspecialchars($data['id']); ?></h2>
+        <p><strong>Caja Chica:</strong> <?php echo htmlspecialchars($data['id_caja_chica']); ?></p>
+        <p><strong>Fecha Creación:</strong> <?php echo htmlspecialchars($data['fecha_creacion']); ?></p>
+        <p><strong>Monto Total:</strong> <?php echo htmlspecialchars($data['monto_total']); ?></p>
+        <p><strong>Estado:</strong> <span id="estado-liquidacion"><?php echo htmlspecialchars($data['estado']); ?></span></p>
+        <h3>Detalles de la Liquidación</h3>
+        <div class="table-wrapper">
+            <table id="facturasTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo de Documento</th>
+                        <th>No. Factura</th>
+                        <th>Proveedor</th>
+                        <th>NIT</th>
+                        <th>DPI</th>
+                        <th>Cantidad</th>
+                        <th>Serie</th>
+                        <th>Centro de Costo</th>
+                        <th>Tipo de Gasto</th>
+                        <th>Tipo de Combustible</th>
+                        <th>Cuenta Contable</th>
+                        <th>Fecha</th>
+                        <th>Subtotal</th>
+                        <th>IVA</th>
+                        <th>IDP</th>
+                        <th>INGUAT</th>
+                        <th>Total Bruto</th>
+                        <th>Estado</th>
+                        <th>Archivos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($detalles as $detalle): ?>
+                        <tr>
+                            <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                            <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
+                            <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
+                            <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                            <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
+                            <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
+                            <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
+                            <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
+                            <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+                            <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
+                            <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
+                            <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
+                            <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
+                            <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
+                            <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
+                            <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
+                            <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+                            <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                            <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
+                            <td data-label="Archivos">
+                                <?php
+                                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                                if (is_array($rutas) && !empty($rutas)) {
+                                    foreach ($rutas as $ruta) {
+                                        echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                                    }
+                                } else {
+                                    echo 'N/A';
+                                }
+                                ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <button class="back-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list'">Volver</button>
+    </div>
 </body>
 </html>

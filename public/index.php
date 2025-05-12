@@ -149,119 +149,136 @@ switch ($controller) {
         break;
 
     case 'liquidacion':
-        $liquidacionController = new LiquidacionController();
-        switch ($action) {
-            case 'list':
-                $liquidacionController->listLiquidaciones($mode);
-                break;
-            case 'create':
-                $liquidacionController->createLiquidacion();
-                break;
-            case 'update':
-                if ($id) {
-                    $liquidacionController->updateLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $liquidacionController->deleteLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para eliminar']);
-                }
-                break;
-            case 'autorizar':
-                if ($id) {
-                    $liquidacionController->autorizar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para autorizar']);
-                }
-                break;
-            case 'revisar':
-                if ($id) {
-                    $liquidacionController->revisar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para revisar']);
-                }
-                break;
-            case 'exportar':
-                if ($id) {
-                    $liquidacionController->exportar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para exportar']);
-                }
-                break;
-            case 'manageFacturas':
-                if ($id) {
-                    $liquidacionController->manageFacturas($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para gestionar facturas']);
-                }
-                break;
-            case 'finalizar':
-                if ($id) {
-                    $liquidacionController->finalizar($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para finalizar']);
-                }
-                break;
-            case 'ver':
-                if ($id) {
-                    $liquidacionController->ver($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para ver']);
-                }
-                break;
-            case 'getCuentasByCentroCosto':
-                if ($id_centro_costo === null || $id_centro_costo === '') {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costo requerido para obtener cuentas contables']);
-                } else {
-                    $liquidacionController->getCuentasByCentroCosto($id_centro_costo);
-                }
-                break;
-            case 'getImpuestosByTipoGasto':
-                if ($name) {
-                    $liquidacionController->getImpuestosByTipoGasto($name);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'Nombre del tipo de gasto requerido para obtener impuestos']);
-                }
-                break;
-            case 'listCorrecciones':
-                $liquidacionController->listCorrecciones();
-                break;
-            case 'updateCorreccion':
-                if ($id) {
-                    $liquidacionController->updateCorreccion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para updateCorreccion']);
-                }
-                break;
-            case 'submitCorreccion':
-                if ($id) {
-                    $liquidacionController->submitCorreccion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de liquidación requerido para submitCorreccion']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para liquidacion']);
-                exit;
-        }
-        break;
+            $liquidacionController = new LiquidacionController();
+            switch ($action) {
+                case 'list':
+                    $liquidacionController->listLiquidaciones($mode);
+                    break;
+                case 'create':
+                    $liquidacionController->createLiquidacion();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $liquidacionController->updateLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $liquidacionController->deleteLiquidacion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para eliminar']);
+                    }
+                    break;
+                case 'autorizar':
+                    if ($id) {
+                        $liquidacionController->autorizar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para autorizar']);
+                    }
+                    break;
+                case 'revisar':
+                    if ($id) {
+                        $liquidacionController->revisar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para revisar']);
+                    }
+                    break;
+                case 'exportar':
+                    if ($id) {
+                        $liquidacionController->exportar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para exportar']);
+                    }
+                    break;
+                case 'manageFacturas':
+                    if ($id) {
+                        $liquidacionController->manageFacturas($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para gestionar facturas']);
+                    }
+                    break;
+                case 'finalizar':
+                    if ($id) {
+                        $liquidacionController->finalizar($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para finalizar']);
+                    }
+                    break;
+                case 'ver':
+                    if ($id) {
+                        $liquidacionController->ver($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para ver']);
+                    }
+                    break;
+                case 'getCuentasByCentroCosto':
+                    if ($id_centro_costo === null || $id_centro_costo === '') {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costo requerido para obtener cuentas contables']);
+                    } else {
+                        $liquidacionController->getCuentasByCentroCosto($id_centro_costo);
+                    }
+                    break;
+                case 'getImpuestosByTipoGasto':
+                    if ($name) {
+                        $liquidacionController->getImpuestosByTipoGasto($name);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'Nombre del tipo de gasto requerido para obtener impuestos']);
+                    }
+                    break;
+                case 'listCorrecciones':
+                    $liquidacionController->listCorrecciones();
+                    break;
+                case 'updateCorreccion':
+                    if ($id) {
+                        $liquidacionController->updateCorreccion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para updateCorreccion']);
+                    }
+                    break;
+                case 'submitCorreccion':
+                    if ($id) {
+                        $liquidacionController->submitCorreccion($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para submitCorreccion']);
+                    }
+                    break;
+                case 'getLiquidacionState': // Add this case
+                    if ($id) {
+                        $liquidacionController->getLiquidacionState($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para obtener el estado']);
+                    }
+                    break;
+                case 'deleteFacturaCorreccion': // Add this case as well (from your previous implementation)
+                    $detalle_id = isset($_GET['detalle_id']) ? intval($_GET['detalle_id']) : null;
+                    if ($id && $detalle_id) {
+                        $liquidacionController->deleteFacturaCorreccion($id, $detalle_id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación y detalle requeridos para eliminar factura']);
+                    }
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para liquidacion']);
+                    exit;
+            }
+            break;
 
     case 'detalleliquidacion':
         $detalleLiquidacionController = new DetalleLiquidacionController();
@@ -315,24 +332,35 @@ switch ($controller) {
         break;
 
     case 'reportes':
-        $reportesController = new ReportesController();
-        switch ($action) {
-            case 'list':
-                $reportesController->list();
-                break;
-            case 'generarResumen':
-                $reportesController->generarResumen();
-                break;
-            case 'generarDetalle':
-                $reportesController->generarDetalle();
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para reportes']);
-                exit;
-        }
-        break;
-
+            $reportesController = new ReportesController();
+            switch ($action) {
+                case 'list':
+                    $reportesController->list();
+                    break;
+                case 'generarResumen':
+                    $reportesController->generarResumen();
+                    break;
+                case 'generarDetalle':
+                    $reportesController->generarDetalle();
+                    break;
+                case 'getDetallesByLiquidacion':
+                    $reportesController->getDetallesByLiquidacion();
+                    break;
+                case 'exportDetallesToPDF':
+                    $idLiquidacion = $_POST['id_liquidacion'] ?? null;
+                    if ($idLiquidacion) {
+                        $reportesController->exportDetallesToPDF($idLiquidacion);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para exportar a PDF']);
+                    }
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para reportes']);
+                    exit;
+            }
+            break;
     case 'impuesto':
         $impuestoController = new ImpuestoController();
         switch ($action) {
