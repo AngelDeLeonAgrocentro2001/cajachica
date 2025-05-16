@@ -10,10 +10,11 @@ class Database {
 
     private function __construct() {
         try {
-            $this->pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
+            $this->pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8", DB_USER, DB_PASS);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $this->pdo->exec("SET CHARACTER SET utf8");
+            error_log("Database connection established to " . DB_NAME . " with charset utf8");
         } catch (PDOException $e) {
+            error_log("Error al conectar a la base de datos: " . $e->getMessage());
             throw new Exception("Error al conectar a la base de datos: " . $e->getMessage());
         }
     }
@@ -29,3 +30,4 @@ class Database {
         return $this->pdo;
     }
 }
+?>

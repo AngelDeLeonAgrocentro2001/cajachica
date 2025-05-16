@@ -445,76 +445,84 @@
         }
         
         async function bulkSendToCorrection() {
-            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-            if (unselectedDetalles.length === 0) {
-                alert('Por favor, deselecciona al menos un detalle para enviar a corrección.');
+    const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+    if (unselectedDetalles.length === 0) {
+        alert('Por favor, deselecciona al menos un detalle para enviar a corrección.');
+        return;
+    }
+
+    const correccionComentarios = {};
+    const validDetalles = [];
+    for (const detalleId of unselectedDetalles) {
+        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+        const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
+        if (estado !== 'EN_CORRECTION') {
+            const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+            const comment = commentInput.value.trim();
+            if (!comment) {
+                alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
+                commentInput.focus();
                 return;
             }
-        
-            const correccionComentarios = {};
-            for (const detalleId of unselectedDetalles) {
-                const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-                const row = commentInput.closest('tr');
-                if (!row.classList.contains('in-correction')) {
-                    const comment = commentInput.value.trim();
-                    if (!comment) {
-                        alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
-                        return;
-                    }
-                    correccionComentarios[detalleId] = comment;
-                }
-            }
-        
-            if (!confirm(`¿Estás seguro de que deseas enviar ${unselectedDetalles.length} detalle(s) a corrección?`)) return;
-        
-            const formData = new FormData();
-            formData.append('action', 'send_to_correction');
-            formData.append('detalle_ids', JSON.stringify(unselectedDetalles));
-            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-        
-            try {
-                const response = await fetch(`index.php?controller=liquidacion&action=autorizar&id=<?php echo htmlspecialchars($data['id']); ?>`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al enviar a corrección');
-                }
-        
-                alert(result.message);
-                unselectedDetalles.forEach(detalleId => {
-                    const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-                    row.classList.add('in-correction');
-                    row.style.display = 'none'; // Hide the row after sending to correction
-                    row.querySelector('input[name="detalles[]"]').disabled = true;
-                    row.querySelector('input[name="detalles[]"]').checked = false;
-                    row.querySelector('.comment-column').classList.add('hidden');
-                    row.querySelector('.correccion-comment').disabled = true;
-                    row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
-                });
-        
-                hasCorrections = true;
-                const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
-                commentHeader.classList.toggle('hidden', !anyCommentVisible);
-                bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
-        
-                // Reapply role-based filtering after sending to correction
-                if (userRole === 'CONTABILIDAD') {
-                    filterNonCorrectedInvoices();
-                } else if (['SUPERVISOR', '1', '2'].includes(userRole)) {
-                    filterSupervisorInvoices();
-                } else {
-                    filterNonCorrectedInvoices();
-                }
-            } catch (error) {
-                console.error('Error al enviar a corrección:', error);
-                alert(error.message || 'Error al enviar a corrección. Intenta de nuevo.');
-            }
+            correccionComentarios[detalleId] = comment;
+            validDetalles.push(detalleId);
         }
+    }
+
+    if (validDetalles.length === 0) {
+        alert('No hay detalles válidos para enviar a corrección.');
+        return;
+    }
+
+    if (!confirm(`¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`)) return;
+
+    const formData = new FormData();
+    formData.append('action', 'send_to_correction');
+    formData.append('detalle_ids', JSON.stringify(validDetalles));
+    formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=autorizar&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al enviar a corrección');
+        }
+
+        alert(result.message);
+        validDetalles.forEach(detalleId => {
+            const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+            row.classList.add('in-correction');
+            row.style.display = 'none';
+            row.querySelector('input[name="detalles[]"]').disabled = true;
+            row.querySelector('input[name="detalles[]"]').checked = false;
+            row.querySelector('.comment-column').classList.add('hidden');
+            row.querySelector('.correccion-comment').disabled = true;
+            row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
+        });
+
+        hasCorrections = true;
+        const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
+        commentHeader.classList.toggle('hidden', !anyCommentVisible);
+        bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
+
+        if (userRole === 'CONTABILIDAD') {
+            filterNonCorrectedInvoices();
+        } else if (['SUPERVISOR', '1', '2'].includes(userRole)) {
+            filterSupervisorInvoices();
+        } else {
+            filterNonCorrectedInvoices();
+        }
+    } catch (error) {
+        console.error('Error al enviar a corrección:', error);
+        alert(error.message || 'Error al enviar a corrección. Intenta de nuevo.');
+    }
+}
         
         // Function to filter invoices for SUPERVISOR, 1, and 2 roles
         function filterSupervisorInvoices() {
@@ -712,6 +720,6 @@
             }
         }
     });
-        </script>
+    </script>
 </body>
 </html>

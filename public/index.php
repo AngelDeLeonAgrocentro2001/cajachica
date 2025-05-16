@@ -26,7 +26,7 @@ require_once '../controllers/CentroCostoController.php';
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
-$subaction = isset($_GET['subaction']) ? $_GET['subaction'] : ''; // Add this line
+$subaction = isset($_GET['subaction']) ? $_GET['subaction'] : '';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 $name = isset($_GET['name']) ? $_GET['name'] : null;
 $mode = isset($_GET['mode']) ? $_GET['mode'] : '';
@@ -148,7 +148,7 @@ switch ($controller) {
         }
         break;
 
-    case 'liquidacion':
+        case 'liquidacion':
             $liquidacionController = new LiquidacionController();
             switch ($action) {
                 case 'list':
@@ -256,15 +256,15 @@ switch ($controller) {
                         echo json_encode(['error' => 'ID de liquidación requerido para submitCorreccion']);
                     }
                     break;
-                case 'getLiquidacionState': // Add this case
+                case 'getLiquidacionState':
                     if ($id) {
-                        $liquidacionController->getLiquidacionState($id);
+                        $liquidacionController->getLiquidacionState($id); // Fixed syntax: removed stray parenthesis
                     } else {
                         header('HTTP/1.1 400 Bad Request');
                         echo json_encode(['error' => 'ID de liquidación requerido para obtener el estado']);
                     }
                     break;
-                case 'deleteFacturaCorreccion': // Add this case as well (from your previous implementation)
+                case 'deleteFacturaCorreccion':
                     $detalle_id = isset($_GET['detalle_id']) ? intval($_GET['detalle_id']) : null;
                     if ($id && $detalle_id) {
                         $liquidacionController->deleteFacturaCorreccion($id, $detalle_id);
@@ -273,13 +273,53 @@ switch ($controller) {
                         echo json_encode(['error' => 'ID de liquidación y detalle requeridos para eliminar factura']);
                     }
                     break;
+                case 'getDetalleInfo':
+                    if ($id) {
+                        $liquidacionController->getDetalleInfo($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de detalle requerido para obtener la información']);
+                    }
+                    break;
+                case 'getEstado':
+                    if ($id) {
+                        $liquidacionController->getEstado($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para obtener el estado']);
+                    }
+                    break;
+                case 'getEnProcesoLiquidaciones':
+                    $liquidacionController->getEnProcesoLiquidaciones();
+                    break;
+                case 'createWithDetail':
+                    $liquidacionController->createWithDetail();
+                    break;
+                case 'addDetailToLiquidacion':
+                    $liquidacionController->addDetailToLiquidacion();
+                    break;
+                case 'deleteDetail': // New case for deleting a detail with correccion_comentario
+                    if ($id) {
+                        $liquidacionController->deleteDetail($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
+                    }
+                    break;
+                case 'autorizarDetalle':
+                    if ($id) {
+                        $liquidacionController->autorizarDetalle($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para autorizar detalle']);
+                    }
+                    break;
                 default:
                     header('HTTP/1.1 404 Not Found');
                     echo json_encode(['error' => 'Acción no encontrada para liquidacion']);
                     exit;
             }
             break;
-
     case 'detalleliquidacion':
         $detalleLiquidacionController = new DetalleLiquidacionController();
         switch ($action) {
@@ -332,35 +372,36 @@ switch ($controller) {
         break;
 
     case 'reportes':
-            $reportesController = new ReportesController();
-            switch ($action) {
-                case 'list':
-                    $reportesController->list();
-                    break;
-                case 'generarResumen':
-                    $reportesController->generarResumen();
-                    break;
-                case 'generarDetalle':
-                    $reportesController->generarDetalle();
-                    break;
-                case 'getDetallesByLiquidacion':
-                    $reportesController->getDetallesByLiquidacion();
-                    break;
-                case 'exportDetallesToPDF':
-                    $idLiquidacion = $_POST['id_liquidacion'] ?? null;
-                    if ($idLiquidacion) {
-                        $reportesController->exportDetallesToPDF($idLiquidacion);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de liquidación requerido para exportar a PDF']);
-                    }
-                    break;
-                default:
-                    header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para reportes']);
-                    exit;
-            }
-            break;
+        $reportesController = new ReportesController();
+        switch ($action) {
+            case 'list':
+                $reportesController->list();
+                break;
+            case 'generarResumen':
+                $reportesController->generarResumen();
+                break;
+            case 'generarDetalle':
+                $reportesController->generarDetalle();
+                break;
+            case 'getDetallesByLiquidacion':
+                $reportesController->getDetallesByLiquidacion();
+                break;
+            case 'exportDetallesToPDF':
+                $idLiquidacion = $_POST['id_liquidacion'] ?? null;
+                if ($idLiquidacion) {
+                    $reportesController->exportDetallesToPDF($idLiquidacion);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de liquidación requerido para exportar a PDF']);
+                }
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para reportes']);
+                exit;
+        }
+        break;
+
     case 'impuesto':
         $impuestoController = new ImpuestoController();
         switch ($action) {

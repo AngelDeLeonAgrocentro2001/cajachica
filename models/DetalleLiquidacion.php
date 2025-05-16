@@ -8,6 +8,8 @@ class DetalleLiquidacion {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    // Existing methods...
+
     public function getAllDetallesLiquidacion() {
         $query = "
             SELECT d.*, l.id_caja_chica, l.fecha_creacion, cc.nombre as nombre_caja_chica, cc2.nombre as nombre_centro_costo, tg.name as tipo_gasto, cc3.nombre as cuenta_contable
@@ -104,6 +106,16 @@ class DetalleLiquidacion {
         ");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function updateLiquidacionId($detalleId, $liquidacionId) {
+        try {
+            $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET id_liquidacion = ? WHERE id = ?");
+            return $stmt->execute([$liquidacionId, $detalleId]);
+        } catch (PDOException $e) {
+            error_log("Error al actualizar id_liquidacion para detalle ID $detalleId: " . $e->getMessage());
+            throw new Exception("Error al actualizar id_liquidacion: " . $e->getMessage());
+        }
     }
 
     public function updateEstado($id, $estado) {
@@ -270,6 +282,48 @@ class DetalleLiquidacion {
         ");
         $stmt->execute([$id_liquidacion, $estado]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // New method to fetch corrected details for Supervisor
+    public function getCorrectedDetallesForSupervisor() {
+        $query = "
+            SELECT dl.*, 
+                   l.id as liquidacion_id, 
+                   l.id_caja_chica, 
+                   l.fecha_creacion, 
+                   cc.nombre as nombre_caja_chica, 
+                   cc2.nombre as nombre_centro_costo, 
+                   tg.name as tipo_gasto, 
+                   cc3.nombre as cuenta_contable
+            FROM detalle_liquidaciones dl
+            JOIN liquidaciones l ON dl.id_liquidacion = l.id
+            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            LEFT JOIN centros_costos cc2 ON dl.id_centro_costo = cc2.id
+            LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+            LEFT JOIN cuentas_contables cc3 ON dl.id_cuenta_contable = cc3.id
+            WHERE dl.estado = 'PENDIENTE_AUTORIZACION'
+            AND dl.original_role IS NOT NULL
+            AND dl.correccion_comentario IS NOT NULL
+            ORDER BY dl.id ASC
+        ";
+        $stmt = $this->pdo->query($query);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($detalles as &$detalle) {
+            if (isset($detalle['rutas_archivos'])) {
+                $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
+                foreach ($detalle['rutas_archivos'] as &$ruta) {
+                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
+                        $ruta = substr($ruta, 7);
+                    }
+                }
+            } else {
+                $detalle['rutas_archivos'] = [];
+            }
+            $detalle['liquidacion'] = $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'];
+        }
+
+        return $detalles;
     }
 }
 ?>

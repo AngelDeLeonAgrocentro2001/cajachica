@@ -3,9 +3,9 @@ const modalForm = document.querySelector('#modalForm');
 
 // Store liquidations data globally to access in autorizarLiquidacion
 let liquidacionesData = [];
+let correctedDetallesData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Asegurarnos de que userPermissions y userRole estén definidos
     if (typeof window.userPermissions === 'undefined' || typeof window.userRole === 'undefined') {
         console.error('Error: userPermissions o userRole no están definidos.');
         alert('Error: No se pudieron cargar los permisos o el rol del usuario. Contacta al administrador.');
@@ -48,16 +48,17 @@ async function loadLiquidaciones() {
             }
             throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        liquidacionesData = await response.json(); // Store the liquidations data globally
+        const data = await response.json();
+        liquidacionesData = data.liquidaciones;
+        correctedDetallesData = data.corrected_detalles || [];
+
         const tbody = document.querySelector('#liquidacionesTable tbody');
         tbody.innerHTML = '';
         if (liquidacionesData.length > 0) {
             liquidacionesData.forEach(liquidacion => {
                 const actions = [];
-                // Check if there are any detalles in EN_CORRECCION
-                const hasCorrections = liquidacion.detalles && Array.isArray(liquidacion.detalles) && liquidacion.detalles.some(detalle => detalle.estado === 'EN_CORRECCION');
+                const hasCorrections = liquidacion.detalles && Array.isArray(liquidacion.detalles) && liquidacion.detalles.some(detalle => detalle.estado === 'EN_CORRECTION');
 
-                // Acciones para el encargado (permiso: create_liquidaciones)
                 if (window.userPermissions.create_liquidaciones) {
                     if (liquidacion.estado === 'EN_PROCESO') {
                         actions.push(`<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`);
@@ -65,19 +66,16 @@ async function loadLiquidaciones() {
                         actions.push(`<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`);
                         actions.push(`<button onclick="finalizarLiquidacion(${liquidacion.id})" class="finalize-btn" ${hasCorrections ? 'disabled' : ''}>Finalizar</button>`);
                     }
-                    // Mostrar "Ver Liquidación" para estados posteriores a EN_PROCESO
                     if (['PENDIENTE_AUTORIZACION', 'PENDIENTE_REVISION_CONTABILIDAD', 'FINALIZADO', 'RECHAZADO_AUTORIZACION', 'RECHAZADO_POR_CONTABILIDAD'].includes(liquidacion.estado)) {
                         actions.push(`<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`);
                     }
                 }
 
-                // Acciones para usuarios con permisos de autorización (Supervisor)
                 if (window.userPermissions.autorizar_liquidaciones && window.userRole === 'SUPERVISOR') {
                     if (liquidacion.estado === 'PENDIENTE_AUTORIZACION') {
                         actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
                     }
                 }
-                // Acciones para usuarios con permisos de revisión (Contabilidad)
                 if (window.userPermissions.revisar_liquidaciones && window.userRole === 'CONTABILIDAD') {
                     if (liquidacion.estado === 'PENDIENTE_REVISION_CONTABILIDAD') {
                         actions.push(`<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`);
@@ -88,7 +86,6 @@ async function loadLiquidaciones() {
                 }
 
                 const actionsHtml = actions.join(' ');
-
                 const estado = liquidacion.estado && liquidacion.estado !== 'N/A' ? liquidacion.estado : 'EN_PROCESO';
 
                 tbody.innerHTML += `
@@ -107,13 +104,78 @@ async function loadLiquidaciones() {
         } else {
             tbody.innerHTML = '<tr><td colspan="8">No hay liquidaciones disponibles.</td></tr>';
         }
+
+        const correctedDetallesSection = document.querySelector('#correctedDetallesSection');
+        const correctedDetallesTbody = document.querySelector('#correctedDetallesTable tbody');
+        if (window.userRole === 'SUPERVISOR' && mode === 'autorizar' && correctedDetallesData.length > 0) {
+            correctedDetallesSection.style.display = 'block';
+            correctedDetallesTbody.innerHTML = '';
+            correctedDetallesData.forEach(detalle => {
+                const actions = [];
+                if (window.userPermissions.autorizar_liquidaciones && window.userRole === 'SUPERVISOR') {
+                    actions.push(`<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'autorizar')" class="edit-btn">Autorizar</button>`);
+                    actions.push(`<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'rechazar')" class="delete-btn">Rechazar</button>`);
+                    actions.push(`<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'descartar')" class="finalize-btn">Descartar</button>`);
+                }
+                const actionsHtml = actions.join(' ');
+
+                let archivosHtml = 'N/A';
+                if (detalle.rutas_archivos) {
+                    try {
+                        const rutas = typeof detalle.rutas_archivos === 'string' ? JSON.parse(detalle.rutas_archivos) : detalle.rutas_archivos;
+                        if (Array.isArray(rutas) && rutas.length > 0) {
+                            archivosHtml = rutas.map(ruta => {
+                                const normalizedPath = ruta.startsWith('uploads/') ? ruta : `uploads/${ruta.replace(/^\/+/, '')}`;
+                                return `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
+                            }).join('');
+                        } else if (typeof rutas === 'string' && rutas.trim().length > 0) {
+                            const normalizedPath = rutas.startsWith('uploads/') ? rutas : `uploads/${rutas.replace(/^\/+/, '')}`;
+                            archivosHtml = `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing rutas_archivos, treating as single path:', e);
+                        if (detalle.rutas_archivos.trim().length > 0) {
+                            const normalizedPath = detalle.rutas_archivos.startsWith('uploads/') ? detalle.rutas_archivos : `uploads/${detalle.rutas_archivos.replace(/^\/+/, '')}`;
+                            archivosHtml = `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
+                        }
+                    }
+                }
+
+                correctedDetallesTbody.innerHTML += `
+                    <tr>
+                        <td data-label="ID">${detalle.id || 'N/A'}</td>
+                        <td data-label="Tipo de Documento">${detalle.tipo_documento || 'N/A'}</td>
+                        <td data-label="No. Factura">${detalle.no_factura || 'N/A'}</td>
+                        <td data-label="Proveedor">${detalle.nombre_proveedor || 'N/A'}</td>
+                        <td data-label="NIT">${detalle.nit_proveedor || 'N/A'}</td>
+                        <td data-label="DPI">${detalle.dpi || 'N/A'}</td>
+                        <td data-label="Cantidad">${detalle.cantidad || 'N/A'}</td>
+                        <td data-label="Serie">${detalle.serie || 'N/A'}</td>
+                        <td data-label="Centro de Costo">${detalle.nombre_centro_costo || 'N/A'}</td>
+                        <td data-label="Tipo de Gasto">${detalle.t_gasto || 'N/A'}</td>
+                        <td data-label="Tipo de Combustible">${detalle.tipo_combustible || 'N/A'}</td>
+                        <td data-label="Cuenta Contable">${detalle.cuenta_contable_nombre || 'N/A'}</td>
+                        <td data-label="Fecha">${detalle.fecha || 'N/A'}</td>
+                        <td data-label="Subtotal">${parseFloat(detalle.subtotal || 0).toFixed(2)}</td>
+                        <td data-label="IVA">${parseFloat(detalle.iva || 0).toFixed(2)}</td>
+                        <td data-label="IDP">${parseFloat(detalle.idp || 0).toFixed(2)}</td>
+                        <td data-label="INGUAT">${parseFloat(detalle.inguat || 0).toFixed(2)}</td>
+                        <td data-label="Total Bruto">${parseFloat(detalle.total_factura || 0).toFixed(2)}</td>
+                        <td data-label="Estado">${detalle.estado || 'N/A'}</td>
+                        <td data-label="Archivos">${archivosHtml}</td>
+                        <td data-label="Acciones">${actionsHtml}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            correctedDetallesSection.style.display = 'none';
+        }
     } catch (error) {
         console.error('Error al cargar liquidaciones:', error);
         alert('Error al cargar las liquidaciones. Intenta de nuevo.');
     }
 }
 
-// Nueva función para redirigir a la vista de la liquidación
 function verLiquidacion(id) {
     window.location.href = `index.php?controller=liquidacion&action=ver&id=${id}`;
 }
@@ -248,9 +310,216 @@ async function deleteLiquidation(id) {
 async function autorizarLiquidacion(id, mode) {
     const urlParams = new URLSearchParams(window.location.search);
     const currentMode = urlParams.get('mode') || '';
-
-    // Proceed with redirection without checking for corrections
     window.location.href = `index.php?controller=liquidacion&action=${mode}&id=${id}`;
+}
+
+async function autorizarDetalle(detalleId, liquidacionId, action) {
+    if (!confirm(`¿Estás seguro de que deseas ${action} este detalle?`)) return;
+
+    try {
+        // Fetch liquidation state and detail information
+        const stateResponse = await fetch(`index.php?controller=liquidacion&action=getEstado&id=${liquidacionId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!stateResponse.ok) {
+            const errorText = await stateResponse.text();
+            throw new Error(`Error al obtener el estado de la liquidación: ${errorText}`);
+        }
+        const stateData = await stateResponse.json();
+        const estadoLiquidacion = stateData.estado || 'N/A';
+
+        const detailResponse = await fetch(`index.php?controller=liquidacion&action=getDetalleInfo&id=${detalleId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!detailResponse.ok) {
+            const errorText = await detailResponse.text();
+            throw new Error(`Error al obtener la información del detalle: ${errorText}`);
+        }
+        const detailData = await detailResponse.json();
+        const correccionComentario = detailData.correccion_comentario || '';
+
+        // Check for SUPERVISOR role, FINALIZADO state, and presence of correccion_comentario
+        if (window.userRole === 'SUPERVISOR' && estadoLiquidacion === 'FINALIZADO' && correccionComentario.trim().length > 0) {
+            // Fetch EN_PROCESO liquidations
+            const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!enProcesoResponse.ok) {
+                const errorText = await enProcesoResponse.text();
+                throw new Error(`Error al obtener liquidaciones en proceso: ${errorText}`);
+            }
+            const enProcesoData = await enProcesoResponse.json();
+            const enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
+
+            // Create a custom dialog for user choice
+            const choice = await new Promise(resolve => {
+                let message = 'Ya no se puede autorizar ya que la liquidación fue finalizada. ¿Qué deseas hacer?\n';
+                message += '1. Iniciar una nueva liquidación con este detalle\n';
+                if (enProcesoLiquidaciones.length > 0) {
+                    message += '2. Agregar el detalle a una liquidación en proceso\n';
+                }
+                message += `${enProcesoLiquidaciones.length > 0 ? '3' : '2'}. Eliminar el detalle (si tiene comentario de corrección)`;
+
+                const userChoice = prompt(message);
+                resolve(userChoice);
+            });
+
+            const choiceNum = parseInt(choice);
+            if (enProcesoLiquidaciones.length > 0) {
+                if (choiceNum === 1) {
+                    // Option 1: Start a new liquidation
+                    const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
+                        method: 'POST',
+                        body: JSON.stringify({ detalle_id: detalleId }),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const contentType = newLiquidacionResponse.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await newLiquidacionResponse.text();
+                        throw new Error(`Respuesta no es JSON válida: ${text}`);
+                    }
+                    const newLiquidacionResult = await newLiquidacionResponse.json();
+                    if (!newLiquidacionResponse.ok) {
+                        throw new Error(newLiquidacionResult.error || 'Error al crear una nueva liquidación');
+                    }
+                    alert('Nueva liquidación creada correctamente');
+                } else if (choiceNum === 2) {
+                    // Option 2: Add to an existing EN_PROCESO liquidation
+                    const enProcesoOptions = enProcesoLiquidaciones.map((liq, index) => `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`).join('\n');
+                    const selectedIndex = parseInt(prompt(`Selecciona una liquidación en proceso:\n${enProcesoOptions}`)) - 1;
+                    if (selectedIndex >= 0 && selectedIndex < enProcesoLiquidaciones.length) {
+                        const selectedLiquidacionId = enProcesoLiquidaciones[selectedIndex].id;
+                        const addDetailResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
+                            method: 'POST',
+                            body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: selectedLiquidacionId }),
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        const contentType = addDetailResponse.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            const text = await addDetailResponse.text();
+                            throw new Error(`Respuesta no es JSON válida: ${text}`);
+                        }
+                        const addDetailResult = await addDetailResponse.json();
+                        if (!addDetailResponse.ok) {
+                            throw new Error(addDetailResult.error || 'Error al agregar el detalle a la liquidación');
+                        }
+                        alert('Detalle agregado a la liquidación en proceso correctamente');
+                    } else {
+                        alert('Selección inválida. Operación cancelada.');
+                        return;
+                    }
+                } else if (choiceNum === 3) {
+                    // Option 3: Delete the detail if it has a correccion_comentario
+                    const deleteDetailResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const contentType = deleteDetailResponse.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await deleteDetailResponse.text();
+                        throw new Error(`Respuesta no es JSON válida: ${text}`);
+                    }
+                    const deleteDetailResult = await deleteDetailResponse.json();
+                    if (!deleteDetailResponse.ok) {
+                        throw new Error(deleteDetailResult.error || 'Error al eliminar el detalle');
+                    }
+                    alert('Detalle eliminado correctamente');
+                } else {
+                    alert('Opción inválida. Operación cancelada.');
+                    return;
+                }
+            } else {
+                if (choiceNum === 1) {
+                    // Option 1: Start a new liquidation
+                    const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
+                        method: 'POST',
+                        body: JSON.stringify({ detalle_id: detalleId }),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const contentType = newLiquidacionResponse.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await newLiquidacionResponse.text();
+                        throw new Error(`Respuesta no es JSON válida: ${text}`);
+                    }
+                    const newLiquidacionResult = await newLiquidacionResponse.json();
+                    if (!newLiquidacionResponse.ok) {
+                        throw new Error(newLiquidacionResult.error || 'Error al crear una nueva liquidación');
+                    }
+                    alert('Nueva liquidación creada correctamente');
+                } else if (choiceNum === 2) {
+                    // Option 3: Delete the detail if it has a correccion_comentario
+                    const deleteDetailResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const contentType = deleteDetailResponse.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await deleteDetailResponse.text();
+                        throw new Error(`Respuesta no es JSON válida: ${text}`);
+                    }
+                    const deleteDetailResult = await deleteDetailResponse.json();
+                    if (!deleteDetailResponse.ok) {
+                        throw new Error(deleteDetailResult.error || 'Error al eliminar el detalle');
+                    }
+                    alert('Detalle eliminado correctamente');
+                } else {
+                    alert('Opción inválida. Operación cancelada.');
+                    return;
+                }
+            }
+
+            loadLiquidaciones();
+            return; // Exit after handling the FINALIZADO case
+        }
+
+        // Proceed with normal authorization flow
+        const formData = new FormData();
+        formData.append('detalle_id', detalleId);
+        formData.append('action', action);
+        formData.append('motivo', prompt('Por favor, ingresa el motivo de esta acción:'));
+
+        const processResponse = await fetch(`index.php?controller=liquidacion&action=autorizarDetalle&id=${liquidacionId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const contentType = processResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await processResponse.text();
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
+        }
+        const result = await processResponse.json();
+        if (!processResponse.ok) {
+            throw new Error(result.error || 'Error al procesar el detalle');
+        }
+
+        alert(result.message || `Detalle ${action} correctamente`);
+        loadLiquidaciones();
+    } catch (error) {
+        console.error('Error al procesar el detalle:', error);
+        alert(error.message || 'Error al procesar el detalle. Intenta de nuevo.');
+    }
 }
 
 async function exportToSap(id) {
@@ -328,7 +597,6 @@ async function finalizarLiquidacion(id) {
             throw new Error(result.error || 'Error al finalizar la liquidación');
         }
 
-        // Notificar a otras pestañas que el estado ha cambiado
         const channel = new BroadcastChannel('liquidacion-estado');
         channel.postMessage({ id: id, action: 'estado-cambiado' });
 
@@ -350,8 +618,8 @@ function addFormValidations(id = null) {
     const fields = {
         id_caja_chica: { required: true },
         fecha_creacion: { required: true },
-        fecha_inicio: {}, // Opcional
-        fecha_fin: {},   // Opcional
+        fecha_inicio: {},
+        fecha_fin: {},
         monto_total: { required: true, type: 'number', min: 0 },
         estado: { required: true }
     };

@@ -850,12 +850,11 @@
 
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }, // Prefer rear camera on mobile
+            video: { facingMode: 'environment' },
           });
           cameraFeed.srcObject = stream;
           cameraModal.classList.add('active');
 
-          // Reset button states
           captureBtn.style.display = 'block';
           retakeBtn.style.display = 'none';
           saveBtn.style.display = 'none';
@@ -879,7 +878,6 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
 
-        // Stop the video stream temporarily
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
           stream = null;
@@ -923,12 +921,10 @@
         const photoPreviewContainer = document.getElementById('photo-preview-container');
         const fileInput = document.getElementById('archivos');
 
-        // Convert canvas to blob and create a file
         canvas.toBlob(blob => {
           const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
           capturedFiles.push(file);
 
-          // Update the file input's files
           const dataTransfer = new DataTransfer();
           capturedFiles.forEach(f => dataTransfer.items.add(f));
           for (let f of fileInput.files) {
@@ -936,7 +932,6 @@
           }
           fileInput.files = dataTransfer.files;
 
-          // Display preview
           const previewDiv = document.createElement('div');
           previewDiv.classList.add('photo-preview');
           const img = document.createElement('img');
@@ -950,7 +945,7 @@
           photoPreviewContainer.appendChild(previewDiv);
 
           closeCameraModal();
-        }, 'image/jpeg', 0.9); // 0.9 quality for compression
+        }, 'image/jpeg', 0.9);
       }
 
       // Function to remove a captured or uploaded photo
@@ -1060,9 +1055,8 @@
         document.getElementById('idp_field').style.display = 'none';
         document.getElementById('inguat_field').style.display = 'none';
         document.getElementById('nit_dpi_input').setAttribute('required', 'required');
-        document.getElementById('id_cuenta_contable').disabled = false;
+        document.getElementById('id_cuenta_contable').disabled = true; // Keep disabled by default
 
-        // Clear captured files and previews
         capturedFiles = [];
         const photoPreviewContainer = document.getElementById('photo-preview-container');
         photoPreviewContainer.innerHTML = '';
@@ -1087,8 +1081,8 @@
       // Mapeo de Tipo de Gasto a Cuenta Contable
       const tipoGastoToCuentaContable = {
         'Gasto Operativo': 'Servicios administrativos',
-        'Combustible': 'Veh?culos',
-        'Hospedaje': 'Vacaciones',
+        'Combustible': 'Vehículos',
+        'Hospedaje': 'Impuesto de turismo (INGUAT)',
         'Alimentos': 'Suministros'
       };
 
@@ -1309,6 +1303,7 @@
 
         if (!selectedCentroCosto) {
           cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+          cuentaContableSelect.disabled = true;
           submitBtn.disabled = true;
           return;
         }
@@ -1336,6 +1331,7 @@
           submitBtn.disabled = cuentas.length === 0;
           if (cuentas.length === 0) {
             alert('No hay cuentas contables disponibles para el centro de costo seleccionado. Por favor, selecciona otro centro de costo o agrega cuentas contables.');
+            cuentaContableSelect.disabled = true;
             return;
           }
 
@@ -1349,14 +1345,15 @@
             const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
             if (option) {
               cuentaContableSelect.value = option.value;
-              cuentaContableSelect.disabled = false;
+              cuentaContableSelect.disabled = true; // Disable after setting default value
             } else {
-              cuentaContableSelect.disabled = false;
+              cuentaContableSelect.disabled = true;
               cuentaContableSelect.value = '';
-              console.warn(`Cuenta contable "${mappedCuenta}" no encontrada. Selección manual requerida.`);
+              console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
+              alert('No se encontró la cuenta contable predeterminada para este tipo de gasto. No se puede modificar manualmente, excepto en "otros...".');
             }
           } else {
-            cuentaContableSelect.disabled = false;
+            cuentaContableSelect.disabled = true;
             cuentaContableSelect.value = '';
           }
 
@@ -1364,10 +1361,20 @@
         } catch (error) {
           console.error('Error al actualizar cuentas contables:', error);
           cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+          cuentaContableSelect.disabled = true;
           submitBtn.disabled = true;
           alert(error.message || 'No se pudieron cargar las cuentas contables. Intenta de nuevo.');
         }
       }
+
+      // Prevent manual changes to id_cuenta_contable unless t_gasto is "otros..."
+      document.getElementById('id_cuenta_contable').addEventListener('change', (e) => {
+        const tipoGasto = document.getElementById('t_gasto').value;
+        if (tipoGasto !== 'otros...') {
+          alert('No se puede modificar la Cuenta Contable manualmente, ya que está definida por defecto según el Tipo de Gasto. Solo se permite modificarla si el Tipo de Gasto es "otros...".');
+          updateCuentaContableOptions(); // Reset to default
+        }
+      });
 
       async function editFactura(id) {
         const row = document.querySelector(`#facturasTable tbody tr[data-id="${id}"]`);
@@ -1408,6 +1415,9 @@
         const cuentaOption = Array.from(cuentaContableSelect.options).find(option => option.text === cuentaContableText);
         if (cuentaOption) {
           cuentaContableSelect.value = cuentaOption.value;
+          if (tipoGasto !== 'otros...') {
+            cuentaContableSelect.disabled = true; // Disable after setting value in edit mode
+          }
         } else {
           console.warn(`Cuenta contable "${cuentaContableText}" no encontrada en las opciones.`);
         }
@@ -1471,7 +1481,29 @@
           return;
         }
 
-        const cuentaContable = formData.get('id_cuenta_contable');
+        const tipoGasto = document.getElementById('t_gasto').value;
+        const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+        let cuentaContable = formData.get('id_cuenta_contable');
+
+        // If tipoGasto is not "otros...", ensure the default cuenta contable is set
+        if (tipoGasto !== 'otros...') {
+          const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
+          if (mappedCuenta) {
+            cuentaContableSelect.disabled = false; // Temporarily enable to set value
+            const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
+            if (option) {
+              cuentaContableSelect.value = option.value;
+              formData.set('id_cuenta_contable', option.value);
+              cuentaContable = option.value;
+            } else {
+              alert('No se encontró la cuenta contable predeterminada para este tipo de gasto. No se puede modificar manualmente, excepto en "otros...".');
+              cuentaContableSelect.disabled = true;
+              return;
+            }
+            cuentaContableSelect.disabled = true; // Disable again after setting
+          }
+        }
+
         if (!cuentaContable || cuentaContable === '') {
           alert('Por favor, seleccione una Cuenta Contable antes de continuar.');
           return;

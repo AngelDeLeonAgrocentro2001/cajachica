@@ -33,12 +33,26 @@ class Liquidacion {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    // Existing method with individual parameters
     public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario) {
         $stmt = $this->pdo->prepare("
             INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario]);
+    }
+
+    // New method to handle array input
+    public function createLiquidacionFromArray($data) {
+        return $this->createLiquidacion(
+            $data['id_caja_chica'],
+            $data['fecha_creacion'],
+            $data['fecha_inicio'],
+            $data['fecha_fin'],
+            $data['monto_total'],
+            $data['estado'],
+            $data['id_usuario']
+        );
     }
 
     public function updateLiquidacion($id, $idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {

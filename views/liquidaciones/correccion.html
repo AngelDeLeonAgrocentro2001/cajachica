@@ -740,7 +740,7 @@
         const fechaInicioLiquidacion = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
         const fechaFinLiquidacion = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
         const liquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
-        const originatingRole = '<?php echo htmlspecialchars($data['originating_role']); ?>';
+        const originatingRoles = <?php echo json_encode($data['originating_roles'] ?? ['CONTABILIDAD']); ?>;
 
         // Camera-related variables
         let stream = null;
@@ -920,7 +920,7 @@
             const fileInput = document.getElementById('archivos');
 
             canvas.toBlob(blob => {
-                const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' } );
                 capturedFiles.push(file);
 
                 const dataTransfer = new DataTransfer();
@@ -1421,14 +1421,148 @@
                 }
 
                 if (stateResult.estado === 'FINALIZADO') {
-                    const proceed = confirm('Tu liquidación ya fue finalizada. No puedes enviar correcciones, pero puedes eliminar las facturas en corrección. ¿Deseas eliminar esta factura?');
-                    if (proceed) {
-                        confirmDeleteFactura(document.querySelector('tr[data-id]').getAttribute('data-id'));
+                    const detalleId = document.querySelector('#facturasTable tbody tr[data-id]')?.getAttribute('data-id');
+                    if (!detalleId) {
+                        alert('No hay detalles para procesar.');
+                        return;
+                    }
+
+                    const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!enProcesoResponse.ok) {
+                        throw new Error('Error al obtener liquidaciones en proceso');
+                    }
+                    const enProcesoData = await enProcesoResponse.json();
+                    const enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
+
+                    let message = `Tu liquidación ya fue finalizada. No puedes enviar correcciones para el detalle con ID ${detalleId}. ¿Qué deseas hacer?\n`;
+                    message += '1. Iniciar una nueva liquidación con este detalle\n';
+                    if (enProcesoLiquidaciones.length > 0) {
+                        message += '2. Agregar el detalle a una liquidación en proceso\n';
+                    }
+                    message += `${enProcesoLiquidaciones.length > 0 ? '3' : '2'}. Eliminar el detalle (si tiene comentario de corrección)`;
+
+                    const userChoice = prompt(message);
+                    const choiceNum = parseInt(userChoice);
+
+                    if (enProcesoLiquidaciones.length > 0) {
+                        if (choiceNum === 1) {
+                            // Option 1: Start a new liquidation
+                            const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
+                                method: 'POST',
+                                body: JSON.stringify({ detalle_id: detalleId }),
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const newLiquidacionResult = await newLiquidacionResponse.json();
+                            if (!newLiquidacionResponse.ok) {
+                                throw new Error(newLiquidacionResult.error || 'Error al crear una nueva liquidación');
+                            }
+                            alert('Nueva liquidación creada correctamente');
+                            window.location.reload();
+                        } else if (choiceNum === 2) {
+                            // Option 2: Add to an existing EN_PROCESO liquidation
+                            const enProcesoOptions = enProcesoLiquidaciones.map((liq, index) => `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`).join('\n');
+                            const selectedIndex = parseInt(prompt(`Selecciona una liquidación en proceso:\n${enProcesoOptions}`)) - 1;
+                            if (selectedIndex >= 0 && selectedIndex < enProcesoLiquidaciones.length) {
+                                const selectedLiquidacionId = enProcesoLiquidaciones[selectedIndex].id;
+                                const addDetailResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
+                                    method: 'POST',
+                                    body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: selectedLiquidacionId }),
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    }
+                                });
+                                const addDetailResult = await addDetailResponse.json();
+                                if (!addDetailResponse.ok) {
+                                    throw new Error(addDetailResult.error || 'Error al agregar el detalle a la liquidación');
+                                }
+                                alert('Detalle agregado a la liquidación en proceso correctamente');
+                                window.location.reload();
+                            } else {
+                                alert('Selección inválida. Operación cancelada.');
+                                return;
+                            }
+                        } else if (choiceNum === 3) {
+                            // Option 3: Delete the detail
+                            const deleteDetailResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const deleteDetailResult = await deleteDetailResponse.json();
+                            if (!deleteDetailResponse.ok) {
+                                throw new Error(deleteDetailResult.error || 'Error al eliminar el detalle');
+                            }
+                            alert('Detalle eliminado correctamente');
+                            window.location.reload();
+                        } else {
+                            alert('Opción inválida. Operación cancelada.');
+                            return;
+                        }
+                    } else {
+                        if (choiceNum === 1) {
+                            // Option 1: Start a new liquidation
+                            const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
+                                method: 'POST',
+                                body: JSON.stringify({ detalle_id: detalleId }),
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const newLiquidacionResult = await newLiquidacionResponse.json();
+                            if (!newLiquidacionResponse.ok) {
+                                throw new Error(newLiquidacionResult.error || 'Error al crear una nueva liquidación');
+                            }
+                            alert('Nueva liquidación creada correctamente');
+                            window.location.reload();
+                        } else if (choiceNum === 2) {
+                            // Option 3: Delete the detail
+                            const deleteDetailResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const deleteDetailResult = await deleteDetailResponse.json();
+                            if (!deleteDetailResponse.ok) {
+                                throw new Error(deleteDetailResult.error || 'Error al eliminar el detalle');
+                            }
+                            alert('Detalle eliminado correctamente');
+                            window.location.reload();
+                        } else {
+                            alert('Opción inválida. Operación cancelada.');
+                            return;
+                        }
                     }
                     return;
                 }
 
-                if (!confirm('¿Estás seguro de que deseas enviar las correcciones? Las facturas serán enviadas a ' + (originatingRole === 'SUPERVISOR' ? 'autorización' : 'revisión de contabilidad') + '.')) {
+                // Determine the originating role to submit
+                let selectedRole;
+                if (originatingRoles.length === 1) {
+                    selectedRole = originatingRoles[0];
+                } else {
+                    const roleOptions = originatingRoles.map((role, index) => `${index + 1}. ${role}`).join('\n');
+                    const choice = prompt(`Selecciona el rol para enviar las correcciones:\n${roleOptions}`);
+                    const selectedIndex = parseInt(choice) - 1;
+                    if (selectedIndex >= 0 && selectedIndex < originatingRoles.length) {
+                        selectedRole = originatingRoles[selectedIndex];
+                    } else {
+                        alert('Selección inválida. Operación cancelada.');
+                        return;
+                    }
+                }
+
+                if (!confirm(`¿Estás seguro de que deseas enviar las correcciones? Las facturas serán enviadas a ${selectedRole === 'SUPERVISOR' ? 'autorización' : 'revisión de contabilidad'}.`)) {
                     return;
                 }
 
@@ -1438,7 +1572,7 @@
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: JSON.stringify({ originating_role: originatingRole })
+                    body: JSON.stringify({ originating_role: selectedRole })
                 });
 
                 const result = await response.json();
