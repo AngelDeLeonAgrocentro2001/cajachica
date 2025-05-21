@@ -1,7 +1,22 @@
 <?php
-// Verificar si hay liquidaciones para mostrar
-if (!isset($liquidaciones) || empty($liquidaciones)) {
-    echo '<p>No hay liquidaciones en corrección.</p>';
+// Fetch the current user
+$usuarioModel = new Usuario();
+$usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+$currentUserId = $_SESSION['user_id'];
+
+// Filter liquidations to only show those created by the current user
+$filteredLiquidaciones = [];
+if (isset($liquidaciones) && !empty($liquidaciones)) {
+    foreach ($liquidaciones as $liquidacion) {
+        if ($liquidacion['id_usuario'] == $currentUserId) {
+            $filteredLiquidaciones[] = $liquidacion;
+        }
+    }
+}
+
+// If no liquidations are available for the user to see
+if (empty($filteredLiquidaciones)) {
+    echo '<p>No hay liquidaciones en corrección que puedas ver.</p>';
     exit;
 }
 ?>
@@ -12,7 +27,7 @@ if (!isset($liquidaciones) || empty($liquidaciones)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corrección de Liquidaciones</title>
-    <link rel="stylesheet" href="../assets/css/styles.css"> <!-- Asegúrate de que esta ruta sea correcta -->
+    <link rel="stylesheet" href="../assets/css/styles.css"> <!-- Ensure this path is correct -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -94,6 +109,13 @@ if (!isset($liquidaciones) || empty($liquidaciones)) {
             }
         }
     </style>
+    <script>
+        // Define user permissions and role for JavaScript
+        const userPermissions = {
+            manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
+        };
+        const userRole = <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+    </script>
 </head>
 <body>
     <div class="container">
@@ -110,15 +132,17 @@ if (!isset($liquidaciones) || empty($liquidaciones)) {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($liquidaciones as $liquidacion): ?>
+                <?php foreach ($filteredLiquidaciones as $liquidacion): ?>
                     <tr>
                         <td data-label="ID Liquidación"><?php echo htmlspecialchars($liquidacion['id']); ?></td>
-                        <td data-label="Caja Chica"><?php echo htmlspecialchars($liquidacion['nombre_caja_chica']); ?></td>
-                        <td data-label="Fecha Creación"><?php echo htmlspecialchars($liquidacion['fecha_creacion']); ?></td>
-                        <td data-label="Monto Total"><?php echo htmlspecialchars($liquidacion['monto_total']); ?></td>
-                        <td data-label="Estado"><?php echo htmlspecialchars($liquidacion['estado']); ?></td>
+                        <td data-label="Caja Chica"><?php echo htmlspecialchars($liquidacion['nombre_caja_chica'] ?? 'N/A'); ?></td>
+                        <td data-label="Fecha Creación"><?php echo htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A'); ?></td>
+                        <td data-label="Monto Total"><?php echo htmlspecialchars(number_format($liquidacion['monto_total'] ?? 0, 2)); ?></td>
+                        <td data-label="Estado"><?php echo htmlspecialchars($liquidacion['estado'] ?? 'EN_PROCESO'); ?></td>
                         <td data-label="Acciones">
-                            <a href="index.php?controller=liquidacion&action=updateCorreccion&id=<?php echo $liquidacion['id']; ?>" class="btn btn-editar">Editar</a>
+                            <?php if ($usuarioModel->tienePermiso($usuario, 'manage_correcciones')): ?>
+                                <a href="index.php?controller=liquidacion&action=updateCorreccion&id=<?php echo $liquidacion['id']; ?>" class="btn btn-editar">Editar</a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -127,7 +151,12 @@ if (!isset($liquidaciones) || empty($liquidaciones)) {
     </div>
 
     <script>
-        // Opcional: Si necesitas JavaScript para mejorar la interacción
+        // Ensure userPermissions and userRole are available globally
+        window.userPermissions = window.userPermissions || {
+            manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
+        };
+        window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Página de corrección de liquidaciones cargada');
         });

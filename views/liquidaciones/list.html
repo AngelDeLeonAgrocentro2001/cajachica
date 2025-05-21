@@ -1,421 +1,797 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mantenimiento de Liquidaciones</title>
     <style>
-        body {
-            background-color: #f4f7fa;
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            transition: margin-left 0.3s ease-in-out;
-        }
+      body {
+        background-color: #f4f7fa;
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        padding: 0;
+        transition: margin-left 0.3s ease-in-out;
+      }
 
-        h2 {
-            text-align: center;
-            color: #2c3e50;
-            margin: 30px 0;
-            font-size: 2rem;
-            font-weight: 600;
-        }
+      h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin: 30px 0;
+        font-size: 2rem;
+        font-weight: 600;
+      }
 
-        button[onclick="showCreateForm()"] {
-            display: block;
-            margin: 0 auto 20px;
-            padding: 10px 20px;
-            background-color: #3498db;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            width: 50%;
-        }
+      button[onclick="showCreateForm()"] {
+        display: block;
+        margin: 0 auto 20px;
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        width: 50%;
+      }
 
-        button[onclick="showCreateForm()"]:hover {
-            background-color: #2980b9;
-        }
+      button[onclick="showCreateForm()"]:hover {
+        background-color: #2980b9;
+      }
 
-        #liquidacionesTable, #correctedDetallesTable {
-            width: 90%;
-            max-width: 1200px;
-            margin: 20px auto;
-            border-collapse: collapse;
-            background-color: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            overflow: hidden;
+      /* New Toggle Button Style */
+      .toggle-btn {
+        display: block;
+        margin: 20px auto;
+        padding: 10px 20px;
+        background-color: #f39c12;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        width: 50%;
+        text-align: center;
+      }
+
+      .toggle-btn:hover {
+        background-color: #e67e22;
+      }
+
+      /* Search Form Styles */
+      #searchForm {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #searchForm label {
+        font-size: 0.95rem;
+        color: #2c3e50;
+        font-weight: 600;
+      }
+
+      #searchForm input {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        width: 150px;
+        box-sizing: border-box;
+      }
+
+      #searchForm input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+      }
+
+      #searchForm button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: background-color 0.3s ease;
+      }
+
+      #searchForm button[type="submit"] {
+        background-color: #3498db;
+        color: #fff;
+      }
+
+      #searchForm button[type="submit"]:hover {
+        background-color: #2980b9;
+      }
+
+      #searchForm button[type="button"] {
+        background-color: #e74c3c;
+        color: #fff;
+      }
+
+      #searchForm button[type="button"]:hover {
+        background-color: #c0392b;
+      }
+
+      /* Pagination Styles */
+      #paginationControls {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      #paginationControls button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: background-color 0.3s ease;
+        background-color: #3498db;
+        color: #fff;
+      }
+
+      #paginationControls button:hover {
+        background-color: #2980b9;
+      }
+
+      #paginationControls button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+
+      #paginationControls span {
+        font-size: 0.95rem;
+        color: #2c3e50;
+        align-self: center;
+      }
+
+      #liquidacionesTable,
+      #correctedDetallesTable {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        border-collapse: collapse;
+        background-color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      #correctedDetallesContainer {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        overflow-x: auto;
+      }
+
+      #liquidacionesTable thead,
+      #correctedDetallesTable thead {
+        background-color: #2c3e50;
+        color: #fff;
+      }
+
+      #liquidacionesTable th,
+      #liquidacionesTable td,
+      #correctedDetallesTable th,
+      #correctedDetallesTable td {
+        padding: 12px 15px;
+        text-align: left;
+        font-size: 0.95rem;
+        min-width: 100px;
+        box-sizing: border-box;
+      }
+
+      #correctedDetallesTable th,
+      #correctedDetallesTable td {
+        white-space: nowrap;
+      }
+
+      #liquidacionesTable th,
+      #correctedDetallesTable th {
+        font-weight: 600;
+      }
+
+      #liquidacionesTable tbody tr,
+      #correctedDetallesTable tbody tr {
+        border-bottom: 1px solid #e0e0e0;
+        transition: background-color 0.3s ease;
+      }
+
+      #liquidacionesTable tbody tr:hover,
+      #correctedDetallesTable tbody tr:hover {
+        background-color: #f9f9f9;
+      }
+
+      #liquidacionesTable td,
+      #correctedDetallesTable td {
+        color: #333;
+      }
+
+      #liquidacionesTable button,
+      #correctedDetallesTable button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-right: 5px;
+        transition: background-color 0.3s ease;
+      }
+
+      #liquidacionesTable button.edit-btn,
+      #correctedDetallesTable button.edit-btn {
+        background-color: #3498db;
+        color: #fff;
+      }
+
+      #liquidacionesTable button.edit-btn:hover,
+      #correctedDetallesTable button.edit-btn:hover {
+        background-color: #2980b9;
+      }
+
+      #liquidacionesTable button.delete-btn,
+      #correctedDetallesTable button.delete-btn {
+        background-color: #e74c3c;
+        color: #fff;
+      }
+
+      #liquidacionesTable button.delete-btn:hover,
+      #correctedDetallesTable button.delete-btn:hover {
+        background-color: #c0392b;
+      }
+
+      #liquidacionesTable button.export-btn,
+      #correctedDetallesTable button.export-btn {
+        background-color: #2ecc71;
+        color: #fff;
+      }
+
+      #liquidacionesTable button.export-btn:hover,
+      #correctedDetallesTable button.export-btn:hover {
+        background-color: #27ae60;
+      }
+
+      #liquidacionesTable button.finalize-btn,
+      #correctedDetallesTable button.finalize-btn {
+        background-color: #f39c12;
+        color: #fff;
+      }
+
+      #liquidacionesTable button.finalize-btn:hover,
+      #correctedDetallesTable button.finalize-btn:hover {
+        background-color: #e67e22;
+      }
+
+      #liquidacionesTable th:nth-child(1) {
+        width: 5%;
+      }
+      #liquidacionesTable th:nth-child(2) {
+        width: 15%;
+      }
+      #liquidacionesTable th:nth-child(3) {
+        width: 12%;
+      }
+      #liquidacionesTable th:nth-child(4) {
+        width: 12%;
+      }
+      #liquidacionesTable th:nth-child(5) {
+        width: 12%;
+      }
+      #liquidacionesTable th:nth-child(6) {
+        width: 12%;
+      }
+      #liquidacionesTable th:nth-child(7) {
+        width: 12%;
+      }
+      #liquidacionesTable th:nth-child(8) {
+        width: 20%;
+      }
+
+      #correctedDetallesTable th:nth-child(1) {
+        width: 5%;
+      }
+      #correctedDetallesTable th:nth-child(2) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(3) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(4) {
+        width: 10%;
+      }
+      #correctedDetallesTable th:nth-child(5) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(6) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(7) {
+        width: 6%;
+      }
+      #correctedDetallesTable th:nth-child(8) {
+        width: 6%;
+      }
+      #correctedDetallesTable th:nth-child(9) {
+        width: 10%;
+      }
+      #correctedDetallesTable th:nth-child(10) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(11) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(12) {
+        width: 10%;
+      }
+      #correctedDetallesTable th:nth-child(13) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(14) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(15) {
+        width: 6%;
+      }
+      #correctedDetallesTable th:nth-child(16) {
+        width: 6%;
+      }
+      #correctedDetallesTable th:nth-child(17) {
+        width: 6%;
+      }
+      #correctedDetallesTable th:nth-child(18) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(19) {
+        width: 8%;
+      }
+      #correctedDetallesTable th:nth-child(20) {
+        width: 10%;
+      }
+      #correctedDetallesTable th:nth-child(21) {
+        width: 15%;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1002;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+        position: relative;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .modal-content h2 {
+        font-size: 1.5rem;
+        margin-top: 0;
+        color: #2c3e50;
+      }
+
+      .close-modal {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+      }
+
+      .close-modal:hover {
+        color: #333;
+      }
+
+      #liquidacionFormInner {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      #liquidacionFormInner select,
+      #liquidacionFormInner input {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      #liquidacionFormInner select:focus,
+      #liquidacionFormInner input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+      }
+
+      #liquidacionFormInner .error {
+        color: #e74c3c;
+        font-size: 0.85rem;
+        display: none;
+      }
+
+      #liquidacionFormInner .success {
+        color: #27ae60;
+        font-size: 0.85rem;
+        display: none;
+      }
+
+      #liquidacionFormInner button {
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.3s ease;
+      }
+
+      #liquidacionFormInner button[type="submit"] {
+        background-color: #3498db;
+        color: #fff;
+      }
+
+      #liquidacionFormInner button[type="submit"]:hover {
+        background-color: #2980b9;
+      }
+
+      #liquidacionFormInner button[type="button"] {
+        background-color: #e74c3c;
+        color: #fff;
+      }
+
+      #liquidacionFormInner button[type="button"]:hover {
+        background-color: #c0392b;
+      }
+
+      @media (max-width: 768px) {
+        #liquidacionesTable,
+        #correctedDetallesTable {
+          width: 100%;
         }
 
         #correctedDetallesContainer {
-            width: 90%;
-            max-width: 1200px;
-            margin: 20px auto;
-            overflow-x: auto; /* Enable horizontal scrolling */
+          width: 100%;
         }
 
-        #liquidacionesTable thead, #correctedDetallesTable thead {
-            background-color: #2c3e50;
-            color: #fff;
+        #liquidacionesTable thead,
+        #correctedDetallesTable thead {
+          display: none;
         }
 
-        #liquidacionesTable th, #liquidacionesTable td,
-        #correctedDetallesTable th, #correctedDetallesTable td {
-            padding: 12px 15px;
-            text-align: left;
-            font-size: 0.95rem;
-            min-width: 100px;
-            box-sizing: border-box;
+        #liquidacionesTable tbody tr,
+        #correctedDetallesTable tbody tr {
+          display: block;
+          margin-bottom: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background-color: #fff;
         }
 
-        #correctedDetallesTable th, #correctedDetallesTable td {
-            white-space: nowrap; /* Prevent text wrapping for horizontal scrolling */
+        #liquidacionesTable tbody td,
+        #correctedDetallesTable tbody td {
+          display: block;
+          text-align: right;
+          padding: 8px 10px;
+          font-size: 0.9rem;
+          position: relative;
+          border-bottom: 1px solid #eee;
         }
 
-        #liquidacionesTable th, #correctedDetallesTable th {
-            font-weight: 600;
+        #liquidacionesTable tbody td:last-child,
+        #correctedDetallesTable tbody td:last-child {
+          border-bottom: none;
         }
 
-        #liquidacionesTable tbody tr, #correctedDetallesTable tbody tr {
-            border-bottom: 1px solid #e0e0e0;
-            transition: background-color 0.3s ease;
-        }
-
-        #liquidacionesTable tbody tr:hover, #correctedDetallesTable tbody tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        #liquidacionesTable td, #correctedDetallesTable td {
-            color: #333;
-        }
-
-        #liquidacionesTable button, #correctedDetallesTable button {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-right: 5px;
-            transition: background-color 0.3s ease;
-        }
-
-        #liquidacionesTable button.edit-btn, #correctedDetallesTable button.edit-btn {
-            background-color: #3498db;
-            color: #fff;
-        }
-
-        #liquidacionesTable button.edit-btn:hover, #correctedDetallesTable button.edit-btn:hover {
-            background-color: #2980b9;
-        }
-
-        #liquidacionesTable button.delete-btn, #correctedDetallesTable button.delete-btn {
-            background-color: #e74c3c;
-            color: #fff;
-        }
-
-        #liquidacionesTable button.delete-btn:hover, #correctedDetallesTable button.delete-btn:hover {
-            background-color: #c0392b;
-        }
-
-        #liquidacionesTable button.export-btn, #correctedDetallesTable button.export-btn {
-            background-color: #2ecc71;
-            color: #fff;
-        }
-
-        #liquidacionesTable button.export-btn:hover, #correctedDetallesTable button.export-btn:hover {
-            background-color: #27ae60;
-        }
-
-        #liquidacionesTable button.finalize-btn, #correctedDetallesTable button.finalize-btn {
-            background-color: #f39c12;
-            color: #fff;
-        }
-
-        #liquidacionesTable button.finalize-btn:hover, #correctedDetallesTable button.finalize-btn:hover {
-            background-color: #e67e22;
-        }
-
-        #liquidacionesTable th:nth-child(1) { width: 5%; }
-        #liquidacionesTable th:nth-child(2) { width: 15%; }
-        #liquidacionesTable th:nth-child(3) { width: 12%; }
-        #liquidacionesTable th:nth-child(4) { width: 12%; }
-        #liquidacionesTable th:nth-child(5) { width: 12%; }
-        #liquidacionesTable th:nth-child(6) { width: 12%; }
-        #liquidacionesTable th:nth-child(7) { width: 12%; }
-        #liquidacionesTable th:nth-child(8) { width: 20%; }
-
-        /* Adjusted column widths for correctedDetallesTable */
-        #correctedDetallesTable th:nth-child(1) { width: 5%; }  /* ID */
-        #correctedDetallesTable th:nth-child(2) { width: 8%; }  /* Tipo de Documento */
-        #correctedDetallesTable th:nth-child(3) { width: 8%; }  /* No. Factura */
-        #correctedDetallesTable th:nth-child(4) { width: 10%; } /* Proveedor */
-        #correctedDetallesTable th:nth-child(5) { width: 8%; }  /* NIT */
-        #correctedDetallesTable th:nth-child(6) { width: 8%; }  /* DPI */
-        #correctedDetallesTable th:nth-child(7) { width: 6%; }  /* Cantidad */
-        #correctedDetallesTable th:nth-child(8) { width: 6%; }  /* Serie */
-        #correctedDetallesTable th:nth-child(9) { width: 10%; } /* Centro de Costo */
-        #correctedDetallesTable th:nth-child(10) { width: 8%; } /* Tipo de Gasto */
-        #correctedDetallesTable th:nth-child(11) { width: 8%; } /* Tipo de Combustible */
-        #correctedDetallesTable th:nth-child(12) { width: 10%; } /* Cuenta Contable */
-        #correctedDetallesTable th:nth-child(13) { width: 8%; } /* Fecha */
-        #correctedDetallesTable th:nth-child(14) { width: 8%; } /* Subtotal */
-        #correctedDetallesTable th:nth-child(15) { width: 6%; } /* IVA */
-        #correctedDetallesTable th:nth-child(16) { width: 6%; } /* IDP */
-        #correctedDetallesTable th:nth-child(17) { width: 6%; } /* INGUAT */
-        #correctedDetallesTable th:nth-child(18) { width: 8%; } /* Total Bruto */
-        #correctedDetallesTable th:nth-child(19) { width: 8%; } /* Estado */
-        #correctedDetallesTable th:nth-child(20) { width: 10%; } /* Archivos */
-        #correctedDetallesTable th:nth-child(21) { width: 15%; } /* Acciones */
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1002;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active {
-            display: flex;
+        #liquidacionesTable tbody td:before,
+        #correctedDetallesTable tbody td:before {
+          content: attr(data-label);
+          position: absolute;
+          left: 10px;
+          font-weight: 600;
+          color: #2c3e50;
         }
 
         .modal-content {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+          width: 95%;
+          padding: 15px;
         }
 
-        .modal-content h2 {
-            font-size: 1.5rem;
-            margin-top: 0;
-            color: #2c3e50;
+        #liquidacionesTable button.view-btn,
+        #correctedDetallesTable button.view-btn {
+          background-color: #9b59b6;
+          color: #fff;
         }
 
-        .close-modal {
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #666;
+        #liquidacionesTable button.view-btn:hover,
+        #correctedDetallesTable button.view-btn:hover {
+          background-color: #8e44ad;
         }
 
-        .close-modal:hover {
-            color: #333;
+        #searchForm {
+          flex-direction: column;
+          align-items: flex-start;
         }
 
-        #liquidacionFormInner {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+        #searchForm input {
+          width: 100%;
         }
 
-        #liquidacionFormInner select,
-        #liquidacionFormInner input {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            width: 100%;
-            box-sizing: border-box;
+        #searchForm button {
+          width: 100%;
         }
-
-        #liquidacionFormInner select:focus,
-        #liquidacionFormInner input:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
-        }
-
-        #liquidacionFormInner .error {
-            color: #e74c3c;
-            font-size: 0.85rem;
-            display: none;
-        }
-
-        #liquidacionFormInner .success {
-            color: #27ae60;
-            font-size: 0.85rem;
-            display: none;
-        }
-
-        #liquidacionFormInner button {
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
-        }
-
-        #liquidacionFormInner button[type="submit"] {
-            background-color: #3498db;
-            color: #fff;
-        }
-
-        #liquidacionFormInner button[type="submit"]:hover {
-            background-color: #2980b9;
-        }
-
-        #liquidacionFormInner button[type="button"] {
-            background-color: #e74c3c;
-            color: #fff;
-        }
-
-        #liquidacionFormInner button[type="button"]:hover {
-            background-color: #c0392b;
-        }
-
-        @media (max-width: 768px) {
-            #liquidacionesTable, #correctedDetallesTable {
-                width: 100%;
-            }
-
-            #correctedDetallesContainer {
-                width: 100%;
-            }
-
-            #liquidacionesTable thead, #correctedDetallesTable thead {
-                display: none;
-            }
-
-            #liquidacionesTable tbody tr, #correctedDetallesTable tbody tr {
-                display: block;
-                margin-bottom: 10px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                background-color: #fff;
-            }
-
-            #liquidacionesTable tbody td, #correctedDetallesTable tbody td {
-                display: block;
-                text-align: right;
-                padding: 8px 10px;
-                font-size: 0.9rem;
-                position: relative;
-                border-bottom: 1px solid #eee;
-            }
-
-            #liquidacionesTable tbody td:last-child, #correctedDetallesTable tbody td:last-child {
-                border-bottom: none;
-            }
-
-            #liquidacionesTable tbody td:before, #correctedDetallesTable tbody td:before {
-                content: attr(data-label);
-                position: absolute;
-                left: 10px;
-                font-weight: 600;
-                color: #2c3e50;
-            }
-
-            .modal-content {
-                width: 95%;
-                padding: 15px;
-            }
-
-            #liquidacionesTable button.view-btn, #correctedDetallesTable button.view-btn {
-                background-color: #9b59b6;
-                color: #fff;
-            }
-
-            #liquidacionesTable button.view-btn:hover, #correctedDetallesTable button.view-btn:hover {
-                background-color: #8e44ad;
-            }
-        }
+      }
     </style>
     <script>
-        const userPermissions = {
-            create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
-            autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
-            revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
-        };
+      const userPermissions = {
+          create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
+          autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
+          revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+      };
+      const currentUserId = <?php echo json_encode($_SESSION['user_id']); ?>;
     </script>
-</head>
-<body>
+  </head>
+  <body>
     <?php include '../views/partials/menu.php'; ?>
     <h2>Lista de Liquidaciones</h2>
-    <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')): ?>
-        <button onclick="showCreateForm()">Crear Liquidación</button>
+    <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones') &&
+    strtoupper($usuario['rol']) !== 'SUPERVISOR' && strtoupper($usuario['rol'])
+    !== 'CONTABILIDAD'): ?>
+    <button onclick="showCreateForm()">Crear Liquidación</button>
     <?php endif; ?>
-    <table id="liquidacionesTable">
+
+    <!-- Toggle Button for Supervisor to View Corrected Liquidations -->
+    <?php if (strtoupper($usuario['rol']) === 'SUPERVISOR' && isset($_GET['mode']) && $_GET['mode'] === 'autorizar'): ?>
+    <button
+      id="toggleViewBtn"
+      class="toggle-btn"
+      onclick="toggleLiquidationView()"
+    >
+      Ver Liquidaciones Corregidas
+    </button>
+    <?php endif; ?>
+
+    <!-- Search Form -->
+    <div id="liquidacionesSection">
+      <div id="searchForm">
+        <label for="searchId">ID:</label>
+        <input type="number" id="searchId" placeholder="Buscar por ID" />
+        <label for="searchCajaChica">Caja Chica:</label>
+        <input
+          type="text"
+          id="searchCajaChica"
+          placeholder="Buscar por Caja Chica"
+        />
+        <label for="searchFechaInicio">Fecha Inicio:</label>
+        <input type="date" id="searchFechaInicio" />
+        <label for="searchFechaFin">Fecha Fin:</label>
+        <input type="date" id="searchFechaFin" />
+        <button type="submit" onclick="applySearch()">Buscar</button>
+        <button type="button" onclick="resetSearch()">Limpiar</button>
+      </div>
+
+      <!-- Main Liquidations Table -->
+      <table id="liquidacionesTable">
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Caja Chica</th>
-                <th>Fecha Creación</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Fin</th>
-                <th>Monto Total</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
+          <tr>
+            <th>ID</th>
+            <th>Caja Chica</th>
+            <th>Fecha Creación</th>
+            <th>Fecha Inicio</th>
+            <th>Fecha Fin</th>
+            <th>Monto Total</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
         </thead>
         <tbody></tbody>
-    </table>
+      </table>
 
-    <!-- New Section for Corrected Details (Visible to Supervisor Only) -->
-    <div id="correctedDetallesSection" style="display: none;">
-        <h2>Detalle Liquidaciones Corregidas</h2>
-        <div id="correctedDetallesContainer">
-            <table id="correctedDetallesTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tipo de Documento</th>
-                        <th>No. Factura</th>
-                        <th>Proveedor</th>
-                        <th>NIT</th>
-                        <th>DPI</th>
-                        <th>Cantidad</th>
-                        <th>Serie</th>
-                        <th>Centro de Costo</th>
-                        <th>Tipo de Gasto</th>
-                        <th>Tipo de Combustible</th>
-                        <th>Cuenta Contable</th>
-                        <th>Fecha</th>
-                        <th>Subtotal</th>
-                        <th>IVA</th>
-                        <th>IDP</th>
-                        <th>INGUAT</th>
-                        <th>Total Bruto</th>
-                        <th>Estado</th>
-                        <th>Archivos</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+      <!-- Pagination Controls -->
+      <div id="paginationControls"></div>
+    </div>
+
+    <!-- Section for Corrected Details (Visible to Supervisor Only) -->
+    <div id="correctedDetallesSection" style="display: none">
+      <h2>Detalles de Liquidaciones Corregidas</h2>
+      <div id="correctedDetallesContainer">
+        <table id="correctedDetallesTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tipo de Documento</th>
+              <th>No. Factura</th>
+              <th>Proveedor</th>
+              <th>NIT</th>
+              <th>DPI</th>
+              <th>Cantidad</th>
+              <th>Serie</th>
+              <th>Centro de Costo</th>
+              <th>Tipo de Gasto</th>
+              <th>Tipo de Combustible</th>
+              <th>Cuenta Contable</th>
+              <th>Fecha</th>
+              <th>Subtotal</th>
+              <th>IVA</th>
+              <th>IDP</th>
+              <th>INGUAT</th>
+              <th>Total Bruto</th>
+              <th>Estado</th>
+              <th>Archivos</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
     <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal()">×</span>
-            <div id="modalForm"></div>
-        </div>
+      <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">×</span>
+        <div id="modalForm"></div>
+      </div>
     </div>
+
+    <!-- Finalized Detail Options Modal -->
+    <div
+      id="finalizedDetailModal"
+      class="modal"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1003;
+      "
+    >
+      <div
+        style="
+          background: #fff;
+          padding: 20px;
+          border-radius: 8px;
+          width: 90%;
+          max-width: 500px;
+          text-align: center;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        "
+      >
+        <h3 style="color: #2c3e50; margin-bottom: 20px">
+          Liquidación Finalizada
+        </h3>
+        <p
+          id="finalizedDetailMessage"
+          style="color: #333; margin-bottom: 20px"
+        ></p>
+        <div
+          id="finalizedDetailOptions"
+          style="display: flex; flex-direction: column; gap: 10px"
+        >
+          <!-- Options will be dynamically added -->
+        </div>
+        <button
+          onclick="closeFinalizedDetailModal()"
+          style="
+            background: #e74c3c;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            width: 100%;
+          "
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+
+    <!-- Select EN_PROCESO Liquidation Modal -->
+    <div
+      id="selectLiquidationModal"
+      class="modal"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1004;
+      "
+    >
+      <div
+        style="
+          background: #fff;
+          padding: 20px;
+          border-radius: 8px;
+          width: 90%;
+          max-width: 500px;
+          text-align: center;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        "
+      >
+        <h3 style="color: #2c3e50; margin-bottom: 20px">
+          Selecciona una liquidación en proceso
+        </h3>
+        <div
+          id="liquidationOptions"
+          style="
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+          "
+        >
+          <!-- Options will be dynamically added -->
+        </div>
+        <button
+          onclick="closeSelectLiquidationModal()"
+          style="
+            background: #e74c3c;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            width: 100%;
+          "
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+
     <script>
-        window.userPermissions = window.userPermissions || {
-            create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
-            autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
-            revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
-        };
-        window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+      window.userPermissions = window.userPermissions || {
+          create_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')); ?>,
+          autorizar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')); ?>,
+          revisar_liquidaciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')); ?>
+      };
+      window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+      window.currentUserId = <?php echo json_encode($_SESSION['user_id']); ?>;
     </script>
+
     <script src="../views/js/liquidaciones.js"></script>
-</body>
+  </body>
 </html>

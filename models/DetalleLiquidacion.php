@@ -54,20 +54,17 @@ class DetalleLiquidacion {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $subtotal, $total_factura, $estado, $id_centro_costo, $cantidad = null, $serie = null, $rutas_archivos = '[]', $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible = null) {
+    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo = null, $cantidad = null, $serie = null, $rutas_json = null, $iva = 0, $idp = 0, $inguat = 0, $id_cuenta_contable = null, $tipo_combustible = null, $id_usuario = null) {
         try {
-            $stmt = $this->pdo->prepare("
-                INSERT INTO detalle_liquidaciones (
-                    id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, dpi, fecha, t_gasto,
-                    p_unitario, total_factura, estado, id_centro_costo, cantidad, serie, rutas_archivos, iva, idp, inguat, id_cuenta_contable, tipo_combustible
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
+            $sql = "INSERT INTO detalle_liquidaciones (
+                id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, dpi, fecha, t_gasto, p_unitario, total_factura, estado, id_centro_costo, cantidad, serie, rutas_archivos, iva, idp, inguat, id_cuenta_contable, tipo_combustible, id_usuario
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $this->pdo->prepare($sql);
             return $stmt->execute([
-                $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto,
-                $subtotal, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_archivos, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible
+                $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $id_usuario
             ]);
         } catch (PDOException $e) {
-            error_log("Error al crear detalle de liquidación: " . $e->getMessage());
+            error_log("Error en createDetalleLiquidacion: " . $e->getMessage());
             return false;
         }
     }

@@ -725,6 +725,29 @@
             </div>
         </div>
 
+        <!-- Finalized Liquidation Options Modal -->
+<div id="finalizedModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1003;">
+    <div style="background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; text-align: center; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);">
+        <h3 style="color: #2c3e50; margin-bottom: 20px;">Liquidación Finalizada</h3>
+        <p id="finalizedMessage" style="color: #333; margin-bottom: 20px;"></p>
+        <div id="finalizedOptions" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Options will be dynamically added -->
+        </div>
+        <button onclick="closeFinalizedModal()" style="background: #e74c3c; color: #fff; padding: 10px; border: none; border-radius: 4px; margin-top: 20px; width: 100%;">Cancelar</button>
+    </div>
+</div>
+
+<!-- Select EN_PROCESO Liquidation Modal -->
+<div id="selectLiquidationModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1004;">
+    <div style="background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; text-align: center; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);">
+        <h3 style="color: #2c3e50; margin-bottom: 20px;">Selecciona una liquidación en proceso</h3>
+        <div id="liquidationOptions" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+            <!-- Options will be dynamically added -->
+        </div>
+        <button onclick="closeSelectLiquidationModal()" style="background: #e74c3c; color: #fff; padding: 10px; border: none; border-radius: 4px; margin-top: 20px; width: 100%;">Cancelar</button>
+    </div>
+</div>
+
         <!-- Delete Confirmation Modal -->
         <div id="deleteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
             <div style="background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
@@ -762,6 +785,62 @@
             facturaIdToDelete = facturaId;
             document.getElementById('deleteModal').style.display = 'flex';
         }
+
+        function showFinalizedModal(message, options, callback) {
+    const finalizedModal = document.getElementById('finalizedModal');
+    const messageElement = document.getElementById('finalizedMessage');
+    const optionsContainer = document.getElementById('finalizedOptions');
+
+    messageElement.textContent = message;
+    optionsContainer.innerHTML = '';
+
+    options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.className = 'modal-option';
+        button.style.cssText = 'background-color: #3498db; color: #fff; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size:1.2rem;';
+        button.textContent = option.text;
+        button.setAttribute('data-choice', index + 1);
+        button.onclick = () => {
+            closeFinalizedModal();
+            callback(index + 1);
+        };
+        optionsContainer.appendChild(button);
+    });
+
+    finalizedModal.style.display = 'flex';
+}
+
+function showSelectLiquidationModal(liquidations, callback) {
+    const selectModal = document.getElementById('selectLiquidationModal');
+    const optionsContainer = document.getElementById('liquidationOptions');
+
+    optionsContainer.innerHTML = '';
+
+    liquidations.forEach((liq, index) => {
+        const button = document.createElement('button');
+        button.className = 'modal-option';
+        button.style.cssText = 'background-color: #3498db; color: #fff; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%;font-size:1.2rem;';
+        button.textContent = `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`;
+        button.setAttribute('data-index', index);
+        button.onclick = () => {
+            closeSelectLiquidationModal();
+            callback(index);
+        };
+        optionsContainer.appendChild(button);
+    });
+
+    selectModal.style.display = 'flex';
+}
+
+function closeSelectLiquidationModal() {
+    const selectModal = document.getElementById('selectLiquidationModal');
+    selectModal.style.display = 'none';
+}
+
+function closeFinalizedModal() {
+    const finalizedModal = document.getElementById('finalizedModal');
+    finalizedModal.style.display = 'none';
+}
 
         function closeDeleteModal() {
             facturaIdToDelete = null;
@@ -1408,52 +1487,72 @@
 
         // Función para enviar correcciones
         async function submitCorrections() {
-            try {
-                const stateResponse = await fetch(`index.php?controller=liquidacion&action=getLiquidacionState&id=${liquidacionId}`, {
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const stateResult = await stateResponse.json();
-                if (!stateResponse.ok) {
-                    throw new Error(stateResult.error || 'Error al verificar el estado de la liquidación');
+    try {
+        const stateResponse = await fetch(`index.php?controller=liquidacion&action=getLiquidacionState&id=${liquidacionId}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const stateResult = await stateResponse.json();
+        if (!stateResponse.ok) {
+            throw new Error(stateResult.error || 'Error al verificar el estado de la liquidación');
+        }
+
+        if (stateResult.estado === 'FINALIZADO') {
+            const detalleId = document.querySelector('#facturasTable tbody tr[data-id]')?.getAttribute('data-id');
+            if (!detalleId) {
+                alert('No hay detalles para procesar.');
+                return;
+            }
+
+            // Fetch detail information to get id_usuario
+            const detailResponse = await fetch(`index.php?controller=liquidacion&action=getDetalleInfo&id=${detalleId}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
+            });
+            if (!detailResponse.ok) {
+                const errorText = await detailResponse.text();
+                throw new Error(`Error al obtener la información del detalle: ${errorText}`);
+            }
+            const detailData = await detailResponse.json();
+            const idUsuario = detailData.id_usuario || null;
 
-                if (stateResult.estado === 'FINALIZADO') {
-                    const detalleId = document.querySelector('#facturasTable tbody tr[data-id]')?.getAttribute('data-id');
-                    if (!detalleId) {
-                        alert('No hay detalles para procesar.');
-                        return;
-                    }
+            if (!idUsuario) {
+                throw new Error('No se encontró el usuario asociado al detalle.');
+            }
 
-                    const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones`, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-                    if (!enProcesoResponse.ok) {
-                        throw new Error('Error al obtener liquidaciones en proceso');
-                    }
-                    const enProcesoData = await enProcesoResponse.json();
-                    const enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
+            // Fetch EN_PROCESO liquidations for the detail's id_usuario
+            const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones&user_id=${idUsuario}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!enProcesoResponse.ok) {
+                const errorText = await enProcesoResponse.text();
+                throw new Error(`Error al obtener liquidaciones en proceso: ${errorText}`);
+            }
+            const enProcesoData = await enProcesoResponse.json();
+            const enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
 
-                    let message = `Tu liquidación ya fue finalizada. No puedes enviar correcciones para el detalle con ID ${detalleId}. ¿Qué deseas hacer?\n`;
-                    message += '1. Iniciar una nueva liquidación con este detalle\n';
-                    if (enProcesoLiquidaciones.length > 0) {
-                        message += '2. Agregar el detalle a una liquidación en proceso\n';
-                    }
-                    message += `${enProcesoLiquidaciones.length > 0 ? '3' : '2'}. Eliminar el detalle (si tiene comentario de corrección)`;
+            let message = `Tu liquidación ya fue finalizada. No puedes enviar correcciones para el detalle con ID ${detalleId}. ¿Qué deseas hacer?`;
+            const options = [
+                { text: 'Iniciar una nueva liquidación con este detalle' }
+            ];
+            if (enProcesoLiquidaciones.length > 0) {
+                options.push({ text: 'Agregar el detalle a una liquidación en proceso' });
+            }
+            options.push({ text: 'Eliminar el detalle (si tiene comentario de corrección)' });
 
-                    const userChoice = prompt(message);
-                    const choiceNum = parseInt(userChoice);
-
+            return new Promise((resolve) => {
+                showFinalizedModal(message, options, async (choiceNum) => {
                     if (enProcesoLiquidaciones.length > 0) {
                         if (choiceNum === 1) {
                             // Option 1: Start a new liquidation
                             const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
                                 method: 'POST',
-                                body: JSON.stringify({ detalle_id: detalleId }),
+                                body: JSON.stringify({ detalle_id: detalleId, user_id: idUsuario }),
                                 headers: {
                                     'Content-Type': 'application/json',
                                     'X-Requested-With': 'XMLHttpRequest'
@@ -1467,27 +1566,31 @@
                             window.location.reload();
                         } else if (choiceNum === 2) {
                             // Option 2: Add to an existing EN_PROCESO liquidation
-                            const enProcesoOptions = enProcesoLiquidaciones.map((liq, index) => `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`).join('\n');
-                            const selectedIndex = parseInt(prompt(`Selecciona una liquidación en proceso:\n${enProcesoOptions}`)) - 1;
-                            if (selectedIndex >= 0 && selectedIndex < enProcesoLiquidaciones.length) {
-                                const selectedLiquidacionId = enProcesoLiquidaciones[selectedIndex].id;
-                                const addDetailResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
-                                    method: 'POST',
-                                    body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: selectedLiquidacionId }),
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-Requested-With': 'XMLHttpRequest'
-                                    }
+                            if (enProcesoLiquidaciones.length > 0) {
+                                return new Promise((innerResolve) => {
+                                    showSelectLiquidationModal(enProcesoLiquidaciones, async (selectedIndex) => {
+                                        if (selectedIndex >= 0 && selectedIndex < enProcesoLiquidaciones.length) {
+                                            const selectedLiquidacionId = enProcesoLiquidaciones[selectedIndex].id;
+                                            const addDetailResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
+                                                method: 'POST',
+                                                body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: selectedLiquidacionId, user_id: idUsuario }),
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-Requested-With': 'XMLHttpRequest'
+                                                }
+                                            });
+                                            const addDetailResult = await addDetailResponse.json();
+                                            if (!addDetailResponse.ok) {
+                                                throw new Error(addDetailResult.error || 'Error al agregar el detalle a la liquidación');
+                                            }
+                                            alert('Detalle agregado a la liquidación en proceso correctamente');
+                                            window.location.reload();
+                                        } else {
+                                            alert('Selección inválida. Operación cancelada.');
+                                        }
+                                        innerResolve();
+                                    });
                                 });
-                                const addDetailResult = await addDetailResponse.json();
-                                if (!addDetailResponse.ok) {
-                                    throw new Error(addDetailResult.error || 'Error al agregar el detalle a la liquidación');
-                                }
-                                alert('Detalle agregado a la liquidación en proceso correctamente');
-                                window.location.reload();
-                            } else {
-                                alert('Selección inválida. Operación cancelada.');
-                                return;
                             }
                         } else if (choiceNum === 3) {
                             // Option 3: Delete the detail
@@ -1505,14 +1608,14 @@
                             window.location.reload();
                         } else {
                             alert('Opción inválida. Operación cancelada.');
-                            return;
+                            resolve();
                         }
                     } else {
                         if (choiceNum === 1) {
                             // Option 1: Start a new liquidation
                             const newLiquidacionResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
                                 method: 'POST',
-                                body: JSON.stringify({ detalle_id: detalleId }),
+                                body: JSON.stringify({ detalle_id: detalleId, user_id: idUsuario }),
                                 headers: {
                                     'Content-Type': 'application/json',
                                     'X-Requested-With': 'XMLHttpRequest'
@@ -1525,7 +1628,7 @@
                             alert('Nueva liquidación creada correctamente');
                             window.location.reload();
                         } else if (choiceNum === 2) {
-                            // Option 3: Delete the detail
+                            // Option 2: Delete the detail
                             const deleteDetailResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
                                 method: 'POST',
                                 headers: {
@@ -1540,54 +1643,56 @@
                             window.location.reload();
                         } else {
                             alert('Opción inválida. Operación cancelada.');
-                            return;
+                            resolve();
                         }
                     }
-                    return;
-                }
-
-                // Determine the originating role to submit
-                let selectedRole;
-                if (originatingRoles.length === 1) {
-                    selectedRole = originatingRoles[0];
-                } else {
-                    const roleOptions = originatingRoles.map((role, index) => `${index + 1}. ${role}`).join('\n');
-                    const choice = prompt(`Selecciona el rol para enviar las correcciones:\n${roleOptions}`);
-                    const selectedIndex = parseInt(choice) - 1;
-                    if (selectedIndex >= 0 && selectedIndex < originatingRoles.length) {
-                        selectedRole = originatingRoles[selectedIndex];
-                    } else {
-                        alert('Selección inválida. Operación cancelada.');
-                        return;
-                    }
-                }
-
-                if (!confirm(`¿Estás seguro de que deseas enviar las correcciones? Las facturas serán enviadas a ${selectedRole === 'SUPERVISOR' ? 'autorización' : 'revisión de contabilidad'}.`)) {
-                    return;
-                }
-
-                const response = await fetch(`index.php?controller=liquidacion&action=submitCorreccion&id=${liquidacionId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ originating_role: selectedRole })
+                    resolve();
                 });
+            });
+        }
 
-                const result = await response.json();
-
-                if (response.ok) {
-                    alert(result.message || 'Correcciones enviadas correctamente.');
-                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=correccion';
-                } else {
-                    throw new Error(result.error || 'Error al enviar correcciones');
-                }
-            } catch (error) {
-                console.error('Error al enviar correcciones:', error);
-                alert(error.message || 'Error al enviar las correcciones. Intenta de nuevo.');
+        // Determine the originating role to submit
+        let selectedRole;
+        if (originatingRoles.length === 1) {
+            selectedRole = originatingRoles[0];
+        } else {
+            const roleOptions = originatingRoles.map((role, index) => `${index + 1}. ${role}`).join('\n');
+            const choice = prompt(`Selecciona el rol para enviar las correcciones:\n${roleOptions}`);
+            const selectedIndex = parseInt(choice) - 1;
+            if (selectedIndex >= 0 && selectedIndex < originatingRoles.length) {
+                selectedRole = originatingRoles[selectedIndex];
+            } else {
+                alert('Selección inválida. Operación cancelada.');
+                return;
             }
         }
+
+        if (!confirm(`¿Estás seguro de que deseas enviar las correcciones? Las facturas serán enviadas a ${selectedRole === 'SUPERVISOR' ? 'autorización' : 'revisión de contabilidad'}.`)) {
+            return;
+        }
+
+        const response = await fetch(`index.php?controller=liquidacion&action=submitCorreccion&id=${liquidacionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ originating_role: selectedRole })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message || 'Correcciones enviadas correctamente.');
+            window.location.href = 'index.php?controller=liquidacion&action=list&mode=correccion';
+        } else {
+            throw new Error(result.error || 'Error al enviar correcciones');
+        }
+    } catch (error) {
+        console.error('Error al enviar correcciones:', error);
+        alert(error.message || 'Error al enviar las correcciones. Intenta de nuevo.');
+    }
+}
 
         // Eventos iniciales
         document.addEventListener('DOMContentLoaded', () => {

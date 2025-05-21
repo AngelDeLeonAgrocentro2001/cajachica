@@ -677,9 +677,20 @@ class ReportesController {
     
             // Enrich detalles with cuenta_contable_nombre
             $cuentaContableModel = new CuentaContable();
+            $totalGeneral = 0; // Initialize total sum
+            $gastosPorTipo = []; // Array to store totals by t_gasto
+    
             foreach ($detalles as &$detalle) {
                 $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
                 $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+                // Calculate total sum
+                $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+                // Group by t_gasto
+                $tipoGasto = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : 'Sin Clasificar';
+                if (!isset($gastosPorTipo[$tipoGasto])) {
+                    $gastosPorTipo[$tipoGasto] = 0;
+                }
+                $gastosPorTipo[$tipoGasto] += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
             }
             unset($detalle);
     
@@ -690,7 +701,7 @@ class ReportesController {
                 'mode' => 'utf-8',
                 'format' => 'A4-L', // Landscape orientation
                 'margin_top' => 40,
-                'margin_bottom' => 50, // Enough space for the logo and page number
+                'margin_bottom' => 30,
                 'margin_left' => 20,
                 'margin_right' => 20,
                 'default_font_size' => 10,
@@ -699,10 +710,9 @@ class ReportesController {
             $mpdf->SetTitle('Reporte de Detalles de Liquidación');
             $mpdf->SetAuthor('AgroCaja Chica');
     
-            // Set footer content for every page
+            // Set footer content for every page (logo removed)
             $footerHtml = '
-                <div style="text-align: center; color: #7f8c8d; font-size: 9px;">
-                    <img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo" style="max-width: 120px; margin-bottom: 5px;">
+                <div style="text-align: center; color: #6b7280; font-size: 9px;">
                     <p>Página {PAGENO} de {nbpg}</p>
                 </div>';
             $mpdf->SetFooter($footerHtml);
@@ -710,45 +720,56 @@ class ReportesController {
             // Add custom CSS for styling
             $stylesheet = '
                 body {
-                    color: #333;
+                    color: #2d3748;
+                    font-family: "Helvetica", sans-serif;
+                }
+                .logo-container {
+                    text-align: center;
+                    margin-top: 0px;
+                }
+                .logo-container img {
+                    max-width: 150px;
                 }
                 .header {
-                    background-color: #2980b9;
-                    color: #fff;
-                    padding: 20px;
+                    background-color: #2b6cb0;
+                    color: #ffffff;
+                    padding: 15px;
                     text-align: center;
                     margin-bottom: 20px;
-                    border-bottom: 2px solid #1abc9c;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                 }
                 .header h1 {
                     margin: 0;
-                    font-size: 22px;
+                    font-size: 24px;
                     font-weight: bold;
                 }
                 .info {
                     text-align: center;
-                    margin-bottom: 20px;
-                    color: #7f8c8d;
+                    margin-bottom: 0px;
+                    color: #4a5568;
+                    font-size: 11px;
                 }
                 .table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 20px;
+                    margin-bottom: 0px;
                     page-break-inside: auto;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
                 }
                 .table th {
-                    background-color: #3498db;
-                    color: #fff;
-                    padding: 12px;
+                    background-color: #3182ce;
+                    color: #ffffff;
+                    padding: 10px;
                     text-align: center;
-                    font-size: 11px;
+                    font-size: 10px;
                     font-weight: bold;
-                    border: 1px solid #ddd;
+                    border: 1px solid #e2e8f0;
                 }
                 .table td {
                     padding: 8px;
                     text-align: center;
-                    border: 1px solid #ddd;
+                    border: 1px solid #e2e8f0;
                     font-size: 9px;
                 }
                 .table tr {
@@ -756,23 +777,66 @@ class ReportesController {
                     page-break-after: auto;
                 }
                 .table tr:nth-child(even) {
-                    background-color: #ecf0f1;
+                    background-color: #f7fafc;
                 }
                 .table tr:hover {
-                    background-color: #d5f0f3;
+                    background-color: #e6f0fa;
+                }
+                .total-row td {
+                    background-color: #edf2f7;
+                    font-weight: bold;
+                    font-size: 10px;
+                }
+                .summary-section {
+                    margin-top: 30px;
+                }
+                .summary-section h2 {
+                    font-size: 16px;
+                    color: #2b6cb0;
+                    margin-bottom: 10px;
+                    text-align: center;
+                }
+                .summary-table {
+                    width: 50%;
+                    margin: 0 auto;
+                    border-collapse: collapse;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                }
+                .summary-table th {
+                    background-color: #4a5568;
+                    color: #ffffff;
+                    padding: 8px;
+                    text-align: center;
+                    font-size: 10px;
+                    font-weight: bold;
+                    border: 1px solid #e2e8f0;
+                }
+                .summary-table td {
+                    padding: 8px;
+                    text-align: center;
+                    border: 1px solid #e2e8f0;
+                    font-size: 9px;
+                }
+                .summary-table tr:nth-child(even) {
+                    background-color: #f7fafc;
                 }
             ';
             $mpdf->WriteHTML($stylesheet, 1); // 1 = stylesheet only
     
             // Build HTML for PDF
-            $html = '<div class="header">';
+            // Add logo at the top
+            $html = '<div class="logo-container">';
+            $html .= '<img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo">';
+            $html .= '</div>';
+    
+            $html .= '<div class="header">';
             $html .= '<h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>';
             $html .= '</div>';
     
             $html .= '<div class="info">';
             $html .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
             $html .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
-            $html .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>'; // 04:14 PM CST, May 13, 2025
+            $html .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
             $html .= '</div>';
     
             $html .= '<table class="table">';
@@ -797,7 +861,7 @@ class ReportesController {
             $html .= '<th>INGUAT</th>';
             $html .= '<th>Total Bruto</th>';
             $html .= '<th>Estado</th>';
-            $html .= '<th>Archivos</th>';
+            // $html .= '<th>Archivos</th>';
             $html .= '</tr>';
             $html .= '</thead>';
             $html .= '<tbody>';
@@ -847,22 +911,57 @@ class ReportesController {
                     $html .= '<td>' . number_format($detalle['inguat'], 2) . '</td>';
                     $html .= '<td>' . number_format($detalle['total_factura'], 2) . '</td>';
                     $html .= '<td>' . htmlspecialchars($detalle['estado']) . '</td>';
-                    $html .= '<td>';
-                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                    if (is_array($rutas) && !empty($rutas)) {
-                        foreach ($rutas as $ruta) {
-                            $html .= htmlspecialchars((string)$ruta) . '<br>';
-                        }
-                    } else {
-                        $html .= 'N/A';
-                    }
-                    $html .= '</td>';
+                    // $html .= '<td>';
+                    // $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                    // if (is_array($rutas) && !empty($rutas)) {
+                    //     foreach ($rutas as $ruta) {
+                    //         $html .= htmlspecialchars((string)$ruta) . '<br>';
+                    //     }
+                    // } else {
+                    //     $html .= 'N/A';
+                    // }
+                    // $html .= '</td>';
+                    $html .= '</tr>';
+                }
+    
+                // Add total row
+                $html .= '<tr class="total-row">';
+                $html .= '<td colspan="17" style="text-align: right;">Total General:</td>';
+                $html .= '<td>' . number_format($totalGeneral, 2) . '</td>';
+                $html .= '<td colspan="2"></td>';
+                $html .= '</tr>';
+            }
+    
+            $html .= '</tbody>';
+            $html .= '</table>';
+    
+            // Add summary section for gastos por tipo
+            $html .= '<div class="summary-section">';
+            $html .= '<h2>Resumen de Gastos por Tipo</h2>';
+            $html .= '<table class="summary-table">';
+            $html .= '<thead>';
+            $html .= '<tr>';
+            $html .= '<th>Tipo de Gasto</th>';
+            $html .= '<th>Total</th>';
+            $html .= '</tr>';
+            $html .= '</thead>';
+            $html .= '<tbody>';
+    
+            if (empty($gastosPorTipo)) {
+                $html .= '<tr><td colspan="2" style="text-align: center;">No hay datos de gastos por tipo.</td></tr>';
+            } else {
+                ksort($gastosPorTipo); // Sort by t_gasto for better readability
+                foreach ($gastosPorTipo as $tipo => $total) {
+                    $html .= '<tr>';
+                    $html .= '<td>' . htmlspecialchars($tipo) . '</td>';
+                    $html .= '<td>' . number_format($total, 2) . '</td>';
                     $html .= '</tr>';
                 }
             }
     
             $html .= '</tbody>';
             $html .= '</table>';
+            $html .= '</div>';
     
             // Write HTML to PDF
             $mpdf->WriteHTML($html, 2); // 2 = HTML + content

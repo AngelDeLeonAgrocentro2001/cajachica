@@ -14,7 +14,7 @@ class CuentaContableController {
     public function listCuentas() {
         if (!isset($_SESSION['user_id'])) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(401);
                 echo json_encode(['error' => 'No autorizado']);
                 exit;
@@ -27,7 +27,7 @@ class CuentaContableController {
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuario) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(401);
                 echo json_encode(['error' => 'Usuario no encontrado']);
                 exit;
@@ -41,7 +41,7 @@ class CuentaContableController {
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             $estado = $_GET['estado'] ?? null;
             $cuentas = $this->cuentaContableModel->getAllCuentasContables($estado);
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             echo json_encode($cuentas);
             exit;
         }
@@ -53,7 +53,7 @@ class CuentaContableController {
 
     public function createForm() {
         if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
@@ -61,7 +61,7 @@ class CuentaContableController {
 
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para crear cuentas contables']);
             exit;
@@ -72,7 +72,7 @@ class CuentaContableController {
 
     public function createCuenta() {
         if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
@@ -80,7 +80,7 @@ class CuentaContableController {
 
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para crear cuentas contables']);
             exit;
@@ -92,7 +92,7 @@ class CuentaContableController {
             $estado = $_POST['estado'] ?? 'ACTIVO';
 
             if (empty($nombre)) {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(400);
                 echo json_encode(['error' => 'El nombre es obligatorio']);
                 exit;
@@ -100,15 +100,15 @@ class CuentaContableController {
 
             $result = $this->cuentaContableModel->createCuentaContable($nombre, $descripcion, $estado);
             if ($result) {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 echo json_encode(['message' => 'Cuenta contable creada con éxito']);
             } else {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(500);
                 echo json_encode(['error' => 'Error al crear la cuenta contable']);
             }
         } else {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(405);
             echo json_encode(['error' => 'Método no permitido']);
         }
@@ -116,7 +116,7 @@ class CuentaContableController {
 
     public function updateCuenta($id) {
         if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
@@ -124,7 +124,7 @@ class CuentaContableController {
 
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para actualizar cuentas contables']);
             exit;
@@ -136,7 +136,7 @@ class CuentaContableController {
             $estado = $_POST['estado'] ?? 'ACTIVO';
 
             if (empty($nombre)) {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(400);
                 echo json_encode(['error' => 'El nombre es obligatorio']);
                 exit;
@@ -144,15 +144,15 @@ class CuentaContableController {
 
             $result = $this->cuentaContableModel->updateCuentaContable($id, $nombre, $descripcion, $estado);
             if ($result) {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 echo json_encode(['message' => 'Cuenta contable actualizada con éxito']);
             } else {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=UTF-8');
                 http_response_code(500);
                 echo json_encode(['error' => 'Error al actualizar la cuenta contable']);
             }
         } else {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(405);
             echo json_encode(['error' => 'Método no permitido']);
         }
@@ -160,7 +160,7 @@ class CuentaContableController {
 
     public function updateForm($id) {
         if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
@@ -168,7 +168,7 @@ class CuentaContableController {
 
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para actualizar cuentas contables']);
             exit;
@@ -176,7 +176,7 @@ class CuentaContableController {
 
         $cuenta = $this->cuentaContableModel->getCuentaContableById($id);
         if (!$cuenta) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(404);
             echo json_encode(['error' => 'Cuenta contable no encontrada']);
             exit;
@@ -188,7 +188,7 @@ class CuentaContableController {
 
     public function deleteCuenta($id) {
         if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
@@ -196,7 +196,7 @@ class CuentaContableController {
 
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables')) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para eliminar cuentas contables']);
             exit;
@@ -204,10 +204,10 @@ class CuentaContableController {
 
         $result = $this->cuentaContableModel->deleteCuentaContable($id);
         if ($result) {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             echo json_encode(['message' => 'Cuenta contable eliminada con éxito']);
         } else {
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             http_response_code(500);
             echo json_encode(['error' => 'Error al eliminar la cuenta contable']);
         }

@@ -84,7 +84,7 @@ class DetalleLiquidacionController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_detalles')) {
@@ -94,12 +94,12 @@ class DetalleLiquidacionController {
             echo json_encode(['error' => 'No tienes permiso para crear detalles de liquidaciones']);
             exit;
         }
-    
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 error_log('POST data: ' . print_r($_POST, true));
                 error_log('FILES data: ' . print_r($_FILES, true));
-        
+
                 $id_liquidacion = $_POST['id_liquidacion'] ?? '';
                 $tipo_documento = $_POST['tipo_documento'] ?? 'FACTURA';
                 $no_factura = $_POST['no_factura'] ?? '';
@@ -115,7 +115,7 @@ class DetalleLiquidacionController {
                 $id_centro_costo = $_POST['id_centro_costo'] ?? null;
                 $cantidad = $_POST['cantidad'] ?? null;
                 $serie = $_POST['serie'] ?? null;
-        
+
                 // Transformar el estado según el rol del usuario
                 $rol = strtoupper($usuario['rol']);
                 if ($estado === 'APROBADO') {
@@ -129,7 +129,7 @@ class DetalleLiquidacionController {
                 } else {
                     $estado = 'EN_PROCESO';
                 }
-        
+
                 // Validar que el estado transformado sea un valor permitido en el ENUM
                 $allowedEstados = [
                     'EN_PROCESO',
@@ -141,56 +141,57 @@ class DetalleLiquidacionController {
                 if (!in_array($estado, $allowedEstados)) {
                     throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
                 }
-        
+
                 error_log("Estado transformado: " . $estado);
-        
+
                 // Validar datos antes de crear
                 if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($bien_servicio) || empty($t_gasto) || !is_numeric($p_unitario) || !is_numeric($total_factura)) {
                     throw new Exception('Todos los campos son obligatorios y deben ser válidos.');
                 }
-        
-                // Verificar que id_liquidacion exista
+
+                // Verificar que id_liquidacion exista y obtener id_usuario
                 $liquidacionModel = new Liquidacion();
                 $liquidacion = $liquidacionModel->getLiquidacionById($id_liquidacion);
                 if (!$liquidacion) {
                     throw new Exception('El ID de liquidación ' . $id_liquidacion . ' no existe.');
                 }
-        
+                $id_usuario = $liquidacion['id_usuario'];
+
                 // Validación de fecha del detalle
                 $fechaDetalle = new DateTime($fecha);
                 $fechaCreacionLiquidacion = new DateTime($liquidacion['fecha_creacion']);
                 if ($fechaDetalle > $fechaCreacionLiquidacion) {
                     throw new Exception('La fecha del detalle no puede ser mayor que la fecha de creación de la liquidación (' . $liquidacion['fecha_creacion'] . ').');
                 }
-        
+
                 // Manejar la subida de múltiples archivos
                 $rutas_archivos = [];
-                $uploadDir = '../uploads/';
+                $uploadDir = '../Uploads/';
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0777, true);
                 }
-        
+
                 $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
                 $maxFileSize = 5 * 1024 * 1024;
-        
+
                 if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
                     foreach ($_FILES['archivos']['name'] as $key => $name) {
                         if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
                             $fileType = $_FILES['archivos']['type'][$key];
                             $fileSize = $_FILES['archivos']['size'][$key];
-        
+
                             if (!in_array($fileType, $allowedTypes)) {
                                 throw new Exception('Tipo de archivo no permitido: ' . $name . '. Solo se permiten PDF, PNG, JPG y JPEG.');
                             }
-        
+
                             if ($fileSize > $maxFileSize) {
                                 throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
                             }
-        
+
                             $fileName = basename($name);
                             $filePath = $uploadDir . uniqid() . '_' . $fileName;
                             if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
-                                $rutas_archivos[] = 'uploads/' . basename($filePath);
+                                $rutas_archivos[] = 'Uploads/' . basename($filePath);
                             } else {
                                 throw new Exception('Error al subir el archivo: ' . $name);
                             }
@@ -200,7 +201,7 @@ class DetalleLiquidacionController {
                     }
                 }
                 $rutas_json = json_encode($rutas_archivos);
-        
+
                 $detalle = new DetalleLiquidacion();
                 if ($detalle->createDetalleLiquidacion(
                     $id_liquidacion,
@@ -217,11 +218,17 @@ class DetalleLiquidacionController {
                     $id_centro_costo,
                     $cantidad,
                     $serie,
-                    $rutas_json
+                    $rutas_json,
+                    0, // iva
+                    0, // idp
+                    0, // inguat
+                    null, // id_cuenta_contable
+                    null, // tipo_combustible
+                    $id_usuario // Pass id_usuario
                 )) {
                     $lastInsertId = $this->pdo->lastInsertId();
                     $auditoria = new Auditoria();
-                    $auditoria->createAuditoria($id_liquidacion, $lastInsertId, $_SESSION['user_id'], 'CREADO', 'Detalle de liquidación creado por encargado');
+                    $auditoria->createAuditoria($id_liquidacion, $lastInsertId, $_SESSION['user_id'], 'CREADO', 'Detalle de liquidación creado por encargado para usuario ID ' . $id_usuario);
                     header('Content-Type: application/json');
                     http_response_code(201);
                     echo json_encode(['message' => 'Detalle de liquidación creado']);
@@ -236,7 +243,8 @@ class DetalleLiquidacionController {
             }
             exit;
         }
-    
+
+        // Form rendering logic remains unchanged
         $liquidacion = new Liquidacion();
         $liquidaciones = $liquidacion->getAllLiquidaciones();
         $selectLiquidaciones = '';
@@ -244,14 +252,14 @@ class DetalleLiquidacionController {
             $nombreCajaChica = isset($l['nombre_caja_chica']) ? $l['nombre_caja_chica'] : 'N/A';
             $selectLiquidaciones .= "<option value='{$l['id']}'>{$nombreCajaChica} - {$l['fecha_creacion']}</option>";
         }
-    
+
         $tipoGasto = new TipoGasto();
         $tiposGastos = $tipoGasto->getAllTiposGastos();
         $selectTiposGastos = '';
         foreach ($tiposGastos as $tg) {
             $selectTiposGastos .= "<option value='{$tg['name']}'>{$tg['name']}</option>";
         }
-    
+
         ob_start();
         require '../views/detalle_liquidaciones/form.html';
         $html = ob_get_clean();
