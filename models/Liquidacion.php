@@ -1,6 +1,4 @@
 <?php
-require_once '../config/database.php';
-
 class Liquidacion {
     private $pdo;
 
@@ -8,32 +6,83 @@ class Liquidacion {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
-    public function getAllLiquidaciones() {
-        $stmt = $this->pdo->query("
+    public function getAllLiquidaciones($idUsuario = null, $idSupervisor = null, $estado = null, $idContador = null) {
+        $query = "
             SELECT l.*, 
-                   cc.nombre AS nombre_caja_chica
+                   cc.nombre AS nombre_caja_chica,
+                   u.nombre AS nombre_usuario,
+                   s.nombre AS nombre_supervisor,
+                   c.nombre AS nombre_contador
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
-            ORDER BY l.fecha_creacion DESC
-        ");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN usuarios s ON l.id_supervisor = s.id
+            LEFT JOIN usuarios c ON l.id_contador = c.id
+            WHERE 1=1
+        ";
+        $params = [];
+    
+        if ($idUsuario !== null) {
+            $query .= " AND l.id_usuario = ?";
+            $params[] = $idUsuario;
+        }
+    
+        if ($idSupervisor !== null) {
+            $query .= " AND l.id_supervisor = ?";
+            $params[] = $idSupervisor;
+        }
+    
+        if ($estado !== null) {
+            $query .= " AND l.estado = ?";
+            $params[] = $estado;
+        }
+    
+        if ($idContador !== null) {
+            $query .= " AND l.id_contador = ?";
+            $params[] = $idContador;
+        }
+    
+        $query .= " ORDER BY l.fecha_creacion DESC";
+    
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+        // Log detallado para depuración
+        error_log("getAllLiquidaciones - Query: $query");
+        error_log("getAllLiquidaciones - Params: " . json_encode($params));
+        error_log("getAllLiquidaciones - ID Usuario: " . ($idUsuario ?? 'N/A') . 
+                  ", ID Supervisor: " . ($idSupervisor ?? 'N/A') . 
+                  ", ID Contador: " . ($idContador ?? 'N/A') . 
+                  ", Estado: " . ($estado ?? 'N/A') . 
+                  ", Registros: " . count($result));
+        foreach ($result as $liquidacion) {
+            error_log("Liquidacion ID: " . $liquidacion['id'] . 
+                      ", id_contador: " . ($liquidacion['id_contador'] ?? 'N/A') . 
+                      ", Estado: " . ($liquidacion['estado'] ?? 'N/A'));
+        }
+    
+        return $result;
     }
 
     public function getLiquidacionById($id) {
         $stmt = $this->pdo->prepare("
             SELECT l.*, 
                    cc.nombre AS nombre_caja_chica,
-                   u.nombre AS nombre_usuario
+                   u.nombre AS nombre_usuario,
+                   s.nombre AS nombre_supervisor,
+                   c.nombre AS nombre_contador
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
             LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN usuarios s ON l.id_supervisor = s.id
+            LEFT JOIN usuarios c ON l.id_contador = c.id
             WHERE l.id = ?
         ");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Existing method with individual parameters
     public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario) {
         $stmt = $this->pdo->prepare("
             INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario)
@@ -42,7 +91,6 @@ class Liquidacion {
         return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario]);
     }
 
-    // New method to handle array input
     public function createLiquidacionFromArray($data) {
         return $this->createLiquidacion(
             $data['id_caja_chica'],
@@ -74,16 +122,28 @@ class Liquidacion {
         return $stmt->execute([$id]);
     }
 
-    public function updateEstado($id, $estado) {
+    public function updateEstado($id, $estado, $supervisorId = null, $contadorId = null) {
         try {
-            $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ? WHERE id = ?");
-            $result = $stmt->execute([$estado, $id]);
+            if ($contadorId !== null) {
+                // Update estado and id_contador (assign to contador)
+                $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, id_contador = ?, updated_at = NOW() WHERE id = ?");
+                $result = $stmt->execute([$estado, $contadorId, $id]);
+            } elseif ($supervisorId !== null) {
+                // Update estado and id_supervisor (assign to supervisor)
+                $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, id_supervisor = ?, updated_at = NOW() WHERE id = ?");
+                $result = $stmt->execute([$estado, $supervisorId, $id]);
+            } else {
+                // Update only estado
+                $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, updated_at = NOW() WHERE id = ?");
+                $result = $stmt->execute([$estado, $id]);
+            }
+
             if ($result === false) {
                 error_log("Error al ejecutar UPDATE en updateEstado: " . implode(', ', $stmt->errorInfo()));
                 return false;
             }
             $rowCount = $stmt->rowCount();
-            error_log("updateEstado ejecutado - ID: $id, Estado: $estado, Filas afectadas: $rowCount");
+            error_log("updateEstado ejecutado - ID: $id, Estado: $estado, SupervisorID: " . ($supervisorId ?? 'N/A') . ", ContadorID: " . ($contadorId ?? 'N/A') . ", Filas afectadas: $rowCount");
             return $rowCount > 0;
         } catch (PDOException $e) {
             error_log("Error PDO en updateEstado: " . $e->getMessage());
@@ -168,5 +228,4 @@ class Liquidacion {
         return $result['exportado'] ?? 0;
     }
 }
-
 ?>

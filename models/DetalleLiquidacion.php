@@ -8,8 +8,6 @@ class DetalleLiquidacion {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
-    // Existing methods...
-
     public function getAllDetallesLiquidacion() {
         $query = "
             SELECT d.*, l.id_caja_chica, l.fecha_creacion, cc.nombre as nombre_caja_chica, cc2.nombre as nombre_centro_costo, tg.name as tipo_gasto, cc3.nombre as cuenta_contable
@@ -193,7 +191,7 @@ class DetalleLiquidacion {
         }
     }
 
-    public function updateEstadoWithComment($id, $estado, $rol, $comment) {
+    public function updateEstadoWithComment($id, $estado, $rol, $comment, $supervisorId = null, $contadorId = null) {
         $estadosValidos = [
             'EN_PROCESO',
             'PENDIENTE_AUTORIZACION',
@@ -212,19 +210,22 @@ class DetalleLiquidacion {
         }
 
         try {
-            if ($rol === null) {
-                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = NULL, correccion_comentario = ? WHERE id = ?");
-                $result = $stmt->execute([$estado, $comment, $id]);
+            if ($rol === 'SUPERVISOR') {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = ?, id_contador_correccion = NULL WHERE id = ?");
+                $result = $stmt->execute([$estado, $rol, $comment, $supervisorId, $id]);
+            } elseif ($rol === 'CONTABILIDAD') {
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = ? WHERE id = ?");
+                $result = $stmt->execute([$estado, $rol, $comment, $contadorId, $id]);
             } else {
-                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ? WHERE id = ?");
-                $result = $stmt->execute([$estado, $rol, $comment, $id]);
+                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = NULL, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = NULL WHERE id = ?");
+                $result = $stmt->execute([$estado, $comment, $id]);
             }
 
             if (!$result) {
                 error_log("Fallo al actualizar el estado del detalle ID $id a $estado con comentario. No se afectaron filas.");
                 throw new Exception("No se pudo actualizar el estado del detalle ID $id a $estado con comentario");
             }
-            error_log("Estado del detalle ID $id actualizado a $estado con comentario con éxito.");
+            error_log("Estado del detalle ID $id actualizado a $estado con comentario, supervisor ID " . ($supervisorId ?? 'N/A') . ", contador ID " . ($contadorId ?? 'N/A') . " con éxito.");
             return true;
         } catch (PDOException $e) {
             error_log("Error al actualizar el estado del detalle ID $id a $estado con comentario: " . $e->getMessage());
@@ -234,11 +235,14 @@ class DetalleLiquidacion {
 
     public function getDetallesByLiquidacionId($id_liquidacion) {
         $stmt = $this->pdo->prepare("
-            SELECT dl.*, cc.nombre AS nombre_centro_costo, tg.name AS tipo_gasto, cc2.nombre AS cuenta_contable
+            SELECT dl.*, cc.nombre AS nombre_centro_costo, tg.name AS tipo_gasto, cc2.nombre AS cuenta_contable,
+                   s.nombre AS nombre_supervisor_correccion, c.nombre AS nombre_contador_correccion
             FROM detalle_liquidaciones dl
             LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
             LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
             LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
+            LEFT JOIN usuarios s ON dl.id_supervisor_correccion = s.id
+            LEFT JOIN usuarios c ON dl.id_contador_correccion = c.id
             WHERE dl.id_liquidacion = ?
         ");
         $stmt->execute([$id_liquidacion]);
@@ -281,8 +285,7 @@ class DetalleLiquidacion {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // New method to fetch corrected details for Supervisor
-    public function getCorrectedDetallesForSupervisor() {
+    public function getCorrectedDetallesForSupervisor($supervisorId) {
         $query = "
             SELECT dl.*, 
                    l.id as liquidacion_id, 
@@ -299,11 +302,56 @@ class DetalleLiquidacion {
             LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
             LEFT JOIN cuentas_contables cc3 ON dl.id_cuenta_contable = cc3.id
             WHERE dl.estado = 'PENDIENTE_AUTORIZACION'
-            AND dl.original_role IS NOT NULL
+            AND dl.original_role = 'SUPERVISOR'
+            AND dl.id_supervisor_correccion = ?
             AND dl.correccion_comentario IS NOT NULL
             ORDER BY dl.id ASC
         ";
-        $stmt = $this->pdo->query($query);
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$supervisorId]);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($detalles as &$detalle) {
+            if (isset($detalle['rutas_archivos'])) {
+                $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
+                foreach ($detalle['rutas_archivos'] as &$ruta) {
+                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
+                        $ruta = substr($ruta, 7);
+                    }
+                }
+            } else {
+                $detalle['rutas_archivos'] = [];
+            }
+            $detalle['liquidacion'] = $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'];
+        }
+
+        return $detalles;
+    }
+
+    public function getCorrectedDetallesForContador($contadorId) {
+        $query = "
+            SELECT dl.*, 
+                   l.id as liquidacion_id, 
+                   l.id_caja_chica, 
+                   l.fecha_creacion, 
+                   cc.nombre as nombre_caja_chica, 
+                   cc2.nombre as nombre_centro_costo, 
+                   tg.name as tipo_gasto, 
+                   cc3.nombre as cuenta_contable
+            FROM detalle_liquidaciones dl
+            JOIN liquidaciones l ON dl.id_liquidacion = l.id
+            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            LEFT JOIN centros_costos cc2 ON dl.id_centro_costo = cc2.id
+            LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+            LEFT JOIN cuentas_contables cc3 ON dl.id_cuenta_contable = cc3.id
+            WHERE dl.estado = 'PENDIENTE_REVISION_CONTABILIDAD'
+            AND dl.original_role = 'CONTABILIDAD'
+            AND dl.id_contador_correccion = ?
+            AND dl.correccion_comentario IS NOT NULL
+            ORDER BY dl.id ASC
+        ";
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$contadorId]);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($detalles as &$detalle) {

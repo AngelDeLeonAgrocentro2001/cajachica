@@ -65,7 +65,6 @@ class UsuarioController {
         $descripcionLower = strtolower($descripcion);
         $detectedRoles = [];
     
-        // Verificar tanto el nombre como la descripción del rol
         foreach ($roleMapping as $keyword => $role) {
             if (strpos($descripcionLower, $keyword) !== false || strpos(strtolower($nombreRol), $keyword) !== false) {
                 $detectedRoles[] = $role;
@@ -74,7 +73,6 @@ class UsuarioController {
     
         $pdo = Database::getInstance()->getPdo();
     
-        // Eliminar permisos dinámicos anteriores para este usuario
         $stmt = $pdo->prepare("DELETE FROM accesos_permisos WHERE id_usuario = ? AND origen = ?");
         $stmt->execute([$usuarioId, 'ROL_DESCRIPCION']);
         error_log("Permisos dinámicos anteriores eliminados para usuario $usuarioId");
@@ -173,10 +171,7 @@ class UsuarioController {
                     throw new Exception('Error al crear usuario');
                 }
 
-                // Obtener el ID del usuario recién creado
                 $usuarioId = Database::getInstance()->getPdo()->lastInsertId();
-
-                // Asignar permisos dinámicos basados en el rol
                 $this->assignPermissionsBasedOnRole($usuarioId, $id_rol);
     
                 $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'CREAR_USUARIO', "Usuario creado: {$email}");
@@ -247,7 +242,6 @@ class UsuarioController {
                     throw new Exception('Error al actualizar usuario');
                 }
 
-                // Asignar permisos dinámicos basados en el rol
                 $this->assignPermissionsBasedOnRole($id, $id_rol);
     
                 $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'ACTUALIZAR_USUARIO', "Usuario actualizado: {$email}");
@@ -288,7 +282,6 @@ class UsuarioController {
     }
 
     public function deleteUsuario($id) {
-        // Asegurarse de que no se muestren errores en pantalla
         ini_set('display_errors', 0);
         ini_set('display_startup_errors', 0);
         error_reporting(E_ALL);
@@ -308,7 +301,6 @@ class UsuarioController {
             exit;
         }
     
-        // Evitar que el usuario autenticado se elimine a sí mismo
         if ($id == $_SESSION['user_id']) {
             header('Content-Type: application/json');
             http_response_code(403);
@@ -330,20 +322,16 @@ class UsuarioController {
             $pdo = Database::getInstance()->getPdo();
             $pdo->beginTransaction();
     
-            // Registrar la auditoría antes de eliminar el usuario
             $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'ELIMINAR_USUARIO', "Usuario eliminado: {$email}");
     
-            // Eliminar registros asociados en auditoria
             $stmt = $pdo->prepare("DELETE FROM auditoria WHERE id_usuario = ?");
             $stmt->execute([$id]);
             error_log("Registros de auditoría eliminados para el usuario $id");
     
-            // Eliminar permisos asociados
             $stmt = $pdo->prepare("DELETE FROM accesos_permisos WHERE id_usuario = ?");
             $stmt->execute([$id]);
             error_log("Permisos eliminados para el usuario $id");
     
-            // Eliminar el usuario
             if ($this->usuarioModel->deleteUsuario($id)) {
                 $pdo->commit();
                 header('Content-Type: application/json');
@@ -368,4 +356,75 @@ class UsuarioController {
         }
         exit;
     }
+    
+    public function getSupervisores() {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para acceder a la lista de supervisores']);
+            exit;
+        }
+
+        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR');
+        $supervisoresList = array_map(function($supervisor) {
+            return [
+                'id' => $supervisor['id'],
+                'nombre' => $supervisor['nombre'],
+                'email' => $supervisor['email']
+            ];
+        }, $supervisores);
+
+        header('Content-Type: application/json');
+        echo json_encode($supervisoresList);
+        exit;
+    }
+
+    public function getContadores() {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            exit;
+        }
+
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuario) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Usuario no encontrado']);
+            exit;
+        }
+
+        if (!$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && strtoupper($usuario['rol']) !== 'ADMIN') {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para acceder a la lista de contadores']);
+            exit;
+        }
+
+        // Fetch all users with the CONTABILIDAD role (corrected from CONTADOR)
+        $contadores = $usuarioModel->getUsuariosByRol('CONTABILIDAD');
+        $contadoresList = array_map(function($contador) {
+            return [
+                'id' => $contador['id'],
+                'nombre' => $contador['nombre'],
+                'email' => $contador['email']
+            ];
+        }, $contadores);
+
+        header('Content-Type: application/json');
+        echo json_encode($contadoresList);
+        exit;
+    }
 }
+?>

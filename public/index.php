@@ -85,36 +85,42 @@ switch ($controller) {
         break;
 
     case 'usuario':
-        $usuarioController = new UsuarioController();
-        switch ($action) {
-            case 'list':
-                $usuarioController->listUsuarios();
-                break;
-            case 'create':
-                $usuarioController->createUsuario();
-                break;
-            case 'update':
-                if ($id) {
-                    $usuarioController->updateUsuario($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de usuario requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $usuarioController->deleteUsuario($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de usuario requerido para eliminar']);
-                }
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para usuario']);
-                exit;
-        }
-        break;
+            $usuarioController = new UsuarioController();
+            switch ($action) {
+                case 'list':
+                    $usuarioController->listUsuarios();
+                    break;
+                case 'create':
+                    $usuarioController->createUsuario();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $usuarioController->updateUsuario($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de usuario requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $usuarioController->deleteUsuario($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de usuario requerido para eliminar']);
+                    }
+                    break;
+                case 'getSupervisores':
+                    $usuarioController->getSupervisores();
+                    break;
+                case 'getContadores':
+                    $usuarioController->getContadores();
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para usuario']);
+                    exit;
+            }
+            break;
 
     case 'cajachica':
         $cajaChicaController = new CajaChicaController();
@@ -258,7 +264,7 @@ switch ($controller) {
                     break;
                 case 'getLiquidacionState':
                     if ($id) {
-                        $liquidacionController->getLiquidacionState($id); // Fixed syntax: removed stray parenthesis
+                        $liquidacionController->getLiquidacionState($id);
                     } else {
                         header('HTTP/1.1 400 Bad Request');
                         echo json_encode(['error' => 'ID de liquidación requerido para obtener el estado']);
@@ -298,7 +304,7 @@ switch ($controller) {
                 case 'addDetailToLiquidacion':
                     $liquidacionController->addDetailToLiquidacion();
                     break;
-                case 'deleteDetail': // New case for deleting a detail with correccion_comentario
+                case 'deleteDetail':
                     if ($id) {
                         $liquidacionController->deleteDetail($id);
                     } else {
@@ -312,6 +318,14 @@ switch ($controller) {
                     } else {
                         header('HTTP/1.1 400 Bad Request');
                         echo json_encode(['error' => 'ID de liquidación requerido para autorizar detalle']);
+                    }
+                    break;
+                case 'assignContador':
+                    if ($id) {
+                        $liquidacionController->assignContador($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de liquidación requerido para asignar contador']);
                     }
                     break;
                 default:
