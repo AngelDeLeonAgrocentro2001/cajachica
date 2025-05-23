@@ -691,41 +691,40 @@ async function updateLiquidation(id, data) {
     return result;
   }
 
-async function deleteLiquidation(id) {
-  if (!confirm("¿Estás seguro de que deseas eliminar esta liquidación?"))
-    return;
+  async function deleteLiquidation(id) {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta liquidación?")) return;
+  
+    try {
+        const response = await fetch(
+            `index.php?controller=liquidacion&action=delete&id=${id}`,
+            {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/json"
+                }
+            }
+        );
 
-  try {
-    const response = await fetch(
-      `index.php?controller=liquidacion&action=delete&id=${id}`,
-      {
-        method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      }
-    );
+        // Check if the response has content before attempting to parse JSON
+        const contentType = response.headers.get("content-type");
+        if (!response.ok || !contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            throw new Error(`Error del servidor: ${text || response.statusText}`);
+        }
 
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      const text = await response.text();
-      throw new Error(`Respuesta no es JSON válida: ${text}`);
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || "Error al eliminar la liquidación");
+        }
+
+        alert(result.message || "Liquidación eliminada correctamente");
+        loadLiquidaciones();
+    } catch (error) {
+        console.error("Error al eliminar liquidación:", error);
+        alert(error.message || "Error al eliminar la liquidación. Intenta de nuevo.");
     }
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "Error al eliminar la liquidación");
-    }
-
-    alert(result.message || "Liquidación eliminada correctamente");
-    loadLiquidaciones();
-  } catch (error) {
-    console.error("Error al eliminar liquidación:", error);
-    alert(
-      error.message || "Error al eliminar la liquidación. Intenta de nuevo."
-    );
-  }
 }
 
 async function autorizarLiquidacion(id, mode) {

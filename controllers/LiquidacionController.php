@@ -488,83 +488,72 @@ class LiquidacionController
     exit;
 }
 
-    public function deleteLiquidation($id)
-    {
-        if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado']);
-            exit;
-        }
+public function deleteLiquidacion($id) {
+    ini_set('display_errors', 0);
+    ini_set('display_startup_errors', 0);
+    error_reporting(E_ALL);
 
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar liquidaciones']);
-            exit;
-        }
-
-        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
-        if (!$liquidacion) {
-            header('Content-Type: application/json');
-            http_response_code(404);
-            echo json_encode(['error' => 'Liquidación no encontrada']);
-            exit;
-        }
-
-        if ($liquidacion['estado'] !== 'EN_PROCESO') {
-            header('Content-Type: application/json');
-            http_response_code(400);
-            echo json_encode(['error' => 'Solo se pueden eliminar liquidaciones en estado EN_PROCESO']);
-            exit;
-        }
-
-        // Only the creator can delete
-        if ($usuario['id'] != $liquidacion['id_usuario']) {
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar esta liquidación']);
-            exit;
-        }
-
-        $this->detalleModel = new DetalleLiquidacion();
-        $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
-        if (!empty($detalles)) {
-            header('Content-Type: application/json');
-            http_response_code(400);
-            echo json_encode(['error' => 'No se puede eliminar la liquidación porque tiene facturas asociadas']);
-            exit;
-        }
-
-        try {
-            $this->pdo->beginTransaction();
-
-            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ELIMINADO', 'Liquidación eliminada');
-            error_log("Auditoría registrada para la liquidación ID $id antes de eliminarla");
-
-            $stmt = $this->pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
-            $stmt->execute([$id]);
-            error_log("Registros de auditoría eliminados para la liquidación ID $id");
-
-            if (!$this->liquidacionModel->deleteLiquidation($id)) {
-                throw new Exception('Error al eliminar la liquidación en la base de datos');
-            }
-
-            $this->pdo->commit();
-
-            header('Content-Type: application/json');
-            echo json_encode(['message' => 'Liquidación eliminada correctamente']);
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            error_log("Error al eliminar liquidación ID $id: " . $e->getMessage());
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al eliminar la liquidación: ' . $e->getMessage()]);
-        }
+    if (!isset($_SESSION['user_id'])) {
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado']);
         exit;
     }
+
+    $usuarioModel = new Usuario();
+    $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+    if ($usuario === false || !$usuarioModel->tienePermiso($usuario, 'delete_liquidaciones')) {
+        header('Content-Type: application/json');
+        http_response_code(403);
+        echo json_encode(['error' => 'No tienes permiso para eliminar liquidaciones']);
+        exit;
+    }
+
+    $liquidacionModel = new Liquidacion();
+    $targetLiquidacion = $liquidacionModel->getLiquidacionById($id);
+    if ($targetLiquidacion === false) {
+        header('Content-Type: application/json');
+        http_response_code(404);
+        echo json_encode(['error' => 'Liquidación no encontrada']);
+        exit;
+    }
+
+    $pdo = Database::getInstance()->getPdo();
+    try {
+        $pdo->beginTransaction();
+
+        // Delete related auditoria records first
+        $stmt = $pdo->prepare("DELETE FROM auditoria WHERE id_liquidacion = ?");
+        $stmt->execute([$id]);
+        error_log("Registros de auditoría eliminados para liquidación ID $id");
+
+        // Delete the liquidation (corrected method name)
+        if ($liquidacionModel->deleteLiquidation($id)) {
+            $pdo->commit();
+            $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'ELIMINAR_LIQUIDACION', "Liquidación eliminada: ID $id");
+            header('Content-Type: application/json');
+            echo json_encode(['message' => 'Liquidación eliminada']);
+        } else {
+            $pdo->rollBack();
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'Error al eliminar liquidación']);
+        }
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        error_log("Error al eliminar liquidación $id: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al eliminar liquidación: ' . $e->getMessage()]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Error inesperado al eliminar liquidación $id: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error inesperado al eliminar liquidación: ' . $e->getMessage()]);
+    }
+    exit;
+}
 
     public function deleteDetail($detalleId)
     {

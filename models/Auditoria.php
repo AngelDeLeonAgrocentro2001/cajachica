@@ -13,27 +13,34 @@ class Auditoria {
             if (empty($tipo_accion)) {
                 throw new Exception("El tipo de acción es obligatorio.");
             }
-    
+
+            // Validate that the user exists
+            $stmt = $this->pdo->prepare("SELECT nombre FROM usuarios WHERE id = ?");
+            $stmt->execute([$id_usuario]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$usuario) {
+                throw new Exception("Usuario con ID $id_usuario no encontrado.");
+            }
+            $usuario_nombre = $usuario['nombre'];
+
             $accion = $this->mapTipoAccionToAccion($tipo_accion);
-    
+
             $stmt = $this->pdo->prepare("
                 INSERT INTO auditoria (id_liquidacion, id_detalle_liquidacion, id_usuario, usuario_nombre, accion, tipo_accion, detalles, fecha)
-                SELECT ?, ?, ?, nombre, ?, ?, ?, NOW()
-                FROM usuarios
-                WHERE id = ?
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $result = $stmt->execute([
                 $id_liquidacion,
                 $id_detalle_liquidacion,
                 $id_usuario,
+                $usuario_nombre,
                 $accion,
                 $tipo_accion,
-                $detalles,
-                $id_usuario
+                $detalles
             ]);
             if (!$result) {
                 error_log("Error al insertar en auditoria: " . print_r($stmt->errorInfo(), true));
-                throw new Exception("Error al insertar en auditoria: " . print_r($stmt->errorInfo(), true));
+                throw new Exception("Error al insertar en auditoria: " . implode(', ', $stmt->errorInfo()));
             }
             return $result;
         } catch (Exception $e) {
@@ -41,7 +48,7 @@ class Auditoria {
             throw $e;
         }
     }
-    
+
     private function mapTipoAccionToAccion($tipo_accion) {
         $mapping = [
             'CREADO' => 'APROBADO',
@@ -64,9 +71,9 @@ class Auditoria {
             'RECHAZAR_FACTURA' => 'RECHAZADO',
             'PAGAR_FACTURA' => 'APROBADO',
             'RECHAZAR_FACTURA_CONTABILIDAD' => 'RECHAZADO',
-            'FINALIZADO' => 'APROBADO' // Para cuando el encargado finaliza la liquidación
+            'FINALIZADO' => 'APROBADO'
         ];
-    
+
         return $mapping[$tipo_accion] ?? 'RECHAZADO';
     }
 
@@ -103,3 +110,4 @@ class Auditoria {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
+?>

@@ -95,6 +95,7 @@ class Usuario {
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
                 'manage_correcciones' => true,
+                'delete_liquidaciones' => true
             ],
             self::ROL_SUPERVISOR => [
                 'autorizar_liquidaciones' => true,
@@ -128,6 +129,7 @@ class Usuario {
             $allPermissions = $stmt->fetchAll(PDO::FETCH_COLUMN);
             $permisosPredeterminados = array_fill_keys($allPermissions, true);
             $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
+            error_log("Permisos predeterminados para ADMIN: " . print_r($permisosPredeterminados, true));
         } else {
             $combinedPredeterminados = [];
             if (strpos($rol, self::ROL_ENCARGADO_CAJA_CHICA) !== false) {
@@ -141,6 +143,7 @@ class Usuario {
             }
             $permisosPredeterminados = $combinedPredeterminados;
             $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
+            error_log("Permisos predeterminados para rol $rol: " . print_r($permisosPredeterminados, true));
         }
     
         $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
@@ -166,6 +169,7 @@ class Usuario {
         }
         $permisosDinamicos = array_unique($permisosDinamicos);
         $tienePermisoDinamico = in_array($permiso, $permisosDinamicos);
+        error_log("Permisos dinámicos: " . print_r($permisosDinamicos, true));
     
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM rol_permisos WHERE id_rol = ?");
         $stmt->execute([$rolId]);
@@ -178,6 +182,8 @@ class Usuario {
             }
             $manualOverrides[$perm['permiso']] = $perm['estado'];
         }
+        error_log("Permisos manuales del rol: " . print_r($manualRolPermissions, true));
+        error_log("Overrides del rol: " . print_r($manualOverrides, true));
     
         $rolPermissions = array_unique(array_merge(
             $permisosPredeterminados ? array_keys($permisosPredeterminados) : [],
@@ -190,6 +196,7 @@ class Usuario {
             }
         }
         $tienePermisoRol = in_array($permiso, $rolPermissions);
+        error_log("Permisos combinados del rol: " . print_r($rolPermissions, true));
     
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM accesos_permisos WHERE id_usuario = ?");
         $stmt->execute([$usuarioId]);
@@ -202,6 +209,8 @@ class Usuario {
             }
             $userOverrides[$perm['permiso']] = $perm['estado'];
         }
+        error_log("Permisos específicos del usuario: " . print_r($userPermissions, true));
+        error_log("Overrides del usuario: " . print_r($userOverrides, true));
     
         $effectivePermissions = array_unique(array_merge($rolPermissions, $userPermissions));
         foreach ($userOverrides as $perm => $estado) {
@@ -210,6 +219,8 @@ class Usuario {
             }
         }
         $tienePermiso = in_array($permiso, $effectivePermissions);
+        error_log("Permisos efectivos finales: " . print_r($effectivePermissions, true));
+        error_log("Resultado final para permiso $permiso: " . ($tienePermiso ? 'true' : 'false'));
     
         return $tienePermiso;
     }
