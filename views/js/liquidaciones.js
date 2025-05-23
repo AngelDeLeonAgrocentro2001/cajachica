@@ -130,13 +130,13 @@ async function loadLiquidaciones() {
       liquidacionesData = data.liquidaciones;
       correctedDetallesData = data.corrected_detalles || [];
   
-      // Filtro adicional para el rol CONTADOR
-      if (window.userRole === "CONTADOR") {
+      // Filtro adicional para el rol CONTABILIDAD
+      if (window.userRole === "CONTABILIDAD") {
         liquidacionesData = liquidacionesData.filter(
-          (liquidacion) => liquidacion.id_contador == window.currentUserId
+          (liquidacion) => !liquidacion.id_contador || liquidacion.id_contador == window.currentUserId
         );
         console.log(
-          `Liquidaciones filtradas para CONTADOR (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
+          `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
         );
         liquidacionesData.forEach((liquidacion) => {
           console.log(
@@ -154,7 +154,7 @@ async function loadLiquidaciones() {
       console.error("Error al cargar liquidaciones:", error);
       alert("Error al cargar las liquidaciones. Intenta de nuevo.");
     }
-  }
+}
 
 function filterLiquidations() {
   const searchId = document.getElementById("searchId").value.trim();

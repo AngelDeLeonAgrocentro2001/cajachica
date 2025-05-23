@@ -140,110 +140,139 @@ class LiquidacionController
     }
 
     public function listLiquidaciones()
-{
-    error_log('Iniciando listLiquidaciones');
-    if (!isset($_SESSION['user_id'])) {
-        error_log('Error: No hay session user_id');
-        header('Content-Type: application/json; charset=UTF-8');
-        http_response_code(401);
-        echo json_encode(['error' => 'No autorizado.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    $usuarioModel = new Usuario();
-    $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-    if (!$usuario) {
-        error_log('Usuario no encontrado para ID: ' . $_SESSION['user_id']);
-        header('Content-Type: application/json; charset=UTF-8');
-        http_response_code(401);
-        echo json_encode(['error' => 'Usuario no encontrado.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    $rol = strtoupper($usuario['rol']);
-    $urlParams = $_GET['mode'] ?? '';
-    $isRevisarMode = $urlParams === 'revisar';
-
-    // Fetch liquidations based on role and user
-    if ($rol === 'SUPERVISOR' && $urlParams === 'autorizar') {
-        $liquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, $_SESSION['user_id'], 'PENDIENTE_AUTORIZACION');
-        error_log('Liquidaciones obtenidas para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
-    } elseif ($rol === 'CONTADOR') {
-        // Siempre filtrar por id_contador para el rol CONTADOR
-        $liquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, null, $_SESSION['user_id']);
-        error_log('Liquidaciones obtenidas para CONTADOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
-        foreach ($liquidaciones as $liquidacion) {
-            error_log('Liquidacion ID: ' . $liquidacion['id'] . ', id_contador: ' . ($liquidacion['id_contador'] ?? 'N/A') . ', Estado: ' . ($liquidacion['estado'] ?? 'N/A'));
+    {
+        error_log('Iniciando listLiquidaciones');
+        if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id');
+            header('Content-Type: application/json; charset=UTF-8');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado.'], JSON_UNESCAPED_UNICODE);
+            exit;
         }
 
-        // Filtro adicional por estado para CONTADOR
-        $liquidaciones = array_filter($liquidaciones, function ($liquidacion) {
-            return in_array($liquidacion['estado'], [
-                'PENDIENTE_REVISION_CONTABILIDAD',
-                'EN_PROCESO',
-                'FINALIZADO',
-                'RECHAZADO_POR_CONTABILIDAD'
-            ]);
-        });
-        error_log('Liquidaciones filtradas por estado para CONTADOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
-    } else {
-        $liquidaciones = $this->liquidacionModel->getAllLiquidaciones();
-        error_log('Liquidaciones obtenidas: ' . count($liquidaciones) . ' registros para el usuario ID ' . $_SESSION['user_id']);
-    }
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuario) {
+            error_log('Usuario no encontrado para ID: ' . $_SESSION['user_id']);
+            header('Content-Type: application/json; charset=UTF-8');
+            http_response_code(401);
+            echo json_encode(['error' => 'Usuario no encontrado.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
 
-    // Filtro adicional para el rol CONTADOR (por seguridad)
-    if ($rol === 'CONTADOR') {
-        $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
-            return $liquidacion['id_contador'] == $usuario['id'];
-        });
-        error_log('Liquidaciones filtradas para CONTADOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
-    }
+        $rol = strtoupper($usuario['rol']);
+        $urlParams = $_GET['mode'] ?? '';
+        $isRevisarMode = $urlParams === 'revisar';
 
-    foreach ($liquidaciones as &$liquidacion) {
-        $liquidacion['detalles'] = $this->detalleModel->getDetallesByLiquidacionId($liquidacion['id']);
-    }
-    unset($liquidacion);
+        // Fetch liquidations based on role and user
+        if ($rol === 'SUPERVISOR') {
+            // For SUPERVISOR, filter by id_supervisor and optionally by state in autorizar mode
+            if ($urlParams === 'autorizar') {
+                $liquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, $_SESSION['user_id'], 'PENDIENTE_AUTORIZACION');
+                error_log('Liquidaciones obtenidas para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
+            } else {
+                // In other modes (like list without mode), still filter by id_supervisor
+                $liquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, $_SESSION['user_id']);
+                error_log('Liquidaciones obtenidas para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
+            }
 
-    // Fetch corrected details based on role
-    $correctedDetalles = [];
-    if ($rol === 'SUPERVISOR' && $urlParams === 'autorizar') {
-        $correctedDetalles = $this->detalleModel->getCorrectedDetallesForSupervisor($_SESSION['user_id']);
-        error_log('Detalles corregidos obtenidos para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($correctedDetalles) . ' registros');
-    } elseif ($rol === 'CONTADOR' && $urlParams === 'autorizar') {
-        $correctedDetalles = $this->detalleModel->getCorrectedDetallesForContador($_SESSION['user_id']);
-        error_log('Detalles corregidos obtenidos para CONTADOR (ID: ' . $_SESSION['user_id'] . '): ' . count($correctedDetalles) . ' registros');
-    }
+            // Additional filter to ensure only liquidations with matching id_supervisor are shown
+            $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
+                return !isset($liquidacion['id_supervisor']) || $liquidacion['id_supervisor'] == $usuario['id'];
+            });
+            error_log('Liquidaciones filtradas por id_supervisor para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
+        } elseif ($rol === 'CONTABILIDAD') {
+            // For CONTABILIDAD, filter by id_contador or NULL to allow assignment
+            $liquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, null, $_SESSION['user_id']);
+            error_log('Liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
+            foreach ($liquidaciones as $liquidacion) {
+                error_log('Liquidacion ID: ' . $liquidacion['id'] . ', id_contador: ' . ($liquidacion['id_contador'] ?? 'N/A') . ', Estado: ' . ($liquidacion['estado'] ?? 'N/A'));
+            }
 
-    // Filter liquidations based on role (for non-SUPERVISOR/CONTABILIDAD cases)
-    if ($rol !== 'SUPERVISOR' && $rol !== 'CONTABILIDAD' && $rol !== 'CONTADOR') {
-        $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
-            return $liquidacion['id_usuario'] == $usuario['id'];
-        });
-        error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD/CONTADOR: ' . count($liquidaciones) . ' registros');
-    } elseif ($isRevisarMode && $rol === 'CONTABILIDAD') {
-        $liquidaciones = array_filter($liquidaciones, function ($liquidacion) {
-            return in_array($liquidacion['estado'], [
-                'PENDIENTE_REVISION_CONTABILIDAD',
-                'FINALIZADO',
-                'RECHAZADO_POR_CONTABILIDAD',
-                'EN_PROCESO'
-            ]);
-        });
-        error_log('Liquidaciones filtradas para CONTABILIDAD: ' . count($liquidaciones) . ' registros');
-    }
+            // Allow CONTABILIDAD to see liquidations where id_contador matches or is NULL
+            $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
+                return !isset($liquidacion['id_contador']) || $liquidacion['id_contador'] == $usuario['id'];
+            });
+            error_log('Liquidaciones filtradas por id_contador para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
 
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-        header('Content-Type: application/json; charset=UTF-8');
-        $response = [
-            'liquidaciones' => array_values($liquidaciones),
-            'corrected_detalles' => $correctedDetalles
-        ];
-        echo json_encode($response, JSON_UNESCAPED_UNICODE);
-    } else {
-        require '../views/liquidaciones/list.html';
+            // Broaden state filter to match SUPERVISOR behavior
+            $liquidaciones = array_filter($liquidaciones, function ($liquidacion) {
+                return in_array($liquidacion['estado'], [
+                    'PENDIENTE_AUTORIZACION',
+                    'PENDIENTE_REVISION_CONTABILIDAD',
+                    'EN_PROCESO',
+                    'FINALIZADO',
+                    'RECHAZADO_POR_CONTABILIDAD'
+                ]);
+            });
+            error_log('Liquidaciones filtradas por estado para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($liquidaciones) . ' registros');
+        } else {
+            // For other roles, fetch all liquidations and filter by id_usuario
+            $liquidaciones = $this->liquidacionModel->getAllLiquidaciones();
+            error_log('Liquidaciones obtenidas: ' . count($liquidaciones) . ' registros para el usuario ID ' . $_SESSION['user_id']);
+
+            $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
+                return $liquidacion['id_usuario'] == $usuario['id'];
+            });
+            error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD: ' . count($liquidaciones) . ' registros');
+        }
+
+        foreach ($liquidaciones as &$liquidacion) {
+            $liquidacion['detalles'] = $this->detalleModel->getDetallesByLiquidacionId($liquidacion['id']);
+        }
+        unset($liquidacion);
+
+        // Fetch corrected details based on role
+        $correctedDetalles = [];
+        if ($rol === 'SUPERVISOR' && $urlParams === 'autorizar') {
+            $correctedDetalles = $this->detalleModel->getCorrectedDetallesForSupervisor($_SESSION['user_id']);
+            // Filter corrected details to ensure they belong to liquidations with matching id_supervisor
+            $correctedDetalles = array_filter($correctedDetalles, function ($detalle) use ($usuario, $liquidaciones) {
+                $liquidacion = array_filter($liquidaciones, function ($liq) use ($detalle) {
+                    return $liq['id'] == $detalle['liquidacion_id'];
+                });
+                $liquidacion = reset($liquidacion);
+                return $liquidacion && (!isset($liquidacion['id_supervisor']) || $liquidacion['id_supervisor'] == $usuario['id']);
+            });
+            error_log('Detalles corregidos obtenidos para SUPERVISOR (ID: ' . $_SESSION['user_id'] . '): ' . count($correctedDetalles) . ' registros');
+        } elseif ($rol === 'CONTABILIDAD' && $urlParams === 'autorizar') {
+            $correctedDetalles = $this->detalleModel->getCorrectedDetallesForContador($_SESSION['user_id']);
+            // Filter corrected details to ensure they belong to liquidations with matching id_contador
+            $correctedDetalles = array_filter($correctedDetalles, function ($detalle) use ($usuario, $liquidaciones) {
+                $liquidacion = array_filter($liquidaciones, function ($liq) use ($detalle) {
+                    return $liq['id'] == $detalle['liquidacion_id'];
+                });
+                $liquidacion = reset($liquidacion);
+                return $liquidacion && (!isset($liquidacion['id_contador']) || $liquidacion['id_contador'] == $usuario['id']);
+            });
+            error_log('Detalles corregidos obtenidos para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($correctedDetalles) . ' registros');
+        }
+
+        // Additional filtering for CONTABILIDAD in revisar mode
+        if ($isRevisarMode && $rol === 'CONTABILIDAD') {
+            $liquidaciones = array_filter($liquidaciones, function ($liquidacion) {
+                return in_array($liquidacion['estado'], [
+                    'PENDIENTE_REVISION_CONTABILIDAD',
+                    'FINALIZADO',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'EN_PROCESO'
+                ]);
+            });
+            error_log('Liquidaciones filtradas para CONTABILIDAD: ' . count($liquidaciones) . ' registros');
+        }
+
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+            header('Content-Type: application/json; charset=UTF-8');
+            $response = [
+                'liquidaciones' => array_values($liquidaciones),
+                'corrected_detalles' => $correctedDetalles
+            ];
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+        } else {
+            require '../views/liquidaciones/list.html';
+        }
+        exit;
     }
-    exit;
-}
 
     public function createLiquidacion()
     {
