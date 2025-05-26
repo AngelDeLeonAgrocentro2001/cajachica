@@ -98,27 +98,38 @@ class LoginController {
                     $mail->SMTPAuth = true;
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port = 587;
+                    $mail->CharSet = 'UTF-8'; // Añadir codificación UTF-8
 
                     // Credenciales (ajusta con tus datos reales)
-                    $mail->Username = 'angel.deleon@agrocentro.com'; // Reemplaza con tu email
-                    $mail->Password = 'ElcorreodeSimba2001'; // Reemplaza con tu contraseña
+                    $mail->Username = $email; // Usar el email del formulario
+                    $mail->Password = 'ElcorreodeSimba2001'; // Nota: La contraseña debe ser la del email proporcionado
 
                     // Remitente y destinatario
-                    $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
+                    $mail->setFrom($email, 'AgroCaja Chica');
                     $mail->addAddress($email);
-                    $mail->addReplyTo('angel.deleon@agrocentro.com');
+                    $mail->addReplyTo($email);
 
                     // Contenido del email
                     $resetLink = "http://localhost:8080/agrocaja-chica/public/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
                     $mail->IsHTML(true);
                     $mail->Subject = 'Recuperación de Contraseña - AgroCaja Chica';
-                    $mail->Body = "Hola,<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
+                    $mail->Body = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
                     $mail->AltBody = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
 
                     $mail->send();
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } catch (Exception $e) {
-                    header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email: ' . htmlspecialchars($mail->ErrorInfo));
+                    // Fallback: Si el email del usuario no puede ser usado como remitente, usar un email por defecto
+                    try {
+                        $mail->Username = 'angel.deleon@agrocentro.com'; // Email por defecto
+                        $mail->Password = 'ElcorreodeSimba2001';
+                        $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
+                        $mail->addReplyTo('angel.deleon@agrocentro.com');
+                        $mail->send();
+                        header('Location: index.php?controller=login&action=resetPassword&success=1');
+                    } catch (Exception $e2) {
+                        header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email: ' . htmlspecialchars($mail->ErrorInfo));
+                    }
                 }
             } else {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');

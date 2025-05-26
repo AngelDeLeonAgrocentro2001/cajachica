@@ -1682,8 +1682,7 @@ public function revisar($id)
     exit;
 }
 
-    public function exportar($id)
-{
+public function exportar($id) {
     if (!isset($_SESSION['user_id'])) {
         error_log('Error: No hay session user_id en exportar');
         header('Content-Type: application/json');
@@ -1742,86 +1741,224 @@ public function revisar($id)
         exit;
     }
 
-    // Export to SAP
+    // Log detalles for debugging
+    error_log('Detalles to export: ' . json_encode(array_map(function($detalle) {
+        return [
+            'nombre_proveedor' => $detalle['nombre_proveedor'] ?? 'N/A',
+            'nit_proveedor' => $detalle['nit_proveedor'] ?? 'N/A',
+            'nombre_centro_costo' => $detalle['nombre_centro_costo'] ?? 'N/A',
+            'nombre_centro_costo_dim2' => $detalle['nombre_centro_costo_dim2'] ?? 'N/A',
+            'nombre_centro_costo_dim3' => $detalle['nombre_centro_costo_dim3'] ?? 'N/A',
+            't_gasto' => $detalle['t_gasto'] ?? 'N/A',
+            'fecha' => $detalle['fecha'] ?? 'N/A',
+            'no_factura' => $detalle['no_factura'] ?? 'N/A',
+            'bien_servicio' => $detalle['bien_servicio'] ?? 'N/A'
+        ];
+    }, $detallesToExport)));
+
+    // Mapeo de nombre_proveedor a CardCode
+    $proveedorMap = [
+        'Banco Internacional Q' => 'PMO0045',
+        'JENNIFER MARIA, CIHUIL ROMERO' => 'PN0026',
+        'Seminarium International' => 'PI1193',
+        'CAJA CHICA Jose Alfredo Ixtuc' => 'PN9563'
+    ];
+
+    // Mapeo de tipoGasto a ItemCode
+    $itemCodeMap = [
+        'Combustible' => 'ME2001002GT',
+        'Alimentación' => 'ME2001002GT',
+        'Hospedaje' => 'ME2001002GT',
+        'Transporte' => 'ME2001002GT',
+        'Otros' => 'ME2001002GT'
+    ];
+
+    // Mapeo de nombre_centro_costo a CostingCode (Dimension 1)
+    $costingCodeMap = [
+        'General' => 'D00', // Avoid due to -5002
+        'Consejo de Administración' => 'D01',
+        'Director Ejecutivo' => 'D02',
+        'Gastos Financieros' => 'D03',
+        'Bodega Retalhuleu' => 'D43'
+    ];
+
+    // Mapeo de nombre_centro_costo_dim2 a CostingCode2 (Dimension 2)
+    $costingCode2Map = [
+        'Bolson' => 'T00',
+        'Fincas Boca Costa' => 'T03',
+        'Jefe Fincas y Agroexportadoras' => 'T01'
+    ];
+
+    // Mapeo de nombre_centro_costo_dim3 o t_gasto a CostingCode3 (Dimension 3)
+    $costingCode3Map = [
+        'BioInsumos' => 'G032',
+        'Bicicletas' => 'G030',
+        'HERBICIDAS' => 'G001',
+        'INSECTICIDAS' => 'G002',
+        'FUNGICIDAS' => 'G003',
+        'SUSTANCIAS AFINES' => 'G004',
+        'FERTILIZANTES EDAFICOS' => 'G005',
+        'FERTILIZANTES FOLIARES' => 'G006',
+        'FERTILIZANTES HIDROSOLUBLES' => 'G007',
+        'Otros Agroquímicos' => 'G008',
+        // Map t_gasto for expenses
+        'Combustible' => 'G008',
+        'Alimentación' => 'G008',
+        'Hospedaje' => 'G008',
+        'Transporte' => 'G008',
+        'Otros' => 'G008'
+    ];
+
+    // Export to SAP Service Layer
     try {
-        $conn = $this->CONEXION_HANA('GT_AGROCENTRO_2016');
-        $sociedad = 'GT_AGROCENTRO_2016'; // Adjust based on your SAP company code
+        // Función para iniciar sesión
+        $getSessionId = function() {
+            $loginUrl = 'https://192.168.1.9:50000/b1s/v1/Login';
+            $loginData = [
+                'CompanyDB' => 'T_GT_AGROCENTRO_2016',
+                'UserName' => 'manager',
+                'Password' => 'Team64110'
+            ];
 
+            $ch = curl_init($loginUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($loginData));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $loginResponse = curl_exec($ch);
+            if (curl_errno($ch)) {
+                throw new Exception('Error en login: ' . curl_error($ch));
+            }
+            curl_close($ch);
+
+            $loginResult = json_decode($loginResponse, true);
+            if (!isset($loginResult['SessionId'])) {
+                throw new Exception('No se pudo obtener SessionId: ' . $loginResponse);
+            }
+            return $loginResult['SessionId'];
+        };
+
+        // Obtener SessionId
+        $sessionId = $getSessionId();
+
+        // Enviar facturas de proveedor al Service Layer
+        $sapUrl = 'https://192.168.1.9:50000/b1s/v1/PurchaseInvoices';
         foreach ($detallesToExport as $detalle) {
-            // Map data to SAP-compatible format
-            $liquidacionData = [
-                'Liquidacion_ID' => $liquidacion['id'],
-                'Caja_Chica' => $liquidacion['nombre_caja_chica'],
-                'Fecha_Creacion' => $liquidacion['fecha_creacion'],
-                'Monto_Total' => floatval($liquidacion['monto_total']),
-                'Estado_Liquidacion' => $liquidacion['estado'],
-                'Exportado' => $liquidacion['exportado'],
-                'Detalle_ID' => $detalle['id'],
-                'Numero_Factura' => $detalle['no_factura'],
-                'Proveedor' => $detalle['nombre_proveedor'],
-                'Fecha_Detalle' => $detalle['fecha'],
-                'Bien_Servicio' => $detalle['bien_servicio'],
-                'Tipo_Gasto' => $detalle['t_gasto'],
-                'Precio_Unitario' => floatval($detalle['p_unitario']),
-                'Total_Factura' => floatval($detalle['total_factura']),
-                'Estado_Detalle' => $detalle['estado']
-            ];
-
-            // Determine the appropriate account based on Tipo_Gasto
-            $cuentaMap = [
-                'Combustible' => 1,
-                'Alimentación' => 2,
-                'Hospedaje' => 3,
-                'Transporte' => 4,
-                'Otros' => 5 // Default case, adjust as needed
-            ];
-            $cuentaKey = isset($cuentaMap[$detalle['t_gasto']]) ? $cuentaMap[$detalle['t_gasto']] : 5;
-            $cuentas = $this->ctrObtenerCuentas($sociedad, $cuentaKey);
-            $cuentaData = explode('|', trim($cuentas, '|'));
-            $accountCode = $cuentaData[0] ?? 'DEFAULT_ACCOUNT'; // Fallback account if no match
-
-            // Prepare SQL for SAP insertion (example staging table)
-            $sql = "INSERT INTO STAGING_LIQUIDACIONES (
-                Liquidacion_ID, Caja_Chica, Fecha_Creacion, Monto_Total, Estado_Liquidacion, Exportado,
-                Detalle_ID, Numero_Factura, Proveedor, Fecha_Detalle, Bien_Servicio, Tipo_Gasto,
-                Precio_Unitario, Total_Factura, Estado_Detalle, Cuenta_Contable
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $params = [
-                $liquidacionData['Liquidacion_ID'],
-                $liquidacionData['Caja_Chica'],
-                $liquidacionData['Fecha_Creacion'],
-                $liquidacionData['Monto_Total'],
-                $liquidacionData['Estado_Liquidacion'],
-                $liquidacionData['Exportado'],
-                $liquidacionData['Detalle_ID'],
-                $liquidacionData['Numero_Factura'],
-                $liquidacionData['Proveedor'],
-                $liquidacionData['Fecha_Detalle'],
-                $liquidacionData['Bien_Servicio'],
-                $liquidacionData['Tipo_Gasto'],
-                $liquidacionData['Precio_Unitario'],
-                $liquidacionData['Total_Factura'],
-                $liquidacionData['Estado_Detalle'],
-                $accountCode
-            ];
-
-            $stmt = odbc_prepare($conn, $sql);
-            if (!$stmt) {
-                error_log("Error al preparar la consulta SQL: " . odbc_errormsg($conn));
-                throw new Exception("Error al preparar la consulta para SAP.");
+            // Mapear nombre_proveedor a CardCode
+            $cardCode = isset($proveedorMap[$detalle['nombre_proveedor']]) ? $proveedorMap[$detalle['nombre_proveedor']] : null;
+            if (!$cardCode) {
+                error_log('Error: No se encontró CardCode para nombre_proveedor ' . ($detalle['nombre_proveedor'] ?? 'N/A') . ', nit_proveedor: ' . ($detalle['nit_proveedor'] ?? 'N/A'));
+                throw new Exception('No se encontró un CardCode válido para el proveedor: ' . ($detalle['nombre_proveedor'] ?? 'N/A'));
             }
 
-            $success = odbc_execute($stmt, $params);
-            if (!$success) {
-                error_log("Error al ejecutar la consulta SQL: " . odbc_errormsg($conn));
-                throw new Exception("Error al insertar datos en SAP.");
+            // Mapear tipoGasto a ItemCode
+            $itemCode = isset($itemCodeMap[$detalle['t_gasto']]) ? $itemCodeMap[$detalle['t_gasto']] : 'ME2001002GT';
+            if (!$itemCode) {
+                error_log('Error: No se encontró ItemCode para tipoGasto ' . ($detalle['t_gasto'] ?? 'N/A'));
+                throw new Exception('No se encontró un ItemCode válido para el tipo de gasto: ' . ($detalle['t_gasto'] ?? 'N/A'));
             }
+
+            // Mapear nombre_centro_costo a CostingCode (Dimension 1)
+            $costingCode = isset($costingCodeMap[$detalle['nombre_centro_costo']]) ? $costingCodeMap[$detalle['nombre_centro_costo']] : 'D43';
+            if (!$costingCode) {
+                error_log('Error: No se encontró CostingCode para nombre_centro_costo ' . ($detalle['nombre_centro_costo'] ?? 'N/A'));
+                throw new Exception('No se encontró un CostingCode válido para el centro de costo: ' . ($detalle['nombre_centro_costo'] ?? 'N/A'));
+            }
+            if ($costingCode === 'D00') {
+                error_log('Advertencia: D00 es inválido, usando D43 para nombre_centro_costo ' . ($detalle['nombre_centro_costo'] ?? 'N/A'));
+                $costingCode = 'D43';
+            }
+
+            // Mapear nombre_centro_costo_dim2 a CostingCode2 (Dimension 2)
+            $costingCode2 = isset($detalle['nombre_centro_costo_dim2']) && isset($costingCode2Map[$detalle['nombre_centro_costo_dim2']])
+                ? $costingCode2Map[$detalle['nombre_centro_costo_dim2']]
+                : (isset($costingCode2Map[$detalle['nombre_centro_costo']]) ? $costingCode2Map[$detalle['nombre_centro_costo']] : 'T00');
+            if (!$costingCode2) {
+                error_log('Error: No se encontró CostingCode2 para nombre_centro_costo ' . ($detalle['nombre_centro_costo'] ?? 'N/A') . ' o nombre_centro_costo_dim2 ' . ($detalle['nombre_centro_costo_dim2'] ?? 'N/A'));
+                throw new Exception('No se encontró un CostingCode2 válido');
+            }
+
+            // Mapear nombre_centro_costo_dim3 o t_gasto a CostingCode3 (Dimension 3)
+            $costingCode3 = isset($detalle['nombre_centro_costo_dim3']) && isset($costingCode3Map[$detalle['nombre_centro_costo_dim3']])
+                ? $costingCode3Map[$detalle['nombre_centro_costo_dim3']]
+                : (isset($costingCode3Map[$detalle['t_gasto']]) ? $costingCode3Map[$detalle['t_gasto']] : 'G008');
+            if (!$costingCode3) {
+                error_log('Error: No se encontró CostingCode3 para nombre_centro_costo_dim3 ' . ($detalle['nombre_centro_costo_dim3'] ?? 'N/A') . ' o t_gasto ' . ($detalle['t_gasto'] ?? 'N/A'));
+                throw new Exception('No se encontró un CostingCode3 válido');
+            }
+
+            // Mapear datos al formato de PurchaseInvoices
+            $purchaseInvoice = [
+                'CardCode' => $cardCode,
+                'DocDate' => $detalle['fecha'] ?? date('Y-m-d'),
+                'NumAtCard' => $detalle['no_factura'] ?? 'LIQ-' . $liquidacion['id'] . '-' . ($detalle['detalle_id'] ?? $detalle['id']),
+                'DocumentLines' => [
+                    [
+                        'ItemCode' => $itemCode,
+                        'Quantity' => floatval($detalle['cantidad'] ?? 1),
+                        'UnitPrice' => floatval($detalle['p_unitario'] ?? 0),
+                        'TaxCode' => 'EXE',
+                        'CostingCode' => $costingCode,
+                        'CostingCode2' => $costingCode2,
+                        'CostingCode3' => $costingCode3,
+                        'ItemDescription' => $detalle['bien_servicio'] ?? 'Gasto de liquidación'
+                    ]
+                ]
+            ];
+
+            // Enviar solicitud POST al Service Layer
+            $ch = curl_init($sapUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($purchaseInvoice));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Cookie: B1SESSION=' . $sessionId
+            ]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $response = curl_exec($ch);
+            if (curl_errno($ch)) {
+                error_log('Error en POST a SAP: ' . curl_error($ch));
+                throw new Exception('Error al enviar factura a SAP: ' . curl_error($ch));
+            }
+            curl_close($ch);
+
+            $result = json_decode($response, true);
+            if (isset($result['error'])) {
+                if ($result['error']['code'] == 206) {
+                    error_log('Sesión expirada, reintentando login');
+                    $sessionId = $getSessionId();
+                    $ch = curl_init($sapUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($purchaseInvoice));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/json',
+                        'Cookie: B1SESSION=' . $sessionId
+                    ]);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    $response = curl_exec($ch);
+                    if (curl_errno($ch)) {
+                        error_log('Error en POST retry a SAP: ' . curl_error($ch));
+                        throw new Exception('Error al enviar factura a SAP tras reintento: ' . curl_error($ch));
+                    }
+                    curl_close($ch);
+                    $result = json_decode($response, true);
+                }
+                if (isset($result['error'])) {
+                    error_log('Error SAP: ' . json_encode($result['error']));
+                    throw new Exception('Error al crear factura en SAP: ' . $result['error']['message']['value']);
+                }
+            }
+
+            // Registrar éxito
+            error_log('Factura creada en SAP: DocEntry ' . $result['DocEntry']);
         }
 
-        odbc_close($conn);
     } catch (Exception $e) {
-        error_log("Error al exportar a SAP: " . $e->getMessage());
-        // Continue with CSV export even if SAP fails, log the error
+        error_log('Error al exportar a SAP: ' . $e->getMessage());
+        // Continuar con el CSV incluso si falla SAP
     }
 
     // Generate CSV file as backup
@@ -1841,33 +1978,59 @@ public function revisar($id)
         'Estado_Liquidacion',
         'Exportado',
         'Detalle_ID',
+        'Tipo_Documento',
         'Numero_Factura',
         'Proveedor',
+        'NIT_Proveedor',
+        'DPI',
+        'Cantidad',
+        'Serie',
+        'Centro_Costo',
+        'Tipo_Gasto',
+        'Tipo_Combustible',
+        'Cuenta_Contable',
         'Fecha_Detalle',
         'Bien_Servicio',
-        'Tipo_Gasto',
         'Precio_Unitario',
+        'IVA',
+        'IDP',
+        'INGUAT',
         'Total_Factura',
-        'Estado_Detalle'
+        'Estado_Detalle',
+        'Rutas_Archivos'
     ]);
 
     foreach ($detallesToExport as $detalle) {
+        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+        $rutas_string = is_array($rutas) ? implode(',', $rutas) : 'N/A';
         fputcsv($output, [
             $liquidacion['id'],
-            $liquidacion['nombre_caja_chica'],
-            $liquidacion['fecha_creacion'],
-            $liquidacion['monto_total'],
-            $liquidacion['estado'],
-            $liquidacion['exportado'],
-            $detalle['id'],
-            $detalle['no_factura'],
-            $detalle['nombre_proveedor'],
-            $detalle['fecha'],
-            $detalle['bien_servicio'],
-            $detalle['t_gasto'],
-            $detalle['p_unitario'],
-            $detalle['total_factura'],
-            $detalle['estado']
+            $liquidacion['nombre_caja_chica'] ?? 'N/A',
+            $liquidacion['fecha_creacion'] ?? 'N/A',
+            number_format($liquidacion['monto_total'] ?? 0, 2),
+            $liquidacion['estado'] ?? 'N/A',
+            $liquidacion['exportado'] ?? 0,
+            $detalle['detalle_id'] ?? $detalle['id'] ?? 'N/A',
+            $detalle['tipo_documento'] ?? 'N/A',
+            $detalle['no_factura'] ?? 'N/A',
+            $detalle['nombre_proveedor'] ?? 'N/A',
+            $detalle['nit_proveedor'] ?? 'N/A',
+            $detalle['dpi'] ?? 'N/A',
+            $detalle['cantidad'] ?? 'N/A',
+            $detalle['serie'] ?? 'N/A',
+            $detalle['nombre_centro_costo'] ?? 'N/A',
+            $detalle['t_gasto'] ?? 'N/A',
+            $detalle['tipo_combustible'] ?? 'N/A',
+            $detalle['cuenta_contable_nombre'] ?? 'N/A',
+            $detalle['fecha'] ?? 'N/A',
+            $detalle['bien_servicio'] ?? 'N/A',
+            number_format($detalle['p_unitario'] ?? 0, 2),
+            number_format($detalle['iva'] ?? 0, 2),
+            number_format($detalle['idp'] ?? 0, 2),
+            number_format($detalle['inguat'] ?? 0, 2),
+            number_format($detalle['total_factura'] ?? 0, 2),
+            $detalle['estado'] ?? 'N/A',
+            $rutas_string
         ]);
     }
 
@@ -1883,6 +2046,18 @@ public function revisar($id)
     }
 
     exit;
+}
+
+// Función auxiliar para mapear Tipo_Gasto a AccountCode
+private function getAccountCode($tipoGasto, $sociedad) {
+    $cuentaMap = [
+        'Combustible' => '630110002', // Validado desde factura existente
+        'Alimentación' => '630110002',
+        'Hospedaje' => '630110002',
+        'Transporte' => '630110002',
+        'Otros' => '630110002'
+    ];
+    return $cuentaMap[$tipoGasto] ?? '630110002'; // Cuenta por defecto
 }
 
     public function manageFacturas($id)
