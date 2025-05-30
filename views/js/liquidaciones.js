@@ -375,7 +375,7 @@ function renderLiquidations() {
               <td data-label="Acciones" style="
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 7px;
 ">${actionsHtml}</td>
           </tr>
         `;
@@ -1038,82 +1038,99 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
 }
 
 async function exportToSap(id) {
-  try {
-    const response = await fetch(
-      `index.php?controller=liquidacion&action=exportar&id=${id}`,
-      {
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      }
-    );
-    if (!response.ok) {
-      const errorData = await response.json();
-      if (
-        response.status === 400 &&
-        errorData.error === "Esta liquidación ya ha sido exportada"
-      ) {
-        const confirmExport = confirm(
-          "Esta liquidación ya fue exportada. ¿Deseas volver a exportarla?"
-        );
-        if (confirmExport) {
-          const forceExportResponse = await fetch(
-            `index.php?controller=liquidacion&action=exportar&id=${id}&force=true`,
+    try {
+        const response = await fetch(
+            `index.php?controller=liquidacion&action=exportar&id=${id}`,
             {
-              headers: {
-                "X-Requested-With": "XMLHttpRequest",
-              },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             }
-          );
-          if (!forceExportResponse.ok) {
-            const forceErrorData = await forceExportResponse.json();
-            throw new Error(
-              forceErrorData.error ||
-                `Error HTTP: ${forceExportResponse.status}`
-            );
-          }
-          const blob = await forceExportResponse.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `liquidacion_${id}_${new Date()
-            .toISOString()
-            .replace(/[:.]/g, "-")}.csv`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
-          alert(
-            "Exportación a SAP completada. Revisa tu carpeta de descargas."
-          );
-          loadLiquidaciones();
-          return;
-        } else {
-          return;
+        );
+
+        // Log raw response for debugging
+        const rawResponse = await response.text();
+        console.log('Raw response:', rawResponse);
+
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = JSON.parse(rawResponse);
+            } catch (e) {
+                throw new Error(`Error del servidor: ${response.status} - ${rawResponse}`);
+            }
+
+            if (
+                response.status === 400 &&
+                errorData.error === 'Esta liquidación ya ha sido exportada'
+            ) {
+                const confirmExport = confirm(
+                    'Esta liquidación ya fue exportada. ¿Deseas volver a exportarla?'
+                );
+                if (confirmExport) {
+                    const forceExportResponse = await fetch(
+                        `index.php?controller=liquidacion&action=exportar&id=${id}&force=true`,
+                        {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        }
+                    );
+                    const forceRawResponse = await forceExportResponse.text();
+                    console.log('Force export raw response:', forceRawResponse);
+                    if (!forceExportResponse.ok) {
+                        let forceErrorData;
+                        try {
+                            forceErrorData = JSON.parse(forceRawResponse);
+                        } catch (e) {
+                            throw new Error(`Error del servidor: ${forceExportResponse.status} - ${forceRawResponse}`);
+                        }
+                        throw new Error(
+                            forceErrorData.error ||
+                                `Error HTTP: ${forceExportResponse.status}`
+                        );
+                    }
+                    // Handle the force export response as a download
+                    const forceBlob = new Blob([forceRawResponse], { type: 'application/json' });
+                    const forceUrl = window.URL.createObjectURL(forceBlob);
+                    const forceLink = document.createElement('a');
+                    forceLink.href = forceUrl;
+                    forceLink.download = `export_liquidacion_${id}.json`;
+                    document.body.appendChild(forceLink);
+                    forceLink.click();
+                    document.body.removeChild(forceLink);
+                    window.URL.revokeObjectURL(forceUrl);
+                    alert('Archivo JSON descargado exitosamente.');
+                    loadLiquidaciones();
+                    return;
+                } else {
+                    return;
+                }
+            }
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-      }
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+
+        // Handle the response as a downloadable file
+        const blob = new Blob([rawResponse], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `export_liquidacion_${id}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        alert('Archivo JSON descargado exitosamente.');
+        loadLiquidaciones();
+
+    } catch (error) {
+        console.error('Error al exportar a SAP:', error);
+        alert(
+            error.message ||
+                'Error al exportar a SAP. Revisa los logs del servidor.'
+        );
     }
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `liquidacion_${id}_${new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    alert("Exportación a SAP completada. Revisa tu carpeta de descargas.");
-    loadLiquidaciones();
-  } catch (error) {
-    console.error("Error al exportar a SAP:", error);
-    alert(
-      error.message ||
-        "Error al exportar a SAP. Se generó un archivo CSV como respaldo."
-    );
-  }
 }
 
 // Fetch supervisors from the backend

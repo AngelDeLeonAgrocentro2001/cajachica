@@ -67,7 +67,27 @@ class DetalleLiquidacion {
         }
     }
 
-    public function updateDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $subtotal, $total_factura, $id_centro_costo, $cantidad = null, $serie = null, $rutas_archivos = '[]', $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible = null) {
+    public function updateDetalleLiquidacion(
+        $id,
+        $tipo_documento,
+        $no_factura,
+        $nombre_proveedor,
+        $nit_proveedor,
+        $dpi,
+        $fecha,
+        $t_gasto,
+        $subtotal,
+        $total_factura,
+        $id_centro_costo,
+        $iva,
+        $idp,
+        $inguat,
+        $id_cuenta_contable,
+        $cantidad = null,
+        $serie = null,
+        $rutas_archivos = '[]',
+        $tipo_combustible = null
+    ) {
         try {
             $stmt = $this->pdo->prepare("
                 UPDATE detalle_liquidaciones
@@ -80,7 +100,7 @@ class DetalleLiquidacion {
                 $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_archivos, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $id
             ]);
         } catch (PDOException $e) {
-            error_log("Error al actualizar detalle de liquidación: " . $e->getMessage());
+            error_log("Error al actualizar detalle de liquidación ID $id: " . $e->getMessage());
             return false;
         }
     }
@@ -369,6 +389,24 @@ class DetalleLiquidacion {
         }
 
         return $detalles;
+    }
+
+    public function updateSapFields($id, $data) {
+        try {
+            $stmt = $this->pdo->prepare("
+                UPDATE detalle_liquidaciones
+                SET sap_doc_entry = ?, sap_doc_num = ?
+                WHERE id = ?
+            ");
+            return $stmt->execute([
+                $data['sap_doc_entry'],
+                $data['sap_doc_num'],
+                $id
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al actualizar SAP fields para detalle ID $id: " . $e->getMessage());
+            return false;
+        }
     }
 }
 ?>

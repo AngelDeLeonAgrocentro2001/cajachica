@@ -4,6 +4,8 @@ class Liquidacion {
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
+        // Ensure PDO throws exceptions on errors
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
     public function getAllLiquidaciones($idUsuario = null, $idSupervisor = null, $estado = null, $idContador = null) {
@@ -48,7 +50,6 @@ class Liquidacion {
         $stmt->execute($params);
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-        // Log detallado para depuración
         error_log("getAllLiquidaciones - Query: $query");
         error_log("getAllLiquidaciones - Params: " . json_encode($params));
         error_log("getAllLiquidaciones - ID Usuario: " . ($idUsuario ?? 'N/A') . 
@@ -118,22 +119,37 @@ class Liquidacion {
     }
 
     public function markAsExported($id) {
-        $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
-        return $stmt->execute([$id]);
+        try {
+            error_log("Attempting to mark liquidation as exported for ID: $id");
+            // Check transaction status
+            error_log("Transaction status: " . ($this->pdo->inTransaction() ? 'In transaction' : 'Not in transaction'));
+            $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
+            $result = $stmt->execute([$id]);
+            $rowCount = $stmt->rowCount();
+            error_log("markAsExported - ID: $id, Result: " . ($result ? 'true' : 'false') . ", Rows affected: $rowCount");
+            if ($result === false) {
+                error_log("markAsExported failed: " . implode(', ', $stmt->errorInfo()));
+                return false;
+            }
+            if ($rowCount === 0) {
+                error_log("markAsExported - No rows updated for ID: $id");
+            }
+            return true;
+        } catch (PDOException $e) {
+            error_log("PDOException in markAsExported for ID $id: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function updateEstado($id, $estado, $supervisorId = null, $contadorId = null) {
         try {
             if ($contadorId !== null) {
-                // Update estado and id_contador (assign to contador)
                 $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, id_contador = ?, updated_at = NOW() WHERE id = ?");
                 $result = $stmt->execute([$estado, $contadorId, $id]);
             } elseif ($supervisorId !== null) {
-                // Update estado and id_supervisor (assign to supervisor)
                 $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, id_supervisor = ?, updated_at = NOW() WHERE id = ?");
                 $result = $stmt->execute([$estado, $supervisorId, $id]);
             } else {
-                // Update only estado
                 $stmt = $this->pdo->prepare("UPDATE liquidaciones SET estado = ?, updated_at = NOW() WHERE id = ?");
                 $result = $stmt->execute([$estado, $id]);
             }
