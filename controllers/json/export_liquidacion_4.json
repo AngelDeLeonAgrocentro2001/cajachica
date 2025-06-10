@@ -1,0 +1,14 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "DocDate": "2025-06-08",
+    "Comments": "Exportación Detalle Liquidación ID 4",
+    "U_NIT": "321052",
+    "Series": 82,
+    "DocTotal": "431.00",
+    "Reference1": "4",
+    "NumAtCard": "DLIQ-4-20250609T100600",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": []
+}

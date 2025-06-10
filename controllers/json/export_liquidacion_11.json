@@ -1,0 +1,47 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "DocDate": "2025-06-10",
+    "Comments": "Exportación Detalle Liquidación ID 11",
+    "U_NIT": "321052",
+    "Series": 82,
+    "DocTotal": "676.00",
+    "Reference1": "11",
+    "NumAtCard": "DLIQ-11-20250609T100600",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Hospedaje",
+            "Price": 31.67,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "INGUAT",
+            "Price": 26.39,
+            "TaxCode": "EXE",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 2,
+            "ItemDescription": "Combustible",
+            "Price": 32.99,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 3,
+            "ItemDescription": "IDP",
+            "Price": 14.1,
+            "TaxCode": "EXE",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        }
+    ]
+}

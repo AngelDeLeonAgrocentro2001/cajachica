@@ -524,518 +524,556 @@
                             <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
                             <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
                             <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-                            <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
-                            <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
-                            <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-                            <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
-                            <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
-                            <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'] ?? 0, 2); ?></td>
-                            <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
-                            <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
-                            <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-                            <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                            <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                            <td data-label="Archivos">
-                                <?php
-                                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                                if (is_array($rutas) && !empty($rutas)) {
-                                    foreach ($rutas as $ruta) {
-                                        echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                                    }
-                                } else {
-                                    echo 'N/A';
-                                }
-                                ?>
-                            </td>
-                            <td data-label="Comentario" class="comment-column hidden">
-                                <input type="text" class="correccion-comment" name="correccion_comentario_<?php echo htmlspecialchars($detalle['id']); ?>" value="<?php echo htmlspecialchars($detalle['correccion_comentario'] ?? ''); ?>" <?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'disabled' : ''; ?>>
-                            </td>
-                            <td data-label="Seleccionar">
-                                <input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" 
-                                    <?php echo ($detalle['estado'] !== 'EN_CORRECCION') ? 'checked' : 'disabled'; ?> onchange="toggleCorrectionFields(this)">
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <button class="bulk-action-btn hidden" id="bulkSendToCorrectionBtn" onclick="bulkSendToCorrection()">Enviar Seleccionados a Corrección</button>
-        <form id="autorizarForm">
-            <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
-            <?php if ($usuario_data['rol'] === 'SUPERVISOR' && empty($data['id_contador'])): ?>
-                <button type="button" id="selectContadorBtn" class="bulk-action-btn">Seleccionar Contador</button>
-            <?php endif; ?>
-            <select name="accion" required>
-                <option value="APROBADO">Autorizar</option>
-                <option value="RECHAZADO">Rechazar</option>
-                <option value="DESCARTADO">Descartar</option>
-            </select>
-            <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
-            <input type="hidden" name="unselected_detalles" id="unselectedDetallesInput">
-            <input type="hidden" name="correccion_comentarios" id="correccionComentariosInput">
-            <input type="hidden" name="id_contador" id="idContadorInput" value="<?php echo htmlspecialchars($data['id_contador'] ?? ''); ?>">
-            <div class="error" data-field="accion"></div>
-            <div class="error" data-field="motivo"></div>
-            <div class="success"></div>
-            <div class="error"></div>
-            <button type="submit" id="submitBtn"><?php echo isset($mode) && $mode === 'revisar' ? 'Enviar Revisión' : 'Enviar Autorización'; ?></button>
-            <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
-        </form>
+            <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+            <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
+            <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
+            <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
+            <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
+            <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'] ?? 0, 2); ?></td>
+            <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
+            <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
+            <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+            <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+            <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
+            <td data-label="Archivos">
+                <?php
+                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                if (is_array($rutas) && !empty($rutas)) {
+                    foreach ($rutas as $ruta) {
+                        echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                    }
+                } else {
+                    echo 'N/A';
+                }
+                ?>
+            </td>
+            <td data-label="Comentario" class="comment-column hidden">
+                <input type="text" class="correccion-comment" name="correccion_comentario_<?php echo htmlspecialchars($detalle['id']); ?>" value="<?php echo htmlspecialchars($detalle['correccion_comentario'] ?? ''); ?>" <?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'disabled' : ''; ?>>
+            </td>
+            <td data-label="Seleccionar">
+                <input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" 
+                    <?php echo ($detalle['estado'] !== 'EN_CORRECCION') ? 'checked' : 'disabled'; ?> onchange="toggleCorrectionFields(this)">
+            </td>
+        </tr>
+    <?php endforeach; ?>
+</tbody>
+</table>
+</div>
+<button class="bulk-action-btn hidden" id="bulkSendToCorrectionBtn" onclick="bulkSendToCorrection()">Enviar Seleccionados a Corrección</button>
+<form id="autorizarForm">
+    <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
+    <?php
+    // Show button only for pure Supervisors, not Contabilidad-like roles
+    $isContabilidadLike = strpos(strtoupper($usuario_data['rol']), 'CONTABILIDAD') !== false ||
+                         strpos(strtoupper($usuario_data['rol']), 'CONTADOR') !== false;
+    if (stripos($usuario_data['rol'], 'SUPERVISOR') !== false && !$isContabilidadLike):
+    ?>
+        <button type="button" id="selectContadorBtn" class="bulk-action-btn">Seleccionar Contador</button>
+    <?php endif; ?>
+    <select name="accion" required>
+        <option value="APROBADO">Autorizar</option>
+        <option value="RECHAZADO">Rechazar</option>
+        <option value="DESCARTADO">Descartar</option>
+    </select>
+    <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
+    <input type="hidden" name="unselected_detalles" id="unselectedDetallesInput">
+    <input type="hidden" name="correccion_comentarios" id="correccionComentariosInput">
+    <input type="hidden" name="id_contador" id="idContadorInput" value="<?php echo htmlspecialchars($data['id_contador'] ?? ''); ?>">
+    <div class="error" data-field="accion"></div>
+    <div class="error" data-field="motivo"></div>
+    <div class="success"></div>
+    <div class="error"></div>
+    <button type="submit" id="submitBtn"><?php echo isset($mode) && $mode === 'revisar' ? 'Enviar Revisión' : 'Enviar Autorización'; ?></button>
+    <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
+</form>
 
-        <!-- Modal para seleccionar contador -->
-        <div id="contadorModal" class="modal">
-            <div class="modal-content">
-                <h3>Selecciona un Contador</h3>
-                <select id="contadorSelect">
-                    <option value="">Selecciona un contador...</option>
-                    <!-- Options will be dynamically added -->
-                </select>
-                <div style="display: flex; justify-content: space-between;">
-                    <button id="confirmContadorBtn" onclick="confirmContadorSelection()">Confirmar</button>
-                    <button id="cancelContadorBtn" onclick="closeContadorModal()">Cancelar</button>
-                </div>
-            </div>
+<!-- Modal para seleccionar contador -->
+<div id="contadorModal" class="modal">
+    <div class="modal-content">
+        <h3>Selecciona un Contador</h3>
+        <select id="contadorSelect">
+            <option value="">Selecciona un contador...</option>
+            <!-- Options will be dynamically added -->
+        </select>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="confirmContadorBtn" onclick="confirmContadorSelection()">Confirmar</button>
+            <button id="cancelContadorBtn" onclick="closeContadorModal()">Cancelar</button>
         </div>
     </div>
+</div>
+</div>
 
-    <script>
-        const userRole = '<?php echo strtoupper($usuario_data['rol']); ?>';
-        const submitBtn = document.getElementById('submitBtn');
-        const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
-        const commentHeader = document.querySelector('.comment-header');
-        let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
-        const selectContadorBtn = document.getElementById('selectContadorBtn');
-        const contadorModal = document.getElementById('contadorModal');
-        const idContadorInput = document.getElementById('idContadorInput');
-        const unselectedDetallesInput = document.getElementById('unselectedDetallesInput');
-        const correccionComentariosInput = document.getElementById('correccionComentariosInput');
-        let selectedContadorId = idContadorInput.value || null;
-        const currentLiquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
+<script>
+const userRole = '<?php echo strtoupper($usuario_data['rol']); ?>';
+const submitBtn = document.getElementById('submitBtn');
+const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
+const commentHeader = document.querySelector('.comment-header');
+let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
+const selectContadorBtn = document.getElementById('selectContadorBtn');
+const contadorModal = document.getElementById('contadorModal');
+const idContadorInput = document.getElementById('idContadorInput');
+const unselectedDetallesInput = document.getElementById('unselectedDetallesInput');
+const correccionComentariosInput = document.getElementById('correccionComentariosInput');
+let selectedContadorId = idContadorInput.value || null;
+const currentLiquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
 
-        // Contador Modal Functions
-        async function showContadorModal() {
-            const contadoresList = await fetchContadores();
-            const contadorSelect = document.querySelector("#contadorSelect");
-            contadorSelect.innerHTML = '<option value="">Selecciona un contador...</option>';
-            
-            if (contadoresList.length === 0) {
-                contadorSelect.innerHTML += '<option value="" disabled>No hay contadores disponibles</option>';
+console.log('User Role:', userRole);
+// Check if user has a Contabilidad-like role
+const isContabilidadRole = userRole.includes('CONTABILIDAD') || userRole.includes('CONTADOR');
+
+console.log('isContabilidadRole:', isContabilidadRole);                        
+// Contador Modal Functions
+async function showContadorModal() {
+    const contadoresList = await fetchContadores();
+    const contadorSelect = document.querySelector("#contadorSelect");
+    contadorSelect.innerHTML = '<option value="">Selecciona un contador...</option>';
+    
+    if (contadoresList.length === 0) {
+        contadorSelect.innerHTML += '<option value="" disabled>No hay contadores disponibles</option>';
+    } else {
+        contadoresList.forEach((contador) => {
+            const option = document.createElement("option");
+            option.value = contador.id;
+            option.textContent = `${contador.nombre} (${contador.email})`;
+            if (contador.id == idContadorInput.value) {
+                option.selected = true;
+            }
+            contadorSelect.appendChild(option);
+        });
+    }
+
+    contadorModal.classList.add("active");
+}
+
+function closeContadorModal() {
+    contadorModal.classList.remove("active");
+    document.querySelector("#contadorSelect").value = "";
+}
+
+async function confirmContadorSelection() {
+    const contadorId = document.querySelector("#contadorSelect").value;
+    if (!contadorId) {
+        alert("Por favor, selecciona un contador antes de continuar.");
+        return;
+    }
+
+    selectedContadorId = contadorId;
+    idContadorInput.value = contadorId;
+    closeContadorModal();
+
+    // Proceed with form submission if triggered by submit
+    if (submitBtn.dataset.clicked === "true") {
+        submitBtn.dataset.clicked = "false";
+        submitForm();
+    }
+}
+
+// Handle Contador Selection
+selectContadorBtn?.addEventListener('click', function() {
+    showContadorModal();
+});
+
+// Show modal when authorizing if no contador is selected or for all APROBADO actions
+submitBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const accion = document.querySelector('select[name="accion"]').value;
+    if (accion === 'APROBADO' && userRole.includes('SUPERVISOR') && !isContabilidadRole) {
+        submitBtn.dataset.clicked = "true";
+        showContadorModal();
+        return;
+    }
+    submitForm();
+});
+
+async function submitForm() {
+    const form = document.getElementById('autorizarForm');
+    const formData = new FormData(form);
+    const id = formData.get('id');
+    const accion = formData.get('accion');
+    const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
+    const action = mode === 'revisar' ? 'revisar' : 'autorizar';
+
+    const allDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]')).map(input => input.value);
+    const selectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:checked')).map(input => input.value);
+    const unselectedDetalles = allDetalles.filter(detalleId => !selectedDetalles.includes(detalleId));
+
+    const correccionComentarios = {};
+    let allCommentsProvided = true;
+    for (const detalleId of unselectedDetalles) {
+        const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+        const row = commentInput.closest('tr');
+        if (!row.classList.contains('in-correction')) {
+            const comment = commentInput.value.trim();
+            if (!comment) {
+                alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
+                commentInput.focus();
+                allCommentsProvided = false;
+                break;
+            }
+            correccionComentarios[detalleId] = comment;
+        }
+    }
+
+    if (!allCommentsProvided) {
+        return;
+    }
+
+    // Require id_contador only for pure Supervisors
+    if (userRole.includes('SUPERVISOR') && !isContabilidadRole && accion === 'APROBADO' && !idContadorInput.value) {
+        alert('Debes seleccionar un contador para autorizar la liquidación.');
+        return;
+    }
+
+    formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
+    formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+
+    try {
+        const correctionRows = document.querySelectorAll('tr.in-correction');
+        if (correctionRows.length > 0) {
+            const confirmSend = confirm(`Hay ${correctionRows.length} factura(s) en corrección. ¿Deseas enviar solo las facturas no corregidas a SAP de igual forma?`);
+            if (!confirmSend) {
+                throw new Error('Envío cancelado por el usuario.');
+            }
+        }
+
+        const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al procesar la solicitud');
+        }
+
+        const numCorrections = result.num_corrections || 0;
+        let message = '';
+        if (numCorrections > 0 && selectedDetalles.length > 0) {
+            message = `${numCorrections} detalle(s) fueron enviados a corrección y las demás fueron procesadas.`;
+        } else if (numCorrections > 0) {
+            message = `${numCorrections} detalle(s) fueron enviados a corrección.`;
+        } else if (selectedDetalles.length > 0) {
+            if (isContabilidadRole) {
+                if (accion === 'APROBADO') {
+                    message = 'Se autorizaron por contabilidad.';
+                    const sapMessage = await exportToSap(id);
+                    message += `\n${sapMessage}`;
+                } else if (accion === 'RECHAZADO') {
+                    message = 'Rechazado por contabilidad.';
+                } else if (accion === 'DESCARTADO') {
+                    message = 'Descartado por contabilidad.';
+                }
             } else {
-                contadoresList.forEach((contador) => {
-                    const option = document.createElement("option");
-                    option.value = contador.id;
-                    option.textContent = `${contador.nombre} (${contador.email})`;
-                    contadorSelect.appendChild(option);
-                });
+                if (accion === 'APROBADO') {
+                    message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
+                } else if (accion === 'RECHAZADO') {
+                    message = 'Liquidación rechazada correctamente.';
+                } else if (accion === 'DESCARTADO') {
+                    message = 'Liquidación descartada correctamente.';
+                }
             }
-
-            contadorModal.classList.add("active");
+        } else {
+            message = 'No se procesaron detalles porque todos están en corrección o no se seleccionaron.';
         }
 
-        function closeContadorModal() {
-            contadorModal.classList.remove("active");
-            document.querySelector("#contadorSelect").value = "";
+        if (result.message && result.message.includes('La liquidación ya fue exportada')) {
+            message += '\n' + result.message.split('\n').pop();
         }
 
-        async function confirmContadorSelection() {
-            const contadorId = document.querySelector("#contadorSelect").value;
-            if (!contadorId) {
-                alert("Por favor, selecciona un contador antes de continuar.");
+        alert(message);
+        setTimeout(() => {
+            window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+        }, 1000);
+    } catch (error) {
+        console.error('Error al enviar solicitud:', error);
+        if (error.message !== 'Envío cancelado por el usuario.') {
+            alert('Error al procesar la solicitud: ' + (error.message || 'Intenta de nuevo.'));
+        }
+    }
+}
+
+// Initially hide rows based on role on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Hide rows in correction for all roles except the assigned contador
+    document.querySelectorAll('tr.in-correction').forEach(row => {
+        const contadorId = row.getAttribute('data-contador');
+        if (isContabilidadRole && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
+            row.style.display = 'none';
+        } else if (!isContabilidadRole || !contadorId) {
+            row.style.display = 'none';
+        }
+    });
+
+    // Apply role-based filtering
+    if (isContabilidadRole) {
+        filterNonCorrectedInvoices();
+    } else if (userRole.includes('SUPERVISOR')) {
+        filterSupervisorInvoices();
+    } else {
+        filterNonCorrectedInvoices();
+    }
+
+    // Initialize correction fields visibility
+    document.querySelectorAll('input[name="detalles[]"]').forEach(checkbox => {
+        toggleCorrectionFields(checkbox);
+    });
+});
+
+function toggleCorrectionFields(checkbox) {
+    const row = checkbox.closest('tr');
+    const isChecked = checkbox.checked;
+    const commentColumn = row.querySelector('.comment-column');
+    const isInCorrection = row.classList.contains('in-correction');
+
+    if (!isInCorrection) {
+        if (isChecked) {
+            commentColumn.classList.add('hidden');
+        } else {
+            commentColumn.classList.remove('hidden');
+            commentHeader.classList.remove('hidden');
+        }
+    }
+
+    const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
+    commentHeader.classList.toggle('hidden', !anyCommentVisible);
+    bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
+
+    // Update hidden inputs
+    const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+    unselectedDetallesInput.value = JSON.stringify(unselectedDetalles);
+
+    const correccionComentarios = {};
+    document.querySelectorAll('.correccion-comment').forEach(input => {
+        if (input.value.trim()) {
+            correccionComentarios[input.getAttribute('name').replace('correccion_id', '')] = input.value.trim();
+        }
+    });
+    correccionComentariosInput.value = JSON.stringify(correccionComentarios);
+}
+
+async function bulkSendToCorrection() {
+    const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+    if (unselectedDetalles.length === 0) {
+        alert('Por favor, deselecciona al menos un detalle para enviar a corrección.');
+        return;
+    }
+
+    const correccionComentarios = {};
+    const validDetalles = [];
+    for (const detalleId of unselectedDetalles) {
+        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+        const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
+        if (estado !== 'EN_CORRECCION') {
+            const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+            const comment = commentInput.value.trim();
+            if (!comment) {
+                alert(`Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`);
+                commentInput.focus();
                 return;
             }
-
-            selectedContadorId = contadorId;
-            idContadorInput.value = contadorId;
-            closeContadorModal();
-
-            // Proceed with form submission if triggered by submit
-            if (submitBtn.dataset.clicked === "true") {
-                submitBtn.dataset.clicked = "false";
-                submitForm();
-            }
+            correccionComentarios[detalleId] = comment;
+            validDetalles.push(detalleId);
         }
+    }
 
-        // Handle Contador Selection
-        selectContadorBtn?.addEventListener('click', function() {
-            showContadorModal();
+    if (validDetalles.length === 0) {
+        alert('No hay detalles válidos para enviar a corrección.');
+        return;
+    }
+
+    if (!confirm(`¿Estás segura de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`)) return;
+
+    // Disable button to prevent multiple clicks
+    bulkSendToCorrectionBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('action', 'send_to_correction');
+    formData.append('detalle_ids', JSON.stringify(validDetalles));
+    formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+    if (isContabilidadRole) {
+        formData.append('id_contador', '<?php echo htmlspecialchars($usuario_data['id']); ?>');
+    } else {
+        formData.append('id_contador', idContadorInput.value || null);
+    }
+
+    try {
+        const action = isContabilidadRole ? 'revisar' : 'autorizar';
+        console.log('Enviando a acción:', action);
+        console.log('FormData:', {
+            action: 'send_to_correction',
+            detalle_ids: JSON.stringify(validDetalles),
+            correccion_comentarios: JSON.stringify(correccionComentarios),
+            id_contador: isContabilidadRole ? '<?php echo htmlspecialchars($usuario_data['id']); ?>' : idContadorInput.value || null
         });
-
-        // Show modal when authorizing if no contador is selected for ID 90
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const accion = document.querySelector('select[name="accion"]').value;
-            if (accion === 'APROBADO' && !idContadorInput.value && currentLiquidacionId === '90') {
-                submitBtn.dataset.clicked = "true";
-                showContadorModal();
-                return;
+        const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
-            submitForm();
         });
+        const result = await response.json();
+        console.log('Respuesta del servidor:', result);
 
-        async function submitForm() {
-            const form = document.getElementById('autorizarForm');
-            const formData = new FormData(form);
-            const id = formData.get('id');
-            const accion = formData.get('accion');
-            const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
-            const action = mode === 'revisar' ? 'revisar' : 'autorizar';
-
-            const allDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]')).map(input => input.value);
-            const selectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:checked')).map(input => input.value);
-            const unselectedDetalles = allDetalles.filter(detalleId => !selectedDetalles.includes(detalleId));
-
-            const correccionComentarios = {};
-            let allCommentsProvided = true;
-            for (const detalleId of unselectedDetalles) {
-                const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-                const row = commentInput.closest('tr');
-                if (!row.classList.contains('in-correction')) {
-                    const comment = commentInput.value.trim();
-                    if (!comment) {
-                        alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
-                        commentInput.focus();
-                        allCommentsProvided = false;
-                        break;
-                    }
-                    correccionComentarios[detalleId] = comment;
-                }
-            }
-
-            if (!allCommentsProvided) {
-                return;
-            }
-
-            if (userRole === 'SUPERVISOR' && accion === 'APROBADO' && !idContadorInput.value) {
-                alert('Debes seleccionar un contador para autorizar la liquidación.');
-                return;
-            }
-
-            formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
-            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-
-            try {
-                const correctionRows = document.querySelectorAll('tr.in-correction');
-                if (correctionRows.length > 0) {
-                    const confirmSend = confirm(`Hay ${correctionRows.length} factura(s) en corrección. ¿Deseas enviar solo las facturas no corregidas a SAP de igual forma?`);
-                    if (!confirmSend) {
-                        throw new Error('Envío cancelado por el usuario.');
-                    }
-                }
-
-                const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al procesar la solicitud');
-                }
-
-                const numCorrections = result.num_corrections || 0;
-                let message = '';
-                if (numCorrections > 0 && selectedDetalles.length > 0) {
-                    message = `${numCorrections} detalle(s) fueron enviados a corrección y las demás fueron procesadas.`;
-                } else if (numCorrections > 0) {
-                    message = `${numCorrections} detalle(s) fueron enviados a corrección.`;
-                } else if (selectedDetalles.length > 0) {
-                    if (userRole === 'CONTABILIDAD') {
-                        if (accion === 'APROBADO') {
-                            message = 'Se autorizaron por contabilidad.';
-                            const sapMessage = await exportToSap(id);
-                            message += `\n${sapMessage}`;
-                        } else if (accion === 'RECHAZADO') {
-                            message = 'Rechazado por contabilidad.';
-                        } else if (accion === 'DESCARTADO') {
-                            message = 'Descartado por contabilidad.';
-                        }
-                    } else {
-                        if (accion === 'APROBADO') {
-                            message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
-                        } else if (accion === 'RECHAZADO') {
-                            message = 'Liquidación rechazada correctamente.';
-                        } else if (accion === 'DESCARTADO') {
-                            message = 'Liquidación descartada correctamente.';
-                        }
-                    }
-                } else {
-                    message = 'No se procesaron detalles porque todos están en corrección o no se seleccionaron.';
-                }
-
-                if (result.message && result.message.includes('La liquidación ya fue exportada')) {
-                    message += '\n' + result.message.split('\n').pop();
-                }
-
-                alert(message);
-                setTimeout(() => {
-                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                }, 1000);
-            } catch (error) {
-                console.error('Error al enviar solicitud:', error);
-                if (error.message !== 'Envío cancelado por el usuario.') {
-                    alert('Error al procesar la solicitud: ' + (error.message || 'Intenta de nuevo.'));
-                }
-            }
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al enviar a corrección');
         }
 
-        // Initially hide rows based on role on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Hide rows in correction for all roles except the assigned contador
-            document.querySelectorAll('tr.in-correction').forEach(row => {
-                const contadorId = row.getAttribute('data-contador');
-                if (userRole === 'CONTADOR' && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
-                    row.style.display = 'none';
-                } else if (userRole !== 'CONTADOR' || !contadorId) {
-                    row.style.display = 'none';
-                }
+        if (result.num_corrections > 0) {
+            alert(result.message);
+            validDetalles.forEach(detalleId => {
+                const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+                row.classList.add('in-correction');
+                row.setAttribute('data-contador', isContabilidadRole ? '<?php echo htmlspecialchars($usuario_data['id']); ?>' : idContadorInput.value);
+                row.style.display = 'none';
+                row.querySelector('input[name="detalles[]"]').disabled = true;
+                row.querySelector('input[name="detalles[]"]').checked = false;
+                row.querySelector('.comment-column').classList.add('hidden');
+                row.querySelector('.correccion-comment').disabled = true;
+                row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
             });
 
-            // Apply role-based filtering
-            if (userRole === 'CONTABILIDAD') {
-                filterNonCorrectedInvoices();
-            } else if (['SUPERVISOR', '1', '2'].includes(userRole)) {
-                filterSupervisorInvoices();
-            } else {
-                filterNonCorrectedInvoices();
-            }
-
-            // Initialize correction fields visibility
-            document.querySelectorAll('input[name="detalles[]"]').forEach(checkbox => {
-                toggleCorrectionFields(checkbox);
-            });
-        });
-
-        function toggleCorrectionFields(checkbox) {
-            const row = checkbox.closest('tr');
-            const isChecked = checkbox.checked;
-            const commentColumn = row.querySelector('.comment-column');
-            const isInCorrection = row.classList.contains('in-correction');
-
-            if (!isInCorrection) {
-                if (isChecked) {
-                    commentColumn.classList.add('hidden');
-                } else {
-                    commentColumn.classList.remove('hidden');
-                    commentHeader.classList.remove('hidden');
-                }
-            }
-
+            hasCorrections = true;
             const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
             commentHeader.classList.toggle('hidden', !anyCommentVisible);
             bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
 
-            // Update hidden inputs
-            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-            unselectedDetallesInput.value = JSON.stringify(unselectedDetalles);
-
-            const correccionComentarios = {};
-            document.querySelectorAll('.correccion-comment').forEach(input => {
-                if (input.value.trim()) {
-                    correccionComentarios[input.getAttribute('name').replace('correccion_comentario_', '')] = input.value.trim();
-                }
-            });
-            correccionComentariosInput.value = JSON.stringify(correccionComentarios);
+            if (isContabilidadRole) {
+                filterNonCorrectedInvoices();
+            } else if (userRole.includes('SUPERVISOR')) {
+                filterSupervisorInvoices();
+            } else {
+                filterNonCorrectedInvoices();
+            }
+        } else {
+            throw new Error(result.error || 'No se procesaron detalles.');
         }
+    } catch (error) {
+        console.error('Error al enviar a corrección:', error);
+        alert(`Error al enviar a corrección: ${error.message}`);
+    } finally {
+        // Re-enable button
+        bulkSendToCorrectionBtn.disabled = false;
+    }
+}
 
-        async function bulkSendToCorrection() {
-            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-            if (unselectedDetalles.length === 0) {
-                alert('Por favor, deselecciona al menos un detalle para enviar a corrección.');
-                return;
-            }
+// Function to filter invoices for SUPERVISOR users
+function filterSupervisorInvoices() {
+    const rows = document.querySelectorAll('#facturasTable tbody tr');
+    const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO'];
+    let hasVisibleRows = false;
 
-            const correccionComentarios = {};
-            const validDetalles = [];
-            for (const detalleId of unselectedDetalles) {
-                const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-                const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
-                if (estado !== 'EN_CORRECCION') {
-                    const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-                    const comment = commentInput.value.trim();
-                    if (!comment) {
-                        alert(`Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`);
-                        commentInput.focus();
-                        return;
-                    }
-                    correccionComentarios[detalleId] = comment;
-                    validDetalles.push(detalleId);
-                }
-            }
-
-            if (validDetalles.length === 0) {
-                alert('No hay detalles válidos para enviar a corrección.');
-                return;
-            }
-
-            if (!confirm(`¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`)) return;
-
-            const formData = new FormData();
-            formData.append('action', 'send_to_correction');
-            formData.append('detalle_ids', JSON.stringify(validDetalles));
-            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-            formData.append('id_contador', idContadorInput.value || null);
-
-            try {
-                const response = await fetch(`index.php?controller=liquidacion&action=autorizar&id=<?php echo htmlspecialchars($data['id']); ?>`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al enviar a corrección');
-                }
-
-                alert(result.message);
-                validDetalles.forEach(detalleId => {
-                    const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-                    row.classList.add('in-correction');
-                    row.setAttribute('data-contador', idContadorInput.value);
-                    row.style.display = 'none';
-                    row.querySelector('input[name="detalles[]"]').disabled = true;
-                    row.querySelector('input[name="detalles[]"]').checked = false;
-                    row.querySelector('.comment-column').classList.add('hidden');
-                    row.querySelector('.correccion-comment').disabled = true;
-                    row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
-                });
-
-                hasCorrections = true;
-                const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
-                commentHeader.classList.toggle('hidden', !anyCommentVisible);
-                bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
-
-                if (userRole === 'CONTABILIDAD') {
-                    filterNonCorrectedInvoices();
-                } else if (['SUPERVISOR', '1', '2'].includes(userRole)) {
-                    filterSupervisorInvoices();
-                } else {
-                    filterNonCorrectedInvoices();
-                }
-            } catch (error) {
-                console.error('Error al enviar a corrección:', error);
-                alert(error.message || 'Error al enviar a corrección. Intenta de nuevo.');
-            }
+    rows.forEach(row => {
+        const estadoCell = row.querySelector('td[data-label="Estado"]');
+        const estado = estadoCell ? estadoCell.textContent.trim() : '';
+        if (visibleStates.includes(estado) && !row.classList.contains('in-correction')) {
+            row.style.display = '';
+            hasVisibleRows = true;
+        } else {
+            row.style.display = 'none';
         }
+    });
 
-        // Function to filter invoices for SUPERVISOR, 1, and 2 roles
-        function filterSupervisorInvoices() {
-            const rows = document.querySelectorAll('#facturasTable tbody tr');
-            const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO'];
-            let hasVisibleRows = false;
-
-            rows.forEach(row => {
-                const estadoCell = row.querySelector('td[data-label="Estado"]');
-                const estado = estadoCell ? estadoCell.textContent.trim() : '';
-                if (visibleStates.includes(estado) && !row.classList.contains('in-correction')) {
-                    row.style.display = '';
-                    hasVisibleRows = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            if (!hasVisibleRows) {
-                console.warn('No invoices in PENDIENTE_AUTORIZACION or EN_PROCESO state for SUPERVISOR. Showing all non-corrected invoices for debugging.');
-                rows.forEach(row => {
-                    if (!row.classList.contains('in-correction')) {
-                        row.style.display = '';
-                    }
-                });
+    if (!hasVisibleRows) {
+        console.warn('No hay facturas en estado PENDIENTE_AUTORIZACION o EN_PROCESO para SUPERVISOR. Mostrando todas las facturas no corregidas para depuración.');
+        rows.forEach(row => {
+            if (!row.classList.contains('in-correction')) {
+                row.style.display = '';
             }
-        }
+        });
+    }
+}
 
-        // Function to filter and show only non-corrected invoices (for Contabilidad and fallback)
-        function filterNonCorrectedInvoices() {
-            document.querySelectorAll('#facturasTable tbody tr').forEach(row => {
-                if (row.classList.contains('in-correction')) {
-                    const contadorId = row.getAttribute('data-contador');
-                    if (userRole === 'CONTADOR' && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
-                        row.style.display = 'none';
-                    } else {
-                        row.style.display = '';
-                    }
-                } else {
-                    row.style.display = '';
-                }
-            });
+// Function to filter and show only non-corrected invoices
+function filterNonCorrectedInvoices() {
+    document.querySelectorAll('#facturasTable tbody tr').forEach(row => {
+        if (row.classList.contains('in-correction')) {
+            const contadorId = row.getAttribute('data-contador');
+            if (isContabilidadRole && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
+                row.style.display = 'none';
+            } else {
+                row.style.display = '';
+            }
+        } else {
+            row.style.display = '';
         }
+    });
+}
 
-        async function exportToSap(id) {
-            try {
-                const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    if (response.status === 400 && errorData.error === 'Esta liquidación ya ha sido exportada') {
-                        const confirmExport = confirm('Esta liquidación ya fue exportada. ¿Deseas volver a exportarla?');
-                        if (confirmExport) {
-                            const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
-                            if (!forceExportResponse.ok) {
-                                const forceErrorData = await forceExportResponse.json();
-                                throw new Error(forceErrorData.error || `Error HTTP: ${forceExportResponse.status}`);
-                            }
-                            const blob = await forceExportResponse.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            window.URL.revokeObjectURL(url);
-                            return 'Exportación a SAP completada. Revisa tu carpeta de descargas.';
-                        } else {
-                            return 'Exportación cancelada.';
+async function exportToSap(id) {
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 400 && errorData.error === 'Esta liquidación ya ha sido exportada') {
+                const confirmExport = confirm('Esta liquidación ya fue exportada. ¿Desea volver a exportarla?');
+                if (confirmExport) {
+                    const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
+                    });
+                    if (!forceExportResponse.ok) {
+                        const errorData = await forceExportResponse.json();
+                        throw new Error(errorData.error || `Error HTTP: ${response.status}`);
                     }
-                    throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+                    const blob = await forceExportResponse.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                    return 'Exportación a SAP completada. Revisa tu carpeta de descargas.';
+                } else {
+                    return 'Exportación cancelada.';
                 }
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                return 'Exportación a SAP completada. Revisa tu carpeta de descargas.';
-            } catch (error) {
-                console.error('Error al exportar a SAP:', error);
-                throw new Error(error.message || 'Error al exportar a SAP. Intenta de nuevo.');
             }
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `liquidacion_${id}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        return 'Exportación a SAP completada. Revisa tu carpeta de descargas.';
+    } catch (error) {
+        console.error('Error al exportar a SAP:', error);
+        throw new Error(error.message || 'Error al exportar a SAP. Por favor intenta de nuevo.');
+    }
+}
 
-        async function fetchContadores() {
-            try {
-                const response = await fetch("index.php?controller=usuario&action=getContadores", {
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `Error HTTP: ${response.status}`);
-                }
-                const contadores = await response.json();
-                return contadores;
-            } catch (error) {
-                console.error("Error al cargar contadores:", error);
-                alert("Error al cargar la lista de contadores: " + error.message);
-                return [];
-            }
-        }
-    </script>
+async function fetchContadores() {
+try {
+    const response = await fetch("index.php?controller=usuario&action=getContadores", {
+        headers: {
+            "X-Requested-With": "XMLHttpRequest",
+        },
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error: ${response.status}`);
+    }
+    const contadores = await response.json();
+    return contadores;
+} catch (error) {
+    console.error("Error fetching contadores:", error);
+    alert("Error al cargar la lista de contadores: " + error.message);
+    return [];
+}
+}
+</script>
 </body>
 </html>

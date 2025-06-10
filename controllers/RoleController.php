@@ -58,15 +58,31 @@ class RoleController {
             'manage_facturas' => 'Gestión de Facturas',
             'autorizar_facturas' => 'Autorizar Facturas',
             'revisar_facturas' => 'Revisar Facturas',
-            'manage_centros_costos' => 'Gestión de Centros de Costos'
+            'manage_centros_costos' => 'Gestión de Centros de Costos',
+            'manage_correcciones' => 'Corrección de Liquidaciones'
         ];
     }
 
     private function getDefaultPermissions($rolNombre) {
         $defaultPermissions = [
             'ADMIN' => array_keys($this->getAvailablePermissions()),
-            'ENCARGADO_CAJA_CHICA' => ['create_liquidaciones', 'create_detalles', 'manage_facturas', 'manage_cajachica'],
-            'SUPERVISOR_AUTORIZADOR' => ['autorizar_liquidaciones', 'autorizar_facturas', 'manage_cuentas_contables', 'manage_facturas', 'revisar_liquidaciones', 'revisar_detalles_liquidaciones', 'revisar_facturas'],
+            'ENCARGADO_CAJA_CHICA' => [
+                'create_liquidaciones',
+                'create_detalles',
+                'manage_facturas',
+                'manage_cajachica',
+                'manage_correcciones',
+                'delete_liquidaciones'
+            ],
+            'SUPERVISOR_AUTORIZADOR' => [
+                'autorizar_liquidaciones',
+                'autorizar_facturas',
+                'manage_cuentas_contables',
+                'manage_facturas',
+                'revisar_liquidaciones',
+                'revisar_detalles_liquidaciones',
+                'revisar_facturas'
+            ],
             'CONTABILIDAD' => [
                 'revisar_liquidaciones',
                 'revisar_detalles_liquidaciones',
@@ -80,10 +96,15 @@ class RoleController {
                 'manage_tipos_gastos'
             ],
         ];
-
+    
         $combinedPermissions = [];
+        $rolNombreUpper = strtoupper($rolNombre);
         foreach ($defaultPermissions as $rol => $permissions) {
-            if (strpos($rolNombre, $rol) !== false) {
+            if (strpos($rolNombreUpper, $rol) !== false ||
+                ($rol === 'CONTABILIDAD' && (
+                    strpos($rolNombreUpper, 'CONTADOR') !== false ||
+                    strpos($rolNombreUpper, 'CONTABILIDAD') !== false
+                ))) {
                 $combinedPermissions = array_merge($combinedPermissions, $permissions);
             }
         }
@@ -96,8 +117,9 @@ class RoleController {
             'encargado' => 'ENCARGADO_CAJA_CHICA',
             'supervisor' => 'SUPERVISOR_AUTORIZADOR',
             'contador' => 'CONTABILIDAD',
+            'contabilidad' => 'CONTABILIDAD',
         ];
-
+    
         $permisosPorRol = [
             'ADMIN' => true,
             'ENCARGADO_CAJA_CHICA' => [
@@ -105,6 +127,8 @@ class RoleController {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
+                'manage_correcciones' => true,
+                'delete_liquidaciones' => true
             ],
             'SUPERVISOR_AUTORIZADOR' => [
                 'autorizar_liquidaciones' => true,
@@ -128,16 +152,16 @@ class RoleController {
                 'manage_tipos_gastos' => true,
             ],
         ];
-
+    
         $descripcionLower = strtolower($descripcion);
         $detectedRoles = [];
-
+    
         foreach ($roleMapping as $keyword => $role) {
             if (strpos($descripcionLower, $keyword) !== false) {
                 $detectedRoles[] = $role;
             }
         }
-
+    
         $combinedPermissions = [];
         foreach ($detectedRoles as $role) {
             if ($role === 'ADMIN') {
@@ -151,92 +175,31 @@ class RoleController {
                 }
             }
         }
-
+    
         return array_unique($combinedPermissions);
     }
 
     private function assignPermissionsBasedOnDescription($rolId, $descripcion) {
         $usuarioModel = new Usuario();
         $auditoriaModel = new Auditoria();
-
-        $roleMapping = [
-            'admin' => 'ADMIN',
-            'encargado' => 'ENCARGADO_CAJA_CHICA',
-            'supervisor' => 'SUPERVISOR_AUTORIZADOR',
-            'contador' => 'CONTABILIDAD',
-        ];
-
-        $permisosPorRol = [
-            'ADMIN' => true,
-            'ENCARGADO_CAJA_CHICA' => [
-                'create_liquidaciones' => true,
-                'create_detalles' => true,
-                'manage_facturas' => true,
-                'manage_cajachica' => true,
-            ],
-            'SUPERVISOR_AUTORIZADOR' => [
-                'autorizar_liquidaciones' => true,
-                'autorizar_facturas' => true,
-                'manage_cuentas_contables' => true,
-                'manage_facturas' => true,
-                'revisar_liquidaciones' => true,
-                'revisar_detalles_liquidaciones' => true,
-                'revisar_facturas' => true,
-            ],
-            'CONTABILIDAD' => [
-                'revisar_liquidaciones' => true,
-                'revisar_detalles_liquidaciones' => true,
-                'revisar_facturas' => true,
-                'manage_reportes' => true,
-                'manage_auditoria' => true,
-                'manage_cuentas_contables' => true,
-                'manage_facturas' => true,
-                'manage_centros_costos' => true,
-                'manage_impuestos' => true,
-                'manage_tipos_gastos' => true,
-            ],
-        ];
-
-        $descripcionLower = strtolower($descripcion);
-        $detectedRoles = [];
-
-        foreach ($roleMapping as $keyword => $role) {
-            if (strpos($descripcionLower, $keyword) !== false) {
-                $detectedRoles[] = $role;
-            }
-        }
-
+    
+        $rol = (new Role())->getRolById($rolId);
+        $nombreRol = $rol['nombre'] ?? '';
+    
+        // Combinar permisos predeterminados y dinámicos
+        $defaultPermissions = $this->getDefaultPermissions($nombreRol);
+        $dynamicPermissions = $this->getDynamicPermissions($descripcion);
+        $combinedPermissions = array_unique(array_merge($defaultPermissions, $dynamicPermissions));
+    
         $usuarios = $usuarioModel->getUsuariosByRolId($rolId);
-
+    
         foreach ($usuarios as $usuario) {
+            // Limpiar permisos anteriores
             $this->pdo->prepare("DELETE FROM accesos_permisos WHERE id_usuario = ? AND origen = ?")
                 ->execute([$usuario['id'], 'ROL_DESCRIPCION']);
             error_log("Permisos dinámicos eliminados para usuario {$usuario['id']} antes de reasignar.");
-        }
-
-        if (empty($detectedRoles)) {
-            error_log("No se detectaron roles en la descripción del rol ID $rolId. No se asignaron permisos dinámicos.");
-            return;
-        }
-
-        $combinedPermissions = [];
-        foreach ($detectedRoles as $role) {
-            if ($role === 'ADMIN') {
-                $stmt = $this->pdo->query("SELECT nombre FROM permisos");
-                $allPermissions = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                $combinedPermissions = array_merge($combinedPermissions, $allPermissions);
-            } else {
-                $permissions = $permisosPorRol[$role] ?? [];
-                if (is_array($permissions)) {
-                    $combinedPermissions = array_merge($combinedPermissions, array_keys(array_filter($permissions)));
-                }
-            }
-        }
-
-        $combinedPermissions = array_unique($combinedPermissions);
-        error_log("Permisos combinados asignados al rol ID $rolId: " . print_r($combinedPermissions, true));
-
-        foreach ($usuarios as $usuario) {
+    
+            // Asignar permisos combinados
             foreach ($combinedPermissions as $permiso) {
                 $stmt = $this->pdo->prepare("INSERT INTO accesos_permisos (id_usuario, permiso, estado, origen) VALUES (?, ?, 'ACTIVO', 'ROL_DESCRIPCION') ON DUPLICATE KEY UPDATE estado = 'ACTIVO'");
                 $stmt->execute([$usuario['id'], $permiso]);
@@ -268,7 +231,7 @@ class RoleController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
+    
         $usuarioModel = new Usuario();
         $auditoriaModel = new Auditoria();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
@@ -279,38 +242,73 @@ class RoleController {
             echo json_encode(['error' => 'No tienes permiso para crear roles']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $nombre = $_POST['nombre'] ?? '';
                 $descripcion = $_POST['descripcion'] ?? '';
                 $estado = $_POST['estado'] ?? 'ACTIVO';
-
+    
                 error_log("Datos recibidos para crear rol: nombre=$nombre, descripcion=$descripcion, estado=$estado");
-
+    
                 if (empty($nombre)) {
                     throw new Exception('El nombre del rol es obligatorio');
                 }
-
+    
                 if ($this->checkRoleNameExists($nombre)) {
                     throw new Exception("El nombre del rol '$nombre' ya está en uso. Por favor, elige otro nombre.");
                 }
-
+    
                 $rolModel = new Role();
                 $result = $rolModel->createRol($nombre, $descripcion, $estado);
                 if ($result === false) {
                     throw new Exception('Error al crear rol en la base de datos');
                 }
-
+    
                 $rolId = $this->pdo->lastInsertId();
-                $this->assignPermissionsBasedOnDescription($rolId, $descripcion);
-
+    
+                // Combinar permisos predeterminados y dinámicos
+                $defaultPermissions = $this->getDefaultPermissions($nombre);
+                $dynamicPermissions = $this->getDynamicPermissions($descripcion);
+                $combinedPermissions = array_unique(array_merge($defaultPermissions, $dynamicPermissions));
+                error_log("Permisos combinados para el nuevo rol ID $rolId: " . print_r($combinedPermissions, true));
+    
+                // Asignar permisos al rol en rol_permisos
+                $this->pdo->beginTransaction();
+                $availablePermissions = $this->getAvailablePermissions();
+                foreach ($availablePermissions as $permiso => $nombrePermiso) {
+                    $estado = in_array($permiso, $combinedPermissions) ? 'ACTIVO' : 'INACTIVO';
+                    $stmt = $this->pdo->prepare("INSERT INTO rol_permisos (id_rol, permiso, estado) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE estado = ?");
+                    $stmt->execute([$rolId, $permiso, $estado, $estado]);
+                    error_log("Permiso $permiso para rol ID $rolId establecido como $estado");
+                }
+    
+                // Asignar permisos a los usuarios asociados (si los hay)
+                $usuarios = $usuarioModel->getUsuariosByRolId($rolId);
+                foreach ($usuarios as $usuario) {
+                    // Limpiar permisos anteriores del rol
+                    $this->pdo->prepare("DELETE FROM accesos_permisos WHERE id_usuario = ? AND (origen = 'ROL_MANUAL' OR origen IS NULL)")
+                        ->execute([$usuario['id']]);
+                    error_log("Eliminados permisos con origen ROL_MANUAL o NULL para el usuario {$usuario['id']}");
+    
+                    // Asignar permisos combinados
+                    foreach ($combinedPermissions as $permiso) {
+                        $stmt = $this->pdo->prepare("INSERT INTO accesos_permisos (id_usuario, permiso, estado, origen) VALUES (?, ?, 'ACTIVO', 'ROL_MANUAL') ON DUPLICATE KEY UPDATE estado = 'ACTIVO'");
+                        $stmt->execute([$usuario['id'], $permiso]);
+                        error_log("Asignado permiso $permiso al usuario {$usuario['id']} con origen ROL_MANUAL");
+                    }
+                    $auditoriaModel->createAuditoria(null, null, $usuario['id'], 'ASIGNAR_PERMISOS', "Permisos asignados a usuario {$usuario['email']} desde rol ID $rolId: " . implode(', ', $combinedPermissions));
+                }
+    
+                $this->pdo->commit();
+    
                 $auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'CREAR_ROL', "Rol creado: {$nombre}");
-
+    
                 header('Content-Type: application/json');
                 http_response_code(201);
                 echo json_encode(['message' => 'Rol creado']);
             } catch (Exception $e) {
+                $this->pdo->rollBack();
                 error_log('Error en createRol: ' . $e->getMessage());
                 header('Content-Type: application/json');
                 http_response_code(400);
@@ -318,7 +316,7 @@ class RoleController {
             }
             exit;
         }
-
+    
         ob_start();
         require '../views/roles/form.html';
         $html = ob_get_clean();
@@ -367,13 +365,11 @@ class RoleController {
                     throw new Exception('Error al actualizar rol en la base de datos');
                 }
     
-                // Obtener permisos predeterminados y dinámicos del rol actualizado
+                // Combinar permisos predeterminados y dinámicos
                 $defaultPermissions = $this->getDefaultPermissions($nombre);
                 $dynamicPermissions = $this->getDynamicPermissions($descripcion);
-    
-                // Combinar permisos predeterminados y dinámicos
-                $newPermissions = array_unique(array_merge($defaultPermissions, $dynamicPermissions));
-                error_log("Nuevos permisos predeterminados y dinámicos para el rol ID $id: " . print_r($newPermissions, true));
+                $combinedPermissions = array_unique(array_merge($defaultPermissions, $dynamicPermissions));
+                error_log("Nuevos permisos predeterminados y dinámicos para el rol ID $id: " . print_r($combinedPermissions, true));
     
                 // Iniciar una transacción para actualizar permisos
                 $this->pdo->beginTransaction();
@@ -383,17 +379,16 @@ class RoleController {
                 $stmt->execute([$id]);
                 error_log("Eliminados todos los permisos manuales existentes para el rol ID $id");
     
-                // Asignar los nuevos permisos predeterminados y dinámicos como ACTIVO en rol_permisos
+                // Asignar los nuevos permisos combinados en rol_permisos
                 $availablePermissions = $this->getAvailablePermissions();
                 foreach ($availablePermissions as $permiso => $nombrePermiso) {
-                    $estado = in_array($permiso, $newPermissions) ? 'ACTIVO' : 'INACTIVO';
+                    $estado = in_array($permiso, $combinedPermissions) ? 'ACTIVO' : 'INACTIVO';
                     $stmt = $this->pdo->prepare("INSERT INTO rol_permisos (id_rol, permiso, estado) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE estado = ?");
                     $stmt->execute([$id, $permiso, $estado, $estado]);
                     error_log("Permiso $permiso para rol ID $id establecido como $estado");
                 }
     
                 // Actualizar permisos de los usuarios asociados al rol
-                $updatedEffectivePermissions = $newPermissions; // Ya combinamos predeterminados y dinámicos
                 $usuarios = $usuarioModel->getUsuariosByRolId($id);
                 foreach ($usuarios as $usuario) {
                     // Obtener permisos individuales del usuario (origen 'MANUAL')
@@ -406,21 +401,21 @@ class RoleController {
                     $stmt->execute([$usuario['id']]);
                     $currentUserPermissions = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
     
-                    // Determinar permisos que deben ser desactivados (los que ya no están en el rol y no son individuales)
-                    $permissionsToDeactivate = array_diff($currentUserPermissions, $updatedEffectivePermissions, $individualPermissions);
+                    // Determinar permisos que deben ser desactivados
+                    $permissionsToDeactivate = array_diff($currentUserPermissions, $combinedPermissions, $individualPermissions);
                     foreach ($permissionsToDeactivate as $permiso) {
                         $stmt = $this->pdo->prepare("UPDATE accesos_permisos SET estado = 'INACTIVO' WHERE id_usuario = ? AND permiso = ? AND estado = 'ACTIVO'");
                         $stmt->execute([$usuario['id'], $permiso]);
                         error_log("Desactivado permiso $permiso para el usuario {$usuario['id']} (ya no está en el rol)");
                     }
     
-                    // Eliminar permisos anteriores del rol (origen 'ROL_MANUAL' o NULL)
+                    // Eliminar permisos anteriores del rol
                     $stmt = $this->pdo->prepare("DELETE FROM accesos_permisos WHERE id_usuario = ? AND (origen = 'ROL_MANUAL' OR origen IS NULL)");
                     $stmt->execute([$usuario['id']]);
                     error_log("Eliminados permisos con origen ROL_MANUAL o NULL para el usuario {$usuario['id']}");
     
                     // Combinar permisos del rol con permisos individuales
-                    $userPermissions = array_unique(array_merge($updatedEffectivePermissions, $individualPermissions));
+                    $userPermissions = array_unique(array_merge($combinedPermissions, $individualPermissions));
                     foreach ($userPermissions as $permiso) {
                         $origen = in_array($permiso, $individualPermissions) ? 'MANUAL' : 'ROL_MANUAL';
                         $stmt = $this->pdo->prepare("INSERT INTO accesos_permisos (id_usuario, permiso, estado, origen) VALUES (?, ?, 'ACTIVO', ?) ON DUPLICATE KEY UPDATE estado = 'ACTIVO'");

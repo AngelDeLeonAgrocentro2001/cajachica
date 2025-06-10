@@ -25,11 +25,6 @@ class DetalleLiquidacion {
         foreach ($detalles as &$detalle) {
             if (isset($detalle['rutas_archivos'])) {
                 $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
-                foreach ($detalle['rutas_archivos'] as &$ruta) {
-                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
-                        $ruta = substr($ruta, 7);
-                    }
-                }
             } else {
                 $detalle['rutas_archivos'] = [];
             }
@@ -111,16 +106,30 @@ class DetalleLiquidacion {
     }
 
     public function getDetalleById($id) {
-        $stmt = $this->pdo->prepare("
-            SELECT dl.*, cc.nombre AS nombre_centro_costo, tg.name AS tipo_gasto, cc2.nombre AS cuenta_contable
-            FROM detalle_liquidaciones dl
-            LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
-            LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
-            LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
-            WHERE dl.id = ?
-        ");
-        $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $id = intval($id);
+            error_log("Ejecutando getDetalleById para id=$id, tipo=" . gettype($id));
+            $stmt = $this->pdo->prepare("
+                SELECT dl.*, cc.nombre AS nombre_centro_costo, tg.name AS tipo_gasto, cc2.nombre AS cuenta_contable
+                FROM detalle_liquidaciones dl
+                LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
+                LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+                LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
+                WHERE dl.id = ?
+            ");
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$result) {
+                error_log("No se encontró detalle para ID $id");
+            } else {
+                error_log("Detalle encontrado para ID $id: id_liquidacion=" . $result['id_liquidacion']);
+            }
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Error en getDetalleById para ID $id: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function updateLiquidacionId($detalleId, $liquidacionId) {
@@ -223,33 +232,54 @@ class DetalleLiquidacion {
             'ENVIADO_A_CORRECCION',
             'EN_CORRECCION'
         ];
-
+    
         if (!in_array($estado, $estadosValidos)) {
             error_log("Estado no válido para el detalle ID $id: $estado. Estados válidos: " . implode(', ', $estadosValidos));
             throw new Exception("Estado no válido: $estado. Debe ser uno de: " . implode(', ', $estadosValidos));
         }
-
+    
+        $rolUpper = strtoupper($rol);
+        $isContabilidadRole = strpos($rolUpper, 'CONTADOR') !== false || strpos($rolUpper, 'CONTABILIDAD') !== false;
+        $isSupervisorRole = strpos($rolUpper, 'SUPERVISOR') !== false;
+    
+        error_log("updateEstadoWithComment: detalle ID=$id, estado=$estado, rol=$rol, isContabilidadRole=" . ($isContabilidadRole ? 'SÍ' : 'NO') . ", isSupervisorRole=" . ($isSupervisorRole ? 'SÍ' : 'NO') . ", contadorId=" . ($contadorId ?? 'NULL'));
+    
         try {
-            if ($rol === 'SUPERVISOR') {
-                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = ?, id_contador_correccion = NULL WHERE id = ?");
-                $result = $stmt->execute([$estado, $rol, $comment, $supervisorId, $id]);
-            } elseif ($rol === 'CONTABILIDAD') {
-                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = ? WHERE id = ?");
-                $result = $stmt->execute([$estado, $rol, $comment, $contadorId, $id]);
+            if ($isContabilidadRole) {
+                error_log("Ejecutando rama CONTABILIDAD para detalle ID $id con contadorId=$contadorId");
+                $stmt = $this->pdo->prepare("
+                    UPDATE detalle_liquidaciones
+                    SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = ?
+                    WHERE id = ?
+                ");
+                $result = $stmt->execute([$estado, 'CONTABILIDAD', $comment, $contadorId, $id]);
+            } elseif ($isSupervisorRole) {
+                error_log("Ejecutando rama SUPERVISOR para detalle ID $id con supervisorId=$supervisorId");
+                $stmt = $this->pdo->prepare("
+                    UPDATE detalle_liquidaciones
+                    SET estado = ?, original_role = ?, correccion_comentario = ?, id_supervisor_correccion = ?, id_contador_correccion = NULL
+                    WHERE id = ?
+                ");
+                $result = $stmt->execute([$estado, 'SUPERVISOR', $comment, $supervisorId, $id]);
             } else {
-                $stmt = $this->pdo->prepare("UPDATE detalle_liquidaciones SET estado = ?, original_role = NULL, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = NULL WHERE id = ?");
+                error_log("Ejecutando rama DEFAULT para detalle ID $id");
+                $stmt = $this->pdo->prepare("
+                    UPDATE detalle_liquidaciones
+                    SET estado = ?, original_role = NULL, correccion_comentario = ?, id_supervisor_correccion = NULL, id_contador_correccion = NULL
+                    WHERE id = ?
+                ");
                 $result = $stmt->execute([$estado, $comment, $id]);
             }
-
+    
             if (!$result) {
-                error_log("Fallo al actualizar el estado del detalle ID $id a $estado con comentario. No se afectaron filas.");
-                throw new Exception("No se pudo actualizar el estado del detalle ID $id a $estado con comentario");
+                error_log("Fallo al actualizar el detalle ID $id a $estado con comentario. No se afectaron filas.");
+                throw new Exception("No se pudo actualizar el detalle ID $id a $estado con comentario");
             }
-            error_log("Estado del detalle ID $id actualizado a $estado con comentario, supervisor ID " . ($supervisorId ?? 'N/A') . ", contador ID " . ($contadorId ?? 'N/A') . " con éxito.");
+            error_log("Detalle ID $id actualizado a $estado con comentario, supervisorId=" . ($supervisorId ?? 'N/A') . ", contadorId=" . ($contadorId ?? 'N/A') . " con éxito.");
             return true;
         } catch (PDOException $e) {
-            error_log("Error al actualizar el estado del detalle ID $id a $estado con comentario: " . $e->getMessage());
-            throw new Exception("Error al actualizar el estado del detalle: " . $e->getMessage());
+            error_log("Error al actualizar el detalle ID $id a $estado con comentario: " . $e->getMessage());
+            throw new Exception("Error al actualizar el detalle: " . $e->getMessage());
         }
     }
 
@@ -305,7 +335,7 @@ class DetalleLiquidacion {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getCorrectedDetallesForSupervisor($supervisorId) {
+    public function getAllCorrectedDetallesForSupervisors($supervisorId = null) {
         $query = "
             SELECT dl.*, 
                    l.id as liquidacion_id, 
@@ -316,35 +346,37 @@ class DetalleLiquidacion {
                    tg.name as tipo_gasto, 
                    cc3.nombre as cuenta_contable
             FROM detalle_liquidaciones dl
-            JOIN liquidaciones l ON dl.id_liquidacion = l.id
-            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            LEFT JOIN liquidaciones l ON dl.id_liquidacion = l.id
+            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
             LEFT JOIN centros_costos cc2 ON dl.id_centro_costo = cc2.id
             LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
             LEFT JOIN cuentas_contables cc3 ON dl.id_cuenta_contable = cc3.id
             WHERE dl.estado = 'PENDIENTE_AUTORIZACION'
-            AND dl.original_role = 'SUPERVISOR'
-            AND dl.id_supervisor_correccion = ?
+            AND dl.original_role LIKE '%SUPERVISOR%'
             AND dl.correccion_comentario IS NOT NULL
-            ORDER BY dl.id ASC
         ";
+        $params = [];
+    
+        if ($supervisorId !== null) {
+            $query .= " AND dl.id_supervisor_correccion = ?";
+            $params[] = $supervisorId;
+        }
+    
+        $query .= " ORDER BY dl.id ASC";
+    
         $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$supervisorId]);
+        $stmt->execute($params);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    
         foreach ($detalles as &$detalle) {
             if (isset($detalle['rutas_archivos'])) {
                 $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
-                foreach ($detalle['rutas_archivos'] as &$ruta) {
-                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
-                        $ruta = substr($ruta, 7);
-                    }
-                }
             } else {
                 $detalle['rutas_archivos'] = [];
             }
-            $detalle['liquidacion'] = $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'];
+            $detalle['liquidacion'] = isset($detalle['nombre_caja_chica']) ? $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'] : 'Independiente';
         }
-
+    
         return $detalles;
     }
 
@@ -377,11 +409,6 @@ class DetalleLiquidacion {
         foreach ($detalles as &$detalle) {
             if (isset($detalle['rutas_archivos'])) {
                 $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
-                foreach ($detalle['rutas_archivos'] as &$ruta) {
-                    if ($ruta && strpos($ruta, 'uploads/') === 0) {
-                        $ruta = substr($ruta, 7);
-                    }
-                }
             } else {
                 $detalle['rutas_archivos'] = [];
             }

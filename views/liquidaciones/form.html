@@ -1,189 +1,47 @@
-<h2 class="form-title"><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
-<form id="liquidacionFormInner" method="POST" class="modern-form">
-    <div class="form-group">
+<h2><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
+<form id="liquidacionFormInner" method="POST">
+    <div>
         <label for="id_caja_chica">Caja Chica:</label>
-        <select name="id_caja_chica" id="id_caja_chica" class="form-control" required>
+        <select name="id_caja_chica" id="id_caja_chica" required>
             {{select_cajas_chicas}}
         </select>
     </div>
-    
-    <div class="form-group">
+    <div>
         <label for="fecha_creacion">Fecha de Creación:</label>
-        <input type="date" name="fecha_creacion" id="fecha_creacion" class="form-control" required 
-               value="<?php echo isset($data['fecha_creacion']) ? $data['fecha_creacion'] : date('Y-m-d'); ?>">
+        <input type="date" name="fecha_creacion" id="fecha_creacion" required value="<?php echo isset($data['fecha_creacion']) ? $data['fecha_creacion'] : date('Y-m-d'); ?>">
     </div>
-    
-    <div class="form-group">
+    <div>
         <label for="fecha_inicio">Fecha de Inicio:</label>
-        <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
-               value="<?php echo isset($data['fecha_inicio']) ? $data['fecha_inicio'] : ''; ?>">
+        <input type="date" name="fecha_inicio" id="fecha_inicio" value="<?php echo isset($data['fecha_inicio']) ? $data['fecha_inicio'] : ''; ?>">
     </div>
-    
-    <div class="form-group">
+    <div>
         <label for="fecha_fin">Fecha de Fin:</label>
-        <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
-               value="<?php echo isset($data['fecha_fin']) ? $data['fecha_fin'] : ''; ?>">
+        <input type="date" name="fecha_fin" id="fecha_fin" value="<?php echo isset($data['fecha_fin']) ? $data['fecha_fin'] : ''; ?>">
     </div>
-   
-    <div class="form-actions">
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Guardar
-        </button>
-        <button type="button" onclick="closeModal()" class="btn btn-secondary">
-            <i class="fas fa-times"></i> Cancelar
-        </button>
+    <!-- Campo monto_total oculto -->
+    <!-- <div>
+        <label for="monto_total">Monto Total:</label>
+        <input type="number" name="monto_total" id="monto_total" step="0.01" required value="<?php echo isset($data['monto_total']) ? $data['monto_total'] : '0.00'; ?>">
+    </div> -->
+    <!-- <?php if (isset($data)): // Mostrar el campo de estado solo al editar ?>
+    <div>
+        <label for="estado">Estado:</label>
+        <select name="estado" id="estado" required>
+            <option value="PENDIENTE" <?php echo (isset($data['estado']) && $data['estado'] === 'PENDIENTE') ? 'selected' : ''; ?>>PENDIENTE</option>
+            <option value="APROBADO" <?php echo (isset($data['estado']) && $data['estado'] === 'APROBADO') ? 'selected' : ''; ?>>APROBADO</option>
+            <option value="RECHAZADO" <?php echo (isset($data['estado']) && $data['estado'] === 'RECHAZADO') ? 'selected' : ''; ?>>RECHAZADO</option>
+            <option value="AUTORIZADO_POR_ADMIN" <?php echo (isset($data['estado']) && $data['estado'] === 'AUTORIZADO_POR_ADMIN') ? 'selected' : ''; ?>>AUTORIZADO POR ADMIN</option>
+            <option value="RECHAZADO_POR_ADMIN" <?php echo (isset($data['estado']) && $data['estado'] === 'RECHAZADO_POR_ADMIN') ? 'selected' : ''; ?>>RECHAZADO POR ADMIN</option>
+            <option value="AUTORIZADO_POR_SUPERVISOR" <?php echo (isset($data['estado']) && $data['estado'] === 'AUTORIZADO_POR_SUPERVISOR') ? 'selected' : ''; ?>>AUTORIZADO POR SUPERVISOR</option>
+            <option value="RECHAZADO_POR_SUPERVISOR" <?php echo (isset($data['estado']) && $data['estado'] === 'RECHAZADO_POR_SUPERVISOR') ? 'selected' : ''; ?>>RECHAZADO POR SUPERVISOR</option>
+            <option value="AUTORIZADO_POR_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] === 'AUTORIZADO_POR_CONTABILIDAD') ? 'selected' : ''; ?>>AUTORIZADO POR CONTABILIDAD</option>
+            <option value="RECHAZADO_POR_CONTABILIDAD" <?php echo (isset($data['estado']) && $data['estado'] === 'RECHAZADO_POR_CONTABILIDAD') ? 'selected' : ''; ?>>RECHAZADO POR CONTABILIDAD</option>
+            <option value="PENDIENTE_CORRECCIÓN" <?php echo (isset($data['estado']) && $data['estado'] === 'PENDIENTE_CORRECCIÓN') ? 'selected' : ''; ?>>PENDIENTE CORRECCIÓN</option>
+            <option value="DESCARTADO" <?php echo (isset($data['estado']) && $data['estado'] === 'DESCARTADO') ? 'selected' : ''; ?>>DESCARTADO</option>
+            <option value="FINALIZADO" <?php echo (isset($data['estado']) && $data['estado'] === 'FINALIZADO') ? 'selected' : ''; ?>>FINALIZADO</option>
+        </select>
     </div>
+    <?php endif; ?> -->
+    <button type="submit">Guardar</button>
+    <button type="button" onclick="closeModal()">Cancelar</button>
 </form>
-
-<style>
-.modern-form {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 25px;
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.form-title {
-    color: #4361ee;
-    text-align: center;
-    margin-bottom: 25px;
-    font-size: 1.8rem;
-    font-weight: 600;
-    position: relative;
-    padding-bottom: 10px;
-}
-
-.form-title::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 3px;
-    background: linear-gradient(90deg, #4361ee, #4895ef);
-    border-radius: 3px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 0.95rem;
-}
-
-.form-control {
-    width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background-color: #f8f9fa;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #4895ef;
-    box-shadow: 0 0 0 3px rgba(72, 149, 239, 0.2);
-    background-color: #fff;
-}
-
-.form-actions {
-    display: flex;
-    gap: 15px;
-    margin-top: 25px;
-    justify-content: flex-end;
-}
-
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    gap: 8px;
-}
-
-.btn i {
-    font-size: 0.9em;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #4361ee, #3f37c9);
-    color: white;
-    box-shadow: 0 4px 6px rgba(67, 97, 238, 0.2);
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #3a56d4, #3f37c9);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(67, 97, 238, 0.25);
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #5a6268;
-    transform: translateY(-2px);
-}
-
-/* Estilos para el select */
-select.form-control {
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 16px;
-    padding-right: 36px;
-}
-
-/* Estilos para campos de fecha */
-input[type="date"].form-control {
-    position: relative;
-}
-
-input[type="date"].form-control::-webkit-calendar-picker-indicator {
-    position: absolute;
-    right: 12px;
-    padding: 0;
-    color: #4895ef;
-    background: none;
-    cursor: pointer;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .modern-form {
-        padding: 20px;
-    }
-    
-    .form-title {
-        font-size: 1.5rem;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .btn {
-        width: 100%;
-    }
-}
-</style>

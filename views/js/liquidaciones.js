@@ -106,55 +106,55 @@ function closeSelectLiquidationModal() {
 
 async function loadLiquidaciones() {
   try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get("mode") || "";
-    const fetchUrl = mode
-      ? `index.php?controller=liquidacion&action=list&mode=${mode}`
-      : "index.php?controller=liquidacion&action=list";
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get("mode") || "";
+      const fetchUrl = mode
+          ? `index.php?controller=liquidacion&action=list&mode=${mode}`
+          : "index.php?controller=liquidacion&action=list";
 
-    const response = await fetch(fetchUrl, {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-      },
-    });
-    if (!response.ok) {
-      const errorData = await response.json();
-      if (response.status === 403) {
-        alert("No tienes permiso para ver esta lista. Serás redirigido.");
-        window.location.href = "index.php?controller=dashboard&action=index";
-        return;
-      }
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
-    }
-    const data = await response.json();
-    liquidacionesData = data.liquidaciones;
-    correctedDetallesData = data.corrected_detalles || [];
-
-    // Filtro adicional para el rol CONTABILIDAD
-    if (window.userRole === "CONTABILIDAD") {
-      liquidacionesData = liquidacionesData.filter(
-        (liquidacion) =>
-          !liquidacion.id_contador ||
-          liquidacion.id_contador == window.currentUserId
-      );
-      console.log(
-        `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
-      );
-      liquidacionesData.forEach((liquidacion) => {
-        console.log(
-          `Liquidacion ID: ${liquidacion.id}, id_contador: ${liquidacion.id_contador}, Estado: ${liquidacion.estado}`
-        );
+      const response = await fetch(fetchUrl, {
+          headers: {
+              "X-Requested-With": "XMLHttpRequest",
+          },
       });
-    }
+      if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 403) {
+              alert("No tienes permiso para ver esta lista. Serás redirigido.");
+              window.location.href = "index.php?controller=dashboard&action=index";
+              return;
+          }
+          throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+      }
+      const data = await response.json();
+      liquidacionesData = data.liquidaciones;
+      correctedDetallesData = data.corrected_detalles || [];
+      window.isContabilidadLike = data.isContabilidadLike || false; // Store flag
 
-    // Initialize filtered data with all liquidations
-    filteredLiquidacionesData = [...liquidacionesData];
-    currentPage = 1; // Reset to first page on load
-    renderLiquidations();
-    renderCorrectedDetalles();
+      // Filtro adicional para el rol CONTABILIDAD
+      if (window.isContabilidadLike) {
+          liquidacionesData = liquidacionesData.filter(
+              (liquidacion) =>
+                  !liquidacion.id_contador ||
+                  liquidacion.id_contador == window.currentUserId
+          );
+          console.log(
+              `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
+          );
+          liquidacionesData.forEach((liquidacion) => {
+              console.log(
+                  `Liquidacion ID: ${liquidacion.id}, id_contador: ${liquidacion.id_contador}, Estado: ${liquidacion.estado}`
+              );
+          });
+      }
+
+      filteredLiquidacionesData = [...liquidacionesData];
+      currentPage = 1;
+      renderLiquidations();
+      renderCorrectedDetalles();
   } catch (error) {
-    console.error("Error al cargar liquidaciones:", error);
-    alert("Error al cargar las liquidaciones. Intenta de nuevo.");
+      console.error("Error al cargar liquidaciones:", error);
+      alert("Error al cargar las liquidaciones. Intenta de nuevo.");
   }
 }
 
@@ -263,126 +263,126 @@ function renderLiquidations() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedLiquidaciones = filteredLiquidacionesData.slice(
-    startIndex,
-    endIndex
+      startIndex,
+      endIndex
   );
 
   if (paginatedLiquidaciones.length > 0) {
-    paginatedLiquidaciones.forEach((liquidacion) => {
-      const actions = [];
-      const hasCorrections =
-        liquidacion.detalles &&
-        Array.isArray(liquidacion.detalles) &&
-        liquidacion.detalles.some(
-          (detalle) => detalle.estado === "EN_CORRECTION"
-        );
-      const isCreator = liquidacion.id_usuario == window.currentUserId;
+      paginatedLiquidaciones.forEach((liquidacion) => {
+          const actions = [];
+          const hasCorrections =
+              liquidacion.detalles &&
+              Array.isArray(liquidacion.detalles) &&
+              liquidacion.detalles.some(
+                  (detalle) => detalle.estado === "EN_CORRECTION"
+              );
+          const isCreator = liquidacion.id_usuario == window.currentUserId;
 
-      // Actions for users who created the liquidation (non-SUPERVISOR/CONTABILIDAD)
-      if (
-        window.userPermissions.create_liquidaciones &&
-        window.userRole !== "SUPERVISOR" &&
-        window.userRole !== "CONTABILIDAD" &&
-        isCreator
-      ) {
-        if (liquidacion.estado === "EN_PROCESO") {
-          actions.push(
-            `<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`
-          );
-          actions.push(
-            `<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`
-          );
-          actions.push(
-            `<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`
-          );
-          actions.push(
-            `<button onclick="finalizarLiquidacion(${
-              liquidacion.id
-            })" class="finalize-btn" ${
-              hasCorrections ? "disabled" : ""
-            }>Finalizar</button>`
-          );
-        }
-      }
+          // Actions for users who created the liquidation (non-SUPERVISOR/CONTABILIDAD)
+          if (
+              window.userPermissions.create_liquidaciones &&
+              !window.userRole.toUpperCase().includes("SUPERVISOR") &&
+              window.userRole !== "CONTABILIDAD" &&
+              isCreator
+          ) {
+              if (liquidacion.estado === "EN_PROCESO") {
+                  actions.push(
+                      `<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`
+                  );
+                  actions.push(
+                      `<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`
+                  );
+                  actions.push(
+                      `<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`
+                  );
+                  actions.push(
+                      `<button onclick="finalizarLiquidacion(${
+                          liquidacion.id
+                      })" class="finalize-btn" ${
+                          hasCorrections ? "disabled" : ""
+                      }>Finalizar</button>`
+                  );
+              }
+          }
 
-      // Common actions for all users (view liquidation)
-      if (
-        [
-          "PENDIENTE_AUTORIZACION",
-          "PENDIENTE_REVISION_CONTABILIDAD",
-          "FINALIZADO",
-          "RECHAZADO_AUTORIZACION",
-          "RECHAZADO_POR_CONTABILIDAD",
-        ].includes(liquidacion.estado)
-      ) {
-        actions.push(
-          `<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`
-        );
-      }
+          // Common actions for all users (view liquidation)
+          if (
+              [
+                  "PENDIENTE_AUTORIZACION",
+                  "PENDIENTE_REVISION_CONTABILIDAD",
+                  "FINALIZADO",
+                  "RECHAZADO_AUTORIZACION",
+                  "RECHAZADO_POR_CONTABILIDAD",
+              ].includes(liquidacion.estado)
+          ) {
+              actions.push(
+                  `<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`
+              );
+          }
 
-      // Actions for SUPERVISOR
-      if (
-        window.userPermissions.autorizar_liquidaciones &&
-        window.userRole === "SUPERVISOR"
-      ) {
-        if (liquidacion.estado === "PENDIENTE_AUTORIZACION") {
-          actions.push(
-            `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`
-          );
-        }
-      }
+          // Actions for SUPERVISOR roles
+          if (
+              window.userPermissions.autorizar_liquidaciones &&
+              window.userRole.toUpperCase().includes("SUPERVISOR")
+          ) {
+              if (liquidacion.estado === "PENDIENTE_AUTORIZACION") {
+                  actions.push(
+                      `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`
+                  );
+              }
+          }
 
-      // Actions for CONTABILIDAD
-      if (
-        window.userPermissions.revisar_liquidaciones &&
-        window.userRole === "CONTABILIDAD"
-      ) {
-        if (liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD") {
-          actions.push(
-            `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`
-          );
-        }
-        if (liquidacion.estado === "FINALIZADO") {
-          actions.push(
-            `<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`
-          );
-        }
-      }
+          // Actions for Contabilidad-like roles
+          if (
+              window.userPermissions.revisar_liquidaciones &&
+              window.isContabilidadLike
+          ) {
+              if (liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD") {
+                  actions.push(
+                      `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`
+                  );
+              }
+              if (liquidacion.estado === "FINALIZADO") {
+                  actions.push(
+                      `<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`
+                  );
+              }
+          }
 
-      const actionsHtml = actions.join(" ");
-      const estado =
-        liquidacion.estado && liquidacion.estado !== "N/A"
-          ? liquidacion.estado
-          : "EN_PROCESO";
+          const actionsHtml = actions.join(" ");
+          const estado =
+              liquidacion.estado && liquidacion.estado !== "N/A"
+                  ? liquidacion.estado
+                  : "EN_PROCESO";
 
-      tbody.innerHTML += `
-          <tr>
-              <td data-label="ID">${liquidacion.id}</td>
-              <td data-label="Caja Chica">${
-                liquidacion.nombre_caja_chica || "N/A"
-              }</td>
-              <td data-label="Fecha Creación">${
-                liquidacion.fecha_creacion || "N/A"
-              }</td>
-              <td data-label="Fecha Inicio">${
-                liquidacion.fecha_inicio || "N/A"
-              }</td>
-              <td data-label="Fecha Fin">${liquidacion.fecha_fin || "N/A"}</td>
-              <td data-label="Monto Total">${parseFloat(
-                liquidacion.monto_total || 0
-              ).toFixed(2)}</td>
-              <td data-label="Estado">${estado}</td>
-              <td data-label="Acciones" style="
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-">${actionsHtml}</td>
-          </tr>
-        `;
-    });
+          tbody.innerHTML += `
+              <tr>
+                  <td data-label="ID">${liquidacion.id}</td>
+                  <td data-label="Caja Chica">${
+                      liquidacion.nombre_caja_chica || "N/A"
+                  }</td>
+                  <td data-label="Fecha Creación">${
+                      liquidacion.fecha_creacion || "N/A"
+                  }</td>
+                  <td data-label="Fecha Inicio">${
+                      liquidacion.fecha_inicio || "N/A"
+                  }</td>
+                  <td data-label="Fecha Fin">${liquidacion.fecha_fin || "N/A"}</td>
+                  <td data-label="Monto Total">${parseFloat(
+                      liquidacion.monto_total || 0
+                  ).toFixed(2)}</td>
+                  <td data-label="Estado">${estado}</td>
+                  <td data-label="Acciones" style="
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+  ">${actionsHtml}</td>
+              </tr>
+          `;
+      });
   } else {
-    tbody.innerHTML =
-      '<tr><td colspan="8">No hay liquidaciones disponibles.</td></tr>';
+      tbody.innerHTML =
+          '<tr><td colspan="8">No hay liquidaciones disponibles.</td></tr>';
   }
 
   // Render pagination controls
@@ -429,16 +429,12 @@ function renderPagination() {
 }
 
 function renderCorrectedDetalles() {
-  const correctedDetallesSection = document.querySelector(
-    "#correctedDetallesSection"
-  );
-  const correctedDetallesTbody = document.querySelector(
-    "#correctedDetallesTable tbody"
-  );
+  const correctedDetallesSection = document.querySelector("#correctedDetallesSection");
+  const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
   const mode = new URLSearchParams(window.location.search).get("mode") || "";
 
   if (
-    window.userRole === "SUPERVISOR" &&
+    window.userRole.toUpperCase().includes("SUPERVISOR") &&
     mode === "autorizar" &&
     correctedDetallesData.length > 0 &&
     isShowingCorrected
@@ -449,7 +445,7 @@ function renderCorrectedDetalles() {
       const actions = [];
       if (
         window.userPermissions.autorizar_liquidaciones &&
-        window.userRole === "SUPERVISOR"
+        window.userRole.toUpperCase().includes("SUPERVISOR")
       ) {
         actions.push(
           `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'autorizar')" class="edit-btn">Autorizar</button>`
@@ -464,100 +460,66 @@ function renderCorrectedDetalles() {
       const actionsHtml = actions.join(" ");
 
       let archivosHtml = "N/A";
-      if (detalle.rutas_archivos) {
+      if (detalle.rutas_archivos && detalle.rutas_archivos.length > 0) {
         try {
-          const rutas =
-            typeof detalle.rutas_archivos === "string"
-              ? JSON.parse(detalle.rutas_archivos)
-              : detalle.rutas_archivos;
+          const rutas = Array.isArray(detalle.rutas_archivos)
+            ? detalle.rutas_archivos
+            : JSON.parse(detalle.rutas_archivos);
+
           if (Array.isArray(rutas) && rutas.length > 0) {
             archivosHtml = rutas
               .map((ruta) => {
-                const normalizedPath = ruta.startsWith("uploads/")
-                  ? ruta
-                  : `uploads/${ruta.replace(/^\/+/, "")}`;
-                return `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
+                // Normalize path: convert backslashes to forward slashes, ensure proper format
+                let normalizedPath = ruta
+                  .replace(/\\/g, "/") // Convert \ to /
+                  .replace(/^\/+/, ""); // Remove leading slashes
+                // Ensure path starts with Uploads/, but don't prepend if already correct
+                if (!normalizedPath.startsWith("Uploads/")) {
+                  normalizedPath = `Uploads/${normalizedPath}`;
+                }
+                return `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Archivos</a></div>`;
               })
               .join("");
-          } else if (typeof rutas === "string" && rutas.trim().length > 0) {
-            const normalizedPath = rutas.startsWith("uploads/")
-              ? rutas
-              : `uploads/${rutas.replace(/^\/+/, "")}`;
-            archivosHtml = `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
           }
         } catch (e) {
-          console.warn(
-            "Error parsing rutas_archivos, treating as single path:",
-            e
-          );
-          if (detalle.rutas_archivos.trim().length > 0) {
-            const normalizedPath = detalle.rutas_archivos.startsWith("uploads/")
-              ? detalle.rutas_archivos
-              : `uploads/${detalle.rutas_archivos.replace(/^\/+/, "")}`;
-            archivosHtml = `<div><a href="../${normalizedPath}" target="_blank">Ver Archivo</a></div>`;
+          console.warn("Error parsing rutas_archivos, treating as single path:", e);
+          if (typeof detalle.rutas_archivos === "string" && detalle.rutas_archivos.trim().length > 0) {
+            let normalizedPath = detalle.rutas_archivos
+              .replace(/\\/g, "/") // Convert \ to /
+              .replace(/^\/+/, ""); // Remove leading slashes
+            if (!normalizedPath.startsWith("Uploads/")) {
+              normalizedPath = `Uploads/${normalizedPath}`;
+            }
+            archivosHtml = `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Documentos</a></div>`;
           }
         }
       }
 
       correctedDetallesTbody.innerHTML += `
-                        <tr>
-                            <td data-label="ID">${detalle.id || "N/A"}</td>
-                            <td data-label="Tipo de Documento">${
-                              detalle.tipo_documento || "N/A"
-                            }</td>
-                            <td data-label="No. Factura">${
-                              detalle.no_factura || "N/A"
-                            }</td>
-                            <td data-label="Proveedor">${
-                              detalle.nombre_proveedor || "N/A"
-                            }</td>
-                            <td data-label="NIT">${
-                              detalle.nit_proveedor || "N/A"
-                            }</td>
-                            <td data-label="DPI">${detalle.dpi || "N/A"}</td>
-                            <td data-label="Cantidad">${
-                              detalle.cantidad || "N/A"
-                            }</td>
-                            <td data-label="Serie">${
-                              detalle.serie || "N/A"
-                            }</td>
-                            <td data-label="Centro de Costo">${
-                              detalle.nombre_centro_costo || "N/A"
-                            }</td>
-                            <td data-label="Tipo de Gasto">${
-                              detalle.t_gasto || "N/A"
-                            }</td>
-                            <td data-label="Tipo de Combustible">${
-                              detalle.tipo_combustible || "N/A"
-                            }</td>
-                            <td data-label="Cuenta Contable">${
-                              detalle.cuenta_contable_nombre || "N/A"
-                            }</td>
-                            <td data-label="Fecha">${
-                              detalle.fecha || "N/A"
-                            }</td>
-                            <td data-label="Subtotal">${parseFloat(
-                              detalle.subtotal || 0
-                            ).toFixed(2)}</td>
-                            <td data-label="IVA">${parseFloat(
-                              detalle.iva || 0
-                            ).toFixed(2)}</td>
-                            <td data-label="IDP">${parseFloat(
-                              detalle.idp || 0
-                            ).toFixed(2)}</td>
-                            <td data-label="INGUAT">${parseFloat(
-                              detalle.inguat || 0
-                            ).toFixed(2)}</td>
-                            <td data-label="Total Bruto">${parseFloat(
-                              detalle.total_factura || 0
-                            ).toFixed(2)}</td>
-                            <td data-label="Estado">${
-                              detalle.estado || "N/A"
-                            }</td>
-                            <td data-label="Archivos">${archivosHtml}</td>
-                            <td data-label="Acciones">${actionsHtml}</td>
-                        </tr>
-                    `;
+        <tr>
+            <td data-label="ID">${detalle.id || "N/A"}</td>
+            <td data-label="Tipo de Documento">${detalle.tipo_documento || "N/A"}</td>
+            <td data-label="No Factura">${detalle.no_factura || "N/A"}</td>
+            <td data-label="Proveedor">${detalle.nombre_proveedor || "N/A"}</td>
+            <td data-label="NIT">${detalle.nit_proveedor || "N/A"}</td>
+            <td data-label="DPI">${detalle.dpi || "N/A"}</td>
+            <td data-label="Cantidad">${detalle.cantidad || "N/A"}</td>
+            <td data-label="Serie">${detalle.serie || "N/A"}</td>
+            <td data-label="Centro Costo">${detalle.nombre_centro_costo || "N/A"}</td>
+            <td data-label="Tipo de Gasto">${detalle.t_gasto || "N/A"}</td>
+            <td data-label="Tipo de Combustible">${detalle.tipo_combustible || "N/A"}</td>
+            <td data-label="Cuenta Contable">${detalle.cuenta_contable_nombre || "N/A"}</td>
+            <td data-label="Fecha">${detalle.fecha || "N/A"}</td>
+            <td data-label="Subtotal">${parseFloat(detalle.subtotal || 0).toFixed(2)}</td>
+            <td data-label="IVA">${parseFloat(detalle.iva || 0).toFixed(2)}</td>
+            <td data-label="IDP">${parseFloat(detalle.idp || 0).toFixed(2)}</td>
+            <td data-label="INGUAT">${parseFloat(detalle.inguat || 0).toFixed(2)}</td>
+            <td data-label="Total Bruto">${parseFloat(detalle.total_factura || 0).toFixed(2)}</td>
+            <td data-label="Estado">${detalle.estado || "N/A"}</td>
+            <td data-label="Archivos">${archivosHtml}</td>
+            <td data-label="Acciones">${actionsHtml}</td>
+        </tr>
+      `;
     });
   } else {
     correctedDetallesSection.style.display = "none";
@@ -784,36 +746,42 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
     }
     const detailData = await detailResponse.json();
     const correccionComentario = detailData.correccion_comentario || "";
-    const idUsuario = detailData.id_usuario || null;
+    const idUsuarioDetalle = detailData.id_usuario || null; // Detail creator
+    const estadoDetalle = (detailData.estado || "N/A").toUpperCase();
 
-    if (!idUsuario) {
+    console.log('Detail info:', { detalleId, liquidacionId, action, estadoLiquidacion, estadoDetalle, correccionComentario, userRole: window.userRole, currentUserId: window.userId, detailUserId: idUsuarioDetalle });
+
+    if (!idUsuarioDetalle) {
       throw new Error("No se encontró el usuario asociado al detalle.");
     }
 
+    if (!window.userId) {
+      throw new Error("No se encontró el ID del usuario actual.");
+    }
+
+    // Show finalized liquidation modal for all details if liquidation is FINALIZADO
     if (
-      window.userRole === "SUPERVISOR" &&
-      estadoLiquidacion === "FINALIZADO" &&
-      correccionComentario.trim().length > 0
+      window.userRole.toUpperCase().includes("SUPERVISOR") &&
+      estadoLiquidacion === "FINALIZADO"
     ) {
       const enProcesoResponse = await fetch(
-        `index.php?controller=liquidacion&action=getEnProcesoLiquidaciones&user_id=${idUsuario}`,
+        `index.php?controller=liquidacion&action=getEnProcesoLiquidaciones&user_id=${idUsuarioDetalle}`,
         {
           headers: {
             "X-Requested-With": "XMLHttpRequest",
           },
         }
       );
-      if (!enProcesoResponse.ok) {
+      let enProcesoLiquidaciones = [];
+      if (enProcesoResponse.ok) {
+        const enProcesoData = await enProcesoResponse.json();
+        enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
+      } else {
         const errorText = await enProcesoResponse.text();
-        throw new Error(
-          `Error al obtener liquidaciones en proceso: ${errorText}`
-        );
+        throw new Error(`Error al obtener liquidaciones en proceso: ${errorText}`);
       }
-      const enProcesoData = await enProcesoResponse.json();
-      const enProcesoLiquidaciones = enProcesoData.liquidaciones || [];
 
-      let message =
-        "Ya no se puede autorizar ya que la liquidación fue finalizada. ¿Qué deseas hacer?";
+      let message = `No se puede autorizar ya que la liquidación fue finalizada. ¿Qué deseas hacer con el detalle ID ${detalleId}?`;
       const options = [
         { text: "Iniciar una nueva liquidación con este detalle" },
       ];
@@ -826,8 +794,11 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
         text: "Eliminar el detalle (si tiene comentario de corrección)",
       });
 
+      console.log('Modal options:', options);
+
       return new Promise((resolve) => {
         showFinalizedDetailModal(message, options, async (choiceNum) => {
+          // Use 1-based indexing to match submitCorrections
           if (enProcesoLiquidaciones.length > 0) {
             if (choiceNum === 1) {
               const newLiquidacionResponse = await fetch(
@@ -836,7 +807,7 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   method: "POST",
                   body: JSON.stringify({
                     detalle_id: detalleId,
-                    user_id: idUsuario,
+                    user_id: idUsuarioDetalle,
                   }),
                   headers: {
                     "Content-Type": "application/json",
@@ -844,20 +815,14 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   },
                 }
               );
-              const contentType =
-                newLiquidacionResponse.headers.get("content-type");
-              if (!contentType || !contentType.includes("application/json")) {
-                const text = await newLiquidacionResponse.text();
-                throw new Error(`Respuesta no es JSON válida: ${text}`);
-              }
               const newLiquidacionResult = await newLiquidacionResponse.json();
               if (!newLiquidacionResponse.ok) {
                 throw new Error(
-                  newLiquidacionResult.error ||
-                    "Error al crear una nueva liquidación"
+                  newLiquidacionResult.error || "Error al crear una nueva liquidación"
                 );
               }
               alert("Nueva liquidación creada correctamente");
+              window.location.reload();
             } else if (choiceNum === 2) {
               return new Promise((innerResolve) => {
                 showSelectLiquidationModal(
@@ -876,7 +841,7 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                           body: JSON.stringify({
                             detalle_id: detalleId,
                             liquidacion_id: selectedLiquidacionId,
-                            user_id: idUsuario,
+                            user_id: idUsuarioDetalle,
                           }),
                           headers: {
                             "Content-Type": "application/json",
@@ -884,15 +849,6 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                           },
                         }
                       );
-                      const contentType =
-                        addDetailResponse.headers.get("content-type");
-                      if (
-                        !contentType ||
-                        !contentType.includes("application/json")
-                      ) {
-                        const text = await addDetailResponse.text();
-                        throw new Error(`Respuesta no es JSON válida: ${text}`);
-                      }
                       const addDetailResult = await addDetailResponse.json();
                       if (!addDetailResponse.ok) {
                         throw new Error(
@@ -903,10 +859,11 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                       alert(
                         "Detalle agregado a la liquidación en proceso correctamente"
                       );
+                      window.location.reload();
                     } else {
                       alert("Selección inválida. Operación cancelada.");
+                      innerResolve();
                     }
-                    innerResolve();
                   }
                 );
               });
@@ -920,12 +877,6 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   },
                 }
               );
-              const contentType =
-                deleteDetailResponse.headers.get("content-type");
-              if (!contentType || !contentType.includes("application/json")) {
-                const text = await deleteDetailResponse.text();
-                throw new Error(`Respuesta no es JSON válida: ${text}`);
-              }
               const deleteDetailResult = await deleteDetailResponse.json();
               if (!deleteDetailResponse.ok) {
                 throw new Error(
@@ -933,6 +884,7 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                 );
               }
               alert("Detalle eliminado correctamente");
+              window.location.reload();
             } else {
               alert("Opción inválida. Operación cancelada.");
               resolve();
@@ -945,7 +897,7 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   method: "POST",
                   body: JSON.stringify({
                     detalle_id: detalleId,
-                    user_id: idUsuario,
+                    user_id: idUsuarioDetalle,
                   }),
                   headers: {
                     "Content-Type": "application/json",
@@ -953,20 +905,14 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   },
                 }
               );
-              const contentType =
-                newLiquidacionResponse.headers.get("content-type");
-              if (!contentType || !contentType.includes("application/json")) {
-                const text = await newLiquidacionResponse.text();
-                throw new Error(`Respuesta no es JSON válida: ${text}`);
-              }
               const newLiquidacionResult = await newLiquidacionResponse.json();
               if (!newLiquidacionResponse.ok) {
                 throw new Error(
-                  newLiquidacionResult.error ||
-                    "Error al crear una nueva liquidación"
+                  newLiquidacionResult.error || "Error al crear una nueva liquidación"
                 );
               }
               alert("Nueva liquidación creada correctamente");
+              window.location.reload();
             } else if (choiceNum === 2) {
               const deleteDetailResponse = await fetch(
                 `index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`,
@@ -977,12 +923,6 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                   },
                 }
               );
-              const contentType =
-                deleteDetailResponse.headers.get("content-type");
-              if (!contentType || !contentType.includes("application/json")) {
-                const text = await deleteDetailResponse.text();
-                throw new Error(`Respuesta no es JSON válida: ${text}`);
-              }
               const deleteDetailResult = await deleteDetailResponse.json();
               if (!deleteDetailResponse.ok) {
                 throw new Error(
@@ -990,12 +930,12 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
                 );
               }
               alert("Detalle eliminado correctamente");
+              window.location.reload();
             } else {
               alert("Opción inválida. Operación cancelada.");
               resolve();
             }
           }
-          loadLiquidaciones();
           resolve();
         });
       });
@@ -1006,7 +946,7 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
     formData.append("action", action);
     formData.append(
       "motivo",
-      prompt("Por favor, ingresa el motivo de esta acción:")
+      prompt("Por favor, ingresa el motivo de esta acción:") || ""
     );
 
     const processResponse = await fetch(
@@ -1019,17 +959,20 @@ async function autorizarDetalle(detalleId, liquidacionId, action) {
         },
       }
     );
+
+    let result;
     const contentType = processResponse.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
+    if (contentType && contentType.includes("application/json")) {
+      result = await processResponse.json();
+      if (!processResponse.ok) {
+        throw new Error(result.error || "Error al procesar el detalle");
+      }
+    } else {
       const text = await processResponse.text();
       throw new Error(`Respuesta no es JSON válida: ${text}`);
     }
-    const result = await processResponse.json();
-    if (!processResponse.ok) {
-      throw new Error(result.error || "Error al procesar el detalle");
-    }
 
-    alert(result.message || `Detalle ${action} correctamente`);
+    alert(result.message || `Detalle ${detalleId} ${action} correctamente`);
     loadLiquidaciones();
   } catch (error) {
     console.error("Error al procesar el detalle:", error);
@@ -1136,48 +1079,50 @@ async function exportToSap(id) {
 // Fetch supervisors from the backend
 async function fetchSupervisores() {
   try {
-    const response = await fetch(
-      "index.php?controller=usuario&action=getSupervisores",
-      {
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-        },
+      const response = await fetch("index.php?controller=usuario&action=getSupervisores", {
+          headers: {
+              "X-Requested-With": "XMLHttpRequest",
+          },
+      });
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Error HTTP: ${response.status}`);
       }
-    );
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
-    }
-    supervisores = await response.json();
-    return supervisores;
+      const supervisores = await response.json();
+      return supervisores;
   } catch (error) {
-    console.error("Error al cargar supervisores:", error);
-    alert("Error al cargar la lista de supervisores: " + error.message);
-    return [];
+      console.error("Error al cargar supervisores:", error);
+      alert("Error al cargar la lista de supervisores: " + error.message);
+      return [];
   }
 }
 
 async function fetchContadores() {
   try {
-    const response = await fetch(
-      "index.php?controller=usuario&action=getContadores",
-      {
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-        },
+      const response = await fetch("index.php?controller=usuario&action=getContadores", {
+          headers: {
+              "X-Requested-With": "XMLHttpRequest",
+          },
+      });
+      if (!response.ok) {
+          let errorData;
+          try {
+              errorData = await response.json();
+          } catch (jsonError) {
+              // Handle non-JSON response
+              const text = await response.text();
+              console.error("Non-JSON response:", text);
+              throw new Error(`HTTP error: ${response.status} - Invalid response format`);
+          }
+          throw new Error(errorData.error || `HTTP error: ${response.status}`);
       }
-    );
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
-    }
-    const contadores = await response.json();
-    console.log("Contadores disponibles:", contadores);
-    return contadores;
+      const contadores = await response.json();
+      console.log("Contadores disponibles:", contadores); // Debugging
+      return contadores;
   } catch (error) {
-    console.error("Error al cargar contadores:", error);
-    alert("Error al cargar la lista de contadores: " + error.message);
-    return [];
+      console.error("Error al cargar contadores:", error);
+      alert("Error al cargar la lista de contadores: " + error.message);
+      return [];
   }
 }
 
@@ -1189,29 +1134,28 @@ async function showContadoresModal() {
 
 // Show the supervisor selection modal
 async function showSupervisorModal() {
+  const supervisorModal = document.getElementById('supervisorModal');
+  const supervisorSelect = document.getElementById('supervisorSelect');
+
   if (!supervisorModal || !supervisorSelect) {
-    console.error("Supervisor modal o select no encontrados en el DOM");
-    alert(
-      "Error: No se encontró el modal de selección de supervisores. Intenta de nuevo."
-    );
-    return;
+      console.error("Supervisor modal o select no encontrados en el DOM");
+      alert("Error: No se encontró el modal de selección de supervisores. Intenta de nuevo.");
+      return;
   }
 
   // Fetch supervisors and populate the dropdown
   const supervisoresList = await fetchSupervisores();
-  supervisorSelect.innerHTML =
-    '<option value="">Selecciona un supervisor...</option>';
+  supervisorSelect.innerHTML = '<option value="">Selecciona un supervisor...</option>';
 
   if (supervisoresList.length === 0) {
-    supervisorSelect.innerHTML +=
-      '<option value="" disabled>No hay supervisores disponibles</option>';
+      supervisorSelect.innerHTML += '<option value="" disabled>No hay supervisores disponibles</option>';
   } else {
-    supervisoresList.forEach((supervisor) => {
-      const option = document.createElement("option");
-      option.value = supervisor.id;
-      option.textContent = `${supervisor.nombre} (${supervisor.email})`;
-      supervisorSelect.appendChild(option);
-    });
+      supervisoresList.forEach((supervisor) => {
+          const option = document.createElement("option");
+          option.value = supervisor.id;
+          option.textContent = `${supervisor.nombre} (${supervisor.email})`;
+          supervisorSelect.appendChild(option);
+      });
   }
 
   supervisorModal.classList.add("active");

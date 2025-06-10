@@ -3,8 +3,8 @@ require_once '../models/Liquidacion.php';
 require_once '../models/DetalleLiquidacion.php';
 require_once '../models/CajaChica.php';
 require_once '../models/Usuario.php';
+require_once '../models/CuentaContable.php';
 
-// Asegúrate de incluir las librerías
 require_once '../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -16,12 +16,15 @@ class ReportesController {
     private $detalleLiquidacionModel;
     private $cajaChicaModel;
     private $usuarioModel;
+    private $baseUrl;
 
     public function __construct() {
         $this->liquidacionModel = new Liquidacion();
         $this->detalleLiquidacionModel = new DetalleLiquidacion();
         $this->cajaChicaModel = new CajaChica();
         $this->usuarioModel = new Usuario();
+        // Define the base URL for absolute links (adjust for production)
+        $this->baseUrl = 'http://localhost:8080/agrocaja-chica/';
     }
 
     public function list() {
@@ -81,7 +84,6 @@ class ReportesController {
                     exit;
                 }
 
-                // Generar HTML para el reporte
                 ob_start();
                 ?>
                 <h2>Reporte de Resumen</h2>
@@ -170,7 +172,6 @@ class ReportesController {
                     exit;
                 }
 
-                // Generar HTML para el reporte
                 ob_start();
                 ?>
                 <h2>Reporte de Detalle</h2>
@@ -223,7 +224,6 @@ class ReportesController {
     }
 
     private function exportResumenToPDF($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
-        // Limpiar cualquier buffer de salida previo
         while (ob_get_level()) {
             ob_end_clean();
         }
@@ -231,7 +231,7 @@ class ReportesController {
         try {
             $mpdf = new Mpdf([
                 'mode' => 'utf-8',
-                'format' => 'A4-L', // Landscape orientation
+                'format' => 'A4-L',
                 'margin_top' => 20,
                 'margin_bottom' => 20,
                 'margin_left' => 15,
@@ -240,7 +240,6 @@ class ReportesController {
             $mpdf->SetTitle('Reporte de Resumen');
             $mpdf->SetAuthor('AgroCaja Chica');
 
-            // Generar el contenido HTML para el PDF
             $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Resumen de Liquidaciones</h1>';
             $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
             if ($idCajaChica) {
@@ -279,7 +278,6 @@ class ReportesController {
                 $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($estado) . '</td>';
                 $html .= '</tr>';
 
-                // Fetch and add detalles for this liquidation
                 $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
                 if (!empty($detalles)) {
                     $html .= '<tr>';
@@ -318,11 +316,8 @@ class ReportesController {
             $html .= '</table>';
 
             $mpdf->WriteHTML($html);
-
-            // Enviar el PDF al navegador
             $mpdf->Output('reporte_resumen.pdf', 'D');
             exit;
-
         } catch (Exception $e) {
             header('Content-Type: application/json');
             http_response_code(500);
@@ -332,7 +327,6 @@ class ReportesController {
     }
 
     private function exportResumenToExcel($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
-        // Limpiar cualquier buffer de salida previo
         if (ob_get_length()) {
             ob_end_clean();
         }
@@ -340,13 +334,11 @@ class ReportesController {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Título
         $sheet->setCellValue('A1', 'Reporte de Resumen de Liquidaciones');
         $sheet->mergeCells('A1:F1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
 
-        // Filtros
         $sheet->setCellValue('A2', "Fecha Inicio: $fechaInicio");
         $sheet->mergeCells('A2:F2');
         $sheet->setCellValue('A3', "Fecha Fin: $fechaFin");
@@ -357,7 +349,6 @@ class ReportesController {
             $sheet->mergeCells('A4:F4');
         }
 
-        // Encabezados de la tabla
         $sheet->setCellValue('A5', 'ID');
         $sheet->setCellValue('B5', 'Caja Chica');
         $sheet->setCellValue('C5', 'Fecha Creación');
@@ -368,7 +359,6 @@ class ReportesController {
         $sheet->getStyle('A5:F5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF2C3E50');
         $sheet->getStyle('A5:F5')->getFont()->getColor()->setARGB('FFFFFFFF');
 
-        // Contenido de la tabla
         $row = 6;
         foreach ($liquidaciones as $liquidacion) {
             $sheet->setCellValue("A$row", $liquidacion['id']);
@@ -380,7 +370,6 @@ class ReportesController {
             $row++;
         }
 
-        // Ajustar el ancho de las columnas
         foreach (range('A', 'F') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
@@ -394,7 +383,6 @@ class ReportesController {
     }
 
     private function exportDetalleToPDF($detalles, $fechaInicio, $fechaFin, $idCajaChica) {
-        // Limpiar cualquier buffer de salida previo
         while (ob_get_level()) {
             ob_end_clean();
         }
@@ -411,7 +399,6 @@ class ReportesController {
             $mpdf->SetTitle('Reporte de Detalle');
             $mpdf->SetAuthor('AgroCaja Chica');
 
-            // Generar el contenido HTML para el PDF
             $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Detalle de Liquidaciones</h1>';
             $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
             if ($idCajaChica) {
@@ -461,11 +448,8 @@ class ReportesController {
             $html .= '</table>';
 
             $mpdf->WriteHTML($html);
-
-            // Enviar el PDF al navegador
             $mpdf->Output('reporte_detalle.pdf', 'D');
             exit;
-
         } catch (Exception $e) {
             header('Content-Type: application/json');
             http_response_code(500);
@@ -475,7 +459,6 @@ class ReportesController {
     }
 
     private function exportDetalleToExcel($detalles, $fechaInicio, $fechaFin, $idCajaChica) {
-        // Limpiar cualquier buffer de salida previo
         if (ob_get_length()) {
             ob_end_clean();
         }
@@ -483,13 +466,11 @@ class ReportesController {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Título
         $sheet->setCellValue('A1', 'Reporte de Detalle de Liquidaciones');
         $sheet->mergeCells('A1:H1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
 
-        // Filtros
         $sheet->setCellValue('A2', "Fecha Inicio: $fechaInicio");
         $sheet->mergeCells('A2:H2');
         $sheet->setCellValue('A3', "Fecha Fin: $fechaFin");
@@ -500,7 +481,6 @@ class ReportesController {
             $sheet->mergeCells('A4:H4');
         }
 
-        // Encabezados de la tabla
         $sheet->setCellValue('A5', 'ID');
         $sheet->setCellValue('B5', 'Liquidación Fecha');
         $sheet->setCellValue('C5', 'Caja Chica');
@@ -513,7 +493,6 @@ class ReportesController {
         $sheet->getStyle('A5:H5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF2C3E50');
         $sheet->getStyle('A5:H5')->getFont()->getColor()->setARGB('FFFFFFFF');
 
-        // Contenido de la tabla
         $row = 6;
         foreach ($detalles as $detalle) {
             $sheet->setCellValue("A$row", $detalle['id']);
@@ -527,7 +506,6 @@ class ReportesController {
             $row++;
         }
 
-        // Ajustar el ancho de las columnas
         foreach (range('A', 'H') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
@@ -540,7 +518,6 @@ class ReportesController {
         exit;
     }
 
-    // New method to fetch detalles for a specific liquidation
     public function getDetallesByLiquidacion() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
@@ -548,7 +525,7 @@ class ReportesController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $idLiquidacion = $_POST['id_liquidacion'] ?? null;
         if (!$idLiquidacion) {
             header('Content-Type: application/json');
@@ -556,7 +533,7 @@ class ReportesController {
             echo json_encode(['error' => 'ID de liquidación no proporcionado']);
             exit;
         }
-    
+
         try {
             $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
             ob_start();
@@ -612,31 +589,31 @@ class ReportesController {
                                 <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
                                 <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
                                 <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-                        <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                        <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                        <td data-label="Archivos">
-                            <?php
-                            $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                            if (is_array($rutas) && !empty($rutas)) {
-                                foreach ($rutas as $ruta) {
-                                    echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                                }
-                            } else {
-                                echo 'N/A';
-                            }
-                            ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            </tbody>
-        </table>
-        <div class="export-buttons">
-            <button class="btn-export btn-export-pdf" onclick="exportDetallesToPDF(<?php echo $idLiquidacion; ?>)">Exportar a PDF</button>
-        </div>
-        <?php
-        $html = ob_get_clean();
-        echo $html;
+                                <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                                <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
+                                <td data-label="Archivos">
+                                    <?php
+                                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                                    if (is_array($rutas) && !empty($rutas)) {
+                                        foreach ($rutas as $ruta) {
+                                            echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
+                                        }
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <div class="export-buttons">
+                <button class="btn-export btn-export-pdf" onclick="exportDetallesToPDF(<?php echo $idLiquidacion; ?>)">Exportar a PDF</button>
+            </div>
+            <?php
+            $html = ob_get_clean();
+            echo $html;
         } catch (Exception $e) {
             header('Content-Type: application/json');
             http_response_code(500);
@@ -646,46 +623,38 @@ class ReportesController {
     }
 
     public function exportDetallesToPDF($idLiquidacion) {
-        // Ensure no output occurs before PDF generation
         if (ob_get_length()) {
             ob_end_clean();
         }
     
         try {
-            // Validate input
             if (!is_numeric($idLiquidacion) || $idLiquidacion <= 0) {
                 throw new Exception('ID de liquidación inválido: ' . $idLiquidacion);
             }
     
-            // Log the start of the process
             error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
     
-            // Fetch data
             $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
             if ($detalles === false) {
-                throw new Exception('Error al obtener detalles de la liquidación: método getDetallesByLiquidacionId devolvió false');
+                throw new Exception('Error al obtener detalles de la liquidación');
             }
     
             $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
             if ($liquidacion === false) {
-                throw new Exception('Error al obtener liquidación: método getLiquidacionById devolvió false');
+                throw new Exception('Error al obtener liquidación');
             }
     
-            // Fetch Caja Chica name
             $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
             $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
     
-            // Enrich detalles with cuenta_contable_nombre
             $cuentaContableModel = new CuentaContable();
-            $totalGeneral = 0; // Initialize total sum
-            $gastosPorTipo = []; // Array to store totals by t_gasto
+            $totalGeneral = 0;
+            $gastosPorTipo = [];
     
             foreach ($detalles as &$detalle) {
                 $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
                 $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
-                // Calculate total sum
                 $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
-                // Group by t_gasto
                 $tipoGasto = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : 'Sin Clasificar';
                 if (!isset($gastosPorTipo[$tipoGasto])) {
                     $gastosPorTipo[$tipoGasto] = 0;
@@ -696,11 +665,10 @@ class ReportesController {
     
             error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
     
-            // Initialize mPDF with custom settings
             $mpdf = new Mpdf([
                 'mode' => 'utf-8',
-                'format' => 'A4-L', // Landscape orientation
-                'margin_top' => 40,
+                'format' => 'A4-L',
+                'margin_top' => 20, // Reduced from 40 to minimize top margin
                 'margin_bottom' => 30,
                 'margin_left' => 20,
                 'margin_right' => 20,
@@ -710,22 +678,24 @@ class ReportesController {
             $mpdf->SetTitle('Reporte de Detalles de Liquidación');
             $mpdf->SetAuthor('AgroCaja Chica');
     
-            // Set footer content for every page (logo removed)
             $footerHtml = '
                 <div style="text-align: center; color: #6b7280; font-size: 9px;">
                     <p>Página {PAGENO} de {nbpg}</p>
                 </div>';
             $mpdf->SetFooter($footerHtml);
     
-            // Add custom CSS for styling
             $stylesheet = '
                 body {
                     color: #2d3748;
                     font-family: "Helvetica", sans-serif;
                 }
+                .content-container {
+                    margin-top: -10px; 
+                    padding-top: 10px; 
+                }
                 .logo-container {
                     text-align: center;
-                    margin-top: 0px;
+                    margin-bottom: 10px; /* Reduced space below logo */
                 }
                 .logo-container img {
                     max-width: 150px;
@@ -746,14 +716,14 @@ class ReportesController {
                 }
                 .info {
                     text-align: center;
-                    margin-bottom: 0px;
+                    margin-bottom: 20px;
                     color: #4a5568;
                     font-size: 11px;
                 }
                 .table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 0px;
+                    margin-bottom: 20px;
                     page-break-inside: auto;
                     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
                 }
@@ -796,6 +766,7 @@ class ReportesController {
                     margin-bottom: 10px;
                     text-align: center;
                 }
+                
                 .summary-table {
                     width: 50%;
                     margin: 0 auto;
@@ -820,12 +791,34 @@ class ReportesController {
                 .summary-table tr:nth-child(even) {
                     background-color: #f7fafc;
                 }
+                .images-section {
+                    margin-top: 30px;
+                }
+                .images-section h2 {
+                    font-size: 16px;
+                    color: #2b6cb0;
+                    margin-bottom: 10px;
+                    text-align: center;
+                }
+                
+                .images-section{
+                text-align: center;
+                }
+                .images-section a {
+                    color: #2b6cb0;
+                    text-decoration: underline;
+                    font-size: 10px;
+                    display: block;
+                    margin: 5px 0;
+                }
+                .images-section a:hover {
+                    color: #1a4971;
+                }
             ';
-            $mpdf->WriteHTML($stylesheet, 1); // 1 = stylesheet only
+            $mpdf->WriteHTML($stylesheet, 1);
     
-            // Build HTML for PDF
-            // Add logo at the top
-            $html = '<div class="logo-container">';
+            $html = '<div class="content-container">';
+            $html .= '<div class="logo-container">';
             $html .= '<img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo">';
             $html .= '</div>';
     
@@ -861,13 +854,12 @@ class ReportesController {
             $html .= '<th>INGUAT</th>';
             $html .= '<th>Total Bruto</th>';
             $html .= '<th>Estado</th>';
-            // $html .= '<th>Archivos</th>';
             $html .= '</tr>';
             $html .= '</thead>';
             $html .= '<tbody>';
     
             if (empty($detalles)) {
-                $html .= '<tr><td colspan="20" style="text-align: center;">No hay detalles disponibles.</td></tr>';
+                $html .= '<tr><td colspan="19" style="text-align: center;">No hay detalles disponibles.</td></tr>';
             } else {
                 foreach ($detalles as $detalle) {
                     $detalle['id'] = isset($detalle['id']) ? (string)$detalle['id'] : '';
@@ -889,7 +881,6 @@ class ReportesController {
                     $detalle['inguat'] = isset($detalle['inguat']) ? (float)$detalle['inguat'] : 0;
                     $detalle['total_factura'] = isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
                     $detalle['estado'] = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
-                    $detalle['rutas_archivos'] = isset($detalle['rutas_archivos']) ? $detalle['rutas_archivos'] : '';
     
                     $html .= '<tr>';
                     $html .= '<td>' . htmlspecialchars($detalle['id']) . '</td>';
@@ -911,31 +902,19 @@ class ReportesController {
                     $html .= '<td>' . number_format($detalle['inguat'], 2) . '</td>';
                     $html .= '<td>' . number_format($detalle['total_factura'], 2) . '</td>';
                     $html .= '<td>' . htmlspecialchars($detalle['estado']) . '</td>';
-                    // $html .= '<td>';
-                    // $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                    // if (is_array($rutas) && !empty($rutas)) {
-                    //     foreach ($rutas as $ruta) {
-                    //         $html .= htmlspecialchars((string)$ruta) . '<br>';
-                    //     }
-                    // } else {
-                    //     $html .= 'N/A';
-                    // }
-                    // $html .= '</td>';
                     $html .= '</tr>';
                 }
     
-                // Add total row
                 $html .= '<tr class="total-row">';
                 $html .= '<td colspan="17" style="text-align: right;">Total General:</td>';
                 $html .= '<td>' . number_format($totalGeneral, 2) . '</td>';
-                $html .= '<td colspan="2"></td>';
+                $html .= '<td></td>';
                 $html .= '</tr>';
             }
     
             $html .= '</tbody>';
             $html .= '</table>';
     
-            // Add summary section for gastos por tipo
             $html .= '<div class="summary-section">';
             $html .= '<h2>Resumen de Gastos por Tipo</h2>';
             $html .= '<table class="summary-table">';
@@ -950,7 +929,7 @@ class ReportesController {
             if (empty($gastosPorTipo)) {
                 $html .= '<tr><td colspan="2" style="text-align: center;">No hay datos de gastos por tipo.</td></tr>';
             } else {
-                ksort($gastosPorTipo); // Sort by t_gasto for better readability
+                ksort($gastosPorTipo);
                 foreach ($gastosPorTipo as $tipo => $total) {
                     $html .= '<tr>';
                     $html .= '<td>' . htmlspecialchars($tipo) . '</td>';
@@ -963,32 +942,50 @@ class ReportesController {
             $html .= '</table>';
             $html .= '</div>';
     
-            // Write HTML to PDF
-            $mpdf->WriteHTML($html, 2); // 2 = HTML + content
+            $html .= '<div class="images-section">';
+            $html .= '<h2>Archivos Adjuntos</h2>';
+            $hasFiles = false;
     
+            foreach ($detalles as $detalle) {
+                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                if (is_array($rutas) && !empty($rutas)) {
+                    foreach ($rutas as $ruta) {
+                        // Construct absolute URL
+                        $fileUrl = rtrim($this->baseUrl, '/') . '/' . ltrim($ruta, '/');
+                        $fileName = basename($ruta);
+                        $hasFiles = true;
+                        $html .= '<div>';
+                        $html .= '<p>Archivo de Factura #' . htmlspecialchars($detalle['no_factura']) . ':</p>';
+                        // $html .= '<a href="' . htmlspecialchars($fileUrl) . '" target="_blank">' . htmlspecialchars($fileName) . '</a>';
+                        $html .= '<img src="' . htmlspecialchars($fileUrl) . '" alt="" srcset="">';
+                        $html .= '</div>';
+                    }
+                }
+            }
+            if (!$hasFiles) {
+                $html .= '<p style="text-align: center;">No hay archivos disponibles.</p>';
+            }
+            $html .= '</div>';
+    
+            $html .= '</div>'; // Close content-container
+    
+            $mpdf->WriteHTML($html, 2);
             error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
     
-            // Set headers for PDF download
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('Pragma: no-cache');
             header('Expires: 0');
     
-            // Output the PDF
             $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
             error_log('PDF output completed for liquidation #' . $idLiquidacion);
             exit;
-    
         } catch (Exception $e) {
-            // Log the error
             error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
-    
-            // Ensure no PDF data has been sent before switching to JSON
             if (headers_sent()) {
                 exit;
             }
-    
             header('Content-Type: application/json');
             http_response_code(500);
             echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);

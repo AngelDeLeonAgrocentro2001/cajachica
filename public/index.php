@@ -158,7 +158,7 @@ switch ($controller) {
             $liquidacionController = new LiquidacionController();
             switch ($action) {
                 case 'list':
-                    $liquidacionController->listLiquidaciones($mode);
+                    $liquidacionController->listLiquidaciones();
                     break;
                 case 'create':
                     $liquidacionController->createLiquidacion();

@@ -2,6 +2,7 @@
 require_once '../models/Usuario.php';
 require_once '../models/Role.php';
 require_once '../models/Auditoria.php';
+require_once '../config/database.php';
 
 class UsuarioController {
     private $usuarioModel;
@@ -12,6 +13,7 @@ class UsuarioController {
         $this->usuarioModel = new Usuario();
         $this->rolModel = new Role();
         $this->auditoriaModel = new Auditoria();
+        $this->pdo = Database::getInstance()->getPdo();
     }
 
     private function assignPermissionsBasedOnRole($usuarioId, $rolId) {
@@ -29,6 +31,7 @@ class UsuarioController {
             'encargado' => 'ENCARGADO_CAJA_CHICA',
             'supervisor' => 'SUPERVISOR_AUTORIZADOR',
             'contador' => 'CONTABILIDAD',
+            'contabilidad' => 'CONTABILIDAD',
         ];
     
         $permisosPorRol = [
@@ -38,13 +41,14 @@ class UsuarioController {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
+                'manage_correcciones' => true,
+                'delete_liquidaciones' => true
             ],
             'SUPERVISOR_AUTORIZADOR' => [
                 'autorizar_liquidaciones' => true,
                 'autorizar_facturas' => true,
                 'manage_cuentas_contables' => true,
                 'manage_facturas' => true,
-                'revisar_liquidaciones' => true,
                 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
             ],
@@ -364,17 +368,24 @@ class UsuarioController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
+    
+        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuario) {
+            header('Content-Type: application/json');
+            http_response_code(404);
+            echo json_encode(['error' => 'Usuario no encontrado']);
+            exit;
+        }
+    
+        if (!$this->usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para acceder a la lista de supervisores']);
             exit;
         }
-
-        $supervisores = $usuarioModel->getUsuariosByRol('SUPERVISOR');
+    
+        // Fetch users with supervisor-like roles
+        $supervisores = $this->usuarioModel->getUsuariosBySupervisorRole();
         $supervisoresList = array_map(function($supervisor) {
             return [
                 'id' => $supervisor['id'],
@@ -382,49 +393,74 @@ class UsuarioController {
                 'email' => $supervisor['email']
             ];
         }, $supervisores);
-
+    
         header('Content-Type: application/json');
         echo json_encode($supervisoresList);
         exit;
     }
 
     public function getContadores() {
-        if (!isset($_SESSION['user_id'])) {
+        try {
+            if (!isset($_SESSION['user_id'])) {
+                header('Content-Type: application/json');
+                http_response_code(401);
+                echo json_encode(['error' => 'No autorizado']);
+                exit;
+            }
+
+            $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+            if (!$usuario) {
+                header('Content-Type: application/json');
+                http_response_code(404);
+                echo json_encode(['error' => 'Usuario no encontrado']);
+                exit;
+            }
+
+            if (!$this->usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && strtoupper($usuario['rol']) !== 'ADMIN') {
+                header('Content-Type: application/json');
+                http_response_code(403);
+                echo json_encode(['error' => 'No tienes permiso para acceder a la lista de contadores']);
+                exit;
+            }
+
+            // Fetch users with CONTABILIDAD-like roles
+            $stmt = $this->pdo->prepare("
+                SELECT u.* 
+                FROM usuarios u 
+                JOIN roles r ON u.id_rol = r.id 
+                WHERE UPPER(r.nombre) = 'CONTABILIDAD' 
+                OR UPPER(r.nombre) LIKE '%CONTADOR%' 
+                OR UPPER(r.nombre) LIKE '%CONTABILIDAD%' 
+                OR UPPER(r.descripcion) LIKE '%CONTADOR%' 
+                OR UPPER(r.descripcion) LIKE '%CONTABILIDAD%'
+            ");
+            $stmt->execute();
+            $contadores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $contadoresList = array_map(function($contador) {
+                return [
+                    'id' => $contador['id'],
+                    'nombre' => $contador['nombre'],
+                    'email' => $contador['email']
+                ];
+            }, $contadores);
+
             header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado']);
+            echo json_encode($contadoresList);
+            exit;
+        } catch (PDOException $e) {
+            error_log("Error en getContadores: " . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al consultar contadores: ' . $e->getMessage()]);
+            exit;
+        } catch (Exception $e) {
+            error_log("Error inesperado en getContadores: " . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error inesperado: ' . $e->getMessage()]);
             exit;
         }
-
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuario) {
-            header('Content-Type: application/json');
-            http_response_code(404);
-            echo json_encode(['error' => 'Usuario no encontrado']);
-            exit;
-        }
-
-        if (!$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') && strtoupper($usuario['rol']) !== 'ADMIN') {
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para acceder a la lista de contadores']);
-            exit;
-        }
-
-        // Fetch all users with the CONTABILIDAD role (corrected from CONTADOR)
-        $contadores = $usuarioModel->getUsuariosByRol('CONTABILIDAD');
-        $contadoresList = array_map(function($contador) {
-            return [
-                'id' => $contador['id'],
-                'nombre' => $contador['nombre'],
-                'email' => $contador['email']
-            ];
-        }, $contadores);
-
-        header('Content-Type: application/json');
-        echo json_encode($contadoresList);
-        exit;
     }
 }
 ?>

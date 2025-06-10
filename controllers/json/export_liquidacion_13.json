@@ -1,0 +1,47 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "DocDate": "2025-06-07",
+    "Comments": "Exportación Detalle Liquidación ID 13",
+    "U_NIT": "321052",
+    "Series": 82,
+    "DocTotal": "510.00",
+    "Reference1": "13",
+    "NumAtCard": "DLIQ-13-20250609T100600",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "Price": 23.57,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "Hospedaje",
+            "Price": 14.75,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 2,
+            "ItemDescription": "INGUAT",
+            "Price": 12.3,
+            "TaxCode": "EXE",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 3,
+            "ItemDescription": "otros...",
+            "Price": 15,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        }
+    ]
+}

@@ -47,6 +47,22 @@ class Usuario {
         return $result;
     }
 
+    // New method to fetch users with supervisor-like roles
+    public function getUsuariosBySupervisorRole() {
+        error_log("Buscando usuarios con roles de tipo supervisor");
+        $stmt = $this->pdo->prepare("
+            SELECT u.* 
+            FROM usuarios u 
+            JOIN roles r ON u.id_rol = r.id 
+            WHERE UPPER(r.nombre) LIKE '%SUPERVISOR%' 
+            OR UPPER(r.descripcion) LIKE '%SUPERVISOR%'
+        ");
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("Usuarios encontrados con roles de tipo supervisor: " . print_r($result, true));
+        return $result;
+    }
+
     public function createUsuario($nombre, $email, $password, $id_rol) {
         $stmt = $this->pdo->prepare("INSERT INTO usuarios (nombre, email, password, id_rol) VALUES (?, ?, ?, ?)");
         return $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol]);
@@ -102,11 +118,11 @@ class Usuario {
                 'autorizar_facturas' => true,
                 'manage_cuentas_contables' => true,
                 'manage_facturas' => true,
-                'revisar_facturas' => true,
-                'manage_correcciones' => true,
+                'revisar_liquidaciones' => true,
+                'revisar_detalles_liquidaciones' => true,
+                'revisar_facturas' => true
             ],
             self::ROL_CONTABILIDAD => [
-                'autorizar_liquidaciones' => true,
                 'revisar_liquidaciones' => true,
                 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
@@ -117,12 +133,22 @@ class Usuario {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
-                'manage_correcciones' => true,
             ],
         ];
     
         $permisosPredeterminados = [];
         $tienePermisoPredeterminado = false;
+    
+        // Fetch role description
+        $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
+        $stmt->execute([$rolId]);
+        $rolData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $descripcion = $rolData['descripcion'] ?? '';
+    
+        $isContabilidadRole = strpos(strtoupper($rol), 'CONTADOR') !== false || 
+                             strpos(strtoupper($rol), 'CONTABILIDAD') !== false ||
+                             strpos(strtoupper($descripcion), 'CONTADOR') !== false || 
+                             strpos(strtoupper($descripcion), 'CONTABILIDAD') !== false;
     
         if (strpos($rol, self::ROL_ADMIN) !== false) {
             $stmt = $this->pdo->query("SELECT nombre FROM permisos");
@@ -135,10 +161,11 @@ class Usuario {
             if (strpos($rol, self::ROL_ENCARGADO_CAJA_CHICA) !== false) {
                 $combinedPredeterminados = array_merge($combinedPredeterminados, $permisosPorRol[self::ROL_ENCARGADO_CAJA_CHICA]);
             }
-            if (strpos($rol, self::ROL_SUPERVISOR) !== false) {
+            if (strpos($rol, self::ROL_SUPERVISOR) !== false || 
+                strpos(strtoupper($descripcion), 'SUPERVISOR') !== false) {
                 $combinedPredeterminados = array_merge($combinedPredeterminados, $permisosPorRol[self::ROL_SUPERVISOR]);
             }
-            if (strpos($rol, self::ROL_CONTABILIDAD) !== false) {
+            if ($isContabilidadRole) {
                 $combinedPredeterminados = array_merge($combinedPredeterminados, $permisosPorRol[self::ROL_CONTABILIDAD]);
             }
             $permisosPredeterminados = $combinedPredeterminados;
@@ -146,10 +173,6 @@ class Usuario {
             error_log("Permisos predeterminados para rol $rol: " . print_r($permisosPredeterminados, true));
         }
     
-        $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
-        $stmt->execute([$rolId]);
-        $rolData = $stmt->fetch(PDO::FETCH_ASSOC);
-        $descripcion = $rolData['descripcion'] ?? '';
         error_log("Descripción del rol $rolId: $descripcion");
     
         $permisosDinamicos = [];
@@ -164,13 +187,14 @@ class Usuario {
         if (strpos(strtoupper($descripcion), self::ROL_SUPERVISOR) !== false) {
             $permisosDinamicos = array_merge($permisosDinamicos, array_keys($permisosPorRol[self::ROL_SUPERVISOR]));
         }
-        if (strpos(strtoupper($descripcion), self::ROL_CONTABILIDAD) !== false) {
+        if ($isContabilidadRole) {
             $permisosDinamicos = array_merge($permisosDinamicos, array_keys($permisosPorRol[self::ROL_CONTABILIDAD]));
         }
         $permisosDinamicos = array_unique($permisosDinamicos);
         $tienePermisoDinamico = in_array($permiso, $permisosDinamicos);
         error_log("Permisos dinámicos: " . print_r($permisosDinamicos, true));
     
+        // Rest of the method remains unchanged
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM rol_permisos WHERE id_rol = ?");
         $stmt->execute([$rolId]);
         $manualRolPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];

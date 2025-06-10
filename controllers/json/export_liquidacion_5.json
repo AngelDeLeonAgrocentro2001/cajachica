@@ -1,28 +1,28 @@
 ﻿{
     "DocType": "dDocument_Service",
     "CardCode": "CCHD0012",
-    "DocDate": "2025-05-14",
-    "Comments": "Exportación Detalle Liquidación ID 14",
+    "DocDate": "2025-06-16",
+    "Comments": "Exportación Detalle Liquidación ID 5",
     "U_NIT": "321052",
     "Series": 82,
-    "DocTotal": "1055.00",
-    "Reference1": "14",
-    "NumAtCard": "DLIQ-14-20250530T124200",
+    "DocTotal": "777.00",
+    "Reference1": "5",
+    "NumAtCard": "DLIQ-5-20250609T100600",
     "DocCurrency": "QTZ",
     "DocRate": 1,
     "DocumentLines": [
         {
             "LineType": 0,
-            "ItemDescription": "Combustible",
-            "Price": 25.27,
+            "ItemDescription": "Hospedaje",
+            "Price": 21.93,
             "TaxCode": "IVA",
             "CostingCode": "D08",
             "AccountCode": "641101001"
         },
         {
             "LineType": 1,
-            "ItemDescription": "IDP",
-            "Price": 14.1,
+            "ItemDescription": "INGUAT",
+            "Price": 18.28,
             "TaxCode": "EXE",
             "CostingCode": "D08",
             "AccountCode": "641101001"
@@ -30,7 +30,7 @@
         {
             "LineType": 2,
             "ItemDescription": "Hospedaje",
-            "Price": 14.75,
+            "Price": 31.67,
             "TaxCode": "IVA",
             "CostingCode": "D08",
             "AccountCode": "641101001"
@@ -38,24 +38,8 @@
         {
             "LineType": 3,
             "ItemDescription": "INGUAT",
-            "Price": 12.3,
+            "Price": 26.39,
             "TaxCode": "EXE",
-            "CostingCode": "D08",
-            "AccountCode": "641101001"
-        },
-        {
-            "LineType": 4,
-            "ItemDescription": "Alimentos",
-            "Price": 35.68,
-            "TaxCode": "IVA",
-            "CostingCode": "D08",
-            "AccountCode": "641101001"
-        },
-        {
-            "LineType": 5,
-            "ItemDescription": "otros...",
-            "Price": 34.5,
-            "TaxCode": "IVA",
             "CostingCode": "D08",
             "AccountCode": "641101001"
         }
