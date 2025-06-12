@@ -1,36 +1,28 @@
 ﻿{
     "DocType": "dDocument_Service",
     "CardCode": "CCHD0012",
-    "DocDate": "2025-06-02",
-    "Comments": "Exportación Detalle Liquidación ID 12",
+    "DocDate": "2025-06-12",
+    "Comments": "Exportación Detalle Liquidación ID 35-1",
     "U_NIT": "321052",
     "Series": 82,
-    "DocTotal": "645.00",
-    "Reference1": "12",
-    "NumAtCard": "DLIQ-12-20250609T100600",
+    "DocTotal": 33.36,
+    "Reference1": "35-1",
+    "NumAtCard": "DLIQ-35-1-20250612T081727",
     "DocCurrency": "QTZ",
     "DocRate": 1,
     "DocumentLines": [
         {
             "LineType": 0,
-            "ItemDescription": "Alimentos",
-            "Price": 34.61,
+            "ItemDescription": "Combustible",
+            "Price": 23.96,
             "TaxCode": "IVA",
             "CostingCode": "D08",
             "AccountCode": "641101001"
         },
         {
             "LineType": 1,
-            "ItemDescription": "Combustible",
-            "Price": 32.99,
-            "TaxCode": "IVA",
-            "CostingCode": "D08",
-            "AccountCode": "641101001"
-        },
-        {
-            "LineType": 2,
             "ItemDescription": "IDP",
-            "Price": 14.1,
+            "Price": 9.4,
             "TaxCode": "EXE",
             "CostingCode": "D08",
             "AccountCode": "641101001"

@@ -5,194 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mantenimiento de Liquidaciones</title>
     <style>
-      body {
-        background-color: #f4f7fa;
-        font-family: "Arial", sans-serif;
+      :root {
+        --primary-color: #2563eb;
+        --secondary-color: #387ac5;
+        --accent-color: #f59e0b;
+        --danger-color: #dc2626;
+        --success-color: #16a34a;
+        --background-color: #f8fafc;
+        --card-background: #ffffff;
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
         margin: 0;
         padding: 0;
-        transition: margin-left 0.3s ease-in-out;
+      }
+
+      body {
+        background-color: var(--background-color);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-color);
+        line-height: 1.5;
+        margin: 0;
+        padding: 1rem;
+        transition: all 0.3s ease;
       }
 
       h2 {
         text-align: center;
-        color: #2c3e50;
-        margin: 30px 0;
-        font-size: 2rem;
-        font-weight: 600;
+        color: var(--text-color);
+        margin: 2rem 0;
+        font-size: 1.875rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
       }
 
-      button[onclick="showCreateForm()"] {
-        display: block;
-        margin: 0 auto 20px;
-        padding: 10px 20px;
-        background-color: #3498db;
-        color: #fff;
-        border: none;
-        border-radius: 5px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        width: 50%;
-      }
-
-      button[onclick="showCreateForm()"]:hover {
-        background-color: #2980b9;
-      }
-
-      /* New Toggle Button Style */
+      /* Button Styles */
+      button[onclick="showCreateForm()"],
       .toggle-btn {
         display: block;
-        margin: 20px auto;
-        padding: 10px 20px;
-        background-color: #f39c12;
-        color: #fff;
+        margin: 1.5rem auto;
+        padding: 0.75rem 1.5rem;
+        background-color: var(--primary-color);
+        color: white;
         border: none;
-        border-radius: 5px;
+        border-radius: 0.5rem;
         font-size: 1rem;
+        font-weight: 500;
         cursor: pointer;
-        transition: background-color 0.3s ease;
-        width: 30%;
-        text-align: center;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        width: clamp(200px, 50%, 300px);
       }
 
+      .toggle-btn {
+        background-color: var(--accent-color);
+      }
+
+      button[onclick="showCreateForm()"]:hover,
       .toggle-btn:hover {
-        background-color: #e67e22;
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
+      }
+
+      button[onclick="showCreateForm()"]:active,
+      .toggle-btn:active {
+        transform: translateY(0);
       }
 
       /* Search Form Styles */
       #searchForm {
         width: 90%;
         max-width: 1200px;
-        margin: 20px auto;
-        padding: 15px;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: space-between;
+        margin: 1.5rem auto;
+        padding: 1.5rem;
+        background-color: var(--card-background);
+        border-radius: 0.75rem;
+        box-shadow: var(--shadow-md);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
         align-items: center;
       }
 
       #searchForm label {
-        font-size: 0.95rem;
-        color: #2c3e50;
+        font-size: 0.875rem;
+        color: var(--text-color);
         font-weight: 600;
       }
 
       #searchForm input {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 0.95rem;
-        width: 150px;
-        box-sizing: border-box;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
       #searchForm input:focus {
         outline: none;
-        border-color: #3498db;
-        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
 
       #searchForm button {
-        padding: 8px 16px;
+        padding: 0.5rem 1rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         cursor: pointer;
-        font-size: 0.95rem;
-        transition: background-color 0.3s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
       #searchForm button[type="submit"] {
-        background-color: #3498db;
-        color: #fff;
+        background-color: var(--primary-color);
+        color: white;
       }
 
       #searchForm button[type="submit"]:hover {
-        background-color: #2980b9;
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
       }
 
       #searchForm button[type="button"] {
-        background-color: #e74c3c;
-        color: #fff;
+        background-color: var(--danger-color);
+        color: white;
       }
 
       #searchForm button[type="button"]:hover {
-        background-color: #c0392b;
+        background-color: #b91c1c;
+        transform: translateY(-1px);
       }
 
       /* Pagination Styles */
       #paginationControls {
         width: 90%;
         max-width: 1200px;
-        margin: 20px auto;
+        margin: 1.5rem auto;
         display: flex;
         justify-content: center;
-        gap: 10px;
+        gap: 0.5rem;
+        align-items: center;
       }
 
       #paginationControls button {
-        padding: 8px 16px;
+        padding: 0.5rem 1rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         cursor: pointer;
-        font-size: 0.95rem;
-        transition: background-color 0.3s ease;
-        background-color: #3498db;
-        color: #fff;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background-color: var(--primary-color);
+        color: white;
+        transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
       #paginationControls button:hover {
-        background-color: #2980b9;
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
       }
 
       #paginationControls button:disabled {
-        background-color: #ccc;
+        background-color: #d1d5db;
         cursor: not-allowed;
+        transform: none;
       }
 
       #paginationControls span {
-        font-size: 0.95rem;
-        color: #2c3e50;
-        align-self: center;
+        font-size: 0.875rem;
+        color: var(--text-muted);
       }
 
+      /* Table Styles */
       #liquidacionesTable,
       #correctedDetallesTable {
         width: 90%;
         max-width: 1200px;
-        margin: 20px auto;
+        margin: 1.5rem auto;
         border-collapse: collapse;
-        background-color: #fff;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
+        background-color: var(--card-background);
+        box-shadow: var(--shadow-md);
+        border-radius: 0.75rem;
         overflow: hidden;
       }
 
       #correctedDetallesContainer {
         width: 90%;
         max-width: 1200px;
-        margin: 20px auto;
+        margin: 1.5rem auto;
         overflow-x: auto;
       }
 
       #liquidacionesTable thead,
       #correctedDetallesTable thead {
-        background-color: #2c3e50;
-        color: #fff;
+        background-color: var(--secondary-color);
+        color: white;
       }
 
       #liquidacionesTable th,
       #liquidacionesTable td,
       #correctedDetallesTable th,
       #correctedDetallesTable td {
-        padding: 12px 15px;
+        padding: 0.75rem 1rem;
         text-align: left;
-        font-size: 0.95rem;
+        font-size: 0.875rem;
         min-width: 100px;
-        box-sizing: border-box;
       }
 
       #correctedDetallesTable th,
@@ -207,164 +230,125 @@
 
       #liquidacionesTable tbody tr,
       #correctedDetallesTable tbody tr {
-        border-bottom: 1px solid #e0e0e0;
-        transition: background-color 0.3s ease;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s ease;
       }
 
       #liquidacionesTable tbody tr:hover,
       #correctedDetallesTable tbody tr:hover {
-        background-color: #f9f9f9;
+        background-color: #f1f5f9;
       }
 
       #liquidacionesTable td,
       #correctedDetallesTable td {
-        color: #333;
+        color: var(--text-color);
       }
 
       #liquidacionesTable button,
       #correctedDetallesTable button {
-        padding: 6px 12px;
+        padding: 0.375rem 0.75rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         cursor: pointer;
-        font-size: 0.9rem;
-        margin-right: 5px;
-        transition: background-color 0.3s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-right: 0.25rem;
+        transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
       #liquidacionesTable button.edit-btn,
       #correctedDetallesTable button.edit-btn {
-        background-color: #3498db;
-        color: #fff;
+        background-color: var(--primary-color);
+        color: white;
       }
 
       #liquidacionesTable button.edit-btn:hover,
       #correctedDetallesTable button.edit-btn:hover {
-        background-color: #2980b9;
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
       }
 
       #liquidacionesTable button.delete-btn,
       #correctedDetallesTable button.delete-btn {
-        background-color: #e74c3c;
-        color: #fff;
+        background-color: var(--danger-color);
+        color: white;
       }
 
       #liquidacionesTable button.delete-btn:hover,
       #correctedDetallesTable button.delete-btn:hover {
-        background-color: #c0392b;
+        background-color: #b91c1c;
+        transform: translateY(-1px);
       }
 
       #liquidacionesTable button.export-btn,
       #correctedDetallesTable button.export-btn {
-        background-color: #2ecc71;
-        color: #fff;
+        background-color: var(--success-color);
+        color: white;
       }
 
       #liquidacionesTable button.export-btn:hover,
       #correctedDetallesTable button.export-btn:hover {
-        background-color: #27ae60;
+        background-color: #15803d;
+        transform: translateY(-1px);
       }
 
       #liquidacionesTable button.finalize-btn,
       #correctedDetallesTable button.finalize-btn {
-        background-color: #f39c12;
-        color: #fff;
+        background-color: var(--accent-color);
+        color: white;
       }
 
       #liquidacionesTable button.finalize-btn:hover,
       #correctedDetallesTable button.finalize-btn:hover {
-        background-color: #e67e22;
+        background-color: #d97706;
+        transform: translateY(-1px);
       }
 
-      #liquidacionesTable th:nth-child(1) {
-        width: 5%;
-      }
-      #liquidacionesTable th:nth-child(2) {
-        width: 15%;
-      }
-      #liquidacionesTable th:nth-child(3) {
-        width: 12%;
-      }
-      #liquidacionesTable th:nth-child(4) {
-        width: 12%;
-      }
-      #liquidacionesTable th:nth-child(5) {
-        width: 12%;
-      }
-      #liquidacionesTable th:nth-child(6) {
-        width: 12%;
-      }
-      #liquidacionesTable th:nth-child(7) {
-        width: 12%;
-      }
-      #liquidacionesTable th:nth-child(8) {
-        width: 20%;
+      #liquidacionesTable button.view-btn,
+      #correctedDetallesTable button.view-btn {
+        background-color: #f55162;
+        color: white;
       }
 
-      #correctedDetallesTable th:nth-child(1) {
-        width: 5%;
-      }
-      #correctedDetallesTable th:nth-child(2) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(3) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(4) {
-        width: 10%;
-      }
-      #correctedDetallesTable th:nth-child(5) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(6) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(7) {
-        width: 6%;
-      }
-      #correctedDetallesTable th:nth-child(8) {
-        width: 6%;
-      }
-      #correctedDetallesTable th:nth-child(9) {
-        width: 10%;
-      }
-      #correctedDetallesTable th:nth-child(10) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(11) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(12) {
-        width: 10%;
-      }
-      #correctedDetallesTable th:nth-child(13) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(14) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(15) {
-        width: 6%;
-      }
-      #correctedDetallesTable th:nth-child(16) {
-        width: 6%;
-      }
-      #correctedDetallesTable th:nth-child(17) {
-        width: 6%;
-      }
-      #correctedDetallesTable th:nth-child(18) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(19) {
-        width: 8%;
-      }
-      #correctedDetallesTable th:nth-child(20) {
-        width: 10%;
-      }
-      #correctedDetallesTable th:nth-child(21) {
-        width: 15%;
+      #liquidacionesTable button.view-btn:hover,
+      #correctedDetallesTable button.view-btn:hover {
+        background-color: #7c3aed;
+        transform: translateY(-1px);
       }
 
+      /* Table Column Widths */
+      #liquidacionesTable th:nth-child(1) { width: 5%; }
+      #liquidacionesTable th:nth-child(2) { width: 15%; }
+      #liquidacionesTable th:nth-child(3) { width: 12%; }
+      #liquidacionesTable th:nth-child(4) { width: 12%; }
+      #liquidacionesTable th:nth-child(5) { width: 12%; }
+      #liquidacionesTable th:nth-child(6) { width: 12%; }
+      #liquidacionesTable th:nth-child(7) { width: 12%; }
+      #liquidacionesTable th:nth-child(8) { width: 20%; }
+
+      #correctedDetallesTable th:nth-child(1) { width: 5%; }
+      #correctedDetallesTable th:nth-child(2) { width: 8%; }
+      #correctedDetallesTable th:nth-child(3) { width: 8%; }
+      #correctedDetallesTable th:nth-child(4) { width: 10%; }
+      #correctedDetallesTable th:nth-child(5) { width: 8%; }
+      #correctedDetallesTable th:nth-child(6) { width: 8%; }
+      #correctedDetallesTable th:nth-child(7) { width: 6%; }
+      #correctedDetallesTable th:nth-child(8) { width: 6%; }
+      #correctedDetallesTable th:nth-child(9) { width: 10%; }
+      #correctedDetallesTable th:nth-child(10) { width: 8%; }
+      #correctedDetallesTable th:nth-child(11) { width: 8%; }
+      #correctedDetallesTable th:nth-child(12) { width: 10%; }
+      #correctedDetallesTable th:nth-child(13) { width: 8%; }
+      #correctedDetallesTable th:nth-child(14) { width: 8%; }
+      #correctedDetallesTable th:nth-child(15) { width: 6%; }
+      #correctedDetallesTable th:nth-child(16) { width: 6%; }
+      #correctedDetallesTable th:nth-child(17) { width: 6%; }
+      #correctedDetallesTable th:nth-child(18) { width: 8%; }
+      #correctedDetallesTable th:nth-child(19) { width: 8%; }
+      #correctedDetallesTable th:nth-child(20) { width: 10%; }
+      #correctedDetallesTable th:nth-child(21) { width: 15%; }
+
+      /* Modal Styles */
       .modal {
         display: none;
         position: fixed;
@@ -372,10 +356,11 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 0, 0, 0.6);
         z-index: 1002;
         justify-content: center;
         align-items: center;
+        backdrop-filter: blur(2px);
       }
 
       .modal.active {
@@ -383,177 +368,222 @@
       }
 
       .modal-content {
-        background-color: #fff;
-        border-radius: 8px;
-        padding: 20px;
+        background-color: var(--card-background);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
         width: 90%;
-        max-width: 500px;
-        max-height: 80vh;
+        max-width: 600px;
+        max-height: 85vh;
         overflow-y: auto;
+        box-shadow: var(--shadow-md);
         position: relative;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       }
 
       .modal-content h2 {
         font-size: 1.5rem;
         margin-top: 0;
-        color: #2c3e50;
+        color: var(--text-color);
       }
 
       .close-modal {
         position: absolute;
-        top: 10px;
-        right: 15px;
+        top: 1rem;
+        right: 1rem;
         font-size: 1.5rem;
         cursor: pointer;
-        color: #666;
+        color: var(--text-muted);
+        transition: color 0.2s ease;
       }
 
       .close-modal:hover {
-        color: #333;
+        color: var(--text-color);
       }
 
       #liquidacionFormInner {
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 1rem;
       }
 
       #liquidacionFormInner select,
       #liquidacionFormInner input {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
         width: 100%;
-        box-sizing: border-box;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
       #liquidacionFormInner select:focus,
       #liquidacionFormInner input:focus {
         outline: none;
-        border-color: #3498db;
-        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
 
       #liquidacionFormInner .error {
-        color: #e74c3c;
-        font-size: 0.85rem;
+        color: var(--danger-color);
+        font-size: 0.75rem;
         display: none;
       }
 
       #liquidacionFormInner .success {
-        color: #27ae60;
-        font-size: 0.85rem;
+        color: var(--success-color);
+        font-size: 0.75rem;
         display: none;
       }
 
       #liquidacionFormInner button {
-        padding: 10px;
+        padding: 0.75rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         cursor: pointer;
-        font-size: 1rem;
-        transition: background-color 0.3s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
       #liquidacionFormInner button[type="submit"] {
-        background-color: #3498db;
-        color: #fff;
+        background-color: var(--primary-color);
+        color: white;
       }
 
       #liquidacionFormInner button[type="submit"]:hover {
-        background-color: #2980b9;
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
       }
 
       #liquidacionFormInner button[type="button"] {
-        background-color: #e74c3c;
-        color: #fff;
+        background-color: var(--danger-color);
+        color: white;
       }
 
       #liquidacionFormInner button[type="button"]:hover {
-        background-color: #c0392b;
+        background-color: #b91c1c;
+        transform: translateY(-1px);
       }
 
       /* Supervisor Modal Styles */
-      #supervisorModal {
+      #supervisorModal,
+      #finalizedDetailModal,
+      #selectLiquidationModal {
         display: none;
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         justify-content: center;
         align-items: center;
         z-index: 1005;
+        backdrop-filter: blur(2px);
       }
 
-      #supervisorModal.active {
+      #supervisorModal.active,
+      #finalizedDetailModal.active,
+      #selectLiquidationModal.active {
         display: flex;
       }
 
-      #supervisorModal .modal-content {
-        background: #fff;
-        padding: 20px;
-        border-radius: 8px;
+      #supervisorModal .modal-content,
+      #finalizedDetailModal .modal-content,
+      #selectLiquidationModal .modal-content {
+        background: var(--card-background);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
         width: 90%;
         max-width: 500px;
         text-align: center;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-md);
       }
 
-      #supervisorModal h3 {
-        color: #2c3e50;
-        margin-bottom: 20px;
+      #supervisorModal h3,
+      #finalizedDetailModal h3,
+      #selectLiquidationModal h3 {
+        color: var(--text-color);
+        margin-bottom: 1.25rem;
+        font-size: 1.25rem;
+        font-weight: 600;
       }
 
-      #supervisorSelect {
+      #supervisorSelect,
+      #liquidationOptions {
         width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
-        margin-bottom: 20px;
-        box-sizing: border-box;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        margin-bottom: 1.25rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
-      #supervisorSelect:focus {
+      #supervisorSelect:focus,
+      #liquidationOptions:focus {
         outline: none;
-        border-color: #3498db;
-        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
 
-      #supervisorModal button {
-        padding: 10px;
+      #supervisorModal button,
+      #finalizedDetailModal button,
+      #selectLiquidationModal button {
+        padding: 0.75rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         cursor: pointer;
-        font-size: 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
         width: 48%;
-        transition: background-color 0.3s ease;
+        transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
-      #supervisorModal button#confirmSupervisorBtn {
-        background-color: #3498db;
-        color: #fff;
+      #supervisorModal button#confirmSupervisorBtn,
+      #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]),
+      #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]) {
+        background-color: var(--primary-color);
+        color: white;
         margin-right: 4%;
       }
 
-      #supervisorModal button#confirmSupervisorBtn:hover {
-        background-color: #2980b9;
+      #supervisorModal button#confirmSupervisorBtn:hover,
+      #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]):hover,
+      #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]):hover {
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
       }
 
-      #supervisorModal button#cancelSupervisorBtn {
-        background-color: #e74c3c;
-        color: #fff;
+      #supervisorModal button#cancelSupervisorBtn,
+      #finalizedDetailModal button[onclick="closeFinalizedDetailModal()"],
+      #selectLiquidationModal button[onclick="closeSelectLiquidationModal()"] {
+        background-color: var(--danger-color);
+        color: white;
       }
 
-      #supervisorModal button#cancelSupervisorBtn:hover {
-        background-color: #c0392b;
+      #supervisorModal button#cancelSupervisorBtn:hover,
+      #finalizedDetailModal button[onclick="closeFinalizedDetailModal()"]:hover,
+      #selectLiquidationModal button[onclick="closeSelectLiquidationModal()"]:hover {
+        background-color: #b91c1c;
+        transform: translateY(-1px);
       }
 
+      #finalizedDetailModal p {
+        color: var(--text-muted);
+        margin-bottom: 1.25rem;
+      }
+
+      #liquidationOptions {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      /* Responsive Styles */
       @media (max-width: 768px) {
+        body {
+          padding: 0.5rem;
+        }
+
         #liquidacionesTable,
         #correctedDetallesTable {
           width: 100%;
@@ -571,20 +601,21 @@
         #liquidacionesTable tbody tr,
         #correctedDetallesTable tbody tr {
           display: block;
-          margin-bottom: 10px;
-          border: 1px solid #ddd;
-          border-radius: 5px;
-          background-color: #fff;
+          margin-bottom: 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: 0.5rem;
+          background-color: var(--card-background);
+          box-shadow: var(--shadow-sm);
         }
 
         #liquidacionesTable tbody td,
         #correctedDetallesTable tbody td {
           display: block;
           text-align: right;
-          padding: 8px 10px;
-          font-size: 0.9rem;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
           position: relative;
-          border-bottom: 1px solid #eee;
+          border-bottom: 1px solid var(--border-color);
         }
 
         #liquidacionesTable tbody td:last-child,
@@ -596,57 +627,51 @@
         #correctedDetallesTable tbody td:before {
           content: attr(data-label);
           position: absolute;
-          left: 10px;
+          left: 0.75rem;
           font-weight: 600;
-          color: #2c3e50;
+          color: var(--text-color);
         }
 
         .modal-content {
           width: 95%;
-          padding: 15px;
+          padding: 1rem;
         }
 
-        #liquidacionesTable button.view-btn,
-        #correctedDetallesTable button.view-btn {
-          background-color: #9b59b6;
-          color: #fff;
-          width: 50%;
-          margin: auto;
-        }
-
-        #liquidacionesTable button.view-btn:hover,
-        #correctedDetallesTable button.view-btn:hover {
-          background-color: #8e44ad;
+        #liquidacionesTable button,
+        #correctedDetallesTable button {
+          width: 48%;
+          margin: 0.25rem auto;
+          display: block;
         }
 
         #searchForm {
-          flex-direction: column;
-          align-items: flex-start;
+          grid-template-columns: 1fr;
         }
 
-        #searchForm input {
+        #supervisorModal button,
+        #finalizedDetailModal button,
+        #selectLiquidationModal button {
           width: 100%;
+          margin: 0.5rem 0;
         }
 
-        /* #searchForm button {
-          width: 100%;
-        } */
-
-        #supervisorModal button {
-          width: 100%;
-          margin: 5px 0;
-        }
-
-        #supervisorModal button#confirmSupervisorBtn {
+        #supervisorModal button#confirmSupervisorBtn,
+        #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]),
+        #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]) {
           margin-right: 0;
-        }
-        #liquidacionesTable button.edit-btn, #liquidacionesTable button.delete-btn,#liquidacionesTable button.finalize-btn{
-            width: 30%;
-          margin: auto;
         }
       }
 
-      
+      @media (max-width: 480px) {
+        h2 {
+          font-size: 1.5rem;
+        }
+
+        button[onclick="showCreateForm()"],
+        .toggle-btn {
+          width: 100%;
+        }
+      }
     </style>
     <script>
       const userPermissions = {
@@ -665,7 +690,6 @@
     <button onclick="showCreateForm()">Crear Liquidación</button>
     <?php endif; ?>
 
-    <!-- Toggle Button for Supervisor to View Corrected Liquidations -->
     <?php
     $isSupervisorRole = false;
     if (isset($usuario['id_rol'])) {
@@ -688,7 +712,6 @@
     </button>
     <?php endif; ?>
 
-    <!-- Search Form -->
     <div id="liquidacionesSection">
       <div id="searchForm">
         <label for="searchId">ID:</label>
@@ -707,7 +730,6 @@
         <button type="button" onclick="resetSearch()">Limpiar</button>
       </div>
 
-      <!-- Main Liquidations Table -->
       <table id="liquidacionesTable">
         <thead>
           <tr>
@@ -724,11 +746,9 @@
         <tbody></tbody>
       </table>
 
-      <!-- Pagination Controls -->
       <div id="paginationControls"></div>
     </div>
 
-    <!-- Section for Corrected Details (Visible to Supervisor Only) -->
     <div id="correctedDetallesSection" style="display: none">
       <h2>Detalles de Liquidaciones Corregidas</h2>
       <div id="correctedDetallesContainer">
@@ -763,7 +783,6 @@
       </div>
     </div>
 
-    <!-- Existing Modal for Forms -->
     <div id="modal" class="modal">
       <div class="modal-content">
         <span class="close-modal" onclick="closeModal()">×</span>
@@ -771,131 +790,28 @@
       </div>
     </div>
 
-    <!-- Finalized Detail Options Modal -->
-    <div
-      id="finalizedDetailModal"
-      class="modal"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        justify-content: center;
-        align-items: center;
-        z-index: 1003;
-      "
-    >
-      <div
-        style="
-          background: #fff;
-          padding: 20px;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 500px;
-          text-align: center;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-        "
-      >
-        <h3 style="color: #2c3e50; margin-bottom: 20px">
-          Liquidación Finalizada
-        </h3>
-        <p
-          id="finalizedDetailMessage"
-          style="color: #333; margin-bottom: 20px"
-        ></p>
-        <div
-          id="finalizedDetailOptions"
-          style="display: flex; flex-direction: column; gap: 10px"
-        >
-          <!-- Options will be dynamically added -->
-        </div>
-        <button
-          onclick="closeFinalizedDetailModal()"
-          style="
-            background: #e74c3c;
-            color: #fff;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            margin-top: 20px;
-            width: 100%;
-          "
-        >
-          Cancelar
-        </button>
+    <div id="finalizedDetailModal" class="modal">
+      <div class="modal-content">
+        <h3>Liquidación Finalizada</h3>
+        <p id="finalizedDetailMessage"></p>
+        <div id="finalizedDetailOptions" style="display: flex; flex-direction: column; gap: 10px"></div>
+        <button onclick="closeFinalizedDetailModal()">Cancelar</button>
       </div>
     </div>
 
-    <!-- Select EN_PROCESO Liquidation Modal -->
-    <div
-      id="selectLiquidationModal"
-      class="modal"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        justify-content: center;
-        align-items: center;
-        z-index: 1004;
-      "
-    >
-      <div
-        style="
-          background: #fff;
-          padding: 20px;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 500px;
-          text-align: center;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-        "
-      >
-        <h3 style="color: #2c3e50; margin-bottom: 20px">
-          Selecciona una liquidación en proceso
-        </h3>
-        <div
-          id="liquidationOptions"
-          style="
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-          "
-        >
-          <!-- Options will be dynamically added -->
-        </div>
-        <button
-          onclick="closeSelectLiquidationModal()"
-          style="
-            background: #e74c3c;
-            color: #fff;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            margin-top: 20px;
-            width: 100%;
-          "
-        >
-          Cancelar
-        </button>
+    <div id="selectLiquidationModal" class="modal">
+      <div class="modal-content">
+        <h3>Selecciona una liquidación en proceso</h3>
+        <div id="liquidationOptions" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;"></div>
+        <button onclick="closeSelectLiquidationModal()">Cancelar</button>
       </div>
     </div>
 
-    <!-- New Supervisor Selection Modal -->
     <div id="supervisorModal" class="modal">
       <div class="modal-content">
         <h3>Selecciona un Supervisor</h3>
         <select id="supervisorSelect">
           <option value="">Selecciona un supervisor...</option>
-          <!-- Options will be dynamically added -->
         </select>
         <div style="display: flex; justify-content: space-between;">
           <button id="confirmSupervisorBtn" onclick="confirmSupervisorSelection()">Confirmar</button>
@@ -921,7 +837,7 @@
         window.currentUserId = null;
         window.userId = '';
     }
-</script>
+    </script>
 
     <script src="../views/js/liquidaciones.js"></script>
   </body>

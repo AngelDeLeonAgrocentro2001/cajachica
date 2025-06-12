@@ -922,8 +922,7 @@ public function createWithDetail()
     exit;
 }
 
-    public function getEnProcesoLiquidaciones()
-{
+    public function getEnProcesoLiquidaciones(){
     if (!isset($_SESSION['user_id'])) {
         header('Content-Type: application/json');
         http_response_code(401);
@@ -1066,8 +1065,7 @@ public function getDetalleInfo($id)
         exit;
     }
 
-    public function autorizarDetalle($id)
-{
+    public function autorizarDetalle($id){
     if (!isset($_SESSION['user_id'])) {
         header('Content-Type: application/json');
         http_response_code(401);
@@ -1994,220 +1992,422 @@ public function revisar($id)
     require '../views/liquidaciones/autorizar_individual.html';
     exit;
 }
-public function exportar($id) {
+private function login_sap($db){
+        $usuario = 'manager';
+        $contrasena = 'Team64110';
+        $sociedad = $db;
+
+        $curl = curl_init();
+
+        $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
+        $sboObjType = 'Login';
+
+        curl_setopt_array($curl, [
+            CURLOPT_PORT => 50000,
+            CURLOPT_URL => $urlServer . $sboObjType,
+            CURLOPT_SSL_VERIFYHOST => false, // Insecure; use valid SSL in production
+            CURLOPT_SSL_VERIFYPEER => false, // Insecure; use valid SSL in production
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
+            CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => json_encode([
+                "UserName" => $usuario,
+                "Password" => $contrasena,
+                "CompanyDB" => $sociedad
+            ], JSON_UNESCAPED_UNICODE),
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json",
+                "Cache-Control: no-cache"
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        curl_close($curl);
+
+        if ($response === false || $curlError) {
+            $errorMsg = $curlError ? "cURL Error: $curlError" : "No response received";
+            error_log("SAP Login Failed: $errorMsg");
+            return ['success' => false, 'error' => $errorMsg];
+        }
+
+        if ($httpCode !== 200) {
+            error_log("SAP Login Failed: HTTP $httpCode - $response");
+            return ['success' => false, 'error' => "HTTP $httpCode - $response"];
+        }
+
+        $sessionData = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($sessionData['SessionId'])) {
+            error_log("SAP Login Failed: Invalid JSON or no SessionId - $response");
+            return ['success' => false, 'error' => 'Invalid JSON or no SessionId returned'];
+        }
+
+        return [
+            'success' => true,
+            'sessionId' => $sessionData['SessionId'],
+            'routeId' => $sessionData['RouteId'] ?? '.guid',
+            'response' => $sessionData
+        ];
+    }
+
+    private function logout_sap()
+    {
+        $curl = curl_init();
+
+        $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
+        $sboObjType = 'Logout';
+
+        curl_setopt_array($curl, [
+            CURLOPT_PORT => 50000,
+            CURLOPT_URL => $urlServer . $sboObjType,
+            CURLOPT_SSL_VERIFYHOST => false, // Insecure; use valid SSL in production
+            CURLOPT_SSL_VERIFYPEER => false, // Insecure; use valid SSL in production
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
+            CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json",
+                "Cache-Control: no-cache"
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        curl_close($curl);
+
+        if ($response === false || $curlError) {
+            $errorMsg = $curlError ? "cURL Error: $curlError" : "No response received";
+            error_log("SAP Logout Failed: $errorMsg");
+            return ['success' => false, 'error' => $errorMsg];
+        }
+
+        if ($httpCode !== 204) {
+            error_log("SAP Logout Failed: HTTP $httpCode - $response");
+            return ['success' => false, 'error' => "HTTP $httpCode - $response"];
+        }
+
+        $cookieFile = __DIR__ . '/cookie.txt';
+        if (file_exists($cookieFile) && is_writable($cookieFile)) {
+            unlink($cookieFile); // Clean up cookie file
+        } elseif (file_exists($cookieFile)) {
+            error_log("Warning: Could not delete cookie file; not writable");
+        }
+
+        return ['success' => true];
+    }
+
+    public function exportar($id)
+{
+    ob_start();
     error_log("Iniciando exportar para id: $id");
+
     if (!isset($_SESSION['user_id'])) {
         error_log('Error: No hay session user_id en exportar');
+        ob_end_clean();
         header('Content-Type: application/json; charset=utf-8');
         http_response_code(401);
-        echo json_encode(['error' => 'No autorizado']);
+        echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
     try {
+        // Validate user and permissions
         error_log("Cargando modelo Usuario");
-        if (!class_exists('Usuario')) throw new Exception('Clase Usuario no encontrada');
+        if (!class_exists('Usuario')) {
+            throw new Exception('Clase Usuario no encontrada');
+        }
         $usuarioModel = new Usuario();
         error_log("Obteniendo usuario por ID: {$_SESSION['user_id']}");
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuario || !$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
             error_log('Error: No tienes permiso para exportar liquidaciones');
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para exportar liquidaciones']);
+            echo json_encode(['error' => 'No tienes permiso para exportar liquidaciones'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
+        // Load liquidacion
         error_log("Cargando modelo Liquidacion");
-        if (!class_exists('Liquidacion')) throw new Exception('Clase Liquidacion no encontrada');
+        if (!class_exists('Liquidacion')) {
+            throw new Exception('Clase Liquidacion no encontrada');
+        }
         $liquidacionModel = new Liquidacion();
         error_log("Obteniendo liquidación por ID: $id");
         $liquidacion = $liquidacionModel->getLiquidacionById($id);
         if (!$liquidacion) {
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(404);
-            echo json_encode(['error' => 'Liquidación no encontrada']);
+            echo json_encode(['error' => 'Liquidación no encontrada'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
+        // Check liquidacion state
+        $invalidStates = ['EN_CORRECCION', 'PENDIENTE_AUTORIZACION'];
         if ($liquidacion['estado'] !== 'FINALIZADO') {
+            $stateMessage = in_array($liquidacion['estado'], $invalidStates)
+                ? "Solo se pueden exportar liquidaciones en estado FINALIZADO, no en {$liquidacion['estado']}"
+                : "Estado inválido: {$liquidacion['estado']}";
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(400);
-            echo json_encode(['error' => 'Solo se pueden exportar liquidaciones en estado FINALIZADO']);
+            echo json_encode(['error' => $stateMessage], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        // Step 1: Fetch detalle_liquidacion records
+        // Fetch detalle_liquidacion records
         error_log("Cargando modelo DetalleLiquidacion");
-        if (!class_exists('DetalleLiquidacion')) throw new Exception('Clase DetalleLiquidacion no encontrada');
+        if (!class_exists('DetalleLiquidacion')) {
+            throw new Exception('Clase DetalleLiquidacion no encontrada');
+        }
         $detalleLiquidacionModel = new DetalleLiquidacion();
+        error_log("Obteniendo detalles por liquidación ID: $id");
         $detalleLiquidaciones = $detalleLiquidacionModel->getDetallesByLiquidacionId($id);
         if (empty($detalleLiquidaciones)) {
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(404);
-            echo json_encode(['error' => 'No se encontraron detalles de liquidación']);
+            echo json_encode(['error' => 'No se encontraron detalles de liquidación'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        // Step 2: Construct JSON payload using detalle_liquidacion data
-        $earliestDate = min(array_map(function($dl) { return $dl['fecha']; }, $detalleLiquidaciones));
-        $docDate = date('Y-m-d', strtotime($earliestDate));
-        $numAtCard = "DLIQ-" . $id . "-" . date('Ymd\THis', strtotime('10:06 AM CST')); // Current time
-        $docTotal = $liquidacion['monto_total']; // Use monto_total from liquidacion
+        // Filter detalle_liquidaciones to only include FINALIZADO state
+        $finalizedDetalles = array_filter($detalleLiquidaciones, function ($dl) {
+            return $dl['estado'] === 'FINALIZADO';
+        });
 
-        // Create document lines based on detalle_liquidaciones
-        $documentLines = [];
-        $lineTypeCounter = 0;
-
-        foreach ($detalleLiquidaciones as $dl) {
-            // First line: IVA
-            if (floatval($dl['iva']) > 0) {
-                $documentLines[] = [
-                    "LineType" => $lineTypeCounter,
-                    "ItemDescription" => $dl['t_gasto'],
-                    "Price" => floatval($dl['iva']),
-                    "TaxCode" => "IVA",
-                    "CostingCode" => "D08",
-                    "AccountCode" => "641101001"
-                ];
-                $lineTypeCounter++;
-            }
-
-            // Second line: IDP or INGUAT
-            if (floatval($dl['idp']) > 0) {
-                $documentLines[] = [
-                    "LineType" => $lineTypeCounter,
-                    "ItemDescription" => "IDP",
-                    "Price" => floatval($dl['idp']),
-                    "TaxCode" => "EXE",
-                    "CostingCode" => "D08",
-                    "AccountCode" => "641101001"
-                ];
-                $lineTypeCounter++;
-            } elseif (floatval($dl['inguat']) > 0) {
-                $documentLines[] = [
-                    "LineType" => $lineTypeCounter,
-                    "ItemDescription" => "INGUAT",
-                    "Price" => floatval($dl['inguat']),
-                    "TaxCode" => "EXE",
-                    "CostingCode" => "D08",
-                    "AccountCode" => "641101001"
-                ];
-                $lineTypeCounter++;
-            }
-        }
-
-        $purchaseInvoice = [
-            "DocType" => "dDocument_Service",
-            "CardCode" => "CCHD0012",
-            "DocDate" => $docDate,
-            "Comments" => "Exportación Detalle Liquidación ID $id",
-            "U_NIT" => "321052",
-            "Series" => 82,
-            "DocTotal" => $docTotal,
-            "Reference1" => (string)$id,
-            "NumAtCard" => $numAtCard,
-            "DocCurrency" => "QTZ",
-            "DocRate" => 1, // Ensure this is valid or fetch the current rate if required
-            "DocumentLines" => $documentLines
-        ];
-        error_log('Generated JSON Payload: ' . json_encode($purchaseInvoice, JSON_UNESCAPED_UNICODE));
-
-        // Step 3: Generate JSON file with UTF-8 encoding
-        $jsonFilePath = __DIR__ . "/json/export_liquidacion_$id.json";
-        if (!file_exists(__DIR__ . "/json")) {
-            mkdir(__DIR__ . "/json", 0777, true);
-        }
-    
-        $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent); // Add UTF-8 BOM
-        error_log("JSON file generated at: $jsonFilePath");
-
-        // Step 4: Authenticate with SAP Service Layer
-        $loginUrl = "https://192.168.1.9:50000/b1s/v1/Login";
-        $loginData = [
-            "CompanyDB" => "T_GT_AGROCENTRO_2016",
-            "UserName" => "manager",
-            "Password" => "Team64110"
-        ];
-
-        $ch = curl_init($loginUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($loginData));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-        $loginResponse = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($httpCode !== 200) {
-            error_log("SAP Login Error: HTTP $httpCode - $loginResponse - $curlError");
+        if (empty($finalizedDetalles)) {
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
-            http_response_code($httpCode);
-            echo json_encode(['error' => 'Error al autenticarse con SAP', 'sap_response' => json_decode($loginResponse, true)]);
+            http_response_code(400);
+            echo json_encode(['error' => 'No se encontraron detalles en estado FINALIZADO para exportar'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        $session = json_decode($loginResponse, true);
-        $sessionId = $session['SessionId'];
-        $routeId = $session['RouteId'];
-        $cookie = "B1SESSION=" . $sessionId . "; ROUTEID=" . $routeId;
-
-        // Step 5: Send POST request to SAP with authenticated session
-        $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
-        $ch = curl_init($sapUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Cookie: ' . $cookie
-        ]);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonContent);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            error_log("cURL Error: $curlError");
+        // SAP Login
+        error_log("Intentando login en SAP");
+        $loginResult = $this->login_sap('T_GT_AGROCENTRO_2016');
+        if (!$loginResult['success']) {
+            error_log("Login SAP Failed: {$loginResult['error']}");
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(500);
-            echo json_encode(['error' => 'Error en la solicitud a SAP: ' . $curlError]);
+            echo json_encode(['error' => 'Error al autenticarse con SAP: ' . $loginResult['error']], JSON_UNESCAPED_UNICODE);
             exit;
         }
+        $cookie = "B1SESSION={$loginResult['sessionId']}; ROUTEID={$loginResult['routeId']}";
 
-        if ($httpCode >= 400) {
-            error_log("SAP Error: HTTP $httpCode - $response");
+        $results = [];
+        $jsonDir = __DIR__ . "/json";
+        if (!file_exists($jsonDir)) {
+            if (!mkdir($jsonDir, 0777, true)) {
+                throw new Exception('No se pudo crear el directorio JSON: ' . $jsonDir);
+            }
+        }
+        if (!is_writable($jsonDir)) {
+            throw new Exception('El directorio JSON no es escribible: ' . $jsonDir);
+        }
+
+        $forceExport = isset($_GET['force']) && $_GET['force'] === 'true';
+        $timestamp = date('Ymd\THis'); // Current time: 20250611T151700 (adjusted to 03:17 PM CST)
+
+        // Create a separate invoice only for finalized detalle_liquidaciones
+        foreach ($finalizedDetalles as $index => $dl) {
+            try {
+                error_log("Procesando detalle_liquidacion index: $index (estado: {$dl['estado']})");
+                $docDate = date('Y-m-d', strtotime($dl['fecha']));
+                $suffix = $forceExport ? '-' . substr(md5(uniqid()), 0, 8) : '';
+                $numAtCard = "DLIQ-{$id}-{$index}-{$timestamp}{$suffix}";
+                $documentLines = [];
+                $docTotal = 0;
+
+                // Add IVA line
+                if (floatval($dl['iva']) > 0) {
+                    $documentLines[] = [
+                        "LineType" => 0,
+                        "ItemDescription" => $dl['t_gasto'],
+                        "Price" => floatval($dl['iva']),
+                        "TaxCode" => "IVA",
+                        "CostingCode" => "D08",
+                        "AccountCode" => "641101001"
+                    ];
+                    $docTotal += floatval($dl['iva']);
+                }
+
+                // Add IDP or INGUAT line
+                if (floatval($dl['idp']) > 0) {
+                    $documentLines[] = [
+                        "LineType" => count($documentLines),
+                        "ItemDescription" => "IDP",
+                        "Price" => floatval($dl['idp']),
+                        "TaxCode" => "EXE",
+                        "CostingCode" => "D08",
+                        "AccountCode" => "641101001"
+                    ];
+                    $docTotal += floatval($dl['idp']);
+                } elseif (floatval($dl['inguat']) > 0) {
+                    $documentLines[] = [
+                        "LineType" => count($documentLines),
+                        "ItemDescription" => "INGUAT",
+                        "Price" => floatval($dl['inguat']),
+                        "TaxCode" => "EXE",
+                        "CostingCode" => "D08",
+                        "AccountCode" => "641101001"
+                    ];
+                    $docTotal += floatval($dl['inguat']);
+                }
+
+                if (empty($documentLines)) {
+                    error_log("No document lines for detalle_liquidacion index $index");
+                    $results[] = ['index' => $index, 'success' => false, 'error' => 'No se generaron líneas para la factura'];
+                    continue;
+                }
+
+                $purchaseInvoice = [
+                    "DocType" => "dDocument_Service",
+                    "CardCode" => "CCHD0012",
+                    "DocDate" => $docDate,
+                    "Comments" => "Exportación Detalle Liquidación ID {$id}-{$index}",
+                    "U_NIT" => "321052",
+                    "Series" => 82,
+                    "DocTotal" => $docTotal,
+                    "Reference1" => "{$id}-{$index}",
+                    "NumAtCard" => $numAtCard,
+                    "DocCurrency" => "QTZ",
+                    "DocRate" => 1,
+                    "DocumentLines" => $documentLines
+                ];
+
+                // Generate JSON file
+                $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$index}.json";
+                $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent) === false) {
+                    throw new Exception("No se pudo escribir el archivo JSON: $jsonFilePath");
+                }
+                error_log("JSON file generated at: $jsonFilePath");
+
+                // Send to SAP
+                $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
+                $ch = curl_init($sapUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'Cookie: ' . $cookie
+                    ],
+                    CURLOPT_POSTFIELDS => $jsonContent,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                ]);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+
+                if ($response === false || $curlError) {
+                    error_log("SAP Error for index $index: $curlError");
+                    $results[] = [
+                        'index' => $index,
+                        'success' => false,
+                        'error' => "cURL Error: $curlError",
+                        'filePath' => $jsonFilePath
+                    ];
+                    continue;
+                }
+
+                $sapResponse = json_decode($response, true);
+                if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+                    error_log("SAP Error for index $index: HTTP $httpCode - $response");
+                    $errorMsg = "SAP Error: HTTP $httpCode" . (json_last_error() !== JSON_ERROR_NONE ? " - Invalid JSON" : "");
+                    if ($httpCode === 400 && strpos($response, 'El número de referencia YA EXISTE') !== false && !$forceExport) {
+                        $results[] = [
+                            'index' => $index,
+                            'success' => false,
+                            'error' => 'Esta liquidación ya ha sido exportada',
+                            'filePath' => $jsonFilePath
+                        ];
+                    } else {
+                        $results[] = [
+                            'index' => $index,
+                            'success' => false,
+                            'error' => $errorMsg,
+                            'sap_response' => $sapResponse,
+                            'filePath' => $jsonFilePath
+                        ];
+                    }
+                    continue;
+                }
+
+                $results[] = [
+                    'index' => $index,
+                    'success' => true,
+                    'message' => 'Factura enviada a SAP exitosamente',
+                    'filePath' => $jsonFilePath,
+                    'sap_response' => $sapResponse
+                ];
+            } catch (Exception $e) {
+                error_log("Error processing detalle_liquidacion index $index: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+                $results[] = [
+                    'index' => $index,
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                    'filePath' => $jsonFilePath ?? null
+                ];
+            }
+        }
+
+        // SAP Logout
+        error_log("Intentando logout de SAP");
+        $logoutResult = $this->logout_sap();
+        if (!$logoutResult['success']) {
+            error_log("SAP Logout Failed: {$logoutResult['error']}");
+        }
+
+        // Prepare response
+        $successCount = count(array_filter($results, fn($r) => $r['success']));
+        $response = [
+            'success' => $successCount > 0,
+            'message' => "$successCount de " . count($finalizedDetalles) . " facturas procesadas exitosamente",
+            'results' => $results
+        ];
+
+        // If any invoice failed due to duplicate reference and force wasn't used, prompt for re-export
+        if (!$forceExport && array_filter($results, fn($r) => $r['error'] === 'Esta liquidación ya ha sido exportada')) {
+            ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
-            http_response_code($httpCode);
-            echo json_encode(['error' => 'Error al enviar a SAP', 'sap_response' => json_decode($response, true)]);
+            http_response_code(400);
+            echo json_encode(['error' => 'Esta liquidación ya ha sido exportada'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        // Step 6: Return the response
+        ob_end_clean();
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode([
-            'success' => true,
-            'message' => 'JSON generado y enviado a SAP exitosamente',
-            'filePath' => $jsonFilePath,
-            'sap_response' => json_decode($response, true)
-        ], JSON_UNESCAPED_UNICODE);
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
         exit;
 
     } catch (Exception $e) {
         error_log('Error exporting: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-        while (ob_get_level()) ob_end_clean();
+        if (isset($loginResult) && $loginResult['success']) {
+            $this->logout_sap();
+        }
+        ob_end_clean();
         header('Content-Type: application/json; charset=utf-8');
         http_response_code(500);
-        $errorResponse = ['error' => $e->getMessage()];
-        echo json_encode($errorResponse, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
@@ -2963,8 +3163,7 @@ public function exportar($id) {
         exit;
     }
 
-    public function submitCorreccion($id)
-{
+    public function submitCorreccion($id){
     if (!isset($_SESSION['user_id'])) {
         error_log('submitCorreccion: No hay session user_id');
         header('Content-Type: application/json; charset=UTF-8');

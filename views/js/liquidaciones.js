@@ -342,11 +342,11 @@ function renderLiquidations() {
                       `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`
                   );
               }
-              if (liquidacion.estado === "FINALIZADO") {
-                  actions.push(
-                      `<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`
-                  );
-              }
+              // if (liquidacion.estado === "FINALIZADO") {
+              //     actions.push(
+              //         `<button onclick="exportToSap(${liquidacion.id})" class="export-btn">Exportar a SAP</button>`
+              //     );
+              // }
           }
 
           const actionsHtml = actions.join(" ");
