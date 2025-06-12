@@ -1,0 +1,31 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "DocDate": "2025-06-12",
+    "Comments": "Exportación Detalle Liquidación ID 36-0",
+    "U_NIT": "321052",
+    "Series": 82,
+    "DocTotal": 48.160000000000004,
+    "Reference1": "36-0",
+    "NumAtCard": "DLIQ-36-0-20250612T115505",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible",
+            "Price": 34.06,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "Price": 14.1,
+            "TaxCode": "EXE",
+            "CostingCode": "D08",
+            "AccountCode": "641101001"
+        }
+    ]
+}
