@@ -464,8 +464,7 @@
         transform: translateY(-1px);
       }
 
-      /* Supervisor Modal Styles */
-      #supervisorModal,
+      /* Modal Styles for Finalized and Select Liquidation */
       #finalizedDetailModal,
       #selectLiquidationModal {
         display: none;
@@ -481,13 +480,11 @@
         backdrop-filter: blur(2px);
       }
 
-      #supervisorModal.active,
       #finalizedDetailModal.active,
       #selectLiquidationModal.active {
         display: flex;
       }
 
-      #supervisorModal .modal-content,
       #finalizedDetailModal .modal-content,
       #selectLiquidationModal .modal-content {
         background: var(--card-background);
@@ -499,7 +496,6 @@
         box-shadow: var(--shadow-md);
       }
 
-      #supervisorModal h3,
       #finalizedDetailModal h3,
       #selectLiquidationModal h3 {
         color: var(--text-color);
@@ -508,7 +504,6 @@
         font-weight: 600;
       }
 
-      #supervisorSelect,
       #liquidationOptions {
         width: 100%;
         padding: 0.75rem;
@@ -519,14 +514,12 @@
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
-      #supervisorSelect:focus,
       #liquidationOptions:focus {
         outline: none;
         border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
 
-      #supervisorModal button,
       #finalizedDetailModal button,
       #selectLiquidationModal button {
         padding: 0.75rem;
@@ -539,7 +532,6 @@
         transition: background-color 0.2s ease, transform 0.1s ease;
       }
 
-      #supervisorModal button#confirmSupervisorBtn,
       #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]),
       #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]) {
         background-color: var(--primary-color);
@@ -547,21 +539,18 @@
         margin-right: 4%;
       }
 
-      #supervisorModal button#confirmSupervisorBtn:hover,
       #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]):hover,
       #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]):hover {
         background-color: var(--secondary-color);
         transform: translateY(-1px);
       }
 
-      #supervisorModal button#cancelSupervisorBtn,
       #finalizedDetailModal button[onclick="closeFinalizedDetailModal()"],
       #selectLiquidationModal button[onclick="closeSelectLiquidationModal()"] {
         background-color: var(--danger-color);
         color: white;
       }
 
-      #supervisorModal button#cancelSupervisorBtn:hover,
       #finalizedDetailModal button[onclick="closeFinalizedDetailModal()"]:hover,
       #selectLiquidationModal button[onclick="closeSelectLiquidationModal()"]:hover {
         background-color: #b91c1c;
@@ -648,14 +637,12 @@
           grid-template-columns: 1fr;
         }
 
-        #supervisorModal button,
         #finalizedDetailModal button,
         #selectLiquidationModal button {
           width: 100%;
           margin: 0.5rem 0;
         }
 
-        #supervisorModal button#confirmSupervisorBtn,
         #finalizedDetailModal button:not([onclick="closeFinalizedDetailModal()"]),
         #selectLiquidationModal button:not([onclick="closeSelectLiquidationModal()"]) {
           margin-right: 0;
@@ -807,19 +794,7 @@
       </div>
     </div>
 
-    <div id="supervisorModal" class="modal">
-      <div class="modal-content">
-        <h3>Selecciona un Supervisor</h3>
-        <select id="supervisorSelect">
-          <option value="">Selecciona un supervisor...</option>
-        </select>
-        <div style="display: flex; justify-content: space-between;">
-          <button id="confirmSupervisorBtn" onclick="confirmSupervisorSelection()">Confirmar</button>
-          <button id="cancelSupervisorBtn" onclick="closeSupervisorModal()">Cancelar</button>
-        </div>
-      </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
     try {
         window.userPermissions = window.userPermissions || {

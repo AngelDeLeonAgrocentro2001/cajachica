@@ -47,7 +47,6 @@ class Usuario {
         return $result;
     }
 
-    // New method to fetch users with supervisor-like roles
     public function getUsuariosBySupervisorRole() {
         error_log("Buscando usuarios con roles de tipo supervisor");
         $stmt = $this->pdo->prepare("
@@ -60,6 +59,23 @@ class Usuario {
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         error_log("Usuarios encontrados con roles de tipo supervisor: " . print_r($result, true));
+        return $result;
+    }
+
+    public function getUsuariosByContadorRole() {
+        error_log("Buscando usuarios con roles de tipo contador");
+        $stmt = $this->pdo->prepare("
+            SELECT u.* 
+            FROM usuarios u 
+            JOIN roles r ON u.id_rol = r.id 
+            WHERE UPPER(r.nombre) LIKE '%CONTADOR%' 
+            OR UPPER(r.nombre) LIKE '%CONTABILIDAD%' 
+            OR UPPER(r.descripcion) LIKE '%CONTADOR%' 
+            OR UPPER(r.descripcion) LIKE '%CONTABILIDAD%'
+        ");
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("Usuarios encontrados con roles de tipo contador: " . print_r($result, true));
         return $result;
     }
 
@@ -139,7 +155,6 @@ class Usuario {
         $permisosPredeterminados = [];
         $tienePermisoPredeterminado = false;
     
-        // Fetch role description
         $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
         $stmt->execute([$rolId]);
         $rolData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -194,7 +209,6 @@ class Usuario {
         $tienePermisoDinamico = in_array($permiso, $permisosDinamicos);
         error_log("Permisos dinámicos: " . print_r($permisosDinamicos, true));
     
-        // Rest of the method remains unchanged
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM rol_permisos WHERE id_rol = ?");
         $stmt->execute([$rolId]);
         $manualRolPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];

@@ -43,7 +43,7 @@ async function loadCajasChicas() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="7">No hay cajas chicas registradas.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8">No hay cajas chicas registradas.</td></tr>';
         }
     } catch (error) {
         console.error('Error al cargar cajas chicas:', error.message);
@@ -203,6 +203,7 @@ function addValidations(id = null) {
         monto_disponible: { required: true, type: 'number', min: 0 },
         id_usuario_encargado: { required: true },
         id_supervisor: { required: true },
+        id_contador: { required: true },
         id_centro_costo: { required: true },
         estado: { required: true }
     };

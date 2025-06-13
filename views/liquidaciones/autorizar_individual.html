@@ -511,7 +511,7 @@
                 width: 100%;
             }
         }
-    </style>
+</style>
 </head>
 <body>
     <div class="container">
@@ -553,7 +553,7 @@
                 </thead>
                 <tbody>
                     <?php foreach ($detalles as $detalle): ?>
-                        <tr class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>" data-id="<?php echo htmlspecialchars($detalle['id']); ?>" data-contador="<?php echo htmlspecialchars($detalle['id_contador_correccion'] ?? $data['id_contador'] ?? ''); ?>">
+                        <tr class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>" data-id="<?php echo htmlspecialchars($detalle['id']); ?>">
                             <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
                             <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
                             <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
@@ -600,13 +600,6 @@
         <button class="bulk-action-btn hidden" id="bulkSendToCorrectionBtn" onclick="bulkSendToCorrection()">Enviar Seleccionados a Corrección</button>
         <form id="autorizarForm">
             <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
-            <?php
-            $isContabilidadLike = strpos(strtoupper($usuario_data['rol']), 'CONTABILIDAD') !== false ||
-                                 strpos(strtoupper($usuario_data['rol']), 'CONTADOR') !== false;
-            if (stripos($usuario_data['rol'], 'SUPERVISOR') !== false && !$isContabilidadLike):
-            ?>
-                <button type="button" id="selectContadorBtn" class="bulk-action-btn">Seleccionar Contador</button>
-            <?php endif; ?>
             <select name="accion" required>
                 <option value="APROBADO">Autorizar</option>
                 <option value="RECHAZADO">Rechazar</option>
@@ -615,7 +608,6 @@
             <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
             <input type="hidden" name="unselected_detalles" id="unselectedDetallesInput">
             <input type="hidden" name="correccion_comentarios" id="correccionComentariosInput">
-            <input type="hidden" name="id_contador" id="idContadorInput" value="<?php echo htmlspecialchars($data['id_contador'] ?? ''); ?>">
             <div class="error" data-field="accion"></div>
             <div class="error" data-field="motivo"></div>
             <div class="success"></div>
@@ -623,19 +615,6 @@
             <button type="submit" id="submitBtn"><?php echo isset($mode) && $mode === 'revisar' ? 'Autorización' : 'Enviar Autorización'; ?></button>
             <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
         </form>
-
-        <div id="contadorModal" class="modal">
-            <div class="modal-content">
-                <h3>Selecciona un Contador</h3>
-                <select id="contadorSelect">
-                    <option value="">Selecciona un contador...</option>
-                </select>
-                <div style="display: flex; justify-content: space-between;">
-                    <button id="confirmContadorBtn" onclick="confirmContadorSelection()">Confirmar</button>
-                    <button id="cancelContadorBtn" onclick="closeContadorModal()">Cancelar</button>
-                </div>
-            </div>
-        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -644,12 +623,8 @@
         const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
         const commentHeader = document.querySelector('.comment-header');
         let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
-        const selectContadorBtn = document.getElementById('selectContadorBtn');
-        const contadorModal = document.getElementById('contadorModal');
-        const idContadorInput = document.getElementById('idContadorInput');
         const unselectedDetallesInput = document.getElementById('unselectedDetallesInput');
         const correccionComentariosInput = document.getElementById('correccionComentariosInput');
-        let selectedContadorId = idContadorInput.value || null;
         const currentLiquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
         
         console.log('User Role:', userRole);
@@ -657,77 +632,8 @@
         
         console.log('isContabilidadRole:', isContabilidadRole);
         
-        async function showContadorModal() {
-            const contadoresList = await fetchContadores();
-            const contadorSelect = document.querySelector("#contadorSelect");
-            contadorSelect.innerHTML = '<option value="">Selecciona un contador...</option>';
-            
-            if (contadoresList.length === 0) {
-                contadorSelect.innerHTML += '<option value="" disabled>No hay contadores disponibles</option>';
-            } else {
-                contadoresList.forEach((contador) => {
-                    const option = document.createElement("option");
-                    option.value = contador.id;
-                    option.textContent = `${contador.nombre} (${contador.email})`;
-                    if (contador.id == idContadorInput.value) {
-                        option.selected = true;
-                    }
-                    contadorSelect.appendChild(option);
-                });
-            }
-        
-            contadorModal.classList.add("active");
-        }
-        
-        function closeContadorModal() {
-            contadorModal.classList.remove("active");
-            document.querySelector("#contadorSelect").value = "";
-        }
-        
-        async function confirmContadorSelection() {
-            const contadorId = document.querySelector("#contadorSelect").value;
-            if (!contadorId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Selección requerida',
-                    text: 'Por favor, selecciona un contador antes de continuar.',
-                    confirmButtonText: 'OK'
-                });
-                return;
-            }
-        
-            selectedContadorId = contadorId;
-            idContadorInput.value = contadorId;
-            
-            Swal.fire({
-                icon: 'info',
-                title: 'Contador asignado',
-                text: `Se ha asignado el contador con ID ${contadorId}.`,
-                confirmButtonText: 'OK'
-            }).then(() => {
-                closeContadorModal();
-                
-                if (submitBtn.dataset.clicked === "true") {
-                    submitBtn.dataset.clicked = "false";
-                    submitForm();
-                }
-            });
-        }
-        
-        selectContadorBtn?.addEventListener('click', function() {
-            showContadorModal();
-        });
-        
         submitBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            const accion = document.querySelector('select[name="accion"]').value;
-            
-            if (accion === 'APROBADO' && userRole.includes('SUPERVISOR') && !isContabilidadRole && !selectedContadorId) {
-                submitBtn.dataset.clicked = "true";
-                showContadorModal();
-                return;
-            }
-            
             submitForm();
         });
         
@@ -769,16 +675,6 @@
                 return;
             }
         
-            if (userRole.includes('SUPERVISOR') && !isContabilidadRole && accion === 'APROBADO' && !selectedContadorId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Contador requerido',
-                    text: 'Debes seleccionar un contador para autorizar la liquidación.',
-                    confirmButtonText: 'OK'
-                });
-                return;
-            }
-        
             formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
             formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
         
@@ -798,11 +694,11 @@
                     }
                 }
         
-                if (userRole.includes('SUPERVISOR') && accion === 'APROBADO' && !isContabilidadRole) {
+                if (userRole.includes('SUPERVISOR') && !isContabilidadRole && accion === 'APROBADO') {
                     await Swal.fire({
                         icon: 'info',
-                        title: 'Enviando a Contador',
-                        text: 'La liquidación está siendo enviada al contador seleccionado.',
+                        title: 'Enviando a Contabilidad',
+                        text: 'La liquidación está siendo enviada a contabilidad para revisión.',
                         confirmButtonText: 'OK'
                     });
                 } else if (isContabilidadRole && accion === 'APROBADO') {
@@ -957,15 +853,6 @@
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('tr.in-correction').forEach(row => {
-                const contadorId = row.getAttribute('data-contador');
-                if (isContabilidadRole && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
-                    row.style.display = 'none';
-                } else if (!isContabilidadRole || !contadorId) {
-                    row.style.display = 'none';
-                }
-            });
-        
             if (isContabilidadRole) {
                 filterNonCorrectedInvoices();
             } else if (userRole.includes('SUPERVISOR')) {
@@ -1004,7 +891,7 @@
             const correccionComentarios = {};
             document.querySelectorAll('.correccion-comment').forEach(input => {
                 if (input.value.trim()) {
-                    correccionComentarios[input.getAttribute('name').replace('correccion_id', '')] = input.value.trim();
+                    correccionComentarios[input.getAttribute('name').replace('correccion_comentario_', '')] = input.value.trim();
                 }
             });
             correccionComentariosInput.value = JSON.stringify(correccionComentarios);
@@ -1058,7 +945,7 @@
             const confirmSend = await Swal.fire({
                 icon: 'question',
                 title: 'Confirmar corrección',
-                text: `¿Estás segura de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
+                text: `¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
                 showCancelButton: true,
                 confirmButtonText: 'Sí',
                 cancelButtonText: 'No'
@@ -1078,11 +965,6 @@
             formData.append('action', 'send_to_correction');
             formData.append('detalle_ids', JSON.stringify(validDetalles));
             formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-            if (isContabilidadRole) {
-                formData.append('id_contador', '<?php echo htmlspecialchars($usuario_data['id']); ?>');
-            } else {
-                formData.append('id_contador', selectedContadorId || null);
-            }
         
             try {
                 const action = isContabilidadRole ? 'revisar' : 'autorizar';
@@ -1090,8 +972,7 @@
                 console.log('FormData:', {
                     action: 'send_to_correction',
                     detalle_ids: JSON.stringify(validDetalles),
-                    correccion_comentarios: JSON.stringify(correccionComentarios),
-                    id_contador: isContabilidadRole ? '<?php echo htmlspecialchars($usuario_data['id']); ?>' : selectedContadorId || null
+                    correccion_comentarios: JSON.stringify(correccionComentarios)
                 });
                 const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
                     method: 'POST',
@@ -1117,8 +998,7 @@
                     validDetalles.forEach(detalleId => {
                         const row = document.querySelector(`tr[data-id="${detalleId}"]`);
                         row.classList.add('in-correction');
-                        row.setAttribute('data-contador', isContabilidadRole ? '<?php echo htmlspecialchars($usuario_data['id']); ?>' : selectedContadorId);
-                        row.style.display = 'none';
+                        row.style.display = isContabilidadRole ? 'none' : '';
                         row.querySelector('input[name="detalles[]"]').disabled = true;
                         row.querySelector('input[name="detalles[]"]').checked = false;
                         row.querySelector('.comment-column').classList.add('hidden');
@@ -1155,40 +1035,33 @@
         }
         
         function filterSupervisorInvoices() {
-            const rows = document.querySelectorAll('#facturasTable tbody tr');
-            const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO'];
-            let hasVisibleRows = false;
-        
-            rows.forEach(row => {
-                const estadoCell = row.querySelector('td[data-label="Estado"]');
-                const estado = estadoCell ? estadoCell.textContent.trim() : '';
-                if (visibleStates.includes(estado) && !row.classList.contains('in-correction')) {
-                    row.style.display = '';
-                    hasVisibleRows = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        
-            if (!hasVisibleRows) {
-                console.warn('No hay facturas en estado PENDIENTE_AUTORIZACION o EN_PROCESO para SUPERVISOR. Mostrando todas las facturas no corregidas para depuración.');
-                rows.forEach(row => {
-                    if (!row.classList.contains('in-correction')) {
-                        row.style.display = '';
-                    }
-                });
-            }
+    const rows = document.querySelectorAll('#facturasTable tbody tr');
+    const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO', 'EN_CORRECCION'];
+    let hasVisibleRows = false;
+
+    rows.forEach(row => {
+        const estadoCell = row.querySelector('td[data-label="Estado"]');
+        const estado = estadoCell ? estadoCell.textContent.trim() : '';
+        if (visibleStates.includes(estado)) {
+            row.style.display = '';
+            hasVisibleRows = true;
+        } else {
+            row.style.display = 'none';
         }
+    });
+
+    if (!hasVisibleRows) {
+        console.warn('No hay facturas en estado PENDIENTE_AUTORIZACION, EN_PROCESO o EN_CORRECCION para SUPERVISOR.');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+}
         
         function filterNonCorrectedInvoices() {
             document.querySelectorAll('#facturasTable tbody tr').forEach(row => {
                 if (row.classList.contains('in-correction')) {
-                    const contadorId = row.getAttribute('data-contador');
-                    if (isContabilidadRole && contadorId && contadorId !== '<?php echo strtoupper($usuario_data['id']); ?>') {
-                        row.style.display = 'none';
-                    } else {
-                        row.style.display = '';
-                    }
+                    row.style.display = isContabilidadRole ? 'none' : '';
                 } else {
                     row.style.display = '';
                 }
@@ -1301,31 +1174,6 @@
                 confirmButtonText: 'OK'
             });
             return message;
-        }
-        
-        async function fetchContadores() {
-            try {
-                const response = await fetch("index.php?controller=usuario&action=getContadores", {
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error: ${response.status}`);
-                }
-                const contadores = await response.json();
-                return contadores;
-            } catch (error) {
-                console.error("Error fetching contadores:", error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: "Error al cargar la lista de contadores: " + error.message,
-                    confirmButtonText: 'OK'
-                });
-                return [];
-            }
         }
     </script>
 </body>

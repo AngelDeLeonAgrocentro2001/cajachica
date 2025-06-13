@@ -4,7 +4,6 @@ class Liquidacion {
 
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
-        // Ensure PDO throws exceptions on errors
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
@@ -86,10 +85,21 @@ class Liquidacion {
 
     public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario) {
         $stmt = $this->pdo->prepare("
-            INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            SELECT id_supervisor, id_contador 
+            FROM cajas_chicas 
+            WHERE id = ?
         ");
-        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario]);
+        $stmt->execute([$idCajaChica]);
+        $caja = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$caja) {
+            throw new Exception('Caja chica no encontrada');
+        }
+
+        $stmt = $this->pdo->prepare("
+            INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario, id_supervisor, id_contador)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario, $caja['id_supervisor'], $caja['id_contador']]);
     }
 
     public function createLiquidacionFromArray($data) {
@@ -106,11 +116,22 @@ class Liquidacion {
 
     public function updateLiquidacion($id, $idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
         $stmt = $this->pdo->prepare("
-            UPDATE liquidaciones
-            SET id_caja_chica = ?, fecha_creacion = ?, fecha_inicio = ?, fecha_fin = ?, monto_total = ?, estado = ?
+            SELECT id_supervisor, id_contador 
+            FROM cajas_chicas 
             WHERE id = ?
         ");
-        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $id]);
+        $stmt->execute([$idCajaChica]);
+        $caja = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$caja) {
+            throw new Exception('Caja chica no encontrada');
+        }
+
+        $stmt = $this->pdo->prepare("
+            UPDATE liquidaciones
+            SET id_caja_chica = ?, fecha_creacion = ?, fecha_inicio = ?, fecha_fin = ?, monto_total = ?, estado = ?, id_supervisor = ?, id_contador = ?
+            WHERE id = ?
+        ");
+        return $stmt->execute([$idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $caja['id_supervisor'], $caja['id_contador'], $id]);
     }
 
     public function deleteLiquidation($id) {
@@ -121,7 +142,6 @@ class Liquidacion {
     public function markAsExported($id) {
         try {
             error_log("Attempting to mark liquidation as exported for ID: $id");
-            // Check transaction status
             error_log("Transaction status: " . ($this->pdo->inTransaction() ? 'In transaction' : 'Not in transaction'));
             $stmt = $this->pdo->prepare("UPDATE liquidaciones SET exportado = 1 WHERE id = ?");
             $result = $stmt->execute([$id]);

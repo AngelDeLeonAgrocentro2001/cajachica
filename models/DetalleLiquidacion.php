@@ -352,7 +352,7 @@ class DetalleLiquidacion {
             LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
             LEFT JOIN cuentas_contables cc3 ON dl.id_cuenta_contable = cc3.id
             WHERE dl.estado = 'PENDIENTE_AUTORIZACION'
-            AND dl.original_role LIKE '%SUPERVISOR%'
+            AND UPPER(dl.original_role) LIKE '%SUPERVISOR%'
             AND dl.correccion_comentario IS NOT NULL
         ";
         $params = [];
@@ -360,24 +360,36 @@ class DetalleLiquidacion {
         if ($supervisorId !== null) {
             $query .= " AND dl.id_supervisor_correccion = ?";
             $params[] = $supervisorId;
+            error_log("getAllCorrectedDetallesForSupervisors: Filtering for supervisorId=$supervisorId");
+        } else {
+            error_log("getAllCorrectedDetallesForSupervisors: No supervisorId filter applied");
         }
     
         $query .= " ORDER BY dl.id ASC";
     
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute($params);
-        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-        foreach ($detalles as &$detalle) {
-            if (isset($detalle['rutas_archivos'])) {
-                $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
-            } else {
-                $detalle['rutas_archivos'] = [];
+        try {
+            $stmt = $this->pdo->prepare($query);
+            $stmt->execute($params);
+            $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("getAllCorrectedDetallesForSupervisors: Retrieved " . count($detalles) . " details");
+            foreach ($detalles as $detalle) {
+                error_log("Detail ID: {$detalle['id']}, Liquidacion ID: {$detalle['liquidacion_id']}, Estado: {$detalle['estado']}, Supervisor Correccion: {$detalle['id_supervisor_correccion']}");
             }
-            $detalle['liquidacion'] = isset($detalle['nombre_caja_chica']) ? $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'] : 'Independiente';
-        }
     
-        return $detalles;
+            foreach ($detalles as &$detalle) {
+                if (isset($detalle['rutas_archivos'])) {
+                    $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'], true) ?: [];
+                } else {
+                    $detalle['rutas_archivos'] = [];
+                }
+                $detalle['liquidacion'] = isset($detalle['nombre_caja_chica']) ? $detalle['nombre_caja_chica'] . ' - ' . $detalle['fecha_creacion'] : 'Independiente';
+            }
+    
+            return $detalles;
+        } catch (PDOException $e) {
+            error_log("getAllCorrectedDetallesForSupervisors: Error executing query: " . $e->getMessage());
+            return [];
+        }
     }
 
     public function getCorrectedDetallesForContador($contadorId) {
