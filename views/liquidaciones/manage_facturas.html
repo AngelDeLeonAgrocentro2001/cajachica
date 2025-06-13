@@ -458,7 +458,134 @@
         padding: 0.75rem 1rem;
       }
 
+      .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-content {
+    background-color: var(--card-background);
+    width: 90%;
+    max-width: 800px;
+    height: 80%;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    padding: 1rem;
+    background-color: var(--secondary-color);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .modal-close:hover {
+    color: var(--danger-color);
+    transform: rotate(90deg);
+  }
+
+  .modal-body {
+    flex: 1;
+    padding: 1rem;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: none;
+  }
+
+  .modal-body img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+
+  .modal-body iframe.active,
+  .modal-body img.active {
+    display: block;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .modal-footer button {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+
+  .modal-footer button:hover {
+    background-color: #b91c1c;
+    transform: translateY(-1px);
+  }
+
+  .file-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: color 0.2s ease;
+  }
+
+  .file-link:hover {
+    color: var(--secondary-color);
+    text-decoration: underline;
+  }
+
       @media (max-width: 768px) {
+
+        .modal-content {
+      width: 95%;
+      height: 90%;
+    }
         #facturaForm button[type="button"] {
           display: none;
         }
@@ -595,6 +722,11 @@
       }
 
       @media (max-width: 480px) {
+        .modal-content {
+      width: 100%;
+      height: 95%;
+      border-radius: 0;
+    }
         h2 {
           font-size: 1.5rem;
         }
@@ -829,15 +961,16 @@
               <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
               <td data-label="Archivos">
                 <?php
-                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                if (is_array($rutas) && !empty($rutas)) {
-                  foreach ($rutas as $ruta) {
-                    echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                  }
-                } else {
-                  echo 'N/A';
-                }
-                ?>
+                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                    if (is_array($rutas) && !empty($rutas)) {
+                        foreach ($rutas as $index => $ruta) {
+                             $fileName = basename($ruta);
+                            echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo </a></div>';
+                        }
+                    } else {
+                        echo 'N/A';
+                    }
+                    ?>
               </td>
               <td data-label="Acciones">
                 <button class="edit-btn" onclick="editFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Editar</button>
@@ -856,7 +989,65 @@
         </table>
       </div>
     </div> 
+
+    <!-- Modal HTML Structure -->
+    <div id="fileModal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h4 id="modalTitle">Archivo</h4>
+              <button class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+              <iframe id="modalIframe" src=""></iframe>
+              <img id="modalImage" src="" alt="Archivo">
+          </div>
+          <div class="modal-footer">
+              <button onclick="closeModal()">Cerrar</button>
+          </div>
+      </div>
+  </div>
     <script>
+       function openModal(fileUrl, fileName) {
+            const modal = document.getElementById('fileModal');
+            const iframe = document.getElementById('modalIframe');
+            const image = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            // Check if file is an image
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+            const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
+            
+            if (isImage) {
+                image.src = fileUrl;
+                image.classList.add('active');
+                iframe.classList.remove('active');
+            } else {
+                iframe.src = fileUrl;
+                iframe.classList.add('active');
+                image.classList.remove('active');
+            }
+            
+            modalTitle.textContent = fileName;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('fileModal');
+            const iframe = document.getElementById('modalIframe');
+            const image = document.getElementById('modalImage');
+            modal.style.display = 'none';
+            iframe.src = ''; // Clear iframe
+            image.src = ''; // Clear image
+            iframe.classList.remove('active');
+            image.classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('fileModal').addEventListener('click', function (event) {
+            if (event.target === this) {
+                closeModal();
+            }
+        });
       const fechaInicioLiquidacion = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
       const fechaFinLiquidacion = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
     
@@ -1646,6 +1837,8 @@
           updateCuentaContableOptions();
         }
       });
+
+    
     </script>
   </body>
 </html>

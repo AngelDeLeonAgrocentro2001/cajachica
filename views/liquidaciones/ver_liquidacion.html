@@ -394,7 +394,7 @@
                                 if (is_array($rutas) && !empty($rutas)) {
                                     foreach ($rutas as $index => $ruta) {
                                         $fileName = basename($ruta);
-                                        echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo ' . ($index + 1) . '</a></div>';
+                                        echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo </a></div>';
                                     }
                                 } else {
                                     echo 'N/A';
