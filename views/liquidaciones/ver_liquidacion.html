@@ -149,112 +149,118 @@
             text-decoration: underline;
         }
 
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
+       /* Modal Styles */
+      .modal {
+        display: none;
+        /* position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0; */
+        width: 100%;
+        height: 100%;
+        background-color: transparent;
+        justify-content: center;
+        align-items: center;
+      }
 
-        .modal-content {
-            background-color: var(--card-background);
-            width: 90%;
-            max-width: 800px;
-            height: 80%;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-md);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+      .modal.active {
+        display: flex;
+      }
 
-        .modal-header {
-            padding: 1rem;
-            background-color: var(--secondary-color);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+      .modal-content {
+        background-color: var(--card-background);
+        width:100%;
+        max-width: 670px;
+        height: 80%;
+        border-radius: 0.75rem;
+        box-shadow: var(--shadow-md);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        cursor: move;
+      }
 
-        .modal-header h4 {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
+      .modal-header {
+        padding: 1rem;
+        background-color: var(--secondary-color);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: move;
+      }
 
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            line-height: 1;
-        }
+      .modal-header h4 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
 
-        .modal-close:hover {
-            color: var(--danger-color);
-        }
+      .modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        line-height: 1;
+      }
 
-        .modal-body {
-            flex: 1;
-            padding: 1rem;
-            overflow: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+      .modal-close:hover {
+        color: var(--danger-color);
+      }
 
-        .modal-body iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: none;
-        }
+      .modal-body {
+        flex: 1;
+        padding: 1rem;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
 
-        .modal-body img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: none;
-        }
+      .modal-body iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: none;
+      }
 
-        .modal-body iframe.active,
-        .modal-body img.active {
-            display: block;
-        }
+      .modal-body img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: none;
+      }
 
-        .modal-footer {
-            padding: 1rem;
-            display: flex;
-            justify-content: center;
-            border-top: 1px solid var(--border-color);
-        }
+      .modal-body iframe.active,
+      .modal-body img.active {
+        display: block;
+      }
 
-        .modal-footer button {
-            padding: 0.75rem 1.5rem;
-            background-color: var(--danger-color);
-            color: white;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
+      .modal-footer {
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid var(--border-color);
+      }
 
-        .modal-footer button:hover {
-            background-color: #b91c1c;
-            transform: translateY(-1px);
-        }
+      .modal-footer button {
+        padding: 0.75rem 1.5rem;
+        background-color: var(--danger-color);
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      .modal-footer button:hover {
+        background-color: #b91c1c;
+        transform: translateY(-1px);
+      }
 
         @media (max-width: 768px) {
             .container {
@@ -345,6 +351,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Archivos</th>
                         <th>Tipo de Documento</th>
                         <th>No. Factura</th>
                         <th>Proveedor</th>
@@ -362,14 +369,31 @@
                         <th>IDP</th>
                         <th>INGUAT</th>
                         <th>Total Bruto</th>
+                        <th>Comentarios</th>
                         <th>Estado</th>
-                        <th>Archivos</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($detalles as $detalle): ?>
                         <tr>
                             <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                            <td data-label="Archivos">
+                                <?php
+                                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                                  if (is_array($rutas) && !empty($rutas)) {
+                                      foreach ($rutas as $index =>
+                                $ruta) { $fileName = basename($ruta); echo '
+                                <div>
+                                  <a
+                                    href="#"
+                                    class="file-link"
+                                    data-file="../' . htmlspecialchars($ruta) . '"
+                                    onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')"
+                                    >Ver Archivo
+                                  </a>
+                                </div>
+                                '; } } else { echo 'N/A'; } ?>
+                              </td>
                             <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
                             <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
                             <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
@@ -385,81 +409,108 @@
                             <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
                             <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
                             <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
-                            <td data-label="IDP"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+                            <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
                             <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
+                            <td data-label="Comentarios"><?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?></td>
                             <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                            <td data-label="Archivos">
-                                <?php
-                                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                                if (is_array($rutas) && !empty($rutas)) {
-                                    foreach ($rutas as $index => $ruta) {
-                                        $fileName = basename($ruta);
-                                        echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo </a></div>';
-                                    }
-                                } else {
-                                    echo 'N/A';
-                                }
-                                ?>
-                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-        <button class="back-btn" onclick="window.location.href='index.php?controller=liquidacion&amp;action=list'">Volver</button>
+        <button class="back-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list'">Volver</button>
     </div>
     <div id="fileModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h4 id="modalTitle">Archivo</h4>
-                <button class="modal-close" onclick="closeModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <iframe id="modalIframe" src=""></iframe>
-                <img id="modalImage" src="" alt="Archivo">
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeModal()">Cerrar</button>
-            </div>
+          <div class="modal-header">
+            <h4 id="modalTitle">Archivo</h4>
+            <button class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <iframe id="modalIframe" src=""></iframe>
+            <img id="modalImage" src="" alt="Archivo" />
+          </div>
+          <div class="modal-footer">
+            <button onclick="closeModal()">Cerrar</button>
+          </div>
         </div>
-    </div>
+      </div>
 
     <script>
-        function openModal(fileUrl, fileName) {
-            const modal = document.getElementById('fileModal');
-            const iframe = document.getElementById('modalIframe');
-            const image = document.getElementById('modalImage');
-            const modalTitle = document.getElementById('modalTitle');
-            
-            // Check if file is an image
-            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-            const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
-            
-            if (isImage) {
-                image.src = fileUrl;
-                image.classList.add('active');
-                iframe.classList.remove('active');
-            } else {
-                iframe.src = fileUrl;
-                iframe.classList.add('active');
-                image.classList.remove('active');
-            }
-            
-            modalTitle.textContent = fileName;
-            modal.style.display = 'flex';
+         function openModal(fileUrl, fileName) {
+        const modal = document.getElementById('fileModal');
+        const iframe = document.getElementById('modalIframe');
+        const image = document.getElementById('modalImage');
+        const modalTitle = document.getElementById('modalTitle');
+
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+        const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
+
+        if (isImage) {
+          image.src = fileUrl;
+          image.classList.add('active');
+          iframe.classList.remove('active');
+        } else {
+          iframe.src = fileUrl;
+          iframe.classList.add('active');
+          image.classList.remove('active');
         }
 
-        function closeModal() {
-            const modal = document.getElementById('fileModal');
-            const iframe = document.getElementById('modalIframe');
-            const image = document.getElementById('modalImage');
-            modal.style.display = 'none';
-            iframe.src = ''; // Clear iframe
-            image.src = ''; // Clear image
-            iframe.classList.remove('active');
-            image.classList.remove('active');
+        modalTitle.textContent = fileName;
+        modal.style.display = 'flex';
+        
+        // Initialize drag functionality
+        makeModalDraggable(modal.querySelector('.modal-content'));
+      }
+
+      function closeModal() {
+        const modal = document.getElementById('fileModal');
+        const iframe = document.getElementById('modalIframe');
+        const image = document.getElementById('modalImage');
+        modal.style.display = 'none';
+        iframe.src = '';
+        image.src = '';
+        iframe.classList.remove('active');
+        image.classList.remove('active');
+      }
+      function makeModalDraggable(modalContent) {
+        let posX = 0, posY = 0, mouseX = 0, mouseY = 0;
+
+        const modalHeader = modalContent.querySelector('.modal-header');
+        modalHeader.addEventListener('mousedown', dragMouseDown);
+
+        function dragMouseDown(e) {
+          e.preventDefault();
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+          document.addEventListener('mousemove', elementDrag);
+          document.addEventListener('mouseup', closeDragElement);
         }
 
+        function elementDrag(e) {
+          e.preventDefault();
+          posX = mouseX - e.clientX;
+          posY = mouseY - e.clientY;
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+          
+          const newTop = modalContent.offsetTop - posY;
+          const newLeft = modalContent.offsetLeft - posX;
+          
+          // Ensure modal stays within window bounds
+          const maxX = window.innerWidth - modalContent.offsetWidth;
+          const maxY = window.innerHeight - modalContent.offsetHeight;
+          
+          modalContent.style.top = Math.max(0, Math.min(newTop, maxY)) + 'px';
+          modalContent.style.left = Math.max(0, Math.min(newLeft, maxX)) + 'px';
+          modalContent.style.position = 'absolute';
+        }
+
+        function closeDragElement() {
+          document.removeEventListener('mousemove', elementDrag);
+          document.removeEventListener('mouseup', closeDragElement);
+        }
+      }
         // Close modal when clicking outside
         document.getElementById('fileModal').addEventListener('click', function (event) {
             if (event.target === this) {

@@ -1,1354 +1,1492 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?></title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      <?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' :
+      'Autorizar Liquidación'; ?>
+    </title>
     <style>
-        :root {
-            --primary-color: #5d87e2;
-            --secondary-color: #1e3a8a;
-            --accent-color: #f59e0b;
-            --danger-color: #dc2626;
-            --success-color: #16a34a;
-            --background-color: #f8fafc;
-            --card-background: #ffffff;
-            --text-color: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
+      :root {
+        --primary-color: #5d87e2;
+        --secondary-color: #1e3a8a;
+        --accent-color: #f59e0b;
+        --danger-color: #dc2626;
+        --success-color: #16a34a;
+        --background-color: #f8fafc;
+        --card-background: #ffffff;
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        body {
-            background-color: var(--background-color);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: var(--text-color);
-            line-height: 1.5;
-            margin: 0;
-            padding: 1rem;
-            width: 100vw;
-            overflow-x: hidden;
-        }
+      body {
+        background-color: var(--background-color);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-color);
+        line-height: 1.5;
+        margin: 0;
+        padding: 1rem;
+        width: 100vw;
+        overflow-x: hidden;
+      }
 
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+      }
+
+      h2 {
+        text-align: center;
+        color: var(--text-color);
+        margin: 2rem 0;
+        font-size: 1.875rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+      }
+
+      h3 {
+        color: var(--text-color);
+        margin: 1.5rem 0 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        text-align: center;
+      }
+
+      p {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 1rem;
+        margin: 0.5rem 0;
+      }
+
+      p strong {
+        color: var(--text-color);
+        font-weight: 600;
+      }
+
+      .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #facturasTable {
+        width: 100%;
+        min-width: 1200px;
+        border-collapse: collapse;
+        background-color: var(--card-background);
+        box-shadow: var(--shadow-md);
+        border-radius: 0.75rem;
+        overflow: hidden;
+      }
+
+      #facturasTable thead {
+        background-color: var(--secondary-color);
+        color: white;
+      }
+
+      #facturasTable th,
+      #facturasTable td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.875rem;
+        min-width: 100px;
+      }
+
+      #facturasTable th {
+        font-weight: 600;
+      }
+
+      #facturasTable tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s ease;
+      }
+
+      #facturasTable tbody tr:hover {
+        background-color: #f1f5f9;
+      }
+
+      #facturasTable td {
+        color: var(--text-color);
+      }
+
+      #facturasTable input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: var(--primary-color);
+      }
+
+      tr.in-correction {
+        background-color: #e5e7eb;
+        opacity: 0.8;
+      }
+
+      tr.in-correction td {
+        display: none;
+      }
+
+      tr.in-correction input[type="checkbox"] {
+        pointer-events: none;
+      }
+      .bulk-action-btn,
+      .send-to-correction-btn {
+        padding: 0.75rem;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      .bulk-action-btn,
+      .send-to-correction-btn {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      .bulk-action-btn:hover,
+      .send-to-correction-btn:hover {
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
+      }
+
+      .send-to-correction-btn {
+        background-color: var(--accent-color);
+      }
+
+      .send-to-correction-btn:hover {
+        background-color: #d97706;
+      }
+
+      .bulk-action-btn {
+        display: inline-block;
+        width: fit-content;
+        margin: 0 auto 1rem;
+        position: relative;
+        left: 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        /* position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0; */
+        width: 100%;
+        height: 100%;
+        background-color: transparent;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background-color: var(--card-background);
+        width:100%;
+        max-width: 670px;
+        height: 80%;
+        border-radius: 0.75rem;
+        box-shadow: var(--shadow-md);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        cursor: move;
+      }
+
+      .modal-header {
+        padding: 1rem;
+        background-color: var(--secondary-color);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: move;
+      }
+
+      .modal-header h4 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .modal-close:hover {
+        color: var(--danger-color);
+      }
+
+      .modal-body {
+        flex: 1;
+        padding: 1rem;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-body iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: none;
+      }
+
+      .modal-body img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: none;
+      }
+
+      .modal-body iframe.active,
+      .modal-body img.active {
+        display: block;
+      }
+
+      .modal-footer {
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid var(--border-color);
+      }
+
+      .modal-footer button {
+        padding: 0.75rem 1.5rem;
+        background-color: var(--danger-color);
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      .modal-footer button:hover {
+        background-color: #b91c1c;
+        transform: translateY(-1px);
+      }
+
+      /* Autorizar Modal Styles */
+      #autorizarModal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        justify-content: center;
+        align-items: center;
+      }
+
+      #autorizarModal.active {
+        display: flex;
+      }
+
+      #autorizarModal .modal-content {
+        width: 90%;
+        max-width: 500px;
+        height: auto;
+        padding: 1.5rem;
+      }
+
+      #autorizarForm {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      #autorizarForm select,
+      #autorizarForm textarea {
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      #autorizarForm textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+
+      #autorizarForm select:focus,
+      #autorizarForm textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      #autorizarForm .error {
+        color: var(--danger-color);
+        font-size: 0.75rem;
+        display: none;
+      }
+
+      #autorizarForm .success {
+        color: var(--success-color);
+        font-size: 0.75rem;
+        display: none;
+      }
+
+      #autorizarForm button[type="submit"] {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      #autorizarForm button[type="submit"]:hover {
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
+      }
+
+      #autorizarForm button[type="submit"][disabled] {
+        background-color: #d1d5db;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      #autorizarForm button[type="button"] {
+        background-color: var(--danger-color);
+        color: white;
+      }
+
+      #autorizarForm button[type="button"]:hover {
+        background-color: #b91c1c;
+        transform: translateY(-1px);
+      }
+
+      /* Contador Modal Styles */
+      #contadorModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        justify-content: center;
+        align-items: center;
+        z-index: 1005;
+        backdrop-filter: blur(2px);
+      }
+
+      #contadorModal.active {
+        display: flex;
+      }
+
+      #contadorModal .modal-content {
+        background: var(--card-background);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+        box-shadow: var(--shadow-md);
+      }
+
+      #contadorModal h3 {
+        color: var(--text-color);
+        margin-bottom: 1.25rem;
+      }
+
+      #contadorSelect {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        margin-bottom: 1.25rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      #contadorSelect:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      #contadorModal button {
+        padding: 0.75rem;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        width: 48%;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      #contadorModal button#confirmContadorBtn {
+        background-color: var(--primary-color);
+        color: white;
+        margin-right: 2%;
+      }
+
+      #contadorModal button#confirmContadorBtn:hover {
+        background-color: var(--secondary-color);
+        transform: translateY(-1px);
+      }
+
+      #contadorModal button#cancelContadorBtn {
+        background-color: var(--danger-color);
+        color: white;
+      }
+
+      #contadorModal button#cancelContadorBtn:hover {
+        background-color: #b91c1c;
+        transform: translateY(-1px);
+      }
+
+      @media (max-width: 768px) {
+        .modal-content {
+          width: 95%;
+          height: 90%;
+        }
         .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-
-        h2 {
-            text-align: center;
-            color: var(--text-color);
-            margin: 2rem 0;
-            font-size: 1.875rem;
-            font-weight: 700;
-            letter-spacing: -0.025em;
-        }
-
-        h3 {
-            color: var(--text-color);
-            margin: 1.5rem 0 0.75rem;
-            font-size: 1.5rem;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        p {
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 1rem;
-            margin: 0.5rem 0;
-        }
-
-        p strong {
-            color: var(--text-color);
-            font-weight: 600;
+          padding: 0 0.5rem;
         }
 
         .table-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            margin: 1.5rem 0;
-            -webkit-overflow-scrolling: touch;
+          margin: 1rem 0;
+          overflow-x: auto;
         }
 
         #facturasTable {
-            width: 100%;
-            min-width: 1200px;
-            border-collapse: collapse;
-            background-color: var(--card-background);
-            box-shadow: var(--shadow-md);
-            border-radius: 0.75rem;
-            overflow: hidden;
+          min-width: 100%;
         }
 
         #facturasTable thead {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-
-        #facturasTable th,
-        #facturasTable td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-size: 0.875rem;
-            min-width: 100px;
-        }
-
-        #facturasTable th {
-            font-weight: 600;
+          display: none;
         }
 
         #facturasTable tbody tr {
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.2s ease;
+          display: block;
+          margin-bottom: 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: 0.5rem;
+          background-color: var(--card-background);
+          box-shadow: var(--shadow-sm);
         }
 
-        #facturasTable tbody tr:hover {
-            background-color: #f1f5f9;
+        #facturasTable tbody td {
+          display: block;
+          text-align: right;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
+          position: relative;
+          border-bottom: 1px solid var(--border-color);
         }
 
-        #facturasTable td {
-            color: var(--text-color);
+        #facturasTable tbody td:last-child {
+          border-bottom: none;
         }
 
-        #facturasTable input[type="checkbox"] {
-            cursor: pointer;
-            accent-color: var(--primary-color);
+        #facturasTable tbody td:before {
+          content: attr(data-label);
+          position: absolute;
+          left: 0.75rem;
+          font-weight: 600;
+          color: var(--text-color);
         }
 
         tr.in-correction {
-            background-color: #e5e7eb;
-            opacity: 0.8;
+          background-color: #e5e7eb;
+          opacity: 0.8;
         }
 
-        tr.in-correction td {
-            display: none;
-        }
-
-        tr.in-correction input[type="checkbox"] {
-            pointer-events: none;
-        }
-
-        #autorizarForm {
-            width: 90%;
-            max-width: 500px;
-            margin: 1.5rem auto;
-            background-color: var(--card-background);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-md);
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        #autorizarForm select,
-        #autorizarForm textarea,
         .correccion-comment {
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            width: 100%;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        #autorizarForm textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        #autorizarForm select:focus,
-        #autorizarForm textarea:focus,
-        .correccion-comment:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        #autorizarForm .error {
-            color: var(--danger-color);
-            font-size: 0.75rem;
-            display: none;
-        }
-
-        #autorizarForm .success {
-            color: var(--success-color);
-            font-size: 0.75rem;
-            display: none;
-        }
-
-        #autorizarForm button,
-        .bulk-action-btn,
-        .send-to-correction-btn {
-            padding: 0.75rem;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        #autorizarForm button[type="submit"],
-        .bulk-action-btn,
-        .send-to-correction-btn {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        #autorizarForm button[type="submit"]:hover,
-        .bulk-action-btn:hover,
-        .send-to-correction-btn:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-1px);
-        }
-
-        #autorizarForm button[type="submit"][disabled] {
-            background-color: #d1d5db;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        #autorizarForm button[type="button"] {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        #autorizarForm button[type="button"]:hover {
-            background-color: #b91c1c;
-            transform: translateY(-1px);
-        }
-
-        .send-to-correction-btn {
-            background-color: var(--accent-color);
-        }
-
-        .send-to-correction-btn:hover {
-            background-color: #d97706;
-        }
-
-        .bulk-action-btn {
-            display: block;
-            width: fit-content;
-            margin: 0 auto 1rem;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(2px);
-        }
-
-        .modal.active {
-            display: flex;
+          margin-top: 1rem;
         }
 
         .modal-content {
-            background-color: var(--card-background);
-            margin: auto;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .modal-content h3 {
-            margin-top: 0;
-            color: var(--text-color);
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .modal-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1.25rem;
-        }
-
-        .modal-content table th,
-        .modal-content table td {
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            text-align: left;
-            font-size: 0.875rem;
-        }
-
-        .modal-content table th {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-
-        .modal-content table tr:hover {
-            background-color: #f1f5f9;
-            cursor: pointer;
-        }
-
-        .modal-content button {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-right: 0.5rem;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        .modal-content button.confirm {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .modal-content button.confirm:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-1px);
-        }
-
-        .modal-content button.cancel {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .modal-content button.cancel:hover {
-            background-color: #b91c1c;
-            transform: translateY(-1px);
-        }
-
-        /* Contador Modal Styles */
-        #contadorModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
-            z-index: 1005;
-            backdrop-filter: blur(2px);
-        }
-
-        #contadorModal.active {
-            display: flex;
-        }
-
-        #contadorModal .modal-content {
-            background: var(--card-background);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-            box-shadow: var(--shadow-md);
-        }
-
-        #contadorModal h3 {
-            color: var(--text-color);
-            margin-bottom: 1.25rem;
-        }
-
-        #contadorSelect {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            margin-bottom: 1.25rem;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        #contadorSelect:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          width: 95%;
+          margin: 10% auto;
         }
 
         #contadorModal button {
-            padding: 0.75rem;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            width: 48%;
-            transition: background-color 0.2s ease, transform 0.1s ease;
+          width: 100%;
+          margin: 0.5rem 0;
         }
 
         #contadorModal button#confirmContadorBtn {
-            background-color: var(--primary-color);
-            color: white;
-            margin-right: 2%;
+          margin-right: 0;
         }
 
-        #contadorModal button#confirmContadorBtn:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-1px);
+        #autorizarModal .modal-content {
+          width: 95%;
+          padding: 1rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        h2 {
+          font-size: 1.5rem;
         }
 
-        #contadorModal button#cancelContadorBtn {
-            background-color: var(--danger-color);
-            color: white;
+        h3 {
+          font-size: 1.25rem;
         }
 
-        #contadorModal button#cancelContadorBtn:hover {
-            background-color: #b91c1c;
-            transform: translateY(-1px);
+        .bulk-action-btn,
+        .send-to-correction-btn {
+          width: 100%;
         }
-
-          /* Modal Styles */
-          .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
         .modal-content {
-            background-color: var(--card-background);
-            width: 90%;
-            max-width: 800px;
-            height: 80%;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-md);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+          width: 100%;
+          height: 95%;
+          border-radius: 0;
         }
 
-        .modal-header {
-            padding: 1rem;
-            background-color: var(--secondary-color);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        #autorizarModal .modal-content {
+          width: 100%;
+          border-radius: 0;
         }
-
-        .modal-header h4 {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            line-height: 1;
-        }
-
-        .modal-close:hover {
-            color: var(--danger-color);
-        }
-
-        .modal-body {
-            flex: 1;
-            padding: 1rem;
-            overflow: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-body iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: none;
-        }
-
-        .modal-body img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: none;
-        }
-
-        .modal-body iframe.active,
-        .modal-body img.active {
-            display: block;
-        }
-
-        .modal-footer {
-            padding: 1rem;
-            display: flex;
-            justify-content: center;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .modal-footer button {
-            padding: 0.75rem 1.5rem;
-            background-color: var(--danger-color);
-            color: white;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        .modal-footer button:hover {
-            background-color: #b91c1c;
-            transform: translateY(-1px);
-        }
-
-        @media (max-width: 768px) {
-            .modal-content {
-                width: 95%;
-                height: 90%;
-            }
-            .container {
-                padding: 0 0.5rem;
-            }
-
-            .table-wrapper {
-                margin: 1rem 0;
-                overflow-x: auto;
-            }
-
-            #facturasTable {
-                min-width: 100%;
-            }
-
-            #facturasTable thead {
-                display: none;
-            }
-
-            #facturasTable tbody tr {
-                display: block;
-                margin-bottom: 1rem;
-                border: 1px solid var(--border-color);
-                border-radius: 0.5rem;
-                background-color: var(--card-background);
-                box-shadow: var(--shadow-sm);
-            }
-
-            #facturasTable tbody td {
-                display: block;
-                text-align: right;
-                padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
-                position: relative;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            #facturasTable tbody td:last-child {
-                border-bottom: none;
-            }
-
-            #facturasTable tbody td:before {
-                content: attr(data-label);
-                position: absolute;
-                left: 0.75rem;
-                font-weight: 600;
-                color: var(--text-color);
-            }
-
-            tr.in-correction {
-                background-color: #e5e7eb;
-                opacity: 0.8;
-            }
-
-            #autorizarForm {
-                width: 95%;
-                padding: 1rem;
-            }
-
-            .correccion-comment {
-                margin-top: 1rem;
-            }
-
-            .modal-content {
-                width: 95%;
-                margin: 10% auto;
-            }
-
-            #contadorModal button {
-                width: 100%;
-                margin: 0.5rem 0;
-            }
-
-            #contadorModal button#confirmContadorBtn {
-                margin-right: 0;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h2 {
-                font-size: 1.5rem;
-            }
-
-            h3 {
-                font-size: 1.25rem;
-            }
-
-            .bulk-action-btn,
-            .send-to-correction-btn {
-                width: 100%;
-            }
-            .modal-content {
-                width: 100%;
-                height: 95%;
-                border-radius: 0;
-            }
-        }
-</style>
-</head>
-<body>
+      }
+    </style>
+  </head>
+  <body>
     <div class="container">
-        <?php include '../views/partials/menu.php'; ?>
-        <h2><?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?> ID: <?php echo htmlspecialchars($data['id']); ?></h2>
-        <p><strong>Caja Chica:</strong> <?php echo htmlspecialchars($data['nombre_caja_chica']); ?></p>
-        <p><strong>Fecha Creación:</strong> <?php echo htmlspecialchars($data['fecha_creacion']); ?></p>
-        <p><strong>Monto Total:</strong> <?php echo htmlspecialchars(number_format($data['monto_total'], 2)); ?></p>
-        <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
-    
-        <h3>Detalles de la Liquidación</h3>
-        <div class="table-wrapper">
-            <table id="facturasTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tipo de Documento</th>
-                        <th>No. Factura</th>
-                        <th>Proveedor</th>
-                        <th>NIT</th>
-                        <th>DPI</th>
-                        <th>Cantidad</th>
-                        <th>Serie</th>
-                        <th>Centro de Costo</th>
-                        <th>Tipo de Gasto</th>
-                        <th>Tipo de Combustible</th>
-                        <th>Cuenta Contable</th>
-                        <th>Fecha</th>
-                        <th>Subtotal</th>
-                        <th>IVA</th>
-                        <th>IDP</th>
-                        <th>INGUAT</th>
-                        <th>Total Bruto</th>
-                        <th>Estado</th>
-                        <th>Archivos</th>
-                        <th class="comment-header hidden">Comentario</th>
-                        <th>Seleccionar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($detalles as $detalle): ?>
-                        <tr class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>" data-id="<?php echo htmlspecialchars($detalle['id']); ?>">
-                            <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
-                            <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
-                            <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                            <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
-                            <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
-                            <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
-                            <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
-                            <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-                            <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
-                            <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
-                            <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-                            <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
-                            <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
-                            <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'] ?? 0, 2); ?></td>
-                            <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
-                            <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
-                            <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-                            <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                            <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
-                            <td data-label="Archivos">
-                                <?php
-                                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                                if (is_array($rutas) && !empty($rutas)) {
-                                    foreach ($rutas as $index => $ruta) {
-                                        $fileName = basename($ruta);
-                                        echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo </a></div>';
-                                    }
-                                } else {
-                                    echo 'N/A';
-                                }
-                                ?>
-                            </td>
-                            <td data-label="Comentario" class="comment-column hidden">
-                                <input type="text" class="correccion-comment" name="correccion_comentario_<?php echo htmlspecialchars($detalle['id']); ?>" value="<?php echo htmlspecialchars($detalle['correccion_comentario'] ?? ''); ?>" <?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'disabled' : ''; ?>>
-                            </td>
-                            <td data-label="Seleccionar">
-                                <input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>" 
-                                    <?php echo ($detalle['estado'] !== 'EN_CORRECCION') ? 'checked' : 'disabled'; ?> onchange="toggleCorrectionFields(this)">
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <button class="bulk-action-btn hidden" id="bulkSendToCorrectionBtn" onclick="bulkSendToCorrection()">Enviar Seleccionados a Corrección</button>
-        <form id="autorizarForm">
-            <input type="hidden" name="id" value="<?php echo htmlspecialchars($data['id']); ?>">
-            <select name="accion" required>
+      <?php include '../views/partials/menu.php'; ?>
+      <h2>
+        <?php echo isset($mode) && $mode === 'revisar' ? 'Revisar Liquidación' : 'Autorizar Liquidación'; ?>
+        ID:
+        <?php echo htmlspecialchars($data['id']); ?>
+      </h2>
+      <p>
+        <strong>Caja Chica:</strong>
+        <?php echo htmlspecialchars($data['nombre_caja_chica']); ?>
+      </p>
+      <p>
+        <strong>Fecha Creación:</strong>
+        <?php echo htmlspecialchars($data['fecha_creacion']); ?>
+      </p>
+      <p>
+        <strong>Monto Total:</strong>
+        <?php echo htmlspecialchars(number_format($data['monto_total'], 2)); ?>
+      </p>
+      <p>
+        <strong>Estado:</strong>
+        <?php echo htmlspecialchars($data['estado']); ?>
+      </p>
+
+      <h3>Detalles de la Liquidación</h3>
+      <button
+      class="bulk-action-btn"
+      id="openAutorizarModalBtn"
+      onclick="openAutorizarModal()"
+    >
+      Autorizar
+    </button>
+      <div class="table-wrapper">
+        <table id="facturasTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Archivos</th>
+              <th>Tipo de Documento</th>
+              <th>No. Factura</th>
+              <th>Proveedor</th>
+              <th>NIT</th>
+              <th>DPI</th>
+              <th>Cantidad</th>
+              <th>Serie</th>
+              <th>Centro de Costo</th>
+              <th>Tipo de Gasto</th>
+              <th>Tipo de Combustible</th>
+              <th>Cuenta Contable</th>
+              <th>Fecha</th>
+              <th>Subtotal</th>
+              <th>IVA</th>
+              <th>IDP</th>
+              <th>INGUAT</th>
+              <th>Total Bruto</th>
+              <th>Comentarios</th>
+              <th>Estado</th>
+              <th class="comment-header hidden">Comentario</th>
+              <th>Seleccionar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($detalles as $detalle): ?>
+            <tr
+              class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>"
+              data-id="<?php echo htmlspecialchars($detalle['id']); ?>"
+            >
+              <td data-label="ID">
+                <?php echo htmlspecialchars($detalle['id']); ?>
+              </td>
+              <td data-label="Archivos">
+                <?php
+                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                  if (is_array($rutas) && !empty($rutas)) {
+                      foreach ($rutas as $index =>
+                $ruta) { $fileName = basename($ruta); echo '
+                <div>
+                  <a
+                    href="#"
+                    class="file-link"
+                    data-file="../' . htmlspecialchars($ruta) . '"
+                    onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')"
+                    >Ver Archivo
+                  </a>
+                </div>
+                '; } } else { echo 'N/A'; } ?>
+              </td>
+              <td data-label="Tipo de Documento">
+                <?php echo htmlspecialchars($detalle['tipo_documento']); ?>
+              </td>
+              <td data-label="No. Factura">
+                <?php echo htmlspecialchars($detalle['no_factura']); ?>
+              </td>
+              <td data-label="Proveedor">
+                <?php echo htmlspecialchars($detalle['nombre_proveedor']); ?>
+              </td>
+              <td data-label="NIT">
+                <?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="DPI">
+                <?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Cantidad">
+                <?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Serie">
+                <?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Centro de Costo">
+                <?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Tipo de Gasto">
+                <?php echo htmlspecialchars($detalle['t_gasto']); ?>
+              </td>
+              <td data-label="Tipo de Combustible">
+                <?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Cuenta Contable">
+                <?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Fecha">
+                <?php echo htmlspecialchars($detalle['fecha']); ?>
+              </td>
+              <td data-label="Subtotal">
+                <?php echo number_format($detalle['subtotal'] ?? 0, 2); ?>
+              </td>
+              <td data-label="IVA">
+                <?php echo number_format($detalle['iva'] ?? 0, 2); ?>
+              </td>
+              <td data-label="IDP">
+                <?php echo number_format($detalle['idp'] ?? 0, 2); ?>
+              </td>
+              <td data-label="INGUAT">
+                <?php echo number_format($detalle['inguat'] ?? 0, 2); ?>
+              </td>
+              <td data-label="Total Bruto">
+                <?php echo number_format($detalle['total_factura'], 2); ?>
+              </td>
+              <td data-label="Comentarios">
+                <?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?>
+              </td>
+              <td data-label="Estado">
+                <?php echo htmlspecialchars($detalle['estado']); ?>
+              </td>
+              <td data-label="Comentario" class="comment-column hidden">
+                <input type="text" class="correccion-comment"
+                name="correccion_comentario_<?php echo htmlspecialchars($detalle['id']); ?>"
+                value="<?php echo htmlspecialchars($detalle['correccion_comentario'] ?? ''); ?>"
+                <?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'disabled' : ''; ?>>
+              </td>
+              <td data-label="Seleccionar">
+                <input type="checkbox" name="detalles[]" value="<?php echo htmlspecialchars($detalle['id']); ?>"
+                <?php echo ($detalle['estado'] !== 'EN_CORRECCION') ? 'checked' : 'disabled'; ?>
+                onchange="toggleCorrectionFields(this)">
+              </td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <button
+        class="bulk-action-btn hidden"
+        id="bulkSendToCorrectionBtn"
+        onclick="bulkSendToCorrection()"
+      >
+        Enviar Seleccionados a Corrección
+      </button>
+     
+      <div id="autorizarModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4>Autorizar Liquidación</h4>
+            <button class="modal-close" onclick="closeAutorizarModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <form id="autorizarForm">
+              <input
+                type="hidden"
+                name="id"
+                value="<?php echo htmlspecialchars($data['id']); ?>"
+              />
+              <select name="accion" required>
                 <option value="APROBADO">Autorizar</option>
                 <option value="RECHAZADO">Rechazar</option>
                 <option value="DESCARTADO">Descartar</option>
-            </select>
-            <textarea name="motivo" placeholder="Motivo de la decisión" required></textarea>
-            <input type="hidden" name="unselected_detalles" id="unselectedDetallesInput">
-            <input type="hidden" name="correccion_comentarios" id="correccionComentariosInput">
-            <div class="error" data-field="accion"></div>
-            <div class="error" data-field="motivo"></div>
-            <div class="success"></div>
-            <div class="error"></div>
-            <button type="submit" id="submitBtn"><?php echo isset($mode) && $mode === 'revisar' ? 'Autorización' : 'Enviar Autorización'; ?></button>
-            <button type="button" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>'">Volver</button>
-        </form>
+              </select>
+              <textarea
+                name="motivo"
+                placeholder="Motivo de la decisión"
+                required
+              ></textarea>
+              <input
+                type="hidden"
+                name="unselected_detalles"
+                id="unselectedDetallesInput"
+              />
+              <input
+                type="hidden"
+                name="correccion_comentarios"
+                id="correccionComentariosInput"
+              />
+              <div class="error" data-field="accion"></div>
+              <div class="error" data-field="motivo"></div>
+              <div class="success"></div>
+              <div class="error"></div>
+              <div class="modal-footer">
+                <button type="submit" id="submitBtn">
+                  <?php echo isset($mode) && $mode === 'revisar' ? 'Autorización y Exportar a SAP' : 'Enviar Autorización'; ?>
+                </button>
+                <button type="button" onclick="closeAutorizarModal()">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="fileModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 id="modalTitle">Archivo</h4>
-                <button class="modal-close" onclick="closeModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <iframe id="modalIframe" src=""></iframe>
-                <img id="modalImage" src="" alt="Archivo">
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeModal()">Cerrar</button>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="modalTitle">Archivo</h4>
+          <button class="modal-close" onclick="closeModal()">×</button>
         </div>
+        <div class="modal-body">
+          <iframe id="modalIframe" src=""></iframe>
+          <img id="modalImage" src="" alt="Archivo" />
+        </div>
+        <div class="modal-footer">
+          <button onclick="closeModal()">Cerrar</button>
+        </div>
+      </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-         function openModal(fileUrl, fileName) {
-            const modal = document.getElementById('fileModal');
-            const iframe = document.getElementById('modalIframe');
-            const image = document.getElementById('modalImage');
-            const modalTitle = document.getElementById('modalTitle');
-            
-            // Check if file is an image
-            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-            const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
-            
-            if (isImage) {
-                image.src = fileUrl;
-                image.classList.add('active');
-                iframe.classList.remove('active');
-            } else {
-                iframe.src = fileUrl;
-                iframe.classList.add('active');
-                image.classList.remove('active');
-            }
-            
-            modalTitle.textContent = fileName;
-            modal.style.display = 'flex';
+      function openModal(fileUrl, fileName) {
+        const modal = document.getElementById('fileModal');
+        const iframe = document.getElementById('modalIframe');
+        const image = document.getElementById('modalImage');
+        const modalTitle = document.getElementById('modalTitle');
+
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+        const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
+
+        if (isImage) {
+          image.src = fileUrl;
+          image.classList.add('active');
+          iframe.classList.remove('active');
+        } else {
+          iframe.src = fileUrl;
+          iframe.classList.add('active');
+          image.classList.remove('active');
         }
 
-        function closeModal() {
-            const modal = document.getElementById('fileModal');
-            const iframe = document.getElementById('modalIframe');
-            const image = document.getElementById('modalImage');
-            modal.style.display = 'none';
-            iframe.src = ''; // Clear iframe
-            image.src = ''; // Clear image
-            iframe.classList.remove('active');
-            image.classList.remove('active');
+        modalTitle.textContent = fileName;
+        modal.style.display = 'flex';
+        
+        // Initialize drag functionality
+        makeModalDraggable(modal.querySelector('.modal-content'));
+      }
+
+      function closeModal() {
+        const modal = document.getElementById('fileModal');
+        const iframe = document.getElementById('modalIframe');
+        const image = document.getElementById('modalImage');
+        modal.style.display = 'none';
+        iframe.src = '';
+        image.src = '';
+        iframe.classList.remove('active');
+        image.classList.remove('active');
+      }
+
+      function openAutorizarModal() {
+        const modal = document.getElementById('autorizarModal');
+        modal.style.display = 'flex';
+      }
+
+      function closeAutorizarModal() {
+        const modal = document.getElementById('autorizarModal');
+        modal.style.display = 'none';
+      }
+
+      function makeModalDraggable(modalContent) {
+        let posX = 0, posY = 0, mouseX = 0, mouseY = 0;
+
+        const modalHeader = modalContent.querySelector('.modal-header');
+        modalHeader.addEventListener('mousedown', dragMouseDown);
+
+        function dragMouseDown(e) {
+          e.preventDefault();
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+          document.addEventListener('mousemove', elementDrag);
+          document.addEventListener('mouseup', closeDragElement);
         }
 
-        // Close modal when clicking outside
-        document.getElementById('fileModal').addEventListener('click', function (event) {
-            if (event.target === this) {
-                closeModal();
-            }
-        });
-        const userRole = '<?php echo strtoupper($usuario_data['rol']); ?>';
-        const submitBtn = document.getElementById('submitBtn');
-        const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
-        const commentHeader = document.querySelector('.comment-header');
-        let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
-        const unselectedDetallesInput = document.getElementById('unselectedDetallesInput');
-        const correccionComentariosInput = document.getElementById('correccionComentariosInput');
-        const currentLiquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
-        
-        console.log('User Role:', userRole);
-        const isContabilidadRole = userRole.includes('CONTABILIDAD') || userRole.includes('CONTADOR');
-        
-        console.log('isContabilidadRole:', isContabilidadRole);
-        
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            submitForm();
-        });
-        
-        async function submitForm() {
-            const form = document.getElementById('autorizarForm');
-            const formData = new FormData(form);
-            const id = formData.get('id');
-            const accion = formData.get('accion');
-            const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
-            const action = mode === 'revisar' ? 'revisar' : 'autorizar';
-        
-            const allDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]')).map(input => input.value);
-            const selectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:checked')).map(input => input.value);
-            const unselectedDetalles = allDetalles.filter(detalleId => !selectedDetalles.includes(detalleId));
-        
-            const correccionComentarios = {};
-            let allCommentsProvided = true;
-            for (const detalleId of unselectedDetalles) {
-                const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-                const row = commentInput.closest('tr');
-                if (!row.classList.contains('in-correction')) {
-                    const comment = commentInput.value.trim();
-                    if (!comment) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Comentario requerido',
-                            text: `Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`,
-                            confirmButtonText: 'OK'
-                        });
-                        commentInput.focus();
-                        allCommentsProvided = false;
-                        break;
-                    }
-                    correccionComentarios[detalleId] = comment;
-                }
-            }
-        
-            if (!allCommentsProvided) {
-                return;
-            }
-        
-            formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
-            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-        
-            try {
-                const correctionRows = document.querySelectorAll('tr.in-correction');
-                if (correctionRows.length > 0) {
-                    const confirmSend = await Swal.fire({
-                        icon: 'question',
-                        title: 'Facturas en corrección',
-                        text: `Hay ${correctionRows.length} factura(s) en corrección. ¿Deseas enviar solo las facturas no corregidas a SAP de igual forma?`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí',
-                        cancelButtonText: 'No'
-                    });
-                    if (!confirmSend.isConfirmed) {
-                        throw new Error('Envío cancelado por el usuario.');
-                    }
-                }
-        
-                if (userRole.includes('SUPERVISOR') && !isContabilidadRole && accion === 'APROBADO') {
-                    await Swal.fire({
-                        icon: 'info',
-                        title: 'Enviando a Contabilidad',
-                        text: 'La liquidación está siendo enviada a contabilidad para revisión.',
-                        confirmButtonText: 'OK'
-                    });
-                } else if (isContabilidadRole && accion === 'APROBADO') {
-                    await Swal.fire({
-                        icon: 'info',
-                        title: 'Enviando a SAP',
-                        text: 'La liquidación está siendo procesada y enviada a SAP.',
-                        confirmButtonText: 'OK'
-                    });
-                }
-        
-                const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al procesar la solicitud');
-                }
-        
-                const numCorrections = result.num_corrections || 0;
-                let message = '';
-                if (numCorrections > 0 && selectedDetalles.length > 0) {
-                    message = `${numCorrections} detalle(s) fueron enviados a corrección y las demás fueron procesadas.`;
-                    await Swal.fire({
-                        icon: 'info',
-                        title: 'Correcciones enviadas',
-                        text: message,
-                        confirmButtonText: 'OK'
-                    });
-                } else if (numCorrections > 0) {
-                    message = `${numCorrections} detalle(s) fueron enviados a corrección.`;
-                    await Swal.fire({
-                        icon: 'info',
-                        title: 'Correcciones enviadas',
-                        text: message,
-                        confirmButtonText: 'OK'
-                    });
-                } else if (selectedDetalles.length > 0) {
-                    if (isContabilidadRole) {
-                        if (accion === 'APROBADO') {
-                            message = 'Se autorizaron por contabilidad.';
-                            const sapMessage = await exportToSap(id);
-                            message += `\n${sapMessage}`;
-                            await Swal.fire({
-                                icon: 'success',
-                                title: 'Autorización y Exportación',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        } else if (accion === 'RECHAZADO') {
-                            message = 'Rechazado por contabilidad.';
-                            await Swal.fire({
-                                icon: 'info',
-                                title: 'Acción completada',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        } else if (accion === 'DESCARTADO') {
-                            message = 'Descartado por contabilidad.';
-                            await Swal.fire({
-                                icon: 'info',
-                                title: 'Acción completada',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        }
-                    } else {
-                        if (accion === 'APROBADO') {
-                            message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
-                            await Swal.fire({
-                                icon: 'success',
-                                title: 'Autorización completada',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        } else if (accion === 'RECHAZADO') {
-                            message = 'Liquidación rechazada correctamente.';
-                            await Swal.fire({
-                                icon: 'info',
-                                title: 'Acción completada',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        } else if (accion === 'DESCARTADO') {
-                            message = 'Liquidación descartada correctamente.';
-                            await Swal.fire({
-                                icon: 'info',
-                                title: 'Acción completada',
-                                text: message,
-                                confirmButtonText: 'OK',
-                                didClose: () => {
-                                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                                }
-                            });
-                        }
-                    }
-                } else {
-                    message = 'No se procesaron detalles porque todos están en corrección o no se seleccionaron.';
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'Sin cambios',
-                        text: message,
-                        confirmButtonText: 'OK',
-                        didClose: () => {
-                            window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                        }
-                    });
-                }
-        
-                if (result.message && result.message.includes('La liquidación ya fue exportada')) {
-                    message += '\n' + result.message.split('\n').pop();
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'Exportación existente',
-                        text: message,
-                        confirmButtonText: 'OK',
-                        didClose: () => {
-                            window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error al enviar solicitud:', error);
-                if (error.message !== 'Envío cancelado por el usuario.') {
-                    await Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Error al procesar la solicitud: ' + (error.message || 'Intenta de nuevo.'),
-                        confirmButtonText: 'OK'
-                    });
-                }
-            }
+        function elementDrag(e) {
+          e.preventDefault();
+          posX = mouseX - e.clientX;
+          posY = mouseY - e.clientY;
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+          
+          const newTop = modalContent.offsetTop - posY;
+          const newLeft = modalContent.offsetLeft - posX;
+          
+          // Ensure modal stays within window bounds
+          const maxX = window.innerWidth - modalContent.offsetWidth;
+          const maxY = window.innerHeight - modalContent.offsetHeight;
+          
+          modalContent.style.top = Math.max(0, Math.min(newTop, maxY)) + 'px';
+          modalContent.style.left = Math.max(0, Math.min(newLeft, maxX)) + 'px';
+          modalContent.style.position = 'absolute';
         }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            if (isContabilidadRole) {
-                filterNonCorrectedInvoices();
-            } else if (userRole.includes('SUPERVISOR')) {
-                filterSupervisorInvoices();
-            } else {
-                filterNonCorrectedInvoices();
+
+        function closeDragElement() {
+          document.removeEventListener('mousemove', elementDrag);
+          document.removeEventListener('mouseup', closeDragElement);
+        }
+      }
+
+      // document.getElementById('fileModal').addEventListener('click', function (event) {
+      //   if (event.target === this) {
+      //     closeModal();
+      //   }
+      // });
+
+      document.getElementById('autorizarModal').addEventListener('click', function (event) {
+        if (event.target === this) {
+          closeAutorizarModal();
+        }
+      });
+
+      const userRole = '<?php echo strtoupper($usuario_data['rol']); ?>';
+      const submitBtn = document.getElementById('submitBtn');
+      const bulkSendToCorrectionBtn = document.getElementById('bulkSendToCorrectionBtn');
+      const commentHeader = document.querySelector('.comment-header');
+      let hasCorrections = <?php echo json_encode(array_filter($detalles, function($detalle) { return $detalle['estado'] === 'EN_CORRECCION'; }) !== []); ?>;
+      const unselectedDetallesInput = document.getElementById('unselectedDetallesInput');
+      const correccionComentariosInput = document.getElementById('correccionComentariosInput');
+      const currentLiquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
+
+      console.log('User Role:', userRole);
+      const isContabilidadRole = userRole.includes('CONTABILIDAD') || userRole.includes('CONTADOR');
+
+      console.log('isContabilidadRole:', isContabilidadRole);
+
+      submitBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        submitForm();
+      });
+
+      async function submitForm() {
+        const form = document.getElementById('autorizarForm');
+        const formData = new FormData(form);
+        const id = formData.get('id');
+        const accion = formData.get('accion');
+        const mode = '<?php echo isset($mode) ? htmlspecialchars($mode) : 'autorizar'; ?>';
+        const action = mode === 'revisar' ? 'revisar' : 'autorizar';
+
+        const allDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]')).map(input => input.value);
+        const selectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:checked')).map(input => input.value);
+        const unselectedDetalles = allDetalles.filter(detalleId => !selectedDetalles.includes(detalleId));
+
+        const correccionComentarios = {};
+        let allCommentsProvided = true;
+        for (const detalleId of unselectedDetalles) {
+          const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+          const row = commentInput.closest('tr');
+          if (!row.classList.contains('in-correction')) {
+            const comment = commentInput.value.trim();
+            if (!comment) {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Comentario requerido',
+                text: `Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`,
+                confirmButtonText: 'OK'
+              });
+              commentInput.focus();
+              allCommentsProvided = false;
+              break;
             }
-        
-            document.querySelectorAll('input[name="detalles[]"]').forEach(checkbox => {
-                toggleCorrectionFields(checkbox);
+            correccionComentarios[detalleId] = comment;
+          }
+        }
+
+        if (!allCommentsProvided) {
+          return;
+        }
+
+        formData.append('unselected_detalles', JSON.stringify(unselectedDetalles));
+        formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+
+        try {
+          const correctionRows = document.querySelectorAll('tr.in-correction');
+          if (correctionRows.length > 0) {
+            const confirmSend = await Swal.fire({
+              icon: 'question',
+              title: 'Facturas en corrección',
+              text: `Hay ${correctionRows.length} factura(s) en corrección. ¿Deseas enviar solo las facturas no corregidas a SAP de igual forma?`,
+              showCancelButton: true,
+              confirmButtonText: 'Sí',
+              cancelButtonText: 'No'
             });
-        });
-        
-        function toggleCorrectionFields(checkbox) {
-            const row = checkbox.closest('tr');
-            const isChecked = checkbox.checked;
-            const commentColumn = row.querySelector('.comment-column');
-            const isInCorrection = row.classList.contains('in-correction');
-        
-            if (!isInCorrection) {
-                if (isChecked) {
-                    commentColumn.classList.add('hidden');
-                } else {
-                    commentColumn.classList.remove('hidden');
-                    commentHeader.classList.remove('hidden');
-                }
+            if (!confirmSend.isConfirmed) {
+              throw new Error('Envío cancelado por el usuario.');
             }
-        
+          }
+
+          if (userRole.includes('SUPERVISOR') && !isContabilidadRole && accion === 'APROBADO') {
+            await Swal.fire({
+              icon: 'info',
+              title: 'Enviando a Contabilidad',
+              text: 'La liquidación está siendo enviada a contabilidad para revisión.',
+              confirmButtonText: 'OK'
+            });
+          } else if (isContabilidadRole && accion === 'APROBADO') {
+            await Swal.fire({
+              icon: 'info',
+              title: 'Aprobando Liquidación',
+              text: 'La liquidación está siendo aprobada y preparada para exportar a SAP.',
+              confirmButtonText: 'OK'
+            });
+          }
+
+          const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=${id}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || 'Error al procesar la solicitud');
+          }
+
+          const numCorrections = result.num_corrections || 0;
+          let message = '';
+          if (numCorrections > 0 && selectedDetalles.length > 0) {
+            message = `${numCorrections} detalle(s) fueron enviados a corrección y las demás fueron procesadas.`;
+            await Swal.fire({
+              icon: 'info',
+              title: 'Correcciones enviadas',
+              text: message,
+              confirmButtonText: 'OK',
+              didClose: () => {
+                window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+              }
+            });
+          } else if (numCorrections > 0) {
+            message = `${numCorrections} detalle(s) fueron enviados a corrección.`;
+            await Swal.fire({
+              icon: 'info',
+              title: 'Correcciones enviadas',
+              text: message,
+              confirmButtonText: 'OK',
+            });
+          } else if (selectedDetalles.length > 0) {
+            if (isContabilidadRole) {
+              if (accion === 'APROBADO') {
+                message = 'Aprobado por contabilidad, intentando exportar a SAP.';
+                try {
+                  const sapResponse = await exportToSap(id);
+                  message += `\n${sapResponse}`;
+                  await Swal.fire({
+                    icon: 'success',
+                    title: 'Autorización y Exportación',
+                    text: message,
+                    confirmButtonText: 'OK',
+                    didClose: () => {
+                      window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                    }
+                  });
+                } catch (sapError) {
+                  console.error('Error en exportación a SAP:', sapError);
+                  await Swal.fire({
+                    icon: 'error',
+                    title: 'Error en SAP',
+                    text: 'No es posible exportar por problemas en SAP, intente más tarde',
+                    confirmButtonText: 'OK'
+                  });
+                  return;
+                }
+              } else if (accion === 'RECHAZADO') {
+                message = 'Rechazado por contabilidad.';
+                await Swal.fire({
+                  icon: 'info',
+                  title: 'Acción completada',
+                  text: message,
+                  confirmButtonText: 'OK',
+                  didClose: () => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                  }
+                });
+              } else if (accion === 'DESCARTADO') {
+                message = 'Descartado por contabilidad.';
+                await Swal.fire({
+                  icon: 'info',
+                  title: 'Acción completada',
+                  text: message,
+                  confirmButtonText: 'OK',
+                  didClose: () => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                  }
+                });
+              }
+            } else {
+              if (accion === 'APROBADO') {
+                message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
+                await Swal.fire({
+                  icon: 'success',
+                  title: 'Autorización completada',
+                  text: message,
+                  confirmButtonText: 'OK',
+                  didClose: () => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                  }
+                });
+              } else if (accion === 'RECHAZADO') {
+                message = 'Liquidación rechazada correctamente.';
+                await Swal.fire({
+                  icon: 'info',
+                  title: 'Acción completada',
+                  text: message,
+                  confirmButtonText: 'OK',
+                  didClose: () => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                  }
+                });
+              } else if (accion === 'DESCARTADO') {
+                message = 'Liquidación descartada correctamente.';
+                await Swal.fire({
+                  icon: 'info',
+                  title: 'Acción completada',
+                  text: message,
+                  confirmButtonText: 'OK',
+                  didClose: () => {
+                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                  }
+                });
+              }
+            }
+          } else {
+            message = 'No se procesaron detalles porque todos están en corrección o no se seleccionaron.';
+            await Swal.fire({
+              icon: 'warning',
+              title: 'Sin cambios',
+              text: message,
+              confirmButtonText: 'OK',
+              didClose: () => {
+                window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+              }
+            });
+          }
+
+          if (result.message && result.message.includes('La liquidación ya fue exportada')) {
+            message += '\n' + result.message.split('\n').pop();
+            await Swal.fire({
+              icon: 'warning',
+              title: 'Exportación existente',
+              text: message,
+              confirmButtonText: 'OK',
+              didClose: () => {
+                window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error al enviar solicitud:', error);
+          if (error.message !== 'Envío cancelado por el usuario.') {
+            await Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Error al procesar la solicitud: ' + (error.message || 'Intenta de nuevo.'),
+              confirmButtonText: 'OK'
+            });
+          }
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        if (isContabilidadRole) {
+          filterNonCorrectedInvoices();
+        } else if (userRole.includes('SUPERVISOR')) {
+          filterSupervisorInvoices();
+        } else {
+          filterNonCorrectedInvoices();
+        }
+
+        document.querySelectorAll('input[name="detalles[]"]').forEach(checkbox => {
+          toggleCorrectionFields(checkbox);
+        });
+      });
+
+      function toggleCorrectionFields(checkbox) {
+        const row = checkbox.closest('tr');
+        const isChecked = checkbox.checked;
+        const commentColumn = row.querySelector('.comment-column');
+        const isInCorrection = row.classList.contains('in-correction');
+
+        if (!isInCorrection) {
+          if (isChecked) {
+            commentColumn.classList.add('hidden');
+          } else {
+            commentColumn.classList.remove('hidden');
+            commentHeader.classList.remove('hidden');
+          }
+        }
+
+        const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
+        commentHeader.classList.toggle('hidden', !anyCommentVisible);
+        bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
+
+        const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+        unselectedDetallesInput.value = JSON.stringify(unselectedDetalles);
+
+        const correccionComentarios = {};
+        document.querySelectorAll('.correccion-comment').forEach(input => {
+          if (input.value.trim()) {
+            correccionComentarios[input.getAttribute('name').replace('correccion_comentario_', '')] = input.value.trim();
+          }
+        });
+        correccionComentariosInput.value = JSON.stringify(correccionComentarios);
+      }
+
+      async function bulkSendToCorrection() {
+        const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+        if (unselectedDetalles.length === 0) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sin selección',
+            text: 'Por favor, deselecciona al menos un detalle para enviar a corrección.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+
+        const correccionComentarios = {};
+        const validDetalles = [];
+        for (const detalleId of unselectedDetalles) {
+          const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+          const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
+          if (estado !== 'EN_CORRECCION') {
+            const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+            const comment = commentInput.value.trim();
+            if (!comment) {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Comentario requerido',
+                text: `Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`,
+                confirmButtonText: 'OK'
+              });
+              commentInput.focus();
+              return;
+            }
+            correccionComentarios[detalleId] = comment;
+            validDetalles.push(detalleId);
+          }
+        }
+
+        if (validDetalles.length === 0) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sin detalles válidos',
+            text: 'No hay detalles válidos para enviar a corrección.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+
+        const confirmSend = await Swal.fire({
+          icon: 'question',
+          title: 'Confirmar corrección',
+          text: `¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
+          showCancelButton: true,
+          confirmButtonText: 'Sí',
+          cancelButtonText: 'No'
+        });
+        if (!confirmSend.isConfirmed) return;
+
+        Swal.fire({
+          icon: 'info',
+          title: 'Enviando a corrección',
+          text: 'Los detalles seleccionados están siendo enviados a corrección.',
+          confirmButtonText: 'OK'
+        });
+
+        bulkSendToCorrectionBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('action', 'send_to_correction');
+        formData.append('detalle_ids', JSON.stringify(validDetalles));
+        formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+
+        try {
+          const action = isContabilidadRole ? 'revisar' : 'autorizar';
+          console.log('Enviando a acción:', action);
+          console.log('FormData:', {
+            action: 'send_to_correction',
+            detalle_ids: JSON.stringify(validDetalles),
+            correccion_comentarios: JSON.stringify(correccionComentarios)
+          });
+          const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          const result = await response.json();
+          console.log('Respuesta del servidor:', result);
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Error al enviar a corrección');
+          }
+
+          if (result.num_corrections > 0) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Corrección enviada',
+              text: result.message,
+              confirmButtonText: 'OK'
+            });
+            validDetalles.forEach(detalleId => {
+              const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+              row.classList.add('in-correction');
+              row.style.display = isContabilidadRole ? 'none' : '';
+              row.querySelector('input[name="detalles[]"]').disabled = true;
+              row.querySelector('input[name="detalles[]"]').checked = false;
+              row.querySelector('.comment-column').classList.add('hidden');
+              row.querySelector('.correccion-comment').disabled = true;
+              row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
+            });
+
+            hasCorrections = true;
             const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
             commentHeader.classList.toggle('hidden', !anyCommentVisible);
             bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
-        
-            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-            unselectedDetallesInput.value = JSON.stringify(unselectedDetalles);
-        
-            const correccionComentarios = {};
-            document.querySelectorAll('.correccion-comment').forEach(input => {
-                if (input.value.trim()) {
-                    correccionComentarios[input.getAttribute('name').replace('correccion_comentario_', '')] = input.value.trim();
-                }
-            });
-            correccionComentariosInput.value = JSON.stringify(correccionComentarios);
+
+            if (isContabilidadRole) {
+              filterNonCorrectedInvoices();
+            } else if (userRole.includes('SUPERVISOR')) {
+              filterSupervisorInvoices();
+            } else {
+              filterNonCorrectedInvoices();
+            }
+          } else {
+            throw new Error(result.error || 'No se procesaron detalles.');
+          }
+        } catch (error) {
+          console.error('Error al enviar a corrección:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: `Error al enviar a corrección: ${error.message}`,
+            confirmButtonText: 'OK'
+          });
+        } finally {
+          bulkSendToCorrectionBtn.disabled = false;
         }
-        
-        async function bulkSendToCorrection() {
-            const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-            if (unselectedDetalles.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sin selección',
-                    text: 'Por favor, deselecciona al menos un detalle para enviar a corrección.',
-                    confirmButtonText: 'OK'
-                });
-                return;
+      }
+
+      function filterSupervisorInvoices() {
+        const rows = document.querySelectorAll('#facturasTable tbody tr');
+        const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO', 'EN_CORRECCION'];
+        let hasVisibleRows = false;
+
+        rows.forEach(row => {
+          const estadoCell = row.querySelector('td[data-label="Estado"]');
+          const estado = estadoCell ? estadoCell.textContent.trim() : '';
+          if (visibleStates.includes(estado)) {
+            row.style.display = '';
+            hasVisibleRows = true;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        if (!hasVisibleRows) {
+          console.warn('No hay facturas en estado PENDIENTE_AUTORIZACION, EN_PROCESO o EN_CORRECCION para SUPERVISOR.');
+          rows.forEach(row => {
+            row.style.display = '';
+          });
+        }
+      }
+
+      function filterNonCorrectedInvoices() {
+        document.querySelectorAll('#facturasTable tbody tr').forEach(row => {
+          if (row.classList.contains('in-correction')) {
+            row.style.display = isContabilidadRole ? 'none' : '';
+          } else {
+            row.style.display = '';
+          }
+        });
+      }
+
+      async function exportToSap(id) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Enviando a SAP',
+          text: 'La exportación a SAP está en proceso...',
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        try {
+          const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
             }
-        
-            const correccionComentarios = {};
-            const validDetalles = [];
-            for (const detalleId of unselectedDetalles) {
-                const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-                const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
-                if (estado !== 'EN_CORRECCION') {
-                    const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-                    const comment = commentInput.value.trim();
-                    if (!comment) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Comentario requerido',
-                            text: `Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`,
-                            confirmButtonText: 'OK'
-                        });
-                        commentInput.focus();
-                        return;
-                    }
-                    correccionComentarios[detalleId] = comment;
-                    validDetalles.push(detalleId);
-                }
-            }
-        
-            if (validDetalles.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sin detalles válidos',
-                    text: 'No hay detalles válidos para enviar a corrección.',
-                    confirmButtonText: 'OK'
-                });
-                return;
-            }
-        
-            const confirmSend = await Swal.fire({
-                icon: 'question',
-                title: 'Confirmar corrección',
-                text: `¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
+          });
+          const rawResponse = await response.text();
+          console.log('Raw response:', rawResponse);
+
+          let result;
+          try {
+            result = JSON.parse(rawResponse);
+          } catch (e) {
+            throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+          }
+
+          if (!response.ok) {
+            if (response.status === 400 && result.error === 'Esta liquidación ya ha sido exportada') {
+              const confirmExport = await Swal.fire({
+                icon: 'warning',
+                title: 'Exportación existente',
+                text: 'Esta liquidación ya fue exportada. ¿Desea volver a exportarla?',
                 showCancelButton: true,
                 confirmButtonText: 'Sí',
                 cancelButtonText: 'No'
-            });
-            if (!confirmSend.isConfirmed) return;
-        
-            Swal.fire({
-                icon: 'info',
-                title: 'Enviando a corrección',
-                text: 'Los detalles seleccionados están siendo enviados a corrección.',
-                confirmButtonText: 'OK'
-            });
-        
-            bulkSendToCorrectionBtn.disabled = true;
-        
-            const formData = new FormData();
-            formData.append('action', 'send_to_correction');
-            formData.append('detalle_ids', JSON.stringify(validDetalles));
-            formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
-        
-            try {
-                const action = isContabilidadRole ? 'revisar' : 'autorizar';
-                console.log('Enviando a acción:', action);
-                console.log('FormData:', {
-                    action: 'send_to_correction',
-                    detalle_ids: JSON.stringify(validDetalles),
-                    correccion_comentarios: JSON.stringify(correccionComentarios)
+              });
+              if (confirmExport.isConfirmed) {
+                const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
+                  headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                  }
                 });
-                const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const result = await response.json();
-                console.log('Respuesta del servidor:', result);
-        
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al enviar a corrección');
+                const forceRawResponse = await forceExportResponse.text();
+                console.log('Force export raw response:', forceRawResponse);
+                if (!forceExportResponse.ok) {
+                  let forceErrorData;
+                  try {
+                    forceErrorData = JSON.parse(forceRawResponse);
+                  } catch (e) {
+                    throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+                  }
+                  throw new Error(forceErrorData.error || 'No es posible exportar por problemas en SAP, intente más tarde');
                 }
-        
-                if (result.num_corrections > 0) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Corrección enviada',
-                        text: result.message,
-                        confirmButtonText: 'OK'
-                    });
-                    validDetalles.forEach(detalleId => {
-                        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-                        row.classList.add('in-correction');
-                        row.style.display = isContabilidadRole ? 'none' : '';
-                        row.querySelector('input[name="detalles[]"]').disabled = true;
-                        row.querySelector('input[name="detalles[]"]').checked = false;
-                        row.querySelector('.comment-column').classList.add('hidden');
-                        row.querySelector('.correccion-comment').disabled = true;
-                        row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
-                    });
-        
-                    hasCorrections = true;
-                    const anyCommentVisible = document.querySelectorAll('.comment-column:not(.hidden)').length > 0;
-                    commentHeader.classList.toggle('hidden', !anyCommentVisible);
-                    bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
-        
-                    if (isContabilidadRole) {
-                        filterNonCorrectedInvoices();
-                    } else if (userRole.includes('SUPERVISOR')) {
-                        filterSupervisorInvoices();
-                    } else {
-                        filterNonCorrectedInvoices();
-                    }
-                } else {
-                    throw new Error(result.error || 'No se procesaron detalles.');
-                }
-            } catch (error) {
-                console.error('Error al enviar a corrección:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: `Error al enviar a corrección: ${error.message}`,
-                    confirmButtonText: 'OK'
-                });
-            } finally {
-                bulkSendToCorrectionBtn.disabled = false;
+                const forceResult = JSON.parse(forceRawResponse);
+                return processSapResponse(forceResult);
+              } else {
+                return 'Exportación cancelada.';
+              }
             }
-        }
-        
-        function filterSupervisorInvoices() {
-    const rows = document.querySelectorAll('#facturasTable tbody tr');
-    const visibleStates = ['PENDIENTE_AUTORIZACION', 'EN_PROCESO', 'EN_CORRECCION'];
-    let hasVisibleRows = false;
+            throw new Error(result.error || 'No es posible exportar por problemas en SAP, intente más tarde');
+          }
 
-    rows.forEach(row => {
-        const estadoCell = row.querySelector('td[data-label="Estado"]');
-        const estado = estadoCell ? estadoCell.textContent.trim() : '';
-        if (visibleStates.includes(estado)) {
-            row.style.display = '';
-            hasVisibleRows = true;
-        } else {
-            row.style.display = 'none';
+          return processSapResponse(result);
+        } catch (error) {
+          console.error('Error al exportar a SAP:', error);
+          const retry = await Swal.fire({
+            icon: 'error',
+            title: 'Error en SAP',
+            text: 'No es posible exportar por problemas en SAP, intente más tarde',
+            showCancelButton: true,
+            confirmButtonText: 'Reintentar',
+            cancelButtonText: 'OK'
+          });
+          if (retry.isConfirmed) {
+            return exportToSap(id);
+          }
+          throw error;
+        } finally {
+          Swal.close();
         }
-    });
+      }
 
-    if (!hasVisibleRows) {
-        console.warn('No hay facturas en estado PENDIENTE_AUTORIZACION, EN_PROCESO o EN_CORRECCION para SUPERVISOR.');
-        rows.forEach(row => {
-            row.style.display = '';
+      function processSapResponse(result) {
+        if (!result.success || !Array.isArray(result.results)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error en exportación',
+            text: `Error al exportar a SAP: ${result.error || 'Error desconocido'}`,
+            confirmButtonText: 'OK'
+          });
+          return `Error al exportar a SAP: ${result.error || 'Error desconocido'}`;
+        }
+        const successCount = result.results.filter(r => r.success).length;
+        const totalCount = result.results.length;
+        let message = `${successCount} de ${totalCount} facturas exportadas exitosamente a SAP.`;
+        if (successCount < totalCount) {
+          const errors = result.results
+            .filter(r => !r.success)
+            .map(r => `Factura ${r.index}: ${r.error}`)
+            .join('\n');
+          message += `\nErrores:\n${errors}`;
+        }
+        Swal.fire({
+          icon: 'info',
+          title: 'Exportación completada',
+          text: message,
+          confirmButtonText: 'OK'
         });
-    }
-}
-        
-        function filterNonCorrectedInvoices() {
-            document.querySelectorAll('#facturasTable tbody tr').forEach(row => {
-                if (row.classList.contains('in-correction')) {
-                    row.style.display = isContabilidadRole ? 'none' : '';
-                } else {
-                    row.style.display = '';
-                }
-            });
-        }
-        
-        async function exportToSap(id) {
-            Swal.fire({
-                icon: 'info',
-                title: 'Enviando a SAP',
-                text: 'La exportación a SAP está en proceso...',
-                showConfirmButton: false,
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-        
-            try {
-                const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const rawResponse = await response.text();
-                console.log('Raw response:', rawResponse);
-        
-                let result;
-                try {
-                    result = JSON.parse(rawResponse);
-                } catch (e) {
-                    throw new Error(`Error del servidor: ${response.status} - Respuesta no es JSON válida`);
-                }
-        
-                if (!response.ok) {
-                    if (response.status === 400 && result.error === 'Esta liquidación ya ha sido exportada') {
-                        const confirmExport = await Swal.fire({
-                            icon: 'warning',
-                            title: 'Exportación existente',
-                            text: 'Esta liquidación ya fue exportada. ¿Desea volver a exportarla?',
-                            showCancelButton: true,
-                            confirmButtonText: 'Sí',
-                            cancelButtonText: 'No'
-                        });
-                        if (confirmExport.isConfirmed) {
-                            const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
-                            const forceRawResponse = await forceExportResponse.text();
-                            console.log('Force export raw response:', forceRawResponse);
-                            if (!forceExportResponse.ok) {
-                                let forceErrorData;
-                                try {
-                                    forceErrorData = JSON.parse(forceRawResponse);
-                                } catch (e) {
-                                    throw new Error(`Error del servidor: ${forceExportResponse.status} - Respuesta no es JSON válida`);
-                                }
-                                throw new Error(forceErrorData.error || `Error HTTP: ${forceExportResponse.status}`);
-                            }
-                            const forceResult = JSON.parse(forceRawResponse);
-                            return processSapResponse(forceResult);
-                        } else {
-                            return 'Exportación cancelada.';
-                        }
-                    }
-                    throw new Error(result.error || `Error HTTP: ${response.status}`);
-                }
-        
-                return processSapResponse(result);
-            } catch (error) {
-                console.error('Error al exportar a SAP:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error en SAP',
-                    text: error.message || 'Error al exportar a SAP. Por favor intenta de nuevo.',
-                    confirmButtonText: 'OK'
-                });
-                throw error;
-            } finally {
-                Swal.close();
-            }
-        }
-        
-        function processSapResponse(result) {
-            if (!result.success || !Array.isArray(result.results)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error en exportación',
-                    text: `Error al exportar a SAP: ${result.error || 'Error desconocido'}`,
-                    confirmButtonText: 'OK'
-                });
-                return `Error al exportar a SAP: ${result.error || 'Error desconocido'}`;
-            }
-            const successCount = result.results.filter(r => r.success).length;
-            const totalCount = result.results.length;
-            let message = `${successCount} de ${totalCount} facturas exportadas exitosamente a SAP.`;
-            if (successCount < totalCount) {
-                const errors = result.results
-                    .filter(r => !r.success)
-                    .map(r => `Factura ${r.index}: ${r.error}`)
-                    .join('\n');
-                message += `\nErrores:\n${errors}`;
-            }
-            Swal.fire({
-                icon: 'success',
-                title: 'Exportación completada',
-                text: message,
-                confirmButtonText: 'OK'
-            });
-            return message;
-        }
+        return message;
+      }
     </script>
-</body>
+  </body>
 </html>

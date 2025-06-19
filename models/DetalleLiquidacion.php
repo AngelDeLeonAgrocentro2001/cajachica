@@ -47,14 +47,14 @@ class DetalleLiquidacion {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo = null, $cantidad = null, $serie = null, $rutas_json = null, $iva = 0, $idp = 0, $inguat = 0, $id_cuenta_contable = null, $tipo_combustible = null, $id_usuario = null) {
+    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo = null, $cantidad = null, $serie = null, $rutas_json = null, $iva = 0, $idp = 0, $inguat = 0, $id_cuenta_contable = null, $tipo_combustible = null, $id_usuario = null, $comentarios = null) {
         try {
             $sql = "INSERT INTO detalle_liquidaciones (
-                id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, dpi, fecha, t_gasto, p_unitario, total_factura, estado, id_centro_costo, cantidad, serie, rutas_archivos, iva, idp, inguat, id_cuenta_contable, tipo_combustible, id_usuario
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, dpi, fecha, t_gasto, p_unitario, total_factura, estado, id_centro_costo, cantidad, serie, rutas_archivos, iva, idp, inguat, id_cuenta_contable, tipo_combustible, id_usuario, comentarios
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->pdo->prepare($sql);
             return $stmt->execute([
-                $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $id_usuario
+                $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $id_usuario, $comentarios
             ]);
         } catch (PDOException $e) {
             error_log("Error en createDetalleLiquidacion: " . $e->getMessage());
@@ -81,19 +81,34 @@ class DetalleLiquidacion {
         $cantidad = null,
         $serie = null,
         $rutas_archivos = '[]',
-        $tipo_combustible = null
+        $tipo_combustible = null,
+        $comentarios = null
     ) {
         try {
+            // Validate id_cuenta_contable
+            if (!empty($id_cuenta_contable)) {
+                $stmt = $this->pdo->prepare("SELECT id FROM cuentas_contables WHERE id = ? AND id_centro_costo = ? AND estado = 'ACTIVO'");
+                $stmt->execute([$id_cuenta_contable, $id_centro_costo]);
+                if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                    error_log("Invalid id_cuenta_contable=$id_cuenta_contable for id_centro_costo=$id_centro_costo or inactive.");
+                    return false;
+                }
+            }
+    
             $stmt = $this->pdo->prepare("
                 UPDATE detalle_liquidaciones
                 SET tipo_documento = ?, no_factura = ?, nombre_proveedor = ?, nit_proveedor = ?, dpi = ?, fecha = ?, t_gasto = ?,
-                    p_unitario = ?, total_factura = ?, id_centro_costo = ?, cantidad = ?, serie = ?, rutas_archivos = ?, iva = ?, idp = ?, inguat = ?, id_cuenta_contable = ?, tipo_combustible = ?
+                    p_unitario = ?, total_factura = ?, id_centro_costo = ?, cantidad = ?, serie = ?, rutas_archivos = ?, iva = ?, idp = ?, inguat = ?, id_cuenta_contable = ?, tipo_combustible = ?, comentarios = ?, updated_at = NOW()
                 WHERE id = ?
             ");
-            return $stmt->execute([
+            $result = $stmt->execute([
                 $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto,
-                $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_archivos, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $id
+                $subtotal, $total_factura, $id_centro_costo, $cantidad, $serie, $rutas_archivos, $iva, $idp, $inguat, $id_cuenta_contable, $tipo_combustible, $comentarios, $id
             ]);
+            if (!$result) {
+                error_log("Failed to update detalle_liquidaciones ID $id. No rows affected.");
+            }
+            return $result;
         } catch (PDOException $e) {
             error_log("Error al actualizar detalle de liquidación ID $id: " . $e->getMessage());
             return false;
@@ -157,7 +172,7 @@ class DetalleLiquidacion {
 
         if (!in_array($estado, $estadosValidos)) {
             error_log("Estado no válido para el detalle ID $id: $estado. Estados válidos: " . implode(', ', $estadosValidos));
-            throw new Exception("Estado no válido: $estado. Debe ser uno de: " . implode(', ', $estadosValidos));
+            throw new Exception("Estado no válido: $estado. Debe be uno de: " . implode(', ', $estadosValidos));
         }
 
         try {

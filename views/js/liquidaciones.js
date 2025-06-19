@@ -7,7 +7,7 @@ let liquidacionesData = [];
 let correctedDetallesData = [];
 let isShowingCorrected = false;
 let currentPage = 1;
-const itemsPerPage = 50;
+const itemsPerPage = 10;
 let filteredLiquidacionesData = [];
 let currentLiquidationId = null;
 
@@ -404,104 +404,104 @@ function renderPagination() {
 }
 
 function renderCorrectedDetalles() {
-  const correctedDetallesSection = document.querySelector("#correctedDetallesSection");
-  const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
-  const mode = new URLSearchParams(window.location.search).get("mode") || "";
-
-  console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
-
-  if (
-      window.userRole.toUpperCase().includes("SUPERVISOR") &&
-      mode === "autorizar" &&
-      correctedDetallesData.length > 0 &&
-      isShowingCorrected
-  ) {
-      correctedDetallesSection.style.display = "block";
-      correctedDetallesTbody.innerHTML = "";
-      correctedDetallesData.forEach((detalle) => {
-          console.log("Rendering detail ID:", detalle.id);
-          const actions = [];
-          if (
-              window.userPermissions.autorizar_liquidaciones &&
-              window.userRole.toUpperCase().includes("SUPERVISOR")
-          ) {
-              actions.push(
-                  `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'autorizar')" class="edit-btn">Autorizar</button>`
-              );
-              actions.push(
-                  `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'rechazar')" class="delete-btn">Rechazar</button>`
-              );
-              actions.push(
-                  `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'descartar')" class="finalize-btn">Descartar</button>`
-              );
-          }
-          const actionsHtml = actions.join("");
-
-          let archivosHtml = "N/A";
-          if (detalle.rutas_archivos && detalle.rutas_archivos.length > 0) {
-              try {
-                  const rutas = Array.isArray(detalle.rutas_archivos)
-                      ? detalle.rutas_archivos
-                      : JSON.parse(detalle.rutas_archivos);
-
-                  if (Array.isArray(rutas) && rutas.length > 0) {
-                      archivosHtml = rutas
-                          .map((ruta) => {
-                              let normalizedPath = ruta
-                                  .replace(/\\/g, "/")
-                                  .replace(/^\/+/, "");
-                              if (!normalizedPath.startsWith("Uploads/")) {
-                                  normalizedPath = `Uploads/${normalizedPath}`;
-                              }
-                              return `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Archivos</a></div>`;
-                          })
-                          .join("");
-                  }
-              } catch (e) {
-                  console.warn("Error parsing rutas_archivos, treating as single path:", e);
-                  if (typeof detalle.rutas_archivos === "string" && detalle.rutas_archivos.trim().length > 0) {
-                      let normalizedPath = detalle.rutas_archivos
-                          .replace(/\\/g, "/")
-                          .replace(/^\/+/, "");
-                      if (!normalizedPath.startsWith("Uploads/")) {
-                          normalizedPath = `Uploads/${normalizedPath}`;
-                      }
-                      archivosHtml = `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Documentos</a></div>`;
-                  }
-              }
-          }
-
-          correctedDetallesTbody.innerHTML += `
-              <tr>
-                  <td data-label="ID">${detalle.id || "N/A"}</td>
-                  <td data-label="Tipo de Documento">${detalle.tipo_documento || "N/A"}</td>
-                  <td data-label="No Factura">${detalle.no_factura || "N/A"}</td>
-                  <td data-label="Proveedor">${detalle.nombre_proveedor || "N/A"}</td>
-                  <td data-label="NIT">${detalle.nit_proveedor || "N/A"}</td>
-                  <td data-label="DPI">${detalle.dpi || "N/A"}</td>
-                  <td data-label="Cantidad">${detalle.cantidad || "N/A"}</td>
-                  <td data-label="Serie">${detalle.serie || "N/A"}</td>
-                  <td data-label="Centro Costo">${detalle.nombre_centro_costo || "N/A"}</td>
-                  <td data-label="Tipo de Gasto">${detalle.t_gasto || "N/A"}</td>
-                  <td data-label="Tipo de Combustible">${detalle.tipo_combustible || "N/A"}</td>
-                  <td data-label="Cuenta Contable">${detalle.cuenta_contable_nombre || "N/A"}</td>
-                  <td data-label="Fecha">${detalle.fecha || "N/A"}</td>
-                  <td data-label="Subtotal">${parseFloat(detalle.subtotal || 0).toFixed(2)}</td>
-                  <td data-label="IVA">${parseFloat(detalle.iva || 0).toFixed(2)}</td>
-                  <td data-label="IDP">${parseFloat(detalle.idp || 0).toFixed(2)}</td>
-                  <td data-label="INGUAT">${parseFloat(detalle.inguat || 0).toFixed(2)}</td>
-                  <td data-label="Total Bruto">${parseFloat(detalle.total_factura || 0).toFixed(2)}</td>
-                  <td data-label="Estado">${detalle.estado || "N/A"}</td>
-                  <td data-label="Archivos">${archivosHtml}</td>
-                  <td data-label="Acciones">${actionsHtml}</td>
-              </tr>
-          `;
-      });
-  } else {
-      console.log("Hiding correctedDetallesSection: Conditions not met");
-      correctedDetallesSection.style.display = "none";
+    const correctedDetallesSection = document.querySelector("#correctedDetallesSection");
+    const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
+    const mode = new URLSearchParams(window.location.search).get("mode") || "";
+  
+    console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
+  
+    if (
+        window.userRole.toUpperCase().includes("SUPERVISOR") &&
+        mode === "autorizar" &&
+        correctedDetallesData.length > 0 &&
+        isShowingCorrected
+    ) {
+        correctedDetallesSection.style.display = "block";
+        correctedDetallesTbody.innerHTML = "";
+        correctedDetallesData.forEach((detalle) => {
+            console.log("Rendering detail ID:", detalle.id);
+            const actions = [];
+            if (
+                window.userPermissions.autorizar_liquidaciones &&
+                window.userRole.toUpperCase().includes("SUPERVISOR")
+            ) {
+                actions.push(
+                    `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'autorizar')" class="edit-btn">Autorizar</button>`
+                );
+                actions.push(
+                    `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'rechazar')" class="delete-btn">Rechazar</button>`
+                );
+                actions.push(
+                    `<button onclick="autorizarDetalle(${detalle.id}, ${detalle.liquidacion_id}, 'descartar')" class="finalize-btn">Descartar</button>`
+                );
+            }
+            const actionsHtml = actions.join("");
+  
+            let archivosHtml = "N/A";
+            if (detalle.rutas_archivos && detalle.rutas_archivos.length > 0) {
+                try {
+                    const rutas = Array.isArray(detalle.rutas_archivos)
+                        ? detalle.rutas_archivos
+                        : JSON.parse(detalle.rutas_archivos);
+  
+                    if (Array.isArray(rutas) && rutas.length > 0) {
+                        archivosHtml = rutas
+                            .map((ruta) => {
+                                let normalizedPath = ruta
+                                    .replace(/\\/g, "/")
+                                    .replace(/^\/+/, "");
+                                if (!normalizedPath.startsWith("Uploads/")) {
+                                    normalizedPath = `Uploads/${normalizedPath}`;
+                                }
+                                return `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Archivos</a></div>`;
+                            })
+                            .join("");
+                    }
+                } catch (e) {
+                    console.warn("Error parsing rutas_archivos, treating as single path:", e);
+                    if (typeof detalle.rutas_archivos === "string" && detalle.rutas_archivos.trim().length > 0) {
+                        let normalizedPath = detalle.rutas_archivos
+                            .replace(/\\/g, "/")
+                            .replace(/^\/+/, "");
+                        if (!normalizedPath.startsWith("Uploads/")) {
+                            normalizedPath = `Uploads/${normalizedPath}`;
+                        }
+                        archivosHtml = `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Documentos</a></div>`;
+                    }
+                }
+            }
+  
+            correctedDetallesTbody.innerHTML += `
+                <tr>
+                    <td data-label="ID">${detalle.id || "N/A"}</td>
+                    <td data-label="Archivos">${archivosHtml}</td>
+                    <td data-label="Tipo de Documento">${detalle.tipo_documento || "N/A"}</td>
+                    <td data-label="No Factura">${detalle.no_factura || "N/A"}</td>
+                    <td data-label="Proveedor">${detalle.nombre_proveedor || "N/A"}</td>
+                    <td data-label="NIT">${detalle.nit_proveedor !== undefined && detalle.nit_proveedor !== null ? detalle.nit_proveedor : "N/A"}</td>
+                    <td data-label="DPI">${detalle.dpi !== undefined && detalle.dpi !== null ? detalle.dpi : "N/A"}</td>
+                    <td data-label="Cantidad">${detalle.cantidad !== undefined && detalle.cantidad !== null ? detalle.cantidad : "N/A"}</td>
+                    <td data-label="Serie">${detalle.serie !== undefined && detalle.serie !== null ? detalle.serie : "N/A"}</td>
+                    <td data-label="Centro Costo">${detalle.nombre_centro_costo || "N/A"}</td>
+                    <td data-label="Tipo de Gasto">${detalle.t_gasto || "N/A"}</td>
+                    <td data-label="Tipo de Combustible">${detalle.tipo_combustible !== undefined && detalle.tipo_combustible !== null ? detalle.tipo_combustible : "N/A"}</td>
+                    <td data-label="Cuenta Contable">${detalle.cuenta_contable_nombre || "N/A"}</td>
+                    <td data-label="Fecha">${detalle.fecha || "N/A"}</td>
+                    <td data-label="Subtotal">${parseFloat(detalle.subtotal || 0).toFixed(2)}</td>
+                    <td data-label="IVA">${parseFloat(detalle.iva || 0).toFixed(2)}</td>
+                    <td data-label="IDP">${parseFloat(detalle.idp || 0).toFixed(2)}</td>
+                    <td data-label="INGUAT">${parseFloat(detalle.inguat || 0).toFixed(2)}</td>
+                    <td data-label="Total Bruto">${parseFloat(detalle.total_factura || 0).toFixed(2)}</td>
+                    <td data-label="Estado">${detalle.estado || "N/A"}</td>
+                    <td data-label="Acciones">${actionsHtml}</td>
+                </tr>
+            `;
+        });
+    } else {
+        console.log("Hiding correctedDetallesSection: Conditions not met");
+        correctedDetallesSection.style.display = "none";
+    }
   }
-}
 
 function toggleLiquidationView() {
     isShowingCorrected = !isShowingCorrected;
@@ -1129,6 +1129,7 @@ async function finalizarLiquidacion(id) {
 }
 
 function addFormValidations(id = null) {
+    
     const form = document.querySelector("#modalForm #liquidacionFormInner");
     if (!form) {
         console.error(
@@ -1252,3 +1253,4 @@ function addFormValidations(id = null) {
         }
     });
 }
+
