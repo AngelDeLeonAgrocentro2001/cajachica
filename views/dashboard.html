@@ -100,6 +100,10 @@
             border-left: 5px solid #7f8c8d; /* Gris para Descartado */
         }
 
+        .dashboard-card.en-correccion {
+            border-left: 5px solid #e67e22; /* Naranja para En Corrección */
+        }
+
         /* Estilo responsivo */
         @media (max-width: 768px) {
             .dashboard-container {
@@ -170,6 +174,11 @@
             <h3>Descartado</h3>
             <p>Cantidad: <?php echo $resumen['DESCARTADO']['cantidad']; ?></p>
             <p>Monto: Q<?php echo number_format($resumen['DESCARTADO']['monto'], 2); ?></p>
+        </div>
+        <div class="dashboard-card en-correccion">
+            <h3>En Corrección</h3>
+            <p>Cantidad: <?php echo $resumen['EN_CORRECCION']['cantidad']; ?></p>
+            <p>Monto: Q<?php echo number_format($resumen['EN_CORRECCION']['monto'], 2); ?></p>
         </div>
     </div>
 </body>
