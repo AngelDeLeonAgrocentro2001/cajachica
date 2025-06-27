@@ -154,7 +154,7 @@ switch ($controller) {
         }
         break;
 
-        case 'liquidacion':
+       case 'liquidacion':
             $liquidacionController = new LiquidacionController();
             switch ($action) {
                 case 'list':
@@ -243,6 +243,7 @@ switch ($controller) {
                         echo json_encode(['error' => 'Nombre del tipo de gasto requerido para obtener impuestos']);
                     }
                     break;
+                    
                 case 'listCorrecciones':
                     $liquidacionController->listCorrecciones();
                     break;
@@ -657,51 +658,55 @@ switch ($controller) {
         }
         break;
 
-    case 'centrocosto':
-        $centroCostoController = new CentroCostoController();
-        switch ($action) {
-            case 'list':
-                $centroCostoController->listCentrosCostos();
-                break;
-            case 'create':
-                $centroCostoController->createCentroCosto();
-                break;
-            case 'update':
-                if ($id) {
-                    $centroCostoController->updateCentroCosto($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $centroCostoController->deleteCentroCosto($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
-                }
-                break;
-            case 'createForm':
-                $centroCostoController->createForm();
-                break;
-            case 'updateForm':
-                if ($id) {
-                    $centroCostoController->updateForm($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
-                }
-                break;
-            case 'checkCodigo':
-                $centroCostoController->checkCodigo();
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
-                exit;
-        }
-        break;
+        case 'centrocosto':
+            $centroCostoController = new CentroCostoController();
+            switch ($action) {
+                case 'list':
+                    $centroCostoController->listCentrosCostos();
+                    break;
+                case 'create':
+                    $centroCostoController->createCentroCosto();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $centroCostoController->updateCentroCosto($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $centroCostoController->deleteCentroCosto($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
+                    }
+                    break;
+                case 'createForm':
+                    $centroCostoController->createForm();
+                    break;
+                case 'updateForm':
+                    if ($id) {
+                        $centroCostoController->updateForm($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                    }
+                    break;
+                case 'checkCodigo':
+                    $centroCostoController->checkCodigo();
+                    break;
+                case 'getCentrosCostos':
+                    $base_id = isset($_GET['base_id']) ? intval($_GET['base_id']) : null;
+                    $centroCostoController->getCentrosCostos($base_id);
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
+                    exit;
+            }
+            break;
 
     default:
         header('HTTP/1.1 404 Not Found');

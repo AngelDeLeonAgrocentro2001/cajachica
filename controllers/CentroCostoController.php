@@ -9,6 +9,21 @@ class CentroCostoController {
         $this->centroCostoModel = new CentroCosto();
     }
 
+    // Define CONEXION_HANA method
+    public function CONEXION_HANA($db_name) {
+        $driver = "HDBODBC";
+        $servername = "192.168.1.9:30015"; // Adjust to your SAP HANA server
+        $username = "SAPDBA"; // Adjust to your username
+        $password = "B1Adminh"; // Adjust to your password
+        $conn = odbc_connect("Driver=$driver;ServerNode=$servername;Database=$db_name;", $username, $password, SQL_CUR_USE_ODBC);
+        if (!$conn) {
+            error_log("Error al conectar a HANA: " . odbc_errormsg());
+            throw new Exception("Error al conectar a la base de datos HANA: " . odbc_errormsg());
+        }
+        odbc_exec($conn, "SET CHARACTER SET UTF8");
+        return $conn;
+    }
+
     public function listCentrosCostos() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
@@ -198,7 +213,6 @@ class CentroCostoController {
         } catch (PDOException $e) {
             header('Content-Type: application/json');
             http_response_code(400);
-            // Verificar si el error es una violación de clave foránea (SQLSTATE[23000])
             if ($e->getCode() == '23000') {
                 echo json_encode(['error' => 'No se puede eliminar el centro de costos porque está asociado a una o más facturas.']);
             } else {
@@ -300,6 +314,142 @@ class CentroCostoController {
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Error al verificar el código: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function getCentrosCostos($base_id = null) {
+        ob_start(); // Start output buffering
+        error_log("Starting getCentrosCostos with base_id=" . ($base_id ?? 'null'));
+        error_log("Session data: " . print_r($_SESSION, true));
+
+        if (!isset($_SESSION['user_id'])) {
+            ob_end_clean();
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
+            exit;
+        }
+
+        try {
+            // Initialize centro costo model
+            $centroCostoModel = new CentroCosto();
+            $pdo = Database::getInstance()->getPdo();
+            if (!$pdo) {
+                throw new Exception("Failed to get PDO instance");
+            }
+            $centros_array = [];
+
+            // Fetch cost centers from local database first
+            $query = "SELECT id, codigo, nombre, tipo FROM centros_costos WHERE estado = 'ACTIVO'";
+            $params = [];
+            if ($base_id !== null) {
+                $query .= " AND base_id = ?";
+                $params[] = $base_id;
+            }
+            $stmt = $pdo->prepare($query);
+            $stmt->execute($params);
+            $local_centros = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Local cost centers fetched: " . print_r($local_centros, true));
+
+            foreach ($local_centros as $centro) {
+                $centros_array[] = [
+                    'id' => $centro['id'],
+                    'codigo' => $centro['codigo'],
+                    'nombre' => $centro['nombre'],
+                    'tipo' => $centro['tipo']
+                ];
+            }
+
+            // Fetch cost centers from HANA
+            $sociedad = $_SESSION['sociedad'] ?? 'GT_AGROCENTRO_2016';
+            $query_hana = 'SELECT T0."PrcCode" as "Codigo Centro de costo", T0."PrcName", T0."GrpCode" FROM ' . $sociedad . '.OPRC T0';
+            error_log("Ejecutando consulta HANA para centros de costos: " . $query_hana);
+            $conexion = $this->CONEXION_HANA($sociedad);
+            $result = odbc_exec($conexion, $query_hana);
+
+            if ($result) {
+                while ($centro = odbc_fetch_object($result)) {
+                    $codigo = trim($centro->{'Codigo Centro de costo'});
+                    $nombre = trim($centro->PrcName);
+                    $tipo = trim($centro->GrpCode) ?: '5'; // Default to '5' if GrpCode is null
+
+                    // Convert to UTF-8 if necessary
+                    if (!mb_check_encoding($nombre, 'UTF-8')) {
+                        $nombre = mb_convert_encoding($nombre, 'UTF-8', 'ISO-8859-1');
+                        error_log("Nombre de centro de costo convertido a UTF-8: $codigo - $nombre");
+                    }
+
+                    // Check if the cost center exists with the same codigo
+                    $stmt = $pdo->prepare("
+                        SELECT id, nombre, base_id 
+                        FROM centros_costos 
+                        WHERE codigo = ?
+                    ");
+                    $stmt->execute([$codigo]);
+                    $existingCentro = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$existingCentro) {
+                        // Insert new cost center
+                        $stmt = $pdo->prepare("
+                            INSERT INTO centros_costos (codigo, nombre, estado, tipo, base_id)
+                            VALUES (?, ?, ?, ?, ?)
+                        ");
+                        $estado = 'ACTIVO';
+                        $insert_base_id = $base_id !== null ? $base_id : 1; // Default base_id to 1 if not provided
+                        $stmt->execute([$codigo, $nombre, $estado, $tipo, $insert_base_id]);
+                        $id = $pdo->lastInsertId();
+                        $centros_array[] = [
+                            'id' => $id,
+                            'codigo' => $codigo,
+                            'nombre' => $nombre,
+                            'tipo' => $tipo
+                        ];
+                        error_log("Inserted new cost center: codigo=$codigo, nombre=$nombre, base_id=$insert_base_id, tipo=$tipo");
+                    } elseif ($existingCentro['base_id'] == ($base_id ?? $existingCentro['base_id']) && $existingCentro['nombre'] == $nombre) {
+                        // Cost center exists for this base_id and matches name, include it
+                        if (!in_array([
+                            'id' => $existingCentro['id'],
+                            'codigo' => $codigo,
+                            'nombre' => $existingCentro['nombre'],
+                            'tipo' => $tipo
+                        ], $centros_array)) {
+                            $centros_array[] = [
+                                'id' => $existingCentro['id'],
+                                'codigo' => $codigo,
+                                'nombre' => $existingCentro['nombre'],
+                                'tipo' => $tipo
+                            ];
+                        }
+                    } else {
+                        // Cost center exists for a different base_id or name mismatch, log and skip
+                        error_log("Skipping duplicate cost center: codigo=$codigo exists for base_id={$existingCentro['base_id']}, requested base_id=" . ($base_id ?? 'null'));
+                        continue;
+                    }
+                }
+                odbc_free_result($result);
+            } else {
+                error_log("Error al ejecutar la consulta HANA: " . odbc_errormsg($conexion));
+                throw new Exception("Error al ejecutar la consulta en la base de datos HANA: " . odbc_errormsg($conexion));
+            }
+            odbc_close($conexion);
+
+            // Remove duplicates
+            $centros_array = array_values(array_unique($centros_array, SORT_REGULAR));
+
+            // Log the response
+            error_log("getCentrosCostos: base_id=" . ($base_id ?? 'null') . ", centros=" . json_encode($centros_array));
+
+            ob_end_clean();
+            header('Content-Type: application/json');
+            http_response_code(200);
+            echo json_encode($centros_array);
+        } catch (Exception $e) {
+            ob_end_clean();
+            error_log("Error in getCentrosCostos: base_id=" . ($base_id ?? 'null') . ", error=" . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al obtener centros de costos: ' . $e->getMessage()]);
         }
         exit;
     }

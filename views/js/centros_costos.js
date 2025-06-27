@@ -34,10 +34,7 @@ async function loadCentrosCostos() {
         const searchTerm = document.querySelector('#search')?.value.trim() || '';
         const selectedBaseId = document.querySelector('#baseSelect')?.value || '';
 
-        let url = 'index.php?controller=centrocosto&action=list'; // Cambia 'listCentrosCostos' por 'list'
-        if (searchTerm) {
-            url += `&search=${encodeURIComponent(searchTerm)}`;
-        }
+        let url = 'index.php?controller=centrocosto&action=getCentrosCostos';
         if (selectedBaseId) {
             url += `&base_id=${encodeURIComponent(selectedBaseId)}`;
         }
@@ -73,7 +70,7 @@ async function loadCentrosCostos() {
         tbody.innerHTML = '';
         if (centros.length > 0) {
             centros.forEach(centro => {
-                const estado = centro.estado === 'ACTIVO' ? 'Y' : 'N';
+                const estado = 'ACTIVO'; // All fetched centers are active
                 tbody.innerHTML += `
                     <tr>
                         <td data-label="Código">${centro.codigo}</td>
@@ -88,7 +85,7 @@ async function loadCentrosCostos() {
                 `;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="5">No se encontraron centros de costos con el nombre "${searchTerm}".</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5">No se encontraron centros de costos.</td></tr>`;
         }
         return centros;
     } catch (error) {

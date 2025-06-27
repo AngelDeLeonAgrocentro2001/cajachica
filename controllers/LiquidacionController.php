@@ -51,93 +51,113 @@ class LiquidacionController
     }
 
     public function ctrObtenerCuentas($Sociedad, $cuenta)
-    {
-        if ($Sociedad != 'EC_AGROCENTRO_2015') {
-            $segmento2 = '';
-            if ($cuenta == 1) {
-                $segmento = 64;
-                $segmento1 = 65;
-                $sub = 2;
-            } else if ($cuenta == 2) {
-                $segmento = 61;
-                $segmento1 = 65;
-                $sub = 2;
-            } else if ($cuenta == 3) {
-                $segmento = 62;
-                $segmento1 = 65;
-                $sub = 2;
-            } else if ($cuenta == 4) {
-                $segmento = 63;
-                $segmento1 = 65;
-                $sub = 2;
-            } else if ($cuenta == 5) {
-                $segmento = 52;
-                $sub = 2;
-            } else if ($cuenta == 6) {
-                $segmento = 52;
-                $sub = 2;
-            } else if ($cuenta == 7) {
-                $segmento = 52;
-                $sub = 2;
-            } else if ($cuenta == 8) {
-                $segmento = 52;
-                $sub = 2;
-            } else if ($cuenta == 9) {
-                $segmento = 52;
-                $sub = 2;
-            } else if ($cuenta == 10) {
-                $segmento = 52;
-                $sub = 2;
-            }
+{
+    error_log("ctrObtenerCuentas called with Sociedad=$Sociedad, cuenta=$cuenta");
+    
+    if ($Sociedad != 'EC_AGROCENTRO_2015') {
+        $segmento = '';
+        $segmento1 = '';
+        $segmento2 = '';
+        $sub = 2;
 
-            if ($segmento == 81) {
-                $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND (LEFT("AcctCode", ' . $sub . ') = ' . "'" . $segmento . "'" . ' OR LEFT("AcctCode", ' . $sub . ') = ' . "'" . $segmento1 . "'" . ' OR LEFT("AcctCode", ' . $sub . ') = ' . "'" . $segmento2 . "'" . ') OR "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'65\', \'72\', \'83\', \'74\')';
-            } else if ($cuenta == 7) {
-                $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'51\', \'52\', \'54\', \'65\', \'72\', \'83\', \'74\')';
-            } else {
-                $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", ' . $sub . ') = ' . "'" . $segmento . "'" . ' OR "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'65\', \'72\', \'83\', \'74\')';
-            }
+        // Map cuenta to segmento
+        if ($cuenta == 1) {
+            $segmento = 64;
+            $segmento1 = 65;
+            $sub = 2;
+        } elseif ($cuenta == 2) {
+            $segmento = 61;
+            $segmento1 = 65;
+            $sub = 2;
+        } elseif ($cuenta == 3) {
+            $segmento = 62;
+            $segmento1 = 65;
+            $sub = 2;
+        } elseif ($cuenta == 4) {
+            $segmento = 63;
+            $segmento1 = 65;
+            $sub = 2;
+        } elseif ($cuenta == 5) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 6) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 7) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 8) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 9) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 10) {
+            $segmento = 52;
+            $sub = 2;
+        } elseif ($cuenta == 'DB01') {
+            // Handle DB01 specifically (adjust segment as needed)
+            $segmento = 52; // Example: Use segment 52 or consult SAP HANA schema
+            $sub = 2;
+            error_log("Handling cuenta=DB01 with segmento=$segmento, sub=$sub");
         } else {
-            $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) = \'81\'';
+            // Fallback for unknown cuenta values
+            $segmento = 52;
+            $sub = 2;
+            error_log("Unknown cuenta value '$cuenta', using fallback segmento=$segmento");
         }
 
-        $respuesta = $this->mdlObtenerCuentas($qry);
-        return $respuesta;
+        if ($segmento == 81) {
+            $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND (LEFT("AcctCode", ' . $sub . ') = \'' . $segmento . '\' OR LEFT("AcctCode", ' . $sub . ') = \'' . $segmento1 . '\' OR LEFT("AcctCode", ' . $sub . ') = \'' . $segmento2 . '\') OR "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'65\', \'72\', \'83\', \'74\')';
+        } elseif ($cuenta == 7) {
+            $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'51\', \'52\', \'54\', \'65\', \'72\', \'83\', \'74\')';
+        } else {
+            $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", ' . $sub . ') = \'' . $segmento . '\' OR "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) IN (\'65\', \'72\', \'83\', \'74\')';
+        }
+    } else {
+        $qry = 'SELECT "AcctCode", "AcctName" FROM ' . $Sociedad . '.OACT WHERE "Levels" = 5 AND (("ValidFor" = \'Y\' AND "FrozenFor" = \'N\') OR ("ValidFor" = \'N\' AND "FrozenFor" = \'N\')) AND LEFT("AcctCode", 2) = \'81\'';
     }
+
+    error_log("Query constructed: $qry");
+    $respuesta = $this->mdlObtenerCuentas($qry);
+    return $respuesta;
+}
 
     public function mdlObtenerCuentas($query)
-    {
-        try {
-            $conexion = $this->CONEXION_HANA('GT_AGROCENTRO_2016');
-            error_log("Ejecutando consulta HANA: " . $query);
-            $prov = odbc_exec($conexion, $query);
-            $json = "";
-            if ($prov) {
-                while ($proveedor = odbc_fetch_object($prov)) {
-                    // Registro del nombre de cuenta sin procesar para depurar problemas de codificación
-                    error_log("Cuenta obtenida (sin procesar): " . $proveedor->AcctCode . '-' . $proveedor->AcctName);
-                    // Detectar codificación del nombre de cuenta y convertir a UTF-8 si es necesario
-                    $acctName = $proveedor->AcctName;
-                    if (!mb_check_encoding($acctName, 'UTF-8')) {
-                        // Si no es UTF-8, asumir que es ISO-8859-1 (común en HANA) y convertir
-                        $acctName = mb_convert_encoding($acctName, 'UTF-8', 'ISO-8859-1');
-                        error_log("Nombre de cuenta convertido a UTF-8: " . $proveedor->AcctCode . '-' . $acctName);
-                    }
-                    $json .= "|" . $proveedor->AcctCode . '-' . $acctName;
-                    error_log("Cuenta procesada: " . $proveedor->AcctCode . '-' . $acctName);
+{
+    try {
+        $conexion = $this->CONEXION_HANA('GT_AGROCENTRO_2016');
+        error_log("Ejecutando consulta HANA: " . $query);
+        $prov = odbc_exec($conexion, $query);
+        $json = "";
+        if ($prov) {
+            while ($proveedor = odbc_fetch_object($prov)) {
+                error_log("Cuenta obtenida (sin procesar): " . $proveedor->AcctCode . '-' . $proveedor->AcctName);
+                $acctName = $proveedor->AcctName;
+                if (!mb_check_encoding($acctName, 'UTF-8')) {
+                    $acctName = mb_convert_encoding($acctName, 'UTF-8', 'ISO-8859-1');
+                    error_log("Nombre de cuenta convertido a UTF-8: " . $proveedor->AcctCode . '-' . $acctName);
                 }
-            } else {
-                error_log("Error al ejecutar la consulta HANA: " . odbc_errormsg($conexion));
-                throw new Exception("Error al ejecutar la consulta en la base de datos HANA.");
+                $json .= "|" . $proveedor->AcctCode . '-' . $acctName;
+                error_log("Cuenta procesada: " . $proveedor->AcctCode . '-' . $acctName);
             }
             odbc_free_result($prov);
-            odbc_close($conexion);
-            return $json;
-        } catch (Exception $e) {
-            error_log("Error en mdlObtenerCuentas: " . $e->getMessage());
-            throw $e;
+        } else {
+            $errorMsg = odbc_errormsg($conexion);
+            error_log("Error al ejecutar la consulta HANA: " . $errorMsg);
+            throw new Exception("Error al ejecutar la consulta en la base de datos HANA: " . $errorMsg);
         }
+        odbc_close($conexion);
+        if (empty($json)) {
+            error_log("No se encontraron cuentas en HANA para la consulta: " . $query);
+            return 'sin_datos';
+        }
+        return $json;
+    } catch (Exception $e) {
+        error_log("Error en mdlObtenerCuentas: " . $e->getMessage());
+        throw $e;
     }
+}
 
     public function listLiquidaciones()
 {
@@ -1969,7 +1989,8 @@ public function revisar($id)
     require '../views/liquidaciones/autorizar_individual.html';
     exit;
 }
-private function login_sap($db){
+private function login_sap($db)
+    {
         $usuario = 'manager';
         $contrasena = 'Team64110';
         $sociedad = $db;
@@ -2030,155 +2051,444 @@ private function login_sap($db){
             'routeId' => $sessionData['RouteId'] ?? '.guid',
             'response' => $sessionData
         ];
-    }
+}
 
-    private function logout_sap()
-    {
-        $curl = curl_init();
-
-        $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
-        $sboObjType = 'Logout';
-
-        curl_setopt_array($curl, [
-            CURLOPT_PORT => 50000,
-            CURLOPT_URL => $urlServer . $sboObjType,
-            CURLOPT_SSL_VERIFYHOST => false, // Insecure; use valid SSL in production
-            CURLOPT_SSL_VERIFYPEER => false, // Insecure; use valid SSL in production
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
-            CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "Cache-Control: no-cache"
-            ],
-        ]);
-
-        $response = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($curl);
-        curl_close($curl);
-
-        if ($response === false || $curlError) {
-            $errorMsg = $curlError ? "cURL Error: $curlError" : "No response received";
-            error_log("SAP Logout Failed: $errorMsg");
-            return ['success' => false, 'error' => $errorMsg];
-        }
-
-        if ($httpCode !== 204) {
-            error_log("SAP Logout Failed: HTTP $httpCode - $response");
-            return ['success' => false, 'error' => "HTTP $httpCode - $response"];
-        }
-
-        $cookieFile = __DIR__ . '/cookie.txt';
-        if (file_exists($cookieFile) && is_writable($cookieFile)) {
-            unlink($cookieFile); // Clean up cookie file
-        } elseif (file_exists($cookieFile)) {
-            error_log("Warning: Could not delete cookie file; not writable");
-        }
-
-        return ['success' => true];
-    }
-
-    public function exportar($id)
+private function logout_sap()
 {
-    ob_start();
-    error_log("Iniciando exportar para id: $id");
+    $curl = curl_init();
 
-    if (!isset($_SESSION['user_id'])) {
-        error_log('Error: No hay session user_id en exportar');
-        ob_end_clean();
-        header('Content-Type: application/json; charset=utf-8');
-        http_response_code(401);
-        echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
-        exit;
+    $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
+    $sboObjType = 'Logout';
+
+    curl_setopt_array($curl, [
+        CURLOPT_PORT => 50000,
+        CURLOPT_URL => $urlServer . $sboObjType,
+        CURLOPT_SSL_VERIFYHOST => false, // Insecure; use valid SSL in production
+        CURLOPT_SSL_VERIFYPEER => false, // Insecure; use valid SSL in production
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
+        CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json",
+            "Cache-Control: no-cache"
+        ],
+    ]);
+
+    $response = curl_exec($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+
+    if ($response === false || $curlError) {
+        $errorMsg = $curlError ? "cURL Error: $curlError" : "No response received";
+        error_log("SAP Logout Failed: $errorMsg");
+        return ['success' => false, 'error' => $errorMsg];
     }
 
-    try {
-        // Validate user and permissions
-        error_log("Cargando modelo Usuario");
-        if (!class_exists('Usuario')) {
-            throw new Exception('Clase Usuario no encontrada');
-        }
-        $usuarioModel = new Usuario();
-        error_log("Obteniendo usuario por ID: {$_SESSION['user_id']}");
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuario || !$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
-            error_log('Error: No tienes permiso para exportar liquidaciones');
+    if ($httpCode !== 204) {
+        error_log("SAP Logout Failed: HTTP $httpCode - $response");
+        return ['success' => false, 'error' => "HTTP $httpCode - $response"];
+    }
+
+    $cookieFile = __DIR__ . '/cookie.txt';
+    if (file_exists($cookieFile) && is_writable($cookieFile)) {
+        unlink($cookieFile); // Clean up cookie file
+    } elseif (file_exists($cookieFile)) {
+        error_log("Warning: Could not delete cookie file; not writable");
+    }
+
+    return ['success' => true];
+}
+
+public function exportar($id)
+    {
+        ob_start();
+        error_log("Iniciando exportar para id: $id");
+
+        if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id en exportar');
             ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para exportar liquidaciones'], JSON_UNESCAPED_UNICODE);
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
-        // Load liquidacion
-        error_log("Cargando modelo Liquidacion");
-        if (!class_exists('Liquidacion')) {
-            throw new Exception('Clase Liquidacion no encontrada');
-        }
-        $liquidacionModel = new Liquidacion();
-        error_log("Obteniendo liquidación por ID: $id");
-        $liquidacion = $liquidacionModel->getLiquidacionById($id);
-        if (!$liquidacion) {
+        try {
+            // Validate user and permissions
+            error_log("Cargando modelo Usuario");
+            if (!class_exists('Usuario')) {
+                throw new Exception('Clase Usuario no encontrada');
+            }
+            $usuarioModel = new Usuario();
+            error_log("Obteniendo usuario por ID: {$_SESSION['user_id']}");
+            $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+            if (!$usuario || !$usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
+                error_log('Error: No tienes permiso para exportar liquidaciones');
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(403);
+                echo json_encode(['error' => 'No tienes permiso para exportar liquidaciones'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Load liquidacion
+            error_log("Cargando modelo Liquidacion");
+            if (!class_exists('Liquidacion')) {
+                throw new Exception('Clase Liquidacion no encontrada');
+            }
+            $liquidacionModel = new Liquidacion();
+            error_log("Obteniendo liquidación por ID: $id");
+            $liquidacion = $liquidacionModel->getLiquidacionById($id);
+            if (!$liquidacion) {
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['error' => 'Liquidación no encontrada'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Check liquidacion state
+            $invalidStates = ['EN_CORRECCION', 'PENDIENTE_AUTORIZACION', 'EN_PROCESO'];
+            if (in_array($liquidacion['estado'], $invalidStates)) {
+                $stateMessage = "Solo se pueden exportar liquidaciones en estado PENDIENTE_REVISION_CONTABILIDAD o FINALIZADO, no en {$liquidacion['estado']}";
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['error' => $stateMessage], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Fetch detalle_liquidacion records
+            error_log("Cargando modelo DetalleLiquidacion");
+            if (!class_exists('DetalleLiquidacion')) {
+                throw new Exception('Clase DetalleLiquidacion no encontrada');
+            }
+            $detalleLiquidacionModel = new DetalleLiquidacion();
+            error_log("Obteniendo detalles por liquidación ID: $id");
+            $detalleLiquidaciones = $detalleLiquidacionModel->getDetallesByLiquidacionId($id);
+            if (empty($detalleLiquidaciones)) {
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['error' => 'No se encontraron detalles de liquidación'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Filter detalle_liquidaciones to only include PENDIENTE_REVISION_CONTABILIDAD state
+            $pendingDetalles = array_filter($detalleLiquidaciones, function ($dl) {
+                return $dl['estado'] === 'PENDIENTE_REVISION_CONTABILIDAD';
+            });
+
+            if (empty($pendingDetalles)) {
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['error' => 'No se encontraron detalles en estado PENDIENTE_REVISION_CONTABILIDAD para exportar'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Start transaction
+            $this->pdo->beginTransaction();
+
+            // SAP Login
+            error_log("Intentando login en SAP");
+            $loginResult = $this->login_sap('T_GT_AGROCENTRO_2016');
+            if (!$loginResult['success']) {
+                error_log("Login SAP Failed: {$loginResult['error']}");
+                $this->pdo->rollBack();
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(500);
+                echo json_encode(['error' => 'No es posible exportar por problemas en SAP, intente más tarde'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $cookie = "B1SESSION={$loginResult['sessionId']}; ROUTEID={$loginResult['routeId']}";
+
+            // Initialize CentroCosto model
+            error_log("Cargando modelo CentroCosto");
+            if (!class_exists('CentroCosto')) {
+                throw new Exception('Clase CentroCosto no encontrada');
+            }
+            $centroCostoModel = new CentroCosto();
+
+            $results = [];
+            $jsonDir = __DIR__ . "/json";
+            if (!file_exists($jsonDir)) {
+                if (!mkdir($jsonDir, 0777, true)) {
+                    throw new Exception('No se pudo crear el directorio JSON: ' . $jsonDir);
+                }
+            }
+            if (!is_writable($jsonDir)) {
+                throw new Exception('El directorio JSON no es escribible: ' . $jsonDir);
+            }
+
+            $forceExport = isset($_GET['force']) && $_GET['force'] === 'true';
+            $timestamp = date('Ymd\THis');
+
+            // Create a separate invoice for pending detalle_liquidaciones
+            $allExportsSuccessful = true;
+            foreach ($pendingDetalles as $index => $dl) {
+                try {
+                    error_log("Procesando detalle_liquidacion index: $index (estado: {$dl['estado']}, tipo_documento: {$dl['tipo_documento']}, no_factura: {$dl['no_factura']})");
+                    $docDate = date('Y-m-d', strtotime($dl['fecha']));
+                    $numAtCard = !empty(trim($dl['no_factura'])) ? substr(trim($dl['no_factura']), 0, 50) : "DLIQ-{$id}-{$index}-{$timestamp}";
+                    $documentLines = [];
+                    $docTotal = 0;
+
+                    // Validate CostingCode
+                    $costingCode = null;
+                    if (!empty($dl['id_centro_costo'])) {
+                        $centroCosto = $centroCostoModel->getCentroCostoById($dl['id_centro_costo']);
+                        if ($centroCosto && !empty($centroCosto['codigo'])) {
+                            $costingCode = trim($centroCosto['codigo']);
+                            error_log("CostingCode encontrado para id_centro_costo {$dl['id_centro_costo']}: $costingCode");
+                        } else {
+                            error_log("No se encontró código para id_centro_costo {$dl['id_centro_costo']} o centro no existe");
+                            $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                            $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DETALLE_INVALIDO', "Detalle inválido: id_centro_costo {$dl['id_centro_costo']} no tiene un CostingCode válido");
+                            throw new Exception("id_centro_costo {$dl['id_centro_costo']} no tiene un CostingCode válido para factura {$dl['no_factura']}");
+                        }
+                    } else {
+                        error_log("id_centro_costo no especificado para detalle index $index");
+                        $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                        $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DETALLE_INVALIDO', "Detalle inválido: id_centro_costo no especificado para factura {$dl['no_factura']}");
+                        throw new Exception("id_centro_costo no especificado para factura {$dl['no_factura']}");
+                    }
+
+                    // Fetch TipoDoc from tipos_documentos based on tipo_documento
+                    $tipoDoc = '';
+                    $stmt = $this->pdo->prepare("SELECT TipoDoc FROM tipos_documentos WHERE name = ?");
+                    $stmt->execute([$dl['tipo_documento']]);
+                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($result && !empty($result['TipoDoc'])) {
+                        $tipoDoc = $result['TipoDoc'];
+                        error_log("TipoDoc encontrado para tipo_documento {$dl['tipo_documento']}: $tipoDoc");
+                    } else {
+                        error_log("No se encontró TipoDoc para tipo_documento {$dl['tipo_documento']}, usando valor por defecto: ''");
+                    }
+
+                    // Determine document type and generate document lines
+                    $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
+                    if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+                        if (floatval($dl['iva']) > 0) {
+                            $documentLines[] = [
+                                "LineType" => 0,
+                                "ItemDescription" => $dl['t_gasto'],
+                                "Price" => floatval($dl['iva']),
+                                "TaxCode" => "IVA",
+                                "CostingCode" => $costingCode,
+                                "AccountCode" => "641101001",
+                                "U_TipoDoc" => $tipoDoc
+                            ];
+                            $docTotal += floatval($dl['iva']);
+                        }
+                        if (floatval($dl['idp']) > 0) {
+                            $documentLines[] = [
+                                "LineType" => count($documentLines),
+                                "ItemDescription" => "IDP",
+                                "Price" => floatval($dl['idp']),
+                                "TaxCode" => "EXE",
+                                "CostingCode" => $costingCode,
+                                "AccountCode" => "641101001",
+                                "U_TipoDoc" => $tipoDoc
+                            ];
+                            $docTotal += floatval($dl['idp']);
+                        } elseif (floatval($dl['inguat']) > 0) {
+                            $documentLines[] = [
+                                "LineType" => count($documentLines),
+                                "ItemDescription" => "INGUAT",
+                                "Price" => floatval($dl['inguat']),
+                                "TaxCode" => "EXE",
+                                "CostingCode" => $costingCode,
+                                "AccountCode" => "641101001",
+                                "U_TipoDoc" => $tipoDoc
+                            ];
+                            $docTotal += floatval($dl['inguat']);
+                        }
+                    } else {
+                        if (floatval($dl['total_factura']) > 0) {
+                            $documentLines[] = [
+                                "LineType" => 0,
+                                "ItemDescription" => $dl['t_gasto'] . " ({$tipoDocumento})",
+                                "Price" => floatval($dl['total_factura']),
+                                "TaxCode" => "EXE",
+                                "CostingCode" => $costingCode,
+                                "AccountCode" => "641101002",
+                                "U_TipoDoc" => $tipoDoc
+                            ];
+                            $docTotal += floatval($dl['total_factura']);
+                        }
+                    }
+
+                    // Validate document lines
+                    if (empty($documentLines)) {
+                        error_log("No document lines for detalle_liquidacion index $index: tipo_documento={$tipoDocumento}");
+                        $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                        $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DETALLE_INVALIDO', "Detalle inválido: sin valores financieros válidos para {$tipoDocumento}");
+                        throw new Exception("No se generaron líneas para el documento: sin valores financieros válidos para {$tipoDocumento} en factura {$dl['no_factura']}");
+                    }
+
+                    // Use comentarios field, with fallback to "Sin comentarios" if empty or null, and trim to 254 chars
+                    $comments = !empty(trim($dl['comentarios'])) ? substr(trim($dl['comentarios']), 0, 254) : 'Sin comentarios';
+                    // Trim nombre_proveedor to 254 chars to comply with SAP UDF length restrictions
+                    $nombreProveedor = !empty(trim($dl['nombre_proveedor'])) ? substr(trim($dl['nombre_proveedor']), 0, 254) : '';
+                    // Use nit_proveedor for U_NIT, with fallback to "321052" if empty or null, and trim to 20 chars
+                    $nitProveedor = !empty(trim($dl['nit_proveedor'])) ? substr(trim($dl['nit_proveedor']), 0, 20) : '321052';
+
+                    $purchaseInvoice = [
+                        "DocType" => "dDocument_Service",
+                        "CardCode" => "CCHA0010",
+                        "U_CODIGO" => "CCHA0010",
+                        "DocDate" => $docDate,
+                        "Comments" => $comments,
+                        "JournalMemo" => $comments,
+                        "U_NIT" => $nitProveedor,
+                        "U_NOMBRE" => $nombreProveedor,
+                        "Series" => 82,
+                        "DocTotal" => $docTotal,
+                        "Reference1" => "{$id}-{$index}",
+                        "NumAtCard" => $numAtCard,
+                        "DocCurrency" => "QTZ",
+                        "DocRate" => 1,
+                        "DocumentLines" => $documentLines
+                    ];
+
+                    // Generate JSON file
+                    $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$index}.json";
+                    $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent) === false) {
+                        throw new Exception("No se pudo escribir el archivo JSON: $jsonFilePath");
+                    }
+                    error_log("JSON file generated at: $jsonFilePath");
+
+                    // Send to SAP
+                    $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
+                    $ch = curl_init($sapUrl);
+                    curl_setopt_array($ch, [
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_POST => true,
+                        CURLOPT_HTTPHEADER => [
+                            'Content-Type: application/json',
+                            'Cookie: ' . $cookie
+                        ],
+                        CURLOPT_POSTFIELDS => $jsonContent,
+                        CURLOPT_SSL_VERIFYPEER => false,
+                        CURLOPT_SSL_VERIFYHOST => false,
+                    ]);
+
+                    $response = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlError = curl_error($ch);
+                    curl_close($ch);
+
+                    if ($response === false || $curlError) {
+                        error_log("SAP Error for index $index: $curlError");
+                        $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                        $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'ERROR_EXPORTACION_SAP', "Error al exportar a SAP: $curlError para factura {$dl['no_factura']}");
+                        throw new Exception("Error de conexión SAP para factura {$dl['no_factura']}: $curlError");
+                    }
+
+                    $sapResponse = json_decode($response, true);
+                    if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+                        $errorMsg = "Error SAP para factura {$dl['no_factura']}: HTTP $httpCode";
+                        if (isset($sapResponse['error']['message']['value'])) {
+                            $errorMsg .= " - {$sapResponse['error']['message']['value']}";
+                        }
+                        error_log("SAP Error for index $index: $errorMsg");
+                        if ($httpCode === 400 && strpos($response, 'El número de referencia YA EXISTE') !== false && !$forceExport) {
+                            $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                            $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'ERROR_EXPORTACION_SAP', "Error: Esta liquidación ya ha sido exportada para factura {$dl['no_factura']}");
+                            throw new Exception("Esta liquidación ya ha sido exportada para factura {$dl['no_factura']}");
+                        } else {
+                            $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                            $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'ERROR_EXPORTACION_SAP', $errorMsg);
+                            throw new Exception($errorMsg);
+                        }
+                    }
+
+                    // Update detail state to FINALIZADO on success
+                    $detalleLiquidacionModel->updateEstado($dl['id'], 'FINALIZADO');
+                    $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Detalle exportado a SAP para factura {$dl['no_factura']}");
+
+                    $results[] = [
+                        'index' => $index,
+                        'success' => true,
+                        'message' => "Factura {$dl['no_factura']} enviada a SAP exitosamente",
+                        'filePath' => $jsonFilePath,
+                        'sap_response' => $sapResponse
+                    ];
+                } catch (Exception $e) {
+                    error_log("Error processing detalle_liquidacion index $index: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+                    $results[] = [
+                        'index' => $index,
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                        'filePath' => $jsonFilePath ?? null,
+                        'detalle_id' => $dl['id'],
+                        'no_factura' => $dl['no_factura']
+                    ];
+                    $allExportsSuccessful = false;
+                }
+            }
+
+            // SAP Logout
+            error_log("Intentando logout de SAP");
+            $logoutResult = $this->logout_sap();
+            if (!$logoutResult['success']) {
+                error_log("SAP Logout Failed: {$logoutResult['error']}");
+            }
+
+            // Update liquidacion state only if ALL exports were successful
+            $successCount = count(array_filter($results, fn($r) => $r['success']));
+            if ($successCount === count($pendingDetalles)) {
+                $liquidacionModel->updateEstado($id, 'FINALIZADO');
+                $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Exportación completada: $successCount de " . count($pendingDetalles) . " documentos");
+                $this->pdo->commit();
+                $response = [
+                    'success' => true,
+                    'message' => "Todos los documentos ($successCount de " . count($pendingDetalles) . ") procesados exitosamente",
+                    'results' => $results
+                ];
+            } else {
+                $this->pdo->rollBack();
+                error_log("Exportación fallida para ID $id: solo $successCount de " . count($pendingDetalles) . " documentos exportados");
+                $response = [
+                    'success' => false,
+                    'message' => "Exportación fallida: solo $successCount de " . count($pendingDetalles) . " documentos procesados exitosamente",
+                    'results' => $results
+                ];
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode($response, JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            // Handle duplicate reference
+            if (!$forceExport && array_filter($results, fn($r) => strpos($r['error'], 'Esta liquidación ya ha sido exportada') !== false)) {
+                $this->pdo->rollBack();
+                ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['error' => 'Una o más facturas de esta liquidación ya han sido exportadas'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
             ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
-            http_response_code(404);
-            echo json_encode(['error' => 'Liquidación no encontrada'], JSON_UNESCAPED_UNICODE);
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
             exit;
-        }
 
-        // Check liquidacion state
-        $invalidStates = ['EN_CORRECCION', 'PENDIENTE_AUTORIZACION', 'EN_PROCESO'];
-        if (in_array($liquidacion['estado'], $invalidStates)) {
-            $stateMessage = "Solo se pueden exportar liquidaciones en estado PENDIENTE_REVISION_CONTABILIDAD o FINALIZADO, no en {$liquidacion['estado']}";
-            ob_end_clean();
-            header('Content-Type: application/json; charset=utf-8');
-            http_response_code(400);
-            echo json_encode(['error' => $stateMessage], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        // Fetch detalle_liquidacion records
-        error_log("Cargando modelo DetalleLiquidacion");
-        if (!class_exists('DetalleLiquidacion')) {
-            throw new Exception('Clase DetalleLiquidacion no encontrada');
-        }
-        $detalleLiquidacionModel = new DetalleLiquidacion();
-        error_log("Obteniendo detalles por liquidación ID: $id");
-        $detalleLiquidaciones = $detalleLiquidacionModel->getDetallesByLiquidacionId($id);
-        if (empty($detalleLiquidaciones)) {
-            ob_end_clean();
-            header('Content-Type: application/json; charset=utf-8');
-            http_response_code(404);
-            echo json_encode(['error' => 'No se encontraron detalles de liquidación'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        // Filter detalle_liquidaciones to only include PENDIENTE_REVISION_CONTABILIDAD state
-        $pendingDetalles = array_filter($detalleLiquidaciones, function ($dl) {
-            return $dl['estado'] === 'PENDIENTE_REVISION_CONTABILIDAD';
-        });
-
-        if (empty($pendingDetalles)) {
-            ob_end_clean();
-            header('Content-Type: application/json; charset=utf-8');
-            http_response_code(400);
-            echo json_encode(['error' => 'No se encontraron detalles en estado PENDIENTE_REVISION_CONTABILIDAD para exportar'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        // Start transaction
-        $this->pdo->beginTransaction();
-
-        // SAP Login
-        error_log("Intentando login en SAP");
-        $loginResult = $this->login_sap('T_GT_AGROCENTRO_2016');
-        if (!$loginResult['success']) {
-            error_log("Login SAP Failed: {$loginResult['error']}");
+        } catch (Exception $e) {
+            error_log('Error exporting: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            if (isset($loginResult) && $loginResult['success']) {
+                $this->logout_sap();
+            }
             $this->pdo->rollBack();
             ob_end_clean();
             header('Content-Type: application/json; charset=utf-8');
@@ -2186,260 +2496,7 @@ private function login_sap($db){
             echo json_encode(['error' => 'No es posible exportar por problemas en SAP, intente más tarde'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $cookie = "B1SESSION={$loginResult['sessionId']}; ROUTEID={$loginResult['routeId']}";
-
-        $results = [];
-        $jsonDir = __DIR__ . "/json";
-        if (!file_exists($jsonDir)) {
-            if (!mkdir($jsonDir, 0777, true)) {
-                throw new Exception('No se pudo crear el directorio JSON: ' . $jsonDir);
-            }
-        }
-        if (!is_writable($jsonDir)) {
-            throw new Exception('El directorio JSON no es escribible: ' . $jsonDir);
-        }
-
-        $forceExport = isset($_GET['force']) && $_GET['force'] === 'true';
-        $timestamp = date('Ymd\THis');
-
-        // Create a separate invoice for pending detalle_liquidaciones
-        $allExportsSuccessful = true;
-        foreach ($pendingDetalles as $index => $dl) {
-            try {
-                error_log("Procesando detalle_liquidacion index: $index (estado: {$dl['estado']}, tipo_documento: {$dl['tipo_documento']})");
-                $docDate = date('Y-m-d', strtotime($dl['fecha']));
-                $suffix = $forceExport ? '-' . substr(md5(uniqid()), 0, 8) : '';
-                $numAtCard = "DLIQ-{$id}-{$index}-{$timestamp}{$suffix}";
-                $documentLines = [];
-                $docTotal = 0;
-
-                // Determine document type and generate document lines
-                $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA'); // Default to FACTURA if not set
-                if ($tipoDocumento === 'FACTURA') {
-                    // Handle FACTURA as before
-                    if (floatval($dl['iva']) > 0) {
-                        $documentLines[] = [
-                            "LineType" => 0,
-                            "ItemDescription" => $dl['t_gasto'],
-                            "Price" => floatval($dl['iva']),
-                            "TaxCode" => "IVA",
-                            "CostingCode" => "D08",
-                            "AccountCode" => "641101001"
-                        ];
-                        $docTotal += floatval($dl['iva']);
-                    }
-                    if (floatval($dl['idp']) > 0) {
-                        $documentLines[] = [
-                            "LineType" => count($documentLines),
-                            "ItemDescription" => "IDP",
-                            "Price" => floatval($dl['idp']),
-                            "TaxCode" => "EXE",
-                            "CostingCode" => "D08",
-                            "AccountCode" => "641101001"
-                        ];
-                        $docTotal += floatval($dl['idp']);
-                    } elseif (floatval($dl['inguat']) > 0) {
-                        $documentLines[] = [
-                            "LineType" => count($documentLines),
-                            "ItemDescription" => "INGUAT",
-                            "Price" => floatval($dl['inguat']),
-                            "TaxCode" => "EXE",
-                            "CostingCode" => "D08",
-                            "AccountCode" => "641101001"
-                        ];
-                        $docTotal += floatval($dl['inguat']);
-                    }
-                } else {
-                    // Handle COMPROBANTE or RECIBO
-                    if (floatval($dl['monto_total']) > 0) {
-                        $documentLines[] = [
-                            "LineType" => 0,
-                            "ItemDescription" => $dl['t_gasto'] . " ({$tipoDocumento})",
-                            "Price" => floatval($dl['monto_total']),
-                            "TaxCode" => "EXE", // Assuming no tax for comprobantes/recibos, adjust if needed
-                            "CostingCode" => "D08",
-                            "AccountCode" => "641101002" // Different account for non-factura, adjust as needed
-                        ];
-                        $docTotal += floatval($dl['monto_total']);
-                    }
-                }
-
-                // Validate document lines
-                if (empty($documentLines)) {
-                    error_log("No document lines for detalle_liquidacion index $index: tipo_documento={$tipoDocumento}");
-                    $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
-                    $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DETALLE_INVALIDO', "Detalle inválido: sin valores financieros válidos para {$tipoDocumento}");
-                    $results[] = [
-                        'index' => $index,
-                        'success' => false,
-                        'error' => "No se generaron líneas para el documento: sin valores financieros válidos para {$tipoDocumento}"
-                    ];
-                    continue; // Skip to next detail
-                }
-
-                // Use comentarios field, with fallback to "Sin comentarios" if empty or null, and trim to 254 chars
-                $comments = !empty(trim($dl['comentarios'])) ? substr(trim($dl['comentarios']), 0, 254) : 'Sin comentarios';
-
-                $purchaseInvoice = [
-                    "DocType" => "dDocument_Service",
-                    "CardCode" => "CCHD0012",
-                    "DocDate" => $docDate,
-                    "Comments" => $comments,
-                    "U_NIT" => "321052",
-                    "Series" => 82,
-                    "DocTotal" => $docTotal,
-                    "Reference1" => "{$id}-{$index}",
-                    "NumAtCard" => $numAtCard,
-                    "DocCurrency" => "QTZ",
-                    "DocRate" => 1,
-                    "DocumentLines" => $documentLines
-                ];
-
-                // Generate JSON file
-                $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$index}.json";
-                $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent) === false) {
-                    throw new Exception("No se pudo escribir el archivo JSON: $jsonFilePath");
-                }
-                error_log("JSON file generated at: $jsonFilePath");
-
-                // Send to SAP
-                $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
-                $ch = curl_init($sapUrl);
-                curl_setopt_array($ch, [
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_POST => true,
-                    CURLOPT_HTTPHEADER => [
-                        'Content-Type: application/json',
-                        'Cookie: ' . $cookie
-                    ],
-                    CURLOPT_POSTFIELDS => $jsonContent,
-                    CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => false,
-                ]);
-
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $curlError = curl_error($ch);
-                curl_close($ch);
-
-                if ($response === false || $curlError) {
-                    error_log("SAP Error for index $index: $curlError");
-                    $results[] = [
-                        'index' => $index,
-                        'success' => false,
-                        'error' => "No es posible exportar por problemas en SAP, intente más tarde",
-                        'filePath' => $jsonFilePath
-                    ];
-                    $allExportsSuccessful = false;
-                    continue;
-                }
-
-                $sapResponse = json_decode($response, true);
-                if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
-                    error_log("SAP Error for index $index: HTTP $httpCode - $response");
-                    $errorMsg = "No es posible exportar por problemas en SAP, intente más tarde";
-                    if ($httpCode === 400 && strpos($response, 'El número de referencia YA EXISTE') !== false && !$forceExport) {
-                        $results[] = [
-                            'index' => $index,
-                            'success' => false,
-                            'error' => 'Esta liquidación ya ha sido exportada',
-                            'filePath' => $jsonFilePath
-                        ];
-                    } else {
-                        $results[] = [
-                            'index' => $index,
-                            'success' => false,
-                            'error' => $errorMsg,
-                            'sap_response' => $sapResponse,
-                            'filePath' => $jsonFilePath
-                        ];
-                    }
-                    $allExportsSuccessful = false;
-                    continue;
-                }
-
-                // Update detail state to FINALIZADO on success
-                $detalleLiquidacionModel->updateEstado($dl['id'], 'FINALIZADO');
-                $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', 'Detalle exportado a SAP');
-
-                $results[] = [
-                    'index' => $index,
-                    'success' => true,
-                    'message' => 'Factura enviada a SAP exitosamente',
-                    'filePath' => $jsonFilePath,
-                    'sap_response' => $sapResponse
-                ];
-            } catch (Exception $e) {
-                error_log("Error processing detalle_liquidacion index $index: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
-                $results[] = [
-                    'index' => $index,
-                    'success' => false,
-                    'error' => 'No es posible exportar por problemas en SAP, intente más tarde',
-                    'filePath' => $jsonFilePath ?? null
-                ];
-                $allExportsSuccessful = false;
-            }
-        }
-
-        // SAP Logout
-        error_log("Intentando logout de SAP");
-        $logoutResult = $this->logout_sap();
-        if (!$logoutResult['success']) {
-            error_log("SAP Logout Failed: {$logoutResult['error']}");
-        }
-
-        // Update liquidacion state if at least one export was successful
-        $successCount = count(array_filter($results, fn($r) => $r['success']));
-        if ($successCount > 0) {
-            $liquidacionModel->updateEstado($id, 'FINALIZADO');
-            $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Exportación completada: $successCount de " . count($pendingDetalles) . " documentos");
-            $this->pdo->commit();
-        } else {
-            $this->pdo->rollBack();
-            error_log("Exportación fallida para ID $id: ningún detalle exportado");
-            ob_end_clean();
-            header('Content-Type: application/json; charset=utf-8');
-            http_response_code(500);
-            echo json_encode(['error' => 'No se exportaron documentos válidos: revise los detalles'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        // Prepare response
-        $response = [
-            'success' => $successCount > 0,
-            'message' => "$successCount de " . count($pendingDetalles) . " documentos procesados exitosamente",
-            'results' => $results
-        ];
-
-        // Handle duplicate reference
-        if (!$forceExport && array_filter($results, fn($r) => $r['error'] === 'Esta liquidación ya ha sido exportada')) {
-            $this->pdo->rollBack();
-            ob_end_clean();
-            header('Content-Type: application/json; charset=utf-8');
-            http_response_code(400);
-            echo json_encode(['error' => 'Esta liquidación ya ha sido exportada'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        ob_end_clean();
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($response, JSON_UNESCAPED_UNICODE);
-        exit;
-
-    } catch (Exception $e) {
-        error_log('Error exporting: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-        if (isset($loginResult) && $loginResult['success']) {
-            $this->logout_sap();
-        }
-        $this->pdo->rollBack();
-        ob_end_clean();
-        header('Content-Type: application/json; charset=utf-8');
-        http_response_code(500);
-        echo json_encode(['error' => 'No es posible exportar por problemas en SAP, intente más tarde'], JSON_UNESCAPED_UNICODE);
-        exit;
     }
-}
     // Función auxiliar para mapear Tipo_Gasto a AccountCode
     
     private function getAccountCode($tipoGasto, $sociedad)
@@ -3763,7 +3820,10 @@ private function login_sap($db){
 
     public function getCuentasContables($id_centro_costo)
 {
+    ob_start(); // Start output buffering
+    error_log("Starting getCuentasContables with id_centro_costo=$id_centro_costo");
     if (!isset($_SESSION['user_id'])) {
+        ob_end_clean();
         header('Content-Type: application/json');
         http_response_code(401);
         echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
@@ -3775,6 +3835,7 @@ private function login_sap($db){
         $centroCostoModel = new CentroCosto();
         $centro = $centroCostoModel->getCentroCostoById($id_centro_costo);
         if (!$centro) {
+            ob_end_clean();
             header('Content-Type: application/json');
             http_response_code(404);
             echo json_encode(['error' => 'Centro de costo no encontrado']);
@@ -3794,7 +3855,8 @@ private function login_sap($db){
 
         // Fetch accounts from HANA
         $sociedad = $_SESSION['sociedad'] ?? 'GT_AGROCENTRO_2016';
-        $cuenta = $centro['tipo'] ?? 5;
+        $cuenta = $centro['tipo'] ?? '5';
+        error_log("Fetching HANA accounts for sociedad=$sociedad, cuenta=$cuenta");
         $hana_cuentas = $this->ctrObtenerCuentas($sociedad, $cuenta);
 
         if ($hana_cuentas && $hana_cuentas !== 'sin_datos') {
@@ -3804,7 +3866,7 @@ private function login_sap($db){
                     list($code, $name) = explode('-', $cuenta_item, 2);
                     $name = mb_convert_encoding($name, 'UTF-8', mb_detect_encoding($name));
 
-                    // Check if the account exists with the same codigo_cuenta for any id_centro_costo
+                    // Check if the account exists with the same codigo_cuenta
                     $stmt = $pdo->prepare("
                         SELECT id, nombre, id_centro_costo 
                         FROM cuentas_contables 
@@ -3837,6 +3899,8 @@ private function login_sap($db){
                     }
                 }
             }
+        } else {
+            error_log("No HANA accounts found for id_centro_costo=$id_centro_costo, cuenta=$cuenta");
         }
 
         // Remove duplicates
@@ -3845,10 +3909,12 @@ private function login_sap($db){
         // Log the response
         error_log("getCuentasContables: id_centro_costo=$id_centro_costo, cuentas=" . json_encode($cuentas_array));
 
+        ob_end_clean();
         header('Content-Type: application/json');
         http_response_code(200);
         echo json_encode($cuentas_array);
     } catch (Exception $e) {
+        ob_end_clean();
         error_log("Error in getCuentasContables: id_centro_costo=$id_centro_costo, error=" . $e->getMessage());
         header('Content-Type: application/json');
         http_response_code(500);

@@ -9,22 +9,29 @@ class CentroCosto {
     }
 
     public function getAllCentrosCostos($searchTerm = '', $baseId = null) {
-        $query = "SELECT * FROM centros_costos WHERE 1=1";
-        $params = [];
-    
-        if ($searchTerm) {
-            $query .= " AND nombre LIKE ?";
-            $params[] = "%$searchTerm%";
+        try {
+            $query = "SELECT * FROM centros_costos WHERE estado = 'ACTIVO'";
+            $params = [];
+        
+            if ($searchTerm) {
+                $query .= " AND nombre LIKE ?";
+                $params[] = "%$searchTerm%";
+            }
+        
+            if ($baseId !== null) {
+                $query .= " AND base_id = ?";
+                $params[] = $baseId;
+            }
+        
+            $stmt = $this->pdo->prepare($query);
+            $stmt->execute($params);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Centros de costos obtenidos: " . print_r($results, true));
+            return $results;
+        } catch (PDOException $e) {
+            error_log("Error en getAllCentrosCostos: " . $e->getMessage());
+            return [];
         }
-    
-        if ($baseId !== null) {
-            $query .= " AND base_id = ?";
-            $params[] = $baseId;
-        }
-    
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getCentroCostoById($id) {
