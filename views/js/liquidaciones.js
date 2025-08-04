@@ -115,12 +115,12 @@ async function loadLiquidations() {
           throw new Error(errorData.error || `HTTP error: ${response.status}`);
       }
       const rawText = await response.text();
-      console.log("Raw backend response:", rawText);
+    //   console.log("Raw backend response:", rawText);
       const data = JSON.parse(rawText);
-      console.log("Parsed backend data:", data);
+    //   console.log("Parsed backend data:", data);
       liquidacionesData = data.liquidaciones;
       correctedDetallesData = data.corrected_detalles || data.correctedDetalles || []; // Use correct key
-      console.log("correctedDetallesData assigned:", correctedDetallesData);
+    //   console.log("correctedDetallesData assigned:", correctedDetallesData);
       window.isContabilidadLike = data.isContabilidadLike || false;
 
       // Additional filter for CONTABILIDAD role
@@ -130,14 +130,14 @@ async function loadLiquidations() {
                   !liquidacion.id_contador ||
                   liquidacion.id_contador == window.currentUserId
           );
-          console.log(
-              `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
-          );
-          liquidacionesData.forEach((liquidacion) => {
-              console.log(
-                  `Liquidacion ID: ${liquidacion.id}, id_contador: ${liquidacion.id_contador}, Estado: ${liquidacion.estado}`
-              );
-          });
+        //   console.log(
+        //       `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
+        //   );
+        //   liquidacionesData.forEach((liquidacion) => {
+        //       console.log(
+        //           `Liquidacion ID: ${liquidacion.id}, id_contador: ${liquidacion.id_contador}, Estado: ${liquidacion.estado}`
+        //       );
+        //   });
       }
 
       filteredLiquidacionesData = [...liquidacionesData];
@@ -408,7 +408,7 @@ function renderCorrectedDetalles() {
     const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
     const mode = new URLSearchParams(window.location.search).get("mode") || "";
   
-    console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
+    // console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
   
     if (
         window.userRole.toUpperCase().includes("SUPERVISOR") &&
@@ -498,7 +498,7 @@ function renderCorrectedDetalles() {
             `;
         });
     } else {
-        console.log("Hiding correctedDetallesSection: Conditions not met");
+        // console.log("Hiding correctedDetallesSection: Conditions not met");
         correctedDetallesSection.style.display = "none";
     }
   }

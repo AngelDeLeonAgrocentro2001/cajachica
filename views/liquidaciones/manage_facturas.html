@@ -915,8 +915,8 @@
 
         </p>
         <p>
-          <strong>Nombre de Centro de Costo:</strong>
-          <span><?php echo htmlspecialchars($data['centro_costo_caja_chica_nombre']); ?></span>
+          <strong> Centro de Costo:</strong>
+          <span><?php echo htmlspecialchars($data['centro_costo_caja_chica_nombre']); ?> / <?php echo htmlspecialchars($data['centro_costo_caja_chica_codigo']); ?></span>
         </p>
         <p>
           <strong>Fecha de Modificación:</strong>
@@ -1598,11 +1598,13 @@
         errorSpan.textContent = 'Selecciona un centro de costo';
         errorSpan.style.display = 'block';
         isValid = false;
-      } else if (selectedCentros.has(centroCosto)) {
-        errorSpan.textContent = 'Este centro de costo ya está seleccionado';
-        errorSpan.style.display = 'block';
-        isValid = false;
-      } else {
+      } 
+      //else if (selectedCentros.has(centroCosto)) {
+        //errorSpan.textContent = 'Este centro de costo ya está seleccionado';
+       // errorSpan.style.display = 'block';
+        //isValid = false;
+      //} 
+      else {
         errorSpan.style.display = 'none';
       }
       selectedCentros.add(centroCosto);
@@ -1886,7 +1888,7 @@ function selectDte(dte) {
   document.getElementById('serie').value = dte.serie || '';
 
   updateTaxesAndTotal();
-  console.log('DTE seleccionado:', dte);
+  // console.log('DTE seleccionado:', dte);
 }
 
 // Función para filtrar DTEs según el texto de búsqueda

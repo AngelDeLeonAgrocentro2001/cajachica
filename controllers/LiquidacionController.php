@@ -2445,8 +2445,6 @@ public function exportar($id)
         // Group detalles by no_factura and grupo_id to handle grupo_id = 0 separately
         $groupedDetalles = [];
         foreach ($pendingDetalles as $index => $dl) {
-            // For grupo_id = 0, use a unique key combining no_factura and id to treat each detail as separate
-            // For grupo_id > 0, group by no_factura and grupo_id to consolidate into a single SAP document
             $groupKey = $dl['grupo_id'] == 0 ? $dl['no_factura'] . '_' . $dl['id'] : $dl['no_factura'] . '_' . $dl['grupo_id'];
             if (!isset($groupedDetalles[$groupKey])) {
                 $groupedDetalles[$groupKey] = [
@@ -2659,13 +2657,13 @@ public function exportar($id)
                 // Calcular U_F_DEC y U_F_DEC_D
                 if (empty($dl['fecha']) || !strtotime($dl['fecha'])) {
                     error_log("Fecha inválida para factura {$noFactura}: {$dl['fecha']}, usando fecha actual");
-                    $fecha = new DateTime(); // Usar fecha actual como respaldo
+                    $fecha = new DateTime();
                 } else {
                     $fecha = new DateTime($dl['fecha']);
                 }
-                $fechaParaDec = clone $fecha; // Clonar para evitar modificar el objeto original
-                $u_f_dec = $fechaParaDec->modify('first day of this month')->format('Y-m-d'); // Ejemplo: 01/07/2025
-                $u_f_dec_d = strtolower($fecha->format('M-Y')); // Ejemplo: jul-2025
+                $fechaParaDec = clone $fecha;
+                $u_f_dec = $fechaParaDec->modify('first day of this month')->format('Y-m-d');
+                $u_f_dec_d = strtolower($fecha->format('M-Y'));
 
                 // Generate document lines for all detalles in the group
                 $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
@@ -2824,21 +2822,30 @@ public function exportar($id)
                         $errorMsg .= " - {$sapResponse['error']['message']['value']}";
                     }
                     error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $errorMsg");
-                    // Treat all errors, including duplicates, as non-blocking
-                    foreach ($detalles as $detalle) {
-                        $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
-                        $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (posible duplicado): {$noFactura}, mensaje: {$errorMsg}");
+
+                    // Check if the error is a duplicate document
+                    $isDuplicateError = isset($sapResponse['error']['code']) && $sapResponse['error']['code'] == -5002;
+
+                    if ($isDuplicateError) {
+                        // Handle duplicate error as non-blocking
+                        foreach ($detalles as $detalle) {
+                            $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                            $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (duplicado): {$noFactura}, mensaje: {$errorMsg}");
+                        }
+                        $results[] = [
+                            'no_factura' => $noFactura,
+                            'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                            'success' => true,
+                            'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (duplicado, exportada de nuevo)",
+                            'filePath' => $jsonFilePath,
+                            'detalle_ids' => array_column($detalles, 'id'),
+                            'sap_response' => $sapResponse
+                        ];
+                        $atLeastOneProcessed = true;
+                    } else {
+                        // Handle other SAP errors as blocking
+                        throw new Exception($errorMsg);
                     }
-                    $results[] = [
-                        'no_factura' => $noFactura,
-                        'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
-                        'success' => true,
-                        'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (posible duplicado, exportada de nuevo)",
-                        'filePath' => $jsonFilePath,
-                        'detalle_ids' => array_column($detalles, 'id'),
-                        'sap_response' => $sapResponse
-                    ];
-                    $atLeastOneProcessed = true;
                     continue;
                 }
 
@@ -3608,6 +3615,8 @@ public function exportar($id)
 
     $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo']);
     $nombreCentroCostoCajaChica = $centroCostoCajaChica ? $centroCostoCajaChica['nombre'] : 'N/A';
+    $codigoCentroCostoCajaChica = $centroCostoCajaChica ? $centroCostoCajaChica['codigo'] : 'N/A';
+
 
     $detalles = $this->detalleModel->getDetallesByLiquidacionId($id);
     $tiposDocumentos = $this->tipoDocumentoModel->getAllTiposDocumentos();
@@ -3658,6 +3667,7 @@ public function exportar($id)
         'clientes' => $cajaChica['clientes'] ?? 'No asignado',
         'centro_costo_caja_chica_id' => $cajaChica['id_centro_costo'],
         'centro_costo_caja_chica_nombre' => $nombreCentroCostoCajaChica,
+        'centro_costo_caja_chica_codigo' => $codigoCentroCostoCajaChica,
         'centro_costo_liquidacion_id' => $liquidacion['id_centros_de_costos'],
         'centro_costo_liquidacion_nombre' => $nombreCentroCostoLiquidacion,
         'fecha_inicio' => $liquidacion['fecha_inicio'],
