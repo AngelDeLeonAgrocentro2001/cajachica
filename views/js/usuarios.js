@@ -35,6 +35,8 @@ async function loadUsuarios() {
                         <td data-label="ID">${usuario.id}</td>
                         <td data-label="Nombre">${usuario.nombre}</td>
                         <td data-label="Email">${usuario.email}</td>
+                        <td data-label="Código">${usuario.clientes || 'No asignado'}</td>
+                        <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
                         <td data-label="Rol">${usuario.rol}</td>
                         <td data-label="Acciones">
                             <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
@@ -44,7 +46,7 @@ async function loadUsuarios() {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5">No hay usuarios registrados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
         }
         return usuarios;
     } catch (error) {
@@ -62,6 +64,24 @@ async function checkEmailExists(email, excludeId = null) {
     } catch (error) {
         console.error('Error al verificar duplicados de email:', error);
         return false;
+    }
+}
+
+async function checkCardCodeExists(cardCode) {
+    try {
+        const response = await fetch(`index.php?controller=usuario&action=checkCardCode&card_code=${encodeURIComponent(cardCode)}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Error al verificar el código');
+        }
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error al verificar CardCode:', error);
+        return null;
     }
 }
 
@@ -116,7 +136,6 @@ async function deleteUsuario(id) {
             }
         });
 
-        // Verificar si la respuesta es JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -216,18 +235,47 @@ function addValidations(id = null) {
     }
 
     const fields = {
+        card_code: { required: true },
         nombre: { required: true, minLength: 2 },
         email: { required: true },
         password: { required: false, minLength: 6 },
-        id_rol: { required: true }
+        id_rol: { required: true },
+        id_caja_chica: { required: false }
     };
 
-    // Determinar el modo (crear o actualizar)
     const formMode = id ? 'update' : 'create';
-    if (formMode === 'update') {
-        fields.password.required = false; // Contraseña no requerida al editar
-    } else {
-        fields.password.required = true; // Contraseña requerida al crear
+    if (formMode === 'create') {
+        fields.password.required = true;
+        fields.card_code.required = true;
+    }
+
+    const cardCodeInput = form.querySelector('input[name="card_code"]');
+    const nombreInput = form.querySelector('input[name="nombre"]');
+
+    if (cardCodeInput) {
+        cardCodeInput.addEventListener('blur', async (e) => {
+            const cardCode = e.target.value.trim();
+            if (cardCode) {
+                const result = await checkCardCodeExists(cardCode);
+                const errorElement = form.querySelector('.error[data-field="card_code"]') || document.createElement('div');
+                errorElement.className = 'error';
+                errorElement.setAttribute('data-field', 'card_code');
+                if (!form.contains(errorElement)) {
+                    e.target.parentNode.appendChild(errorElement);
+                }
+
+                if (result && result.exists) {
+                    errorElement.style.display = 'none';
+                    e.target.classList.remove('invalid');
+                    nombreInput.value = result.CardName || '';
+                } else {
+                    errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
+                    errorElement.style.display = 'block';
+                    e.target.classList.add('invalid');
+                    nombreInput.value = '';
+                }
+            }
+        });
     }
 
     form.querySelectorAll('input, select').forEach(field => {
@@ -287,6 +335,26 @@ function addValidations(id = null) {
             Array.from(form.querySelectorAll('input, select')).map(field => validateField({ target: field }))
         );
         isValid = validations.every(valid => valid);
+
+        if (formMode === 'create' && cardCodeInput) {
+            const cardCode = cardCodeInput.value.trim();
+            const result = await checkCardCodeExists(cardCode);
+            const errorElement = form.querySelector('.error[data-field="card_code"]') || document.createElement('div');
+            errorElement.className = 'error';
+            errorElement.setAttribute('data-field', 'card_code');
+            if (!form.contains(errorElement)) {
+                cardCodeInput.parentNode.appendChild(errorElement);
+            }
+            if (!result || !result.exists) {
+                errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
+                errorElement.style.display = 'block';
+                cardCodeInput.classList.add('invalid');
+                isValid = false;
+            } else {
+                errorElement.style.display = 'none';
+                cardCodeInput.classList.remove('invalid');
+            }
+        }
 
         if (isValid) {
             const formData = new FormData(form);

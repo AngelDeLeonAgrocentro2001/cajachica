@@ -1,0 +1,43 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0016",
+    "U_CODIGO": "CCHA0016",
+    "DocDate": "2025-08-02",
+    "Comments": "prueba 2",
+    "JournalMemo": "prueba 2",
+    "U_NIT": "71080",
+    "U_NOMBRE": "SEGUROS EL ROBLE, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FN",
+    "Series": 82,
+    "DocTotal": 319.78,
+    "Reference1": "17-FACT123FACT123",
+    "NumAtCard": "FACT123FACT123",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "aug-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Hospedaje",
+            "Price": 19.19,
+            "PriceAfterVAT": 159.89,
+            "TaxCode": "IVA",
+            "CostingCode": "D38",
+            "AccountCode": "631001003",
+            "U_TipoDoc": "FC",
+            "U_TipoA": "S"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "INGUAT",
+            "Price": 15.99,
+            "PriceAfterVAT": 159.89,
+            "TaxCode": "EXE",
+            "CostingCode": "D38",
+            "AccountCode": "631001003",
+            "U_TipoDoc": "FC",
+            "U_TipoA": "S"
+        }
+    ]
+}

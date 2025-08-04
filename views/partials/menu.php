@@ -31,7 +31,8 @@ error_log("Usuario cargado para el menú: " . print_r($usuario, true));
                       $usuarioModel->tienePermiso($usuario, 'manage_cuentas_contables') || 
                       $usuarioModel->tienePermiso($usuario, 'manage_tipos_gastos') || 
                       $usuarioModel->tienePermiso($usuario, 'manage_centros_costos') || 
-                      $usuarioModel->tienePermiso($usuario, 'manage_facturas')): ?>
+                      $usuarioModel->tienePermiso($usuario, 'manage_facturas') || 
+                      $usuarioModel->tienePermiso($usuario, 'manage_dte')): ?>
                 <li class="menu-group">
                     <span class="menu-group-title">Gestión</span>
                     <ul class="menu-subgroup">
@@ -58,6 +59,9 @@ error_log("Usuario cargado para el menú: " . print_r($usuario, true));
                         <?php endif; ?>
                         <?php if ($usuarioModel->tienePermiso($usuario, 'manage_facturas')): ?>
                             <li><a href="index.php?controller=factura&action=list">Facturas</a></li>
+                        <?php endif; ?>
+                        <?php if ($usuarioModel->tienePermiso($usuario, 'manage_dte')): ?>
+                            <li><a href="index.php?controller=dte&action=index">Carga de DTE</a></li>
                         <?php endif; ?>
                     </ul>
                 </li>

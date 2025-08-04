@@ -12,20 +12,27 @@ class Usuario {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    public function checkCardCode($cardCode) {
+        $stmt = $this->pdo->prepare("SELECT CardCode, CardName FROM codigo WHERE LOWER(CardCode) = LOWER(?)");
+        $stmt->execute([$cardCode]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? ['exists' => true, 'CardCode' => $result['CardCode'], 'CardName' => $result['CardName']] : ['exists' => false];
+    }
+
     public function getUsuarioByEmail($email) {
-        $stmt = $this->pdo->prepare("SELECT u.*, r.nombre AS rol FROM usuarios u JOIN roles r ON u.id_rol = r.id WHERE LOWER(u.email) = LOWER(?)");
+        $stmt = $this->pdo->prepare("SELECT u.*, r.nombre AS rol, cc.nombre AS nombre_caja_chica FROM usuarios u JOIN roles r ON u.id_rol = r.id LEFT JOIN cajas_chicas cc ON u.id_caja_chica = cc.id WHERE LOWER(u.email) = LOWER(?)");
         $stmt->execute([$email]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function getUsuarioById($id) {
-        $stmt = $this->pdo->prepare("SELECT u.*, r.nombre AS rol FROM usuarios u JOIN roles r ON u.id_rol = r.id WHERE u.id = ?");
+        $stmt = $this->pdo->prepare("SELECT u.*, r.nombre AS rol, cc.nombre AS nombre_caja_chica FROM usuarios u JOIN roles r ON u.id_rol = r.id LEFT JOIN cajas_chicas cc ON u.id_caja_chica = cc.id WHERE u.id = ?");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function getAllUsuarios() {
-        $stmt = $this->pdo->query("SELECT u.*, r.nombre AS rol FROM usuarios u JOIN roles r ON u.id_rol = r.id");
+        $stmt = $this->pdo->query("SELECT u.*, r.nombre AS rol, cc.nombre AS nombre_caja_chica FROM usuarios u JOIN roles r ON u.id_rol = r.id LEFT JOIN cajas_chicas cc ON u.id_caja_chica = cc.id");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -79,19 +86,19 @@ class Usuario {
         return $result;
     }
 
-    public function createUsuario($nombre, $email, $password, $id_rol) {
-        $stmt = $this->pdo->prepare("INSERT INTO usuarios (nombre, email, password, id_rol) VALUES (?, ?, ?, ?)");
-        return $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol]);
+    public function createUsuario($nombre, $email, $password, $id_rol, $card_code, $id_caja_chica = null) {
+        $stmt = $this->pdo->prepare("INSERT INTO usuarios (nombre, email, password, id_rol, clientes, id_caja_chica) VALUES (?, ?, ?, ?, ?, ?)");
+        return $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol, $card_code, $id_caja_chica]);
     }
 
-    public function updateUsuario($id, $nombre, $email, $password, $id_rol) {
+    public function updateUsuario($id, $nombre, $email, $password, $id_rol, $card_code, $id_caja_chica = null) {
         try {
             if (!empty($password)) {
-                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ? WHERE id = ?");
-                $result = $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol, $id]);
+                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
+                $result = $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol, $card_code, $id_caja_chica, $id]);
             } else {
-                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, id_rol = ? WHERE id = ?");
-                $result = $stmt->execute([$nombre, $email, $id_rol, $id]);
+                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
+                $result = $stmt->execute([$nombre, $email, $id_rol, $card_code, $id_caja_chica, $id]);
             }
             if ($result === false) {
                 error_log("Error al ejecutar UPDATE en updateUsuario: " . implode(', ', $stmt->errorInfo()));
@@ -113,12 +120,12 @@ class Usuario {
             error_log("Usuario no válido o sin rol: " . print_r($usuario, true));
             return false;
         }
-    
+
         $rol = $usuario['rol'];
         $rolId = $usuario['id_rol'];
         $usuarioId = $usuario['id'];
         error_log("Verificando permiso '$permiso' para usuario ID $usuarioId con rol '$rol' (id_rol: $rolId)");
-    
+
         $permisosPorRol = [
             self::ROL_ADMIN => true,
             self::ROL_ENCARGADO_CAJA_CHICA => [
@@ -151,20 +158,20 @@ class Usuario {
                 'manage_tipos_gastos' => true,
             ],
         ];
-    
+
         $permisosPredeterminados = [];
         $tienePermisoPredeterminado = false;
-    
+
         $stmt = $this->pdo->prepare("SELECT descripcion FROM roles WHERE id = ?");
         $stmt->execute([$rolId]);
         $rolData = $stmt->fetch(PDO::FETCH_ASSOC);
         $descripcion = $rolData['descripcion'] ?? '';
-    
+
         $isContabilidadRole = strpos(strtoupper($rol), 'CONTADOR') !== false || 
                              strpos(strtoupper($rol), 'CONTABILIDAD') !== false ||
                              strpos(strtoupper($descripcion), 'CONTADOR') !== false || 
                              strpos(strtoupper($descripcion), 'CONTABILIDAD') !== false;
-    
+
         if (strpos($rol, self::ROL_ADMIN) !== false) {
             $stmt = $this->pdo->query("SELECT nombre FROM permisos");
             $allPermissions = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -187,9 +194,9 @@ class Usuario {
             $tienePermisoPredeterminado = isset($permisosPredeterminados[$permiso]) && $permisosPredeterminados[$permiso];
             error_log("Permisos predeterminados para rol $rol: " . print_r($permisosPredeterminados, true));
         }
-    
+
         error_log("Descripción del rol $rolId: $descripcion");
-    
+
         $permisosDinamicos = [];
         if (strpos(strtoupper($descripcion), self::ROL_ADMIN) !== false) {
             $stmt = $this->pdo->query("SELECT nombre FROM permisos");
@@ -208,7 +215,7 @@ class Usuario {
         $permisosDinamicos = array_unique($permisosDinamicos);
         $tienePermisoDinamico = in_array($permiso, $permisosDinamicos);
         error_log("Permisos dinámicos: " . print_r($permisosDinamicos, true));
-    
+
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM rol_permisos WHERE id_rol = ?");
         $stmt->execute([$rolId]);
         $manualRolPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -222,7 +229,7 @@ class Usuario {
         }
         error_log("Permisos manuales del rol: " . print_r($manualRolPermissions, true));
         error_log("Overrides del rol: " . print_r($manualOverrides, true));
-    
+
         $rolPermissions = array_unique(array_merge(
             $permisosPredeterminados ? array_keys($permisosPredeterminados) : [],
             $permisosDinamicos,
@@ -235,7 +242,7 @@ class Usuario {
         }
         $tienePermisoRol = in_array($permiso, $rolPermissions);
         error_log("Permisos combinados del rol: " . print_r($rolPermissions, true));
-    
+
         $stmt = $this->pdo->prepare("SELECT permiso, estado FROM accesos_permisos WHERE id_usuario = ?");
         $stmt->execute([$usuarioId]);
         $userPermissionsData = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -249,7 +256,7 @@ class Usuario {
         }
         error_log("Permisos específicos del usuario: " . print_r($userPermissions, true));
         error_log("Overrides del usuario: " . print_r($userOverrides, true));
-    
+
         $effectivePermissions = array_unique(array_merge($rolPermissions, $userPermissions));
         foreach ($userOverrides as $perm => $estado) {
             if ($estado === 'INACTIVO' && in_array($perm, $effectivePermissions)) {
@@ -259,7 +266,7 @@ class Usuario {
         $tienePermiso = in_array($permiso, $effectivePermissions);
         error_log("Permisos efectivos finales: " . print_r($effectivePermissions, true));
         error_log("Resultado final para permiso $permiso: " . ($tienePermiso ? 'true' : 'false'));
-    
+
         return $tienePermiso;
     }
 
@@ -268,4 +275,3 @@ class Usuario {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
-?>

@@ -1,11 +1,6 @@
+
 <h2><?php echo isset($data) ? 'Editar Liquidación' : 'Crear Liquidación'; ?></h2>
 <form id="liquidacionFormInner" method="POST">
-    <div>
-        <label for="id_caja_chica">Caja Chica:</label>
-        <select name="id_caja_chica" id="id_caja_chica" required>
-            {{select_cajas_chicas}}
-        </select>
-    </div>
     <div>
         <label for="fecha_creacion">Fecha de Creación:</label>
         <input type="date" name="fecha_creacion" id="fecha_creacion" required value="<?php echo isset($data['fecha_creacion']) ? $data['fecha_creacion'] : date('Y-m-d'); ?>">
@@ -18,6 +13,7 @@
         <label for="fecha_fin">Fecha de Fin:</label>
         <input type="date" name="fecha_fin" id="fecha_fin" value="<?php echo isset($data['fecha_fin']) ? $data['fecha_fin'] : ''; ?>">
     </div>
+
     <!-- Campo monto_total oculto -->
     <!-- <div>
         <label for="monto_total">Monto Total:</label>
@@ -42,6 +38,7 @@
         </select>
     </div>
     <?php endif; ?> -->
+    
     <button type="submit">Guardar</button>
     <button type="button" onclick="closeModal()">Cancelar</button>
 </form>

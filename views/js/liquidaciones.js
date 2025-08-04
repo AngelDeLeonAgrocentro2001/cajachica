@@ -597,6 +597,11 @@ async function showEditForm(id) {
 }
 
 async function createLiquidation(data) {
+    // Asegúrate de que id_usuario esté incluido en los datos enviados
+    if (!data.has('id_usuario')) {
+        data.append('id_usuario', window.currentUserId);
+    }
+
     const response = await fetch(
         "index.php?controller=liquidacion&action=create",
         {
@@ -615,6 +620,11 @@ async function createLiquidation(data) {
 }
 
 async function updateLiquidation(id, data) {
+    // Asegúrate de que id_usuario esté incluido en los datos enviados
+    if (!data.has('id_usuario')) {
+        data.append('id_usuario', window.currentUserId);
+    }
+
     const response = await fetch(
         `index.php?controller=liquidacion&action=update&id=${id}`,
         {

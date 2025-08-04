@@ -218,46 +218,39 @@ function closeModal() {
 }
 
 async function showCreateForm() {
+    if (!modal || !modalForm) {
+        console.error('Modal o modalForm no encontrados en el DOM');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        return;
+    }
+
     try {
-        const response = await fetch('index.php?controller=centrocosto&action=createForm', {
+        const response = await fetch('index.php?controller=cajachica&action=create', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Error HTTP: ${response.status} - ${text}`);
+            const errorText = await response.text();
+            let errorMessage = `Error HTTP: ${response.status} - ${errorText}`;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorText;
+            } catch (parseError) {
+                // Non-JSON response
+            }
+            throw new Error(errorMessage);
         }
         const html = await response.text();
         if (!html.includes('<form')) {
             throw new Error('El servidor no devolvió un formulario válido');
         }
-        modalContent.innerHTML = html;
+        modalForm.innerHTML = html;
         modal.classList.add('active');
-
-        const baseSelect = document.querySelector('#base_id');
-        if (baseSelect) {
-            const basesResponse = await fetch('index.php?controller=base&action=listBases', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            if (!basesResponse.ok) {
-                throw new Error('Error al cargar las bases');
-            }
-            const bases = await basesResponse.json();
-            bases.forEach(base => {
-                const option = document.createElement('option');
-                option.value = base.id;
-                option.textContent = base.nombre;
-                baseSelect.appendChild(option);
-            });
-        }
-
-        addCreateValidations();
+        addValidations();
     } catch (error) {
         console.error('Error al cargar el formulario:', error);
-        modalContent.innerHTML = `<div class="error">${error.message}</div>`;
+        modalForm.innerHTML = `<div class="error">No se pudo cargar el formulario: ${error.message}. Por favor, intenta de nuevo o contacta al administrador.</div>`;
         modal.classList.add('active');
     }
 }

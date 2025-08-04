@@ -28,22 +28,23 @@ async function loadCajasChicas() {
         if (cajasChicas.length > 0) {
             cajasChicas.forEach(caja => {
                 tbody.innerHTML += `
-                    <tr>
-                        <td data-label="ID">${caja.id}</td>
-                        <td data-label="Nombre">${caja.nombre}</td>
-                        <td data-label="Monto Asignado">${parseFloat(caja.monto_asignado).toFixed(2)}</td>
-                        <td data-label="Monto Disponible">${parseFloat(caja.monto_disponible).toFixed(2)}</td>
-                        <td data-label="Centro de Costos">${caja.centro_costo || 'No asignado'}</td>
-                        <td data-label="Estado">${caja.estado || 'Sin estado'}</td>
-                        <td data-label="Acciones">
-                            <button class="edit-btn" onclick="showEditForm(${caja.id}); window.history.pushState({}, '', 'index.php?controller=cajachica&action=update&id=${caja.id}')">Editar</button>
-                            <button class="delete-btn" onclick="deleteCajaChica(${caja.id})">Eliminar</button>
-                        </td>
-                    </tr>
+                   <tr>
+            <td data-label="ID">${caja.id}</td>
+            <td data-label="Nombre">${caja.nombre}</td>
+            <td data-label="Clientes">${caja.cliente_nombre} (${caja.clientes || 'No asignado'})</td>
+            <td data-label="Monto Asignado">${parseFloat(caja.monto_asignado).toFixed(2)}</td>
+            <td data-label="Monto Disponible">${parseFloat(caja.monto_disponible).toFixed(2)}</td>
+            <td data-label="Centro de Costos">${caja.centro_costo || 'No asignado'}</td>
+            <td data-label="Estado">${caja.estado || 'Sin estado'}</td>
+            <td data-label="Acciones">
+                <button class="edit-btn" onclick="showEditForm(${caja.id}); window.history.pushState({}, '', 'index.php?controller=cajachica&action=update&id=${caja.id}')">Editar</button>
+                <button class="delete-btn" onclick="deleteCajaChica(${caja.id})">Eliminar</button>
+            </td>
+        </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="8">No hay cajas chicas registradas.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9">No hay cajas chicas registradas.</td></tr>';
         }
     } catch (error) {
         console.error('Error al cargar cajas chicas:', error.message);
@@ -115,7 +116,7 @@ async function deleteCajaChica(id) {
         alert(result.message || 'Caja chica eliminada');
         loadCajasChicas();
     } catch (error) {
-        console.error('Error al eliminar caja chica:');
+        console.error('Error al eliminar caja chica:', error);
         alert('No se puede eliminar la caja chica porque tiene liquidaciones asociadas');
     }
 }
@@ -199,6 +200,7 @@ function addValidations(id = null) {
 
     const fields = {
         nombre: { required: true },
+        card_name: { required: true },
         monto_asignado: { required: true, type: 'number', min: 0 },
         monto_disponible: { required: true, type: 'number', min: 0 },
         id_usuario_encargado: { required: true },

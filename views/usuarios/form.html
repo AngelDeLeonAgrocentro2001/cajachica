@@ -1,8 +1,11 @@
 <h2><?php echo isset($usuario['id']) ? 'Editar Usuario' : 'Crear Usuario'; ?></h2>
 <form id="usuarioFormInner">
     <input type="hidden" name="id" value="<?php echo isset($usuario['id']) ? htmlspecialchars($usuario['id']) : ''; ?>">
+    <label for="card_code">Código</label>
+    <input type="text" id="card_code" name="card_code" placeholder="Código" value="<?php echo isset($usuario['clientes']) ? htmlspecialchars($usuario['clientes']) : ''; ?>" <?php echo isset($usuario['id']) ? '' : 'required'; ?>>
+    <div class="error" data-field="card_code"></div>
     <label for="nombre">Nombre</label>
-    <input type="text" id="nombre" name="nombre" placeholder="Nombre" value="<?php echo isset($usuario['nombre']) ? htmlspecialchars($usuario['nombre']) : ''; ?>" required>
+    <input type="text" id="nombre" name="nombre" placeholder="Nombre" value="<?php echo isset($usuario['nombre']) ? htmlspecialchars($usuario['nombre']) : ''; ?>" required >
     <div class="error" data-field="nombre"></div>
     <label for="email">Email</label>
     <input type="email" id="email" name="email" placeholder="Email" value="<?php echo isset($usuario['email']) ? htmlspecialchars($usuario['email']) : ''; ?>" required>
@@ -20,6 +23,16 @@
         <?php endforeach; ?>
     </select>
     <div class="error" data-field="id_rol"></div>
+    <label for="id_caja_chica">Caja Chica</label>
+    <select id="id_caja_chica" name="id_caja_chica">
+        <option value="" <?php echo !isset($usuario['id_caja_chica']) ? 'selected' : ''; ?>>Seleccionar Caja Chica</option>
+        <?php foreach ($cajasChicas as $caja): ?>
+            <option value="<?php echo htmlspecialchars($caja['id']); ?>" <?php echo isset($usuario['id_caja_chica']) && $usuario['id_caja_chica'] == $caja['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($caja['nombre']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <div class="error" data-field="id_caja_chica"></div>
     <div class="success"></div>
     <div class="error"></div>
     <button type="submit"><?php echo isset($usuario['id']) ? 'Actualizar' : 'Crear'; ?></button>

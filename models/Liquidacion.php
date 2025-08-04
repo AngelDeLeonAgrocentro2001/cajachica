@@ -1,4 +1,6 @@
 <?php
+require_once '../config/database.php';
+
 class Liquidacion {
     private $pdo;
 
@@ -43,7 +45,7 @@ class Liquidacion {
             $params[] = $idContador;
         }
     
-        $query .= " ORDER BY l.fecha_creacion DESC";
+        $query .= " ORDER BY l.id DESC";
     
         $stmt = $this->pdo->prepare($query);
         $stmt->execute($params);
@@ -83,17 +85,23 @@ class Liquidacion {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createLiquidacion($idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado, $idUsuario) {
+    public function getCajaChicaByUsuario($idUsuario) {
         $stmt = $this->pdo->prepare("
-            SELECT id_supervisor, id_contador 
+            SELECT id, id_supervisor, id_contador 
             FROM cajas_chicas 
-            WHERE id = ?
+            WHERE id_usuario_encargado = ? AND estado = 'ACTIVA'
         ");
-        $stmt->execute([$idCajaChica]);
+        $stmt->execute([$idUsuario]);
         $caja = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$caja) {
-            throw new Exception('Caja chica no encontrada');
+            throw new Exception('No se encontró una caja chica activa para el usuario');
         }
+        return $caja;
+    }
+
+    public function createLiquidacion($idUsuario, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
+        $caja = $this->getCajaChicaByUsuario($idUsuario);
+        $idCajaChica = $caja['id'];
 
         $stmt = $this->pdo->prepare("
             INSERT INTO liquidaciones (id_caja_chica, fecha_creacion, fecha_inicio, fecha_fin, monto_total, estado, id_usuario, id_supervisor, id_contador)
@@ -104,27 +112,18 @@ class Liquidacion {
 
     public function createLiquidacionFromArray($data) {
         return $this->createLiquidacion(
-            $data['id_caja_chica'],
+            $data['id_usuario'],
             $data['fecha_creacion'],
             $data['fecha_inicio'],
             $data['fecha_fin'],
             $data['monto_total'],
-            $data['estado'],
-            $data['id_usuario']
+            $data['estado']
         );
     }
 
-    public function updateLiquidacion($id, $idCajaChica, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
-        $stmt = $this->pdo->prepare("
-            SELECT id_supervisor, id_contador 
-            FROM cajas_chicas 
-            WHERE id = ?
-        ");
-        $stmt->execute([$idCajaChica]);
-        $caja = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$caja) {
-            throw new Exception('Caja chica no encontrada');
-        }
+    public function updateLiquidacion($id, $idUsuario, $fechaCreacion, $fechaInicio, $fechaFin, $montoTotal, $estado) {
+        $caja = $this->getCajaChicaByUsuario($idUsuario);
+        $idCajaChica = $caja['id'];
 
         $stmt = $this->pdo->prepare("
             UPDATE liquidaciones

@@ -2,25 +2,34 @@
 <form id="cajaChicaFormInner">
     <input type="hidden" name="id" value="<?php echo isset($data) ? htmlspecialchars($data['id']) : ''; ?>">
     <label for="nombre">Nombre</label>
-    <input type="text" name="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+    <input type="text" name="nombre" id="nombre" placeholder="Nombre" value="<?php echo isset($data) ? htmlspecialchars($data['nombre']) : ''; ?>" required>
+    <label for="card_name">Clientes</label>
+    <select name="card_name" id="card_name" required>
+        <option value="">Seleccione un cliente</option>
+        {{select_clientes}}
+    </select>
     <label for="monto_asignado">Monto Asignado</label>
     <input type="number" name="monto_asignado" placeholder="Monto Asignado" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_asignado']) : ''; ?>" required>
     <label for="monto_disponible">Monto Disponible</label>
     <input type="number" name="monto_disponible" placeholder="Monto Disponible" step="0.01" value="<?php echo isset($data) ? htmlspecialchars($data['monto_disponible']) : ''; ?>" required>
     <label for="id_usuario_encargado">Usuario Encargado</label>
-    <select name="id_usuario_encargado" required>
+    <select name="id_usuario_encargado" id="id_usuario_encargado" required>
+        <option value="">Seleccione un usuario encargado</option>
         {{select_encargados}}
     </select>
     <label for="id_supervisor">Usuario Supervisor</label>
     <select name="id_supervisor" required>
+        <option value="">Seleccione un supervisor</option>
         {{select_supervisores}}
     </select>
     <label for="id_contador">Usuario Contador</label>
     <select name="id_contador" required>
+        <option value="">Seleccione un contador</option>
         {{select_contadores}}
     </select>
     <label for="id_centro_costo">Centro de Costos</label>
     <select name="id_centro_costo" required>
+        <option value="">Seleccione un centro de costos</option>
         {{select_centros_costos}}
     </select>
     <label for="estado">Estado</label>
@@ -29,9 +38,10 @@
         <option value="INACTIVA" <?php echo isset($data) && $data['estado'] === 'INACTIVA' ? 'selected' : ''; ?>>Inactiva</option>
     </select>
     <div class="error" data-field="nombre"></div>
+    <div class="error" data-field="card_name"></div>
     <div class="error" data-field="monto_asignado"></div>
     <div class="error" data-field="monto_disponible"></div>
-    <div class="error" data-field="id_usuario_encargado"></div>
+    <!-- <div class="error" data-field="id_usuario_encargado"></div> -->
     <div class="error" data-field="id_supervisor"></div>
     <div class="error" data-field="id_contador"></div>
     <div class="error" data-field="id_centro_costo"></div>
@@ -41,3 +51,20 @@
     <button type="submit"><?php echo isset($data) ? 'Actualizar' : 'Crear'; ?></button>
     <button type="button" onclick="closeModal()">Cancelar</button>
 </form>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardNameSelect = document.querySelector('#card_name');
+        const nombreInput = document.querySelector('#nombre');
+        
+        if (cardNameSelect && nombreInput) {
+            cardNameSelect.addEventListener('change', function() {
+                const selectedOption = cardNameSelect.options[cardNameSelect.selectedIndex];
+                if (selectedOption && selectedOption.text !== 'Seleccione un cliente') {
+                    nombreInput.value = selectedOption.text;
+                } else {
+                    nombreInput.value = '';
+                }
+            });
+        }
+    });
+</script>

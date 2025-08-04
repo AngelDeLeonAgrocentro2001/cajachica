@@ -10,6 +10,79 @@ class CajaChicaController {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    public function CONEXION_HANA($db_name) {
+        $driver = "HDBODBC";
+        $servername = "192.168.1.9:30015";
+        $username = "SAPDBA";
+        $password = "B1Adminh";
+        $conn = odbc_connect("Driver=$driver;ServerNode=$servername;Database=$db_name;", $username, $password, SQL_CUR_USE_ODBC);
+        if (!$conn) {
+            error_log("Error al conectar a HANA: " . odbc_errormsg());
+            throw new Exception("Error al conectar a la base de datos HANA: " . odbc_errormsg());
+        }
+        return $conn;
+    }
+
+    public function ctrObtenerClientes($db_name) {
+        error_log("ctrObtenerClientes called with db_name=$db_name");
+        $schema = $_SESSION['sociedad'] ?? $db_name;
+        $qry = "SELECT T0.\"CardCode\", T0.\"CardName\" FROM \"$schema\".OCRD T0 WHERE T0.\"CardCode\" IN (
+            'CCHA0001', 'CCHA0004', 'CCHA0005', 'CCHA0008', 'CCHA0009',
+            'CCHA0010', 'CCHA0011', 'CCHA0012', 'CCHA0013', 'CCHA0014',
+            'CCHA0015', 'CCHA0016', 'CCHA0017', 'CCHA0018', 'CCHA0019',
+            'CCHA0020', 'CCHA0021', 'CCHC0003', 'CCHC0004', 'CCHC0005',
+            'CCHC0006', 'CCHC0007', 'CCHC0009', 'CCHC0011', 'CCHC0014',
+            'CCHC0015', 'CCHC0016', 'CCHC0018', 'CCHC0021', 'CCHC0031',
+            'CCHC0035', 'CCHC0041', 'CCHC0044', 'CCHC0045', 'CCHC0047',
+            'CCHC0049', 'CCHC0051', 'CCHC0055', 'CCHC0059', 'CCHC0061',
+            'CCHC0068', 'CCHC0075', 'CCHC0079', 'CCHC0081', 'CCHC0085',
+            'CCHC0087', 'CCHC0088', 'CCHC0089', 'CCHC0090', 'CCHC0091',
+            'CCHC0092', 'CCHC0093', 'CCHC0094', 'CCHC0095', 'CCHC0096',
+            'CCHC0097', 'CCHD0002', 'CCHD0004', 'CCHD0005', 'CCHD0006',
+            'CCHD0008', 'CCHD0011', 'CCHD0012', 'CCHD0013', 'CCHD0019',
+            'CCHD0020', 'CCHD0023', 'CCHD0024', 'PN0350', 'PN0354',
+            'PN0561', 'PN2009', 'PN9237', 'PN9346'
+        )";
+        error_log("Query constructed: $qry");
+        $respuesta = $this->mdlObtenerClientes($qry, $db_name);
+        return $respuesta;
+    }
+
+    public function mdlObtenerClientes($query, $db_name) {
+        try {
+            $conexion = $this->CONEXION_HANA($db_name);
+            error_log("Ejecutando consulta HANA: " . $query);
+            $prov = odbc_exec($conexion, $query);
+            $json = "";
+            if ($prov) {
+                while ($cliente = odbc_fetch_object($prov)) {
+                    error_log("Cliente obtenido (sin procesar): " . $cliente->CardCode . '-' . $cliente->CardName);
+                    $cardName = trim($cliente->CardName);
+                    if (!mb_check_encoding($cardName, 'UTF-8')) {
+                        $cardName = mb_convert_encoding($cardName, 'UTF-8', 'ISO-8859-1');
+                        error_log("Nombre de cliente convertido a UTF-8: " . $cliente->CardCode . '-' . $cardName);
+                    }
+                    $json .= "|" . $cliente->CardCode . '-' . $cardName;
+                    error_log("Cliente procesado: " . $cliente->CardCode . '-' . $cardName);
+                }
+                odbc_free_result($prov);
+            } else {
+                $errorMsg = odbc_errormsg($conexion);
+                error_log("Error al ejecutar la consulta HANA: " . $errorMsg);
+                throw new Exception("Error al ejecutar la consulta en la base de datos HANA: " . $errorMsg);
+            }
+            odbc_close($conexion);
+            if (empty($json)) {
+                error_log("No se encontraron clientes en HANA para la consulta: " . $query);
+                return 'sin_datos';
+            }
+            return $json;
+        } catch (Exception $e) {
+            error_log("Error en mdlObtenerClientes: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
     public function listCajasChicas() {
         if (!isset($_SESSION['user_id'])) {
             error_log('Error: No hay session user_id');
@@ -39,7 +112,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
@@ -49,21 +122,22 @@ class CajaChicaController {
             echo json_encode(['error' => 'No tienes permiso para crear cajas chicas']);
             exit;
         }
-    
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
-                $nombre = $_POST['nombre'] ?? '';
-                $monto_asignado = $_POST['monto_asignado'] ?? 0;
-                $id_usuario_encargado = $_POST['id_usuario_encargado'] ?? '';
-                $id_supervisor = $_POST['id_supervisor'] ?? '';
-                $id_contador = $_POST['id_contador'] ?? '';
-                $id_centro_costo = $_POST['id_centro_costo'] ?? '';
-                $estado = $_POST['estado'] ?? 'ACTIVA';
-    
-                if (empty($nombre) || !is_numeric($monto_asignado) || empty($id_usuario_encargado) || empty($id_supervisor) || empty($id_contador) || empty($id_centro_costo)) {
-                    throw new Exception('Todos los campos son obligatorios');
+                $nombre = trim($_POST['nombre'] ?? '');
+                $clientes = trim($_POST['card_name'] ?? '');
+                $monto_asignado = floatval($_POST['monto_asignado'] ?? 0);
+                $id_usuario_encargado = intval($_POST['id_usuario_encargado'] ?? 0);
+                $id_supervisor = intval($_POST['id_supervisor'] ?? 0);
+                $id_contador = intval($_POST['id_contador'] ?? 0);
+                $id_centro_costo = intval($_POST['id_centro_costo'] ?? 0);
+                $estado = trim($_POST['estado'] ?? 'ACTIVA');
+
+                if (empty($nombre) || empty($clientes) || $monto_asignado <= 0 || $id_usuario_encargado <= 0 || $id_supervisor <= 0 || $id_contador <= 0 || $id_centro_costo <= 0) {
+                    throw new Exception('Todos los campos son obligatorios y deben ser válidos');
                 }
-    
+
                 if (!$usuarioModel->getUsuarioById($id_usuario_encargado)) {
                     throw new Exception('El usuario encargado no existe');
                 }
@@ -73,14 +147,14 @@ class CajaChicaController {
                 if (!$usuarioModel->getUsuarioById($id_contador)) {
                     throw new Exception('El contador no existe');
                 }
-    
+
                 $centroCostoModel = new CentroCosto();
                 if (!$centroCostoModel->getCentroCostoById($id_centro_costo)) {
                     throw new Exception('El centro de costos no existe');
                 }
-    
+
                 $cajaChica = new CajaChica();
-                if ($cajaChica->createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor, $id_contador, $id_centro_costo, $estado)) {
+                if ($cajaChica->createCajaChica($nombre, $monto_asignado, $id_usuario_encargado, $id_supervisor, $id_contador, $id_centro_costo, $estado, $clientes)) {
                     header('Content-Type: application/json');
                     http_response_code(201);
                     echo json_encode(['message' => 'Caja chica creada']);
@@ -95,36 +169,56 @@ class CajaChicaController {
             }
             exit;
         }
-    
+
+        // Fetch clients from SAP HANA
+        try {
+            $clientes = $this->ctrObtenerClientes('GT_AGROCENTRO_2016');
+            $selectClientes = '';
+            if ($clientes !== 'sin_datos') {
+                $clientesArray = explode('|', trim($clientes, '|'));
+                foreach ($clientesArray as $cliente) {
+                    list($cardCode, $cardName) = explode('-', $cliente, 2);
+                    $selectClientes .= "<option value='$cardCode'>$cardName</option>";
+                }
+            } else {
+                $selectClientes = '<option value="">No se encontraron clientes</option>';
+            }
+        } catch (Exception $e) {
+            error_log('Error al obtener clientes: ' . $e->getMessage());
+            $selectClientes = '<option value="">Error al cargar clientes: ' . htmlspecialchars($e->getMessage()) . '</option>';
+        }
+
+        $usuarioModel = new Usuario();
         $encargados = $usuarioModel->getUsuariosByRol('ENCARGADO_CAJA_CHICA');
         $supervisores = $usuarioModel->getUsuariosBySupervisorRole();
         $contadores = $usuarioModel->getUsuariosByContadorRole();
         $centroCostoModel = new CentroCosto();
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
-    
+
         $selectEncargados = '';
         foreach ($encargados as $encargado) {
             $selectEncargados .= "<option value='{$encargado['id']}'>{$encargado['nombre']}</option>";
         }
-    
+
         $selectSupervisores = '';
         foreach ($supervisores as $supervisor) {
             $selectSupervisores .= "<option value='{$supervisor['id']}'>{$supervisor['nombre']}</option>";
         }
-    
+
         $selectContadores = '';
         foreach ($contadores as $contador) {
             $selectContadores .= "<option value='{$contador['id']}'>{$contador['nombre']}</option>";
         }
-    
+
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
             $selectCentrosCostos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
         }
-    
+
         ob_start();
         require '../views/cajas_chicas/form.html';
         $html = ob_get_clean();
+        $html = str_replace('{{select_clientes}}', $selectClientes, $html);
         $html = str_replace('{{select_encargados}}', $selectEncargados, $html);
         $html = str_replace('{{select_supervisores}}', $selectSupervisores, $html);
         $html = str_replace('{{select_contadores}}', $selectContadores, $html);
@@ -141,7 +235,7 @@ class CajaChicaController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-    
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
@@ -151,22 +245,23 @@ class CajaChicaController {
             echo json_encode(['error' => 'No tienes permiso para actualizar cajas chicas']);
             exit;
         }
-    
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
-                $nombre = $_POST['nombre'] ?? '';
-                $monto_asignado = $_POST['monto_asignado'] ?? 0;
-                $monto_disponible = $_POST['monto_disponible'] ?? 0;
-                $id_usuario_encargado = $_POST['id_usuario_encargado'] ?? '';
-                $id_supervisor = $_POST['id_supervisor'] ?? '';
-                $id_contador = $_POST['id_contador'] ?? '';
-                $id_centro_costo = $_POST['id_centro_costo'] ?? '';
-                $estado = $_POST['estado'] ?? 'ACTIVA';
-    
-                if (empty($nombre) || !is_numeric($monto_asignado) || !is_numeric($monto_disponible) || empty($id_usuario_encargado) || empty($id_supervisor) || empty($id_contador) || empty($id_centro_costo)) {
-                    throw new Exception('Todos los campos son obligatorios');
+                $nombre = trim($_POST['nombre'] ?? '');
+                $clientes = trim($_POST['card_name'] ?? '');
+                $monto_asignado = floatval($_POST['monto_asignado'] ?? 0);
+                $monto_disponible = floatval($_POST['monto_disponible'] ?? 0);
+                $id_usuario_encargado = intval($_POST['id_usuario_encargado'] ?? 0);
+                $id_supervisor = intval($_POST['id_supervisor'] ?? 0);
+                $id_contador = intval($_POST['id_contador'] ?? 0);
+                $id_centro_costo = intval($_POST['id_centro_costo'] ?? 0);
+                $estado = trim($_POST['estado'] ?? 'ACTIVA');
+
+                if (empty($nombre) || empty($clientes) || $monto_asignado <= 0 || $monto_disponible < 0 || $id_usuario_encargado <= 0 || $id_supervisor <= 0 || $id_contador <= 0 || $id_centro_costo <= 0) {
+                    throw new Exception('Todos los campos son obligatorios y deben ser válidos');
                 }
-    
+
                 if (!$usuarioModel->getUsuarioById($id_usuario_encargado)) {
                     throw new Exception('El usuario encargado no existe');
                 }
@@ -176,14 +271,14 @@ class CajaChicaController {
                 if (!$usuarioModel->getUsuarioById($id_contador)) {
                     throw new Exception('El contador no existe');
                 }
-    
+
                 $centroCostoModel = new CentroCosto();
                 if (!$centroCostoModel->getCentroCostoById($id_centro_costo)) {
                     throw new Exception('El centro de costos no existe');
                 }
-    
+
                 $cajaChica = new CajaChica();
-                if ($cajaChica->updateCajaChica($id, $nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $id_contador, $id_centro_costo, $estado)) {
+                if ($cajaChica->updateCajaChica($id, $nombre, $monto_asignado, $monto_disponible, $id_usuario_encargado, $id_supervisor, $id_contador, $id_centro_costo, $estado, $clientes)) {
                     header('Content-Type: application/json');
                     echo json_encode(['message' => 'Caja chica actualizada']);
                 } else {
@@ -197,7 +292,7 @@ class CajaChicaController {
             }
             exit;
         }
-    
+
         $cajaChica = new CajaChica();
         $data = $cajaChica->getCajaChicaById($id);
         if (!$data) {
@@ -206,40 +301,61 @@ class CajaChicaController {
             echo '<a href="index.php?controller=cajachica&action=list">Volver a Lista</a>';
             exit;
         }
-    
+
+        // Fetch clients from SAP HANA
+        try {
+            $clientes = $this->ctrObtenerClientes('GT_AGROCENTRO_2016');
+            $selectClientes = '';
+            if ($clientes !== 'sin_datos') {
+                $clientesArray = explode('|', trim($clientes, '|'));
+                foreach ($clientesArray as $cliente) {
+                    list($cardCode, $cardName) = explode('-', $cliente, 2);
+                    $selected = $data['clientes'] == $cardCode ? 'selected' : '';
+                    $selectClientes .= "<option value='$cardCode' $selected>$cardName</option>";
+                }
+            } else {
+                $selectClientes = '<option value="">No se encontraron clientes</option>';
+            }
+        } catch (Exception $e) {
+            error_log('Error al obtener clientes: ' . $e->getMessage());
+            $selectClientes = '<option value="">Error al cargar clientes: ' . htmlspecialchars($e->getMessage()) . '</option>';
+        }
+
+        $usuarioModel = new Usuario();
         $encargados = $usuarioModel->getUsuariosByRol('ENCARGADO_CAJA_CHICA');
         $supervisores = $usuarioModel->getUsuariosBySupervisorRole();
         $contadores = $usuarioModel->getUsuariosByContadorRole();
         $centroCostoModel = new CentroCosto();
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
-    
+
         $selectEncargados = '';
         foreach ($encargados as $encargado) {
             $selected = $data['id_usuario_encargado'] == $encargado['id'] ? 'selected' : '';
-            $selectEncargados .= "<option value='{$encargado['id']}' {$selected}>{$encargado['nombre']}</option>";
+            $selectEncargados .= "<option value='{$encargado['id']}' $selected>{$encargado['nombre']}</option>";
         }
-    
+
         $selectSupervisores = '';
         foreach ($supervisores as $supervisor) {
             $selected = $data['id_supervisor'] == $supervisor['id'] ? 'selected' : '';
-            $selectSupervisores .= "<option value='{$supervisor['id']}' {$selected}>{$supervisor['nombre']}</option>";
+            $selectSupervisores .= "<option value='{$supervisor['id']}' $selected>{$supervisor['nombre']}</option>";
         }
-    
+
         $selectContadores = '';
         foreach ($contadores as $contador) {
             $selected = $data['id_contador'] == $contador['id'] ? 'selected' : '';
-            $selectContadores .= "<option value='{$contador['id']}' {$selected}>{$contador['nombre']}</option>";
+            $selectContadores .= "<option value='{$contador['id']}' $selected>{$contador['nombre']}</option>";
         }
-    
+
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
             $selected = $data['id_centro_costo'] == $centro['id'] ? 'selected' : '';
-            $selectCentrosCostos .= "<option value='{$centro['id']}' {$selected}>{$centro['nombre']}</option>";
+            $selectCentrosCostos .= "<option value='{$centro['id']}' $selected>{$centro['nombre']}</option>";
         }
-    
+
         ob_start();
         require '../views/cajas_chicas/form.html';
         $html = ob_get_clean();
+        $html = str_replace('{{select_clientes}}', $selectClientes, $html);
         $html = str_replace('{{select_encargados}}', $selectEncargados, $html);
         $html = str_replace('{{select_supervisores}}', $selectSupervisores, $html);
         $html = str_replace('{{select_contadores}}', $selectContadores, $html);
@@ -250,6 +366,7 @@ class CajaChicaController {
 
     public function deleteCajaChica($id) {
         if (!isset($_SESSION['user_id'])) {
+            error_log('Error: No hay session user_id en deleteCajaChica');
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
@@ -259,20 +376,26 @@ class CajaChicaController {
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuarioModel->tienePermiso($usuario, 'create_liquidaciones')) {
+            error_log('Error: No tienes permiso para eliminar cajas chicas');
             header('Content-Type: application/json');
             http_response_code(403);
             echo json_encode(['error' => 'No tienes permiso para eliminar cajas chicas']);
             exit;
         }
 
-        $cajaChica = new CajaChica();
-        if ($cajaChica->deleteCajaChica($id)) {
-            header('Content-Type: application/json');
-            echo json_encode(['message' => 'Caja chica eliminada']);
-        } else {
+        try {
+            $cajaChica = new CajaChica();
+            if ($cajaChica->deleteCajaChica($id)) {
+                header('Content-Type: application/json');
+                echo json_encode(['message' => 'Caja chica eliminada']);
+            } else {
+                throw new Exception('Error al eliminar caja chica');
+            }
+        } catch (Exception $e) {
+            error_log('Error en deleteCajaChica: ' . $e->getMessage());
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => 'Error al eliminar caja chica']);
+            echo json_encode(['error' => $e->getMessage()]);
         }
         exit;
     }

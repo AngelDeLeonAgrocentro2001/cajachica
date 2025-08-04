@@ -23,6 +23,7 @@ require_once '../controllers/AccesoController.php';
 require_once '../controllers/BaseController.php';
 require_once '../controllers/FacturaController.php';
 require_once '../controllers/CentroCostoController.php';
+require_once '../controllers/DteController.php'; // Agregado
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
@@ -85,76 +86,79 @@ switch ($controller) {
         break;
 
     case 'usuario':
-            $usuarioController = new UsuarioController();
-            switch ($action) {
-                case 'list':
-                    $usuarioController->listUsuarios();
-                    break;
-                case 'create':
-                    $usuarioController->createUsuario();
-                    break;
-                case 'update':
-                    if ($id) {
-                        $usuarioController->updateUsuario($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de usuario requerido para actualizar']);
-                    }
-                    break;
-                case 'delete':
-                    if ($id) {
-                        $usuarioController->deleteUsuario($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de usuario requerido para eliminar']);
-                    }
-                    break;
-                case 'getSupervisores':
-                    $usuarioController->getSupervisores();
-                    break;
-                case 'getContadores':
-                    $usuarioController->getContadores();
-                    break;
-                default:
-                    header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para usuario']);
-                    exit;
-            }
-            break;
-
-    case 'cajachica':
-        $cajaChicaController = new CajaChicaController();
+        $usuarioController = new UsuarioController();
         switch ($action) {
             case 'list':
-                $cajaChicaController->listCajasChicas();
+                $usuarioController->listUsuarios();
                 break;
             case 'create':
-                $cajaChicaController->createCajaChica();
+                $usuarioController->createUsuario();
                 break;
             case 'update':
                 if ($id) {
-                    $cajaChicaController->updateCajaChica($id);
+                    $usuarioController->updateUsuario($id);
                 } else {
                     header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de caja chica requerido para actualizar']);
+                    echo json_encode(['error' => 'ID de usuario requerido para actualizar']);
                 }
                 break;
             case 'delete':
                 if ($id) {
-                    $cajaChicaController->deleteCajaChica($id);
+                    $usuarioController->deleteUsuario($id);
                 } else {
                     header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de caja chica requerido para eliminar']);
+                    echo json_encode(['error' => 'ID de usuario requerido para eliminar']);
                 }
+                break;
+            case 'getSupervisores':
+                $usuarioController->getSupervisores();
+                break;
+            case 'getContadores':
+                $usuarioController->getContadores();
+                break;
+            case 'checkCardCode':
+                $usuarioController->checkCardCode();
                 break;
             default:
                 header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para cajachica']);
+                echo json_encode(['error' => 'Acción no encontrada para usuario']);
                 exit;
         }
         break;
 
-       case 'liquidacion':
+        case 'cajachica':
+            $cajaChicaController = new CajaChicaController();
+            switch ($action) {
+                case 'list':
+                    $cajaChicaController->listCajasChicas();
+                    break;
+                case 'create':
+                    $cajaChicaController->createCajaChica();
+                    break;
+                case 'update':
+                    if ($id) {
+                        $cajaChicaController->updateCajaChica($id); // Fixed typo
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de caja chica requerido para actualizar']);
+                    }
+                    break;
+                case 'delete':
+                    if ($id) {
+                        $cajaChicaController->deleteCajaChica($id);
+                    } else {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de caja chica requerido para eliminar']);
+                    }
+                    break;
+                default:
+                    header('HTTP/1.1 404 Not Found');
+                    echo json_encode(['error' => 'Acción no encontrada para cajachica']);
+                    exit;
+            }
+            break;
+
+        case 'liquidacion':
             $liquidacionController = new LiquidacionController();
             switch ($action) {
                 case 'list':
@@ -235,6 +239,14 @@ switch ($controller) {
                         $liquidacionController->getCuentasByCentroCosto($id_centro_costo);
                     }
                     break;
+                case 'fetchHanaAccounts':
+                    if ($id_centro_costo === null || $id_centro_costo === '') {
+                        header('HTTP/1.1 400 Bad Request');
+                        echo json_encode(['error' => 'ID de centro de costo requerido para obtener cuentas contables desde SAP HANA']);
+                    } else {
+                        $liquidacionController->fetchHanaAccounts($id_centro_costo);
+                    }
+                    break;
                 case 'getImpuestosByTipoGasto':
                     if ($name) {
                         $liquidacionController->getImpuestosByTipoGasto($name);
@@ -243,7 +255,6 @@ switch ($controller) {
                         echo json_encode(['error' => 'Nombre del tipo de gasto requerido para obtener impuestos']);
                     }
                     break;
-                    
                 case 'listCorrecciones':
                     $liquidacionController->listCorrecciones();
                     break;
@@ -335,40 +346,44 @@ switch ($controller) {
                     exit;
             }
             break;
+
     case 'detalleliquidacion':
-        $detalleLiquidacionController = new DetalleLiquidacionController();
-        switch ($action) {
-            case 'list':
-                $detalleLiquidacionController->listDetallesLiquidacion();
-                break;
-            case 'create':
-                $detalleLiquidacionController->createDetalleLiquidacion();
-                break;
-            case 'update':
-                if ($id) {
-                    $detalleLiquidacionController->updateDetalleLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
-                }
-                break;
-            case 'delete':
-                if ($id) {
-                    $detalleLiquidacionController->deleteDetalleLiquidacion($id);
-                } else {
-                    header('HTTP/1.1 400 Bad Request');
-                    echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
-                }
-                break;
-            case 'revisar':
-                $detalleLiquidacionController->revisarDetalle($id);
-                break;
-            default:
-                header('HTTP/1.1 404 Not Found');
-                echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
-                exit;
-        }
-        break;
+    $detalleLiquidacionController = new DetalleLiquidacionController();
+    switch ($action) {
+        case 'list':
+            $detalleLiquidacionController->listDetallesLiquidacion();
+            break;
+        case 'create':
+            $detalleLiquidacionController->createDetalleLiquidacion();
+            break;
+        case 'update':
+            if ($id) {
+                $detalleLiquidacionController->updateDetalleLiquidacion($id);
+            } else {
+                header('HTTP/1.1 400 Bad Request');
+                echo json_encode(['error' => 'ID de detalle requerido para actualizar']);
+            }
+            break;
+        case 'delete':
+            if ($id) {
+                $detalleLiquidacionController->deleteDetalleLiquidacion($id);
+            } else {
+                header('HTTP/1.1 400 Bad Request');
+                echo json_encode(['error' => 'ID de detalle requerido para eliminar']);
+            }
+            break;
+        case 'revisar':
+            $detalleLiquidacionController->revisarDetalle($id);
+            break;
+        case 'updateDteUsado':
+            $detalleLiquidacionController->updateDteUsado();
+            break;
+        default:
+            header('HTTP/1.1 404 Not Found');
+            echo json_encode(['error' => 'Acción no encontrada para detalleliquidacion']);
+            exit;
+    }
+    break;
 
     case 'auditoria':
         $auditoriaController = new AuditoriaController();
@@ -658,52 +673,71 @@ switch ($controller) {
         }
         break;
 
-        case 'centrocosto':
-            $centroCostoController = new CentroCostoController();
+    case 'centrocosto':
+        $centroCostoController = new CentroCostoController();
+        switch ($action) {
+            case 'list':
+                $centroCostoController->listCentrosCostos();
+                break;
+            case 'create':
+                $centroCostoController->createCentroCosto();
+                break;
+            case 'update':
+                if ($id) {
+                    $centroCostoController->updateCentroCosto($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                }
+                break;
+            case 'delete':
+                if ($id) {
+                    $centroCostoController->deleteCentroCosto($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
+                }
+                break;
+            case 'createForm':
+                $centroCostoController->createForm();
+                break;
+            case 'updateForm':
+                if ($id) {
+                    $centroCostoController->updateForm($id);
+                } else {
+                    header('HTTP/1.1 400 Bad Request');
+                    echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
+                }
+                break;
+            case 'checkCodigo':
+                $centroCostoController->checkCodigo();
+                break;
+            case 'getCentrosCostos':
+                $base_id = isset($_GET['base_id']) ? intval($_GET['base_id']) : null;
+                $centroCostoController->getCentrosCostos($base_id);
+                break;
+            default:
+                header('HTTP/1.1 404 Not Found');
+                echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
+                exit;
+        }
+        break;
+
+        case 'dte':
+            $dteController = new DteController();
             switch ($action) {
-                case 'list':
-                    $centroCostoController->listCentrosCostos();
+                case 'index':
+                    $dteController->index();
                     break;
-                case 'create':
-                    $centroCostoController->createCentroCosto();
+                case 'uploadExcel':
+                    $dteController->uploadExcel();
                     break;
-                case 'update':
-                    if ($id) {
-                        $centroCostoController->updateCentroCosto($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
-                    }
-                    break;
-                case 'delete':
-                    if ($id) {
-                        $centroCostoController->deleteCentroCosto($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de centro de costos requerido para eliminar']);
-                    }
-                    break;
-                case 'createForm':
-                    $centroCostoController->createForm();
-                    break;
-                case 'updateForm':
-                    if ($id) {
-                        $centroCostoController->updateForm($id);
-                    } else {
-                        header('HTTP/1.1 400 Bad Request');
-                        echo json_encode(['error' => 'ID de centro de costos requerido para actualizar']);
-                    }
-                    break;
-                case 'checkCodigo':
-                    $centroCostoController->checkCodigo();
-                    break;
-                case 'getCentrosCostos':
-                    $base_id = isset($_GET['base_id']) ? intval($_GET['base_id']) : null;
-                    $centroCostoController->getCentrosCostos($base_id);
+                case 'searchByNit':
+                    $dteController->searchByNit();
                     break;
                 default:
                     header('HTTP/1.1 404 Not Found');
-                    echo json_encode(['error' => 'Acción no encontrada para centrocosto']);
+                    echo json_encode(['error' => 'Acción no encontrada para dte']);
                     exit;
             }
             break;

@@ -603,16 +603,17 @@
 
       <h3>Detalles de la Liquidación</h3>
       <button
-      class="bulk-action-btn"
-      id="openAutorizarModalBtn"
-      onclick="openAutorizarModal()"
-    >
-      Autorizar
-    </button>
+        class="bulk-action-btn"
+        id="openAutorizarModalBtn"
+        onclick="openAutorizarModal()"
+      >
+        Autorizar
+      </button>
       <div class="table-wrapper">
         <table id="facturasTable">
           <thead>
             <tr>
+              <th>Grupo ID</th>
               <th>ID</th>
               <th>Archivos</th>
               <th>Tipo de Documento</th>
@@ -623,6 +624,7 @@
               <th>Cantidad</th>
               <th>Serie</th>
               <th>Centro de Costo</th>
+              <th>Porcentaje</th>
               <th>Tipo de Gasto</th>
               <th>Tipo de Combustible</th>
               <th>Cuenta Contable</th>
@@ -643,7 +645,11 @@
             <tr
               class="<?php echo ($detalle['estado'] === 'EN_CORRECCION') ? 'in-correction' : ''; ?>"
               data-id="<?php echo htmlspecialchars($detalle['id']); ?>"
+              data-grupo-id="<?php echo htmlspecialchars($detalle['grupo_id'] ?? '0'); ?>"
             >
+              <td data-label="Grupo ID">
+                <?php echo htmlspecialchars($detalle['grupo_id'] ?? '0'); ?>
+              </td>
               <td data-label="ID">
                 <?php echo htmlspecialchars($detalle['id']); ?>
               </td>
@@ -688,6 +694,9 @@
               <td data-label="Centro de Costo">
                 <?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?>
               </td>
+              <td data-label="Porcentaje">
+                <?php echo htmlspecialchars($detalle['porcentaje'] ?? '100'); ?>%
+              </td>
               <td data-label="Tipo de Gasto">
                 <?php echo htmlspecialchars($detalle['t_gasto']); ?>
               </td>
@@ -695,7 +704,7 @@
                 <?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?>
               </td>
               <td data-label="Cuenta Contable">
-                <?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?>
+                <?php echo htmlspecialchars($detalle['nombre_cuenta_contable'] ?? 'N/A'); ?>
               </td>
               <td data-label="Fecha">
                 <?php echo htmlspecialchars($detalle['fecha']); ?>
@@ -744,7 +753,7 @@
       >
         Enviar Seleccionados a Corrección
       </button>
-     
+
       <div id="autorizarModal" class="modal">
         <div class="modal-content">
           <div class="modal-header">
@@ -834,7 +843,7 @@
 
         modalTitle.textContent = fileName;
         modal.style.display = 'flex';
-        
+       
         // Initialize drag functionality
         makeModalDraggable(modal.querySelector('.modal-content'));
       }
@@ -880,14 +889,14 @@
           posY = mouseY - e.clientY;
           mouseX = e.clientX;
           mouseY = e.clientY;
-          
+         
           const newTop = modalContent.offsetTop - posY;
           const newLeft = modalContent.offsetLeft - posX;
-          
+         
           // Ensure modal stays within window bounds
           const maxX = window.innerWidth - modalContent.offsetWidth;
           const maxY = window.innerHeight - modalContent.offsetHeight;
-          
+         
           modalContent.style.top = Math.max(0, Math.min(newTop, maxY)) + 'px';
           modalContent.style.left = Math.max(0, Math.min(newLeft, maxX)) + 'px';
           modalContent.style.position = 'absolute';
@@ -898,12 +907,6 @@
           document.removeEventListener('mouseup', closeDragElement);
         }
       }
-
-      // document.getElementById('fileModal').addEventListener('click', function (event) {
-      //   if (event.target === this) {
-      //     closeModal();
-      //   }
-      // });
 
       document.getElementById('autorizarModal').addEventListener('click', function (event) {
         if (event.target === this) {
@@ -949,17 +952,17 @@
           const row = commentInput.closest('tr');
           if (!row.classList.contains('in-correction')) {
             const comment = commentInput.value.trim();
-            if (!comment) {
-              Swal.fire({
-                icon: 'warning',
-                title: 'Comentario requerido',
-                text: `Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`,
-                confirmButtonText: 'OK'
-              });
-              commentInput.focus();
-              allCommentsProvided = false;
-              break;
-            }
+            // if (!comment) {
+            //   Swal.fire({
+            //     icon: 'warning',
+            //     title: 'Comentario requerido',
+            //     text: `Por favor, ingresa un comentario para el detalle ${detalleId} antes de enviar a corrección.`,
+            //     confirmButtonText: 'OK'
+            //   });
+            //   commentInput.focus();
+            //   allCommentsProvided = false;
+            //   break;
+            // }
             correccionComentarios[detalleId] = comment;
           }
         }
@@ -1216,24 +1219,40 @@
           return;
         }
 
-        const correccionComentarios = {};
+        // Collect all detalle_ids in the same grupo_id
+        const detallesToCorrect = new Set(unselectedDetalles);
+        unselectedDetalles.forEach(detalleId => {
+          const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+          const grupoId = row.getAttribute('data-grupo-id') || '0';
+          if (grupoId !== '0') {
+            document.querySelectorAll(`tr[data-grupo-id="${grupoId}"]`).forEach(groupRow => {
+              const groupDetalleId = groupRow.getAttribute('data-id');
+              const estado = groupRow.querySelector('td[data-label="Estado"]').textContent.trim();
+              if (estado !== 'EN_CORRECCION') {
+                detallesToCorrect.add(groupDetalleId);
+              }
+            });
+          }
+        });
+
         const validDetalles = [];
-        for (const detalleId of unselectedDetalles) {
+        const correccionComentarios = {};
+        for (const detalleId of detallesToCorrect) {
           const row = document.querySelector(`tr[data-id="${detalleId}"]`);
           const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
           if (estado !== 'EN_CORRECCION') {
             const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
-            const comment = commentInput.value.trim();
-            if (!comment) {
-              Swal.fire({
-                icon: 'warning',
-                title: 'Comentario requerido',
-                text: `Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`,
-                confirmButtonText: 'OK'
-              });
-              commentInput.focus();
-              return;
-            }
+            const comment = commentInput ? commentInput.value.trim() : '';
+            // if (!comment) {
+            //   Swal.fire({
+            //     icon: 'warning',
+            //     title: 'Comentario requerido',
+            //     text: `Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`,
+            //     confirmButtonText: 'OK'
+            //   });
+            //   commentInput.focus();
+            //   return;
+            // }
             correccionComentarios[detalleId] = comment;
             validDetalles.push(detalleId);
           }
@@ -1377,115 +1396,141 @@
 
       async function exportToSap(id) {
         Swal.fire({
-          icon: 'info',
-          title: 'Enviando a SAP',
-          text: 'La exportación a SAP está en proceso...',
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
+            icon: 'info',
+            title: 'Enviando a SAP',
+            text: 'La exportación a SAP está en proceso...',
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
         });
 
         try {
-          const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          });
-          const rawResponse = await response.text();
-          console.log('Raw response:', rawResponse);
-
-          let result;
-          try {
-            result = JSON.parse(rawResponse);
-          } catch (e) {
-            throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
-          }
-
-          if (!response.ok) {
-            if (response.status === 400 && result.error === 'Esta liquidación ya ha sido exportada') {
-              const confirmExport = await Swal.fire({
-                icon: 'warning',
-                title: 'Exportación existente',
-                text: 'Esta liquidación ya fue exportada. ¿Desea volver a exportarla?',
-                showCancelButton: true,
-                confirmButtonText: 'Sí',
-                cancelButtonText: 'No'
-              });
-              if (confirmExport.isConfirmed) {
-                const forceExportResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&force=true`, {
-                  headers: {
+            const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
+                headers: {
                     'X-Requested-With': 'XMLHttpRequest'
-                  }
-                });
-                const forceRawResponse = await forceExportResponse.text();
-                console.log('Force export raw response:', forceRawResponse);
-                if (!forceExportResponse.ok) {
-                  let forceErrorData;
-                  try {
-                    forceErrorData = JSON.parse(forceRawResponse);
-                  } catch (e) {
-                    throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
-                  }
-                  throw new Error(forceErrorData.error || 'No es posible exportar por problemas en SAP, intente más tarde');
                 }
-                const forceResult = JSON.parse(forceRawResponse);
-                return processSapResponse(forceResult);
-              } else {
-                return 'Exportación cancelada.';
-              }
-            }
-            throw new Error(result.error || 'No es posible exportar por problemas en SAP, intente más tarde');
-          }
+            });
+            const rawResponse = await response.text();
+            console.log('Raw response:', rawResponse);
 
-          return processSapResponse(result);
+            let result;
+            try {
+                result = JSON.parse(rawResponse);
+            } catch (e) {
+                throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+            }
+
+            if (!response.ok) {
+                let errorText = result.error || 'No es posible exportar por problemas en SAP, intente más tarde';
+                if (response.status === 400 && result.results) {
+                    errorText = 'Errores al exportar la liquidación:\n';
+                    let hasPostingPeriodError = false;
+                    result.results.forEach(r => {
+                        if (!r.success || !r.valid) {
+                            errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
+                            if (r.reason === 'POSTING_PERIOD_LOCKED') {
+                                hasPostingPeriodError = true;
+                            }
+                        }
+                    });
+                    if (hasPostingPeriodError) {
+                        const datePrompt = await Swal.fire({
+                            icon: 'warning',
+                            title: 'Período contable cerrado',
+                            text: `${errorText}\nSeleccione una fecha alternativa en un período contable abierto:`,
+                            input: 'date',
+                            inputValue: new Date().toISOString().split('T')[0],
+                            showCancelButton: true,
+                            confirmButtonText: 'Reintentar con nueva fecha',
+                            cancelButtonText: 'Cancelar'
+                        });
+                        if (datePrompt.isConfirmed && datePrompt.value) {
+                            const retryResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&docDate=${datePrompt.value}`, {
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const retryRawResponse = await retryResponse.text();
+                            console.log('Retry export raw response:', retryRawResponse);
+                            if (!retryResponse.ok) {
+                                let retryErrorData;
+                                try {
+                                    retryErrorData = JSON.parse(retryRawResponse);
+                                } catch (e) {
+                                    throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+                                }
+                                throw new Error(retryErrorData.error || 'No es posible exportar por problemas en SAP, intente más tarde');
+                            }
+                            const retryResult = JSON.parse(retryRawResponse);
+                            return processSapResponse(retryResult);
+                        } else {
+                            return 'Exportación cancelada.';
+                        }
+                    }
+                }
+                throw new Error(errorText);
+            }
+
+            return processSapResponse(result);
         } catch (error) {
-          console.error('Error al exportar a SAP:', error);
-          const retry = await Swal.fire({
-            icon: 'error',
-            title: 'Error en SAP',
-            text: 'No es posible exportar por problemas en SAP, intente más tarde',
-            showCancelButton: true,
-            confirmButtonText: 'Reintentar',
-            cancelButtonText: 'OK'
-          });
-          if (retry.isConfirmed) {
-            return exportToSap(id);
-          }
-          throw error;
+            console.error('Error al exportar a SAP:', error);
+            const retry = await Swal.fire({
+                icon: 'error',
+                title: 'Error al exportar',
+                text: error.message || 'No es posible exportar por problemas en SAP, intente más tarde',
+                showCancelButton: true,
+                confirmButtonText: 'Reintentar',
+                cancelButtonText: 'OK'
+            });
+            if (retry.isConfirmed) {
+                return exportToSap(id);
+            }
+            throw error;
         } finally {
-          Swal.close();
+            Swal.close();
         }
       }
 
       function processSapResponse(result) {
-        if (!result.success || !Array.isArray(result.results)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error en exportación',
-            text: `Error al exportar a SAP: ${result.error || 'Error desconocido'}`,
-            confirmButtonText: 'OK'
-          });
-          return `Error al exportar a SAP: ${result.error || 'Error desconocido'}`;
+        if (result.success) {
+            let message = result.message + '\n';
+            let hasWarnings = false;
+            result.results.forEach(r => {
+                if (r.warning) {
+                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.warning}\n`;
+                    hasWarnings = true;
+                } else if (r.success) {
+                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.message}\n`;
+                } else {
+                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
+                }
+            });
+            Swal.fire({
+                icon: hasWarnings ? 'warning' : 'success',
+                title: hasWarnings ? 'Exportación con Advertencias' : 'Éxito',
+                text: message,
+                confirmButtonText: 'OK'
+            });
+            return message;
+        } else {
+            let errorText = 'Errores al exportar:\n';
+            result.results.forEach(r => {
+                if (!r.success && !r.warning) {
+                    errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
+                } else if (r.warning) {
+                    errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.warning}\n`;
+                }
+            });
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al exportar',
+                text: errorText,
+                confirmButtonText: 'OK'
+            });
+            return errorText;
         }
-        const successCount = result.results.filter(r => r.success).length;
-        const totalCount = result.results.length;
-        let message = `${successCount} de ${totalCount} facturas exportadas exitosamente a SAP.`;
-        if (successCount < totalCount) {
-          const errors = result.results
-            .filter(r => !r.success)
-            .map(r => `Factura ${r.index}: ${r.error}`)
-            .join('\n');
-          message += `\nErrores:\n${errors}`;
-        }
-        Swal.fire({
-          icon: 'info',
-          title: 'Exportación completada',
-          text: message,
-          confirmButtonText: 'OK'
-        });
-        return message;
       }
     </script>
   </body>
