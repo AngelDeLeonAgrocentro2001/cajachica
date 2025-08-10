@@ -194,13 +194,15 @@ class UsuarioController {
                 $id_rol = intval($_POST['id_rol'] ?? 0);
                 $id_caja_chica = !empty($_POST['id_caja_chica']) ? intval($_POST['id_caja_chica']) : null;
 
-                if (empty($card_code) || empty($nombre) || empty($email) || empty($password) || empty($id_rol)) {
-                    throw new Exception('Todos los campos obligatorios deben ser completados');
+                if (empty($nombre) || empty($email) || empty($password) || empty($id_rol)) {
+                    throw new Exception('Nombre, email, contraseña y rol son obligatorios');
                 }
 
-                $cardCodeData = $this->usuarioModel->checkCardCode($card_code);
-                if (!$cardCodeData['exists']) {
-                    throw new Exception("El código '$card_code' no está registrado en la tabla de códigos.");
+                if (!empty($card_code)) {
+                    $cardCodeData = $this->usuarioModel->checkCardCode($card_code);
+                    if (!$cardCodeData['exists']) {
+                        throw new Exception("El código '$card_code' no está registrado en la tabla de códigos.");
+                    }
                 }
 
                 if ($this->usuarioModel->getUsuarioByEmail($email)) {
@@ -219,7 +221,7 @@ class UsuarioController {
                 $usuarioId = $this->pdo->lastInsertId();
                 $this->assignPermissionsBasedOnRole($usuarioId, $id_rol);
 
-                $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'CREAR_USUARIO', "Usuario creado: {$email}, Código: {$card_code}, Caja Chica ID: " . ($id_caja_chica ?? 'No asignada'));
+                $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'CREAR_USUARIO', "Usuario creado: {$email}, Código: " . ($card_code ?: 'No asignado') . ", Caja Chica ID: " . ($id_caja_chica ?? 'No asignada'));
 
                 header('Content-Type: application/json');
                 http_response_code(201);
@@ -277,8 +279,15 @@ class UsuarioController {
                 $card_code = trim($_POST['card_code'] ?? '');
                 $id_caja_chica = !empty($_POST['id_caja_chica']) ? intval($_POST['id_caja_chica']) : null;
 
-                if (empty($nombre) || empty($email) || empty($id_rol) || empty($card_code)) {
-                    throw new Exception('Nombre, email, rol y código son obligatorios');
+                if (empty($nombre) || empty($email) || empty($id_rol)) {
+                    throw new Exception('Nombre, email y rol son obligatorios');
+                }
+
+                if (!empty($card_code)) {
+                    $cardCodeData = $this->usuarioModel->checkCardCode($card_code);
+                    if (!$cardCodeData['exists']) {
+                        throw new Exception("El código '$card_code' no está registrado en la tabla de códigos.");
+                    }
                 }
 
                 $existingUser = $this->usuarioModel->getUsuarioByEmail($email);
@@ -297,7 +306,7 @@ class UsuarioController {
 
                 $this->assignPermissionsBasedOnRole($id, $id_rol);
 
-                $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'ACTUALIZAR_USUARIO', "Usuario actualizado: {$email}, Código: {$card_code}, Caja Chica ID: " . ($id_caja_chica ?? 'No asignada'));
+                $this->auditoriaModel->createAuditoria(null, null, $_SESSION['user_id'], 'ACTUALIZAR_USUARIO', "Usuario actualizado: {$email}, Código: " . ($card_code ?: 'No asignado') . ", Caja Chica ID: " . ($id_caja_chica ?? 'No asignada'));
 
                 header('Content-Type: application/json');
                 echo json_encode(['message' => 'Usuario actualizado']);
