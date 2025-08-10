@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-04",
+    "Comments": "Sin comentarios",
+    "JournalMemo": "Sin comentarios",
+    "U_NIT": "904945",
+    "U_NOMBRE": "POLLO CAMPERO SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 199.11,
+    "Reference1": "1-618FB927174017072",
+    "NumAtCard": "618FB927174017072",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "aug-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "Price": 23.89,
+            "PriceAfterVAT": 199.11,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "640901002",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}
