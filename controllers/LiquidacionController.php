@@ -2928,17 +2928,17 @@ public function exportar($id)
 }
     // Función auxiliar para mapear Tipo_Gasto a AccountCode
     
-    private function getAccountCode($tipoGasto, $sociedad)
-    {
-        $cuentaMap = [
-            'Combustible' => '630110002', // Validado desde factura existente
-            'Alimentación' => '630110002',
-            'Hospedaje' => '630110002',
-            'Transporte' => '630110002',
-            'Otros' => '630110002'
-        ];
-        return $cuentaMap[$tipoGasto] ?? '630110002'; // Cuenta por defecto
-    }
+    // private function getAccountCode($tipoGasto, $sociedad)
+    // {
+    //     $cuentaMap = [
+    //         'Combustible' => '630110002', // Validado desde factura existente
+    //         'Alimentación' => '630110002',
+    //         'Hospedaje' => '630110002',
+    //         'Transporte' => '630110002',
+    //         'Otros' => '630110002'
+    //     ];
+    //     return $cuentaMap[$tipoGasto] ?? '630110002'; // Cuenta por defecto
+    // }
     public function manageFacturas($id) {
     if (!isset($_SESSION['user_id'])) {
         header('Location: index.php?controller=auth&action=login');
@@ -4607,110 +4607,110 @@ public function exportar($id)
         exit;
     }
 
-    public function getCuentasContables($id_centro_costo)
-{
-    ob_start(); // Start output buffering
-    error_log("Starting getCuentasContables with id_centro_costo=$id_centro_costo");
-    if (!isset($_SESSION['user_id'])) {
-        ob_end_clean();
-        header('Content-Type: application/json');
-        http_response_code(401);
-        echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
-        exit;
-    }
+//     public function getCuentasContables($id_centro_costo)
+// {
+//     ob_start(); // Start output buffering
+//     error_log("Starting getCuentasContables with id_centro_costo=$id_centro_costo");
+//     if (!isset($_SESSION['user_id'])) {
+//         ob_end_clean();
+//         header('Content-Type: application/json');
+//         http_response_code(401);
+//         echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
+//         exit;
+//     }
 
-    try {
-        // Validate centro de costo
-        $centroCostoModel = new CentroCosto();
-        $centro = $centroCostoModel->getCentroCostoById($id_centro_costo);
-        if (!$centro) {
-            ob_end_clean();
-            header('Content-Type: application/json');
-            http_response_code(404);
-            echo json_encode(['error' => 'Centro de costo no encontrado']);
-            exit;
-        }
+//     try {
+//         // Validate centro de costo
+//         $centroCostoModel = new CentroCosto();
+//         $centro = $centroCostoModel->getCentroCostoById($id_centro_costo);
+//         if (!$centro) {
+//             ob_end_clean();
+//             header('Content-Type: application/json');
+//             http_response_code(404);
+//             echo json_encode(['error' => 'Centro de costo no encontrado']);
+//             exit;
+//         }
 
-        // Initialize cuenta contable model
-        $cuentaContableModel = new CuentaContable();
-        $pdo = Database::getInstance()->getPdo();
-        $cuentas_array = [];
+//         // Initialize cuenta contable model
+//         $cuentaContableModel = new CuentaContable();
+//         $pdo = Database::getInstance()->getPdo();
+//         $cuentas_array = [];
 
-        // Fetch accounts from local database first
-        $local_cuentas = $cuentaContableModel->getCuentasByCentroCosto($id_centro_costo, 'ACTIVO');
-        foreach ($local_cuentas as $cuenta) {
-            $cuentas_array[] = ['id' => $cuenta['id'], 'nombre' => $cuenta['nombre']];
-        }
+//         // Fetch accounts from local database first
+//         $local_cuentas = $cuentaContableModel->getCuentasByCentroCosto($id_centro_costo, 'ACTIVO');
+//         foreach ($local_cuentas as $cuenta) {
+//             $cuentas_array[] = ['id' => $cuenta['id'], 'nombre' => $cuenta['nombre']];
+//         }
 
-        // Fetch accounts from HANA
-        $sociedad = $_SESSION['sociedad'] ?? 'GT_AGROCENTRO_2016';
-        $cuenta = $centro['tipo'] ?? '5';
-        error_log("Fetching HANA accounts for sociedad=$sociedad, cuenta=$cuenta");
-        $hana_cuentas = $this->ctrObtenerCuentas($sociedad, $cuenta);
+//         // Fetch accounts from HANA
+//         $sociedad = $_SESSION['sociedad'] ?? 'GT_AGROCENTRO_2016';
+//         $cuenta = $centro['tipo'] ?? '5';
+//         error_log("Fetching HANA accounts for sociedad=$sociedad, cuenta=$cuenta");
+//         $hana_cuentas = $this->ctrObtenerCuentas($sociedad, $cuenta);
 
-        if ($hana_cuentas && $hana_cuentas !== 'sin_datos') {
-            $cuentas_list = explode('|', trim($hana_cuentas, '|'));
-            foreach ($cuentas_list as $cuenta_item) {
-                if (!empty($cuenta_item)) {
-                    list($code, $name) = explode('-', $cuenta_item, 2);
-                    $name = mb_convert_encoding($name, 'UTF-8', mb_detect_encoding($name));
+//         if ($hana_cuentas && $hana_cuentas !== 'sin_datos') {
+//             $cuentas_list = explode('|', trim($hana_cuentas, '|'));
+//             foreach ($cuentas_list as $cuenta_item) {
+//                 if (!empty($cuenta_item)) {
+//                     list($code, $name) = explode('-', $cuenta_item, 2);
+//                     $name = mb_convert_encoding($name, 'UTF-8', mb_detect_encoding($name));
 
-                    // Check if the account exists with the same codigo_cuenta
-                    $stmt = $pdo->prepare("
-                        SELECT id, nombre, id_centro_costo 
-                        FROM cuentas_contables 
-                        WHERE codigo_cuenta = ?
-                    ");
-                    $stmt->execute([$code]);
-                    $existingCuenta = $stmt->fetch(PDO::FETCH_ASSOC);
+//                     // Check if the account exists with the same codigo_cuenta
+//                     $stmt = $pdo->prepare("
+//                         SELECT id, nombre, id_centro_costo 
+//                         FROM cuentas_contables 
+//                         WHERE codigo_cuenta = ?
+//                     ");
+//                     $stmt->execute([$code]);
+//                     $existingCuenta = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                    if (!$existingCuenta) {
-                        // Insert new account
-                        $stmt = $pdo->prepare("
-                            INSERT INTO cuentas_contables (nombre, descripcion, estado, id_centro_costo, codigo_cuenta)
-                            VALUES (?, ?, ?, ?, ?)
-                        ");
-                        $descripcion = '';
-                        $estado = 'ACTIVO';
-                        $stmt->execute([$name, $descripcion, $estado, $id_centro_costo, $code]);
-                        $id = $pdo->lastInsertId();
-                        $cuentas_array[] = ['id' => $id, 'nombre' => $name];
-                        error_log("Inserted new account: codigo_cuenta=$code, nombre=$name, id_centro_costo=$id_centro_costo");
-                    } elseif ($existingCuenta['id_centro_costo'] == $id_centro_costo && $existingCuenta['nombre'] == $name) {
-                        // Account exists for this id_centro_costo and matches name, include it
-                        if (!in_array(['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']], $cuentas_array)) {
-                            $cuentas_array[] = ['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']];
-                        }
-                    } else {
-                        // Account exists for a different id_centro_costo, log and skip
-                        error_log("Skipping duplicate account: codigo_cuenta=$code exists for id_centro_costo={$existingCuenta['id_centro_costo']}, requested id_centro_costo=$id_centro_costo");
-                        continue;
-                    }
-                }
-            }
-        } else {
-            error_log("No HANA accounts found for id_centro_costo=$id_centro_costo, cuenta=$cuenta");
-        }
+//                     if (!$existingCuenta) {
+//                         // Insert new account
+//                         $stmt = $pdo->prepare("
+//                             INSERT INTO cuentas_contables (nombre, descripcion, estado, id_centro_costo, codigo_cuenta)
+//                             VALUES (?, ?, ?, ?, ?)
+//                         ");
+//                         $descripcion = '';
+//                         $estado = 'ACTIVO';
+//                         $stmt->execute([$name, $descripcion, $estado, $id_centro_costo, $code]);
+//                         $id = $pdo->lastInsertId();
+//                         $cuentas_array[] = ['id' => $id, 'nombre' => $name];
+//                         error_log("Inserted new account: codigo_cuenta=$code, nombre=$name, id_centro_costo=$id_centro_costo");
+//                     } elseif ($existingCuenta['id_centro_costo'] == $id_centro_costo && $existingCuenta['nombre'] == $name) {
+//                         // Account exists for this id_centro_costo and matches name, include it
+//                         if (!in_array(['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']], $cuentas_array)) {
+//                             $cuentas_array[] = ['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']];
+//                         }
+//                     } else {
+//                         // Account exists for a different id_centro_costo, log and skip
+//                         error_log("Skipping duplicate account: codigo_cuenta=$code exists for id_centro_costo={$existingCuenta['id_centro_costo']}, requested id_centro_costo=$id_centro_costo");
+//                         continue;
+//                     }
+//                 }
+//             }
+//         } else {
+//             error_log("No HANA accounts found for id_centro_costo=$id_centro_costo, cuenta=$cuenta");
+//         }
 
-        // Remove duplicates
-        $cuentas_array = array_values(array_unique($cuentas_array, SORT_REGULAR));
+//         // Remove duplicates
+//         $cuentas_array = array_values(array_unique($cuentas_array, SORT_REGULAR));
 
-        // Log the response
-        error_log("getCuentasContables: id_centro_costo=$id_centro_costo, cuentas=" . json_encode($cuentas_array));
+//         // Log the response
+//         error_log("getCuentasContables: id_centro_costo=$id_centro_costo, cuentas=" . json_encode($cuentas_array));
 
-        ob_end_clean();
-        header('Content-Type: application/json');
-        http_response_code(200);
-        echo json_encode($cuentas_array);
-    } catch (Exception $e) {
-        ob_end_clean();
-        error_log("Error in getCuentasContables: id_centro_costo=$id_centro_costo, error=" . $e->getMessage());
-        header('Content-Type: application/json');
-        http_response_code(500);
-        echo json_encode(['error' => 'Error al obtener cuentas contables: ' . $e->getMessage()]);
-    }
-    exit;
-}
+//         ob_end_clean();
+//         header('Content-Type: application/json');
+//         http_response_code(200);
+//         echo json_encode($cuentas_array);
+//     } catch (Exception $e) {
+//         ob_end_clean();
+//         error_log("Error in getCuentasContables: id_centro_costo=$id_centro_costo, error=" . $e->getMessage());
+//         header('Content-Type: application/json');
+//         http_response_code(500);
+//         echo json_encode(['error' => 'Error al obtener cuentas contables: ' . $e->getMessage()]);
+//     }
+//     exit;
+// }
 
 public function fetchHanaAccounts($id_centro_costo) {
     ob_start();

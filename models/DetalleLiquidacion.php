@@ -75,7 +75,8 @@ class DetalleLiquidacion {
             }
             return false;
         } catch (PDOException $e) {
-            error_log("Error en createDetalleLiquidacion: " . $e->getMessage());
+            // error_log("Error en createDetalleLiquidacion: " . $e->getMessage());
+            error_log($id_cuenta_contable);
             return false;
         }
     }
@@ -546,14 +547,14 @@ class DetalleLiquidacion {
         }
     }
 
-    private function getCuentaContableNombre($id_cuenta_contable) {
-        if (empty($id_cuenta_contable)) {
-            return 'N/A';
-        }
-        $stmt = $this->pdo->prepare("SELECT nombre FROM cuentas_contables WHERE id = ?");
-        $stmt->execute([$id_cuenta_contable]);
-        return $stmt->fetchColumn() ?: 'N/A';
-    }
+    // private function getCuentaContableNombre($id_cuenta_contable) {
+    //     if (empty($id_cuenta_contable)) {
+    //         return 'N/A';
+    //     }
+    //     $stmt = $this->pdo->prepare("SELECT nombre FROM cuentas_contables WHERE id = ?");
+    //     $stmt->execute([$id_cuenta_contable]);
+    //     return $stmt->fetchColumn() ?: 'N/A';
+    // }
 
     public function getDetallesByGrupoId($grupoId, $id_liquidacion) {
         try {

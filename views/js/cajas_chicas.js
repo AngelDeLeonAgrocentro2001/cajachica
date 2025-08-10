@@ -31,7 +31,7 @@ async function loadCajasChicas() {
                    <tr>
             <td data-label="ID">${caja.id}</td>
             <td data-label="Nombre">${caja.nombre}</td>
-            <td data-label="Clientes">${caja.cliente_nombre} (${caja.clientes || 'No asignado'})</td>
+            <td data-label="Clientes">${caja.clientes || 'No asignado'}</td>
             <td data-label="Monto Asignado">${parseFloat(caja.monto_asignado).toFixed(2)}</td>
             <td data-label="Monto Disponible">${parseFloat(caja.monto_disponible).toFixed(2)}</td>
             <td data-label="Centro de Costos">${caja.centro_costo || 'No asignado'}</td>

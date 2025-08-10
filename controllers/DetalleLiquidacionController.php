@@ -784,14 +784,14 @@ class DetalleLiquidacionController {
         exit;
     }
 
-    private function getCuentaContableNombre($id_cuenta_contable) {
-        if (empty($id_cuenta_contable)) {
-            return 'N/A';
-        }
-        $stmt = $this->pdo->prepare("SELECT nombre FROM cuentas_contables WHERE id = ?");
-        $stmt->execute([$id_cuenta_contable]);
-        return $stmt->fetchColumn() ?: 'N/A';
-    }
+    // private function getCuentaContableNombre($id_cuenta_contable) {
+    //     if (empty($id_cuenta_contable)) {
+    //         return 'N/A';
+    //     }
+    //     $stmt = $this->pdo->prepare("SELECT nombre FROM cuentas_contables WHERE id = ?");
+    //     $stmt->execute([$id_cuenta_contable]);
+    //     return $stmt->fetchColumn() ?: 'N/A';
+    // }
 
     private function calcularMontoTotal($id_liquidacion) {
         $stmt = $this->pdo->prepare("SELECT SUM(total_factura) as monto_total FROM detalle_liquidaciones WHERE id_liquidacion = ?");
