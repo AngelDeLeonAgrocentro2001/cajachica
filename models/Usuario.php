@@ -86,12 +86,12 @@ class Usuario {
         return $result;
     }
 
-    public function createUsuario($nombre, $email, $password, $id_rol, $card_code, $id_caja_chica = null) {
+    public function createUsuario($nombre, $email, $password, $id_rol, $card_code = null, $id_caja_chica = null) {
         $stmt = $this->pdo->prepare("INSERT INTO usuarios (nombre, email, password, id_rol, clientes, id_caja_chica) VALUES (?, ?, ?, ?, ?, ?)");
         return $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol, $card_code, $id_caja_chica]);
     }
 
-    public function updateUsuario($id, $nombre, $email, $password, $id_rol, $card_code, $id_caja_chica = null) {
+    public function updateUsuario($id, $nombre, $email, $password, $id_rol, $card_code = null, $id_caja_chica = null) {
         try {
             if (!empty($password)) {
                 $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
