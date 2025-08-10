@@ -1,5 +1,4 @@
 <?php
-
 require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
 ?>
 <!DOCTYPE html>
@@ -8,76 +7,77 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subir Archivo DTE</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 0;
-    transition: margin-left 0.3s ease-in-out;
-}
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            transition: margin-left 0.3s ease-in-out;
+        }
 
-body.menu-open {
-    margin-left: 250px;
-}
+        body.menu-open {
+            margin-left: 250px;
+        }
 
-.content-container {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 400px;
-    text-align: center;
-    margin: 50px auto;
-}
+        .content-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+            margin: 50px auto;
+        }
 
-h1 {
-    font-size: 24px;
-    margin-bottom: 20px;
-}
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
 
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-label {
-    font-weight: bold;
-}
+        label {
+            font-weight: bold;
+        }
 
-input[type="file"] {
-    padding: 10px;
-}
+        input[type="file"] {
+            padding: 10px;
+        }
 
-button {
-    background-color: #28a745;
-    color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
-button:hover {
-    background-color: #218838;
-}
+        button:hover {
+            background-color: #218838;
+        }
 
-#message {
-    margin-top: 20px;
-    color: #333;
-}
+        #message {
+            margin-top: 20px;
+            color: #333;
+        }
 
-@media (max-width: 768px) {
-    body.menu-open {
-        margin-left: 0;
-    }
+        @media (max-width: 768px) {
+            body.menu-open {
+                margin-left: 0;
+            }
 
-    .content-container {
-        width: 90%;
-        margin: 70px auto;
-    }
-}
+            .content-container {
+                width: 90%;
+                margin: 70px auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -93,6 +93,16 @@ button:hover {
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
+
+            Swal.fire({
+                title: 'Procesando...',
+                text: 'Por favor, espera mientras se procesa el archivo.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             const formData = new FormData(this);
             const messageDiv = document.getElementById('message');
 
@@ -102,12 +112,40 @@ button:hover {
             })
             .then(response => response.json())
             .then(data => {
-                messageDiv.textContent = data.message;
-                messageDiv.style.color = data.success ? 'green' : 'red';
+                Swal.close();
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Éxito',
+                        text: data.message,
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        messageDiv.textContent = data.message;
+                        messageDiv.style.color = 'green';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        messageDiv.textContent = data.message;
+                        messageDiv.style.color = 'red';
+                    });
+                }
             })
             .catch(error => {
-                messageDiv.textContent = 'Error al conectar con el servidor.';
-                messageDiv.style.color = 'red';
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al conectar con el servidor.',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    messageDiv.textContent = 'Error al conectar con el servidor.';
+                    messageDiv.style.color = 'red';
+                });
             });
         });
     </script>

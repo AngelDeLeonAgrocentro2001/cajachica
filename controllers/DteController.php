@@ -81,6 +81,9 @@ class DteController {
                     exit;
                 }
 
+                $insertedCount = 0;
+                $duplicateCount = 0;
+
                 foreach ($rows as $row) {
                     // Validar que la fila tenga suficientes columnas
                     if (count($row) < 32) {
@@ -124,7 +127,16 @@ class DteController {
                         'usado' => 'X' // Default value for usado
                     ];
 
-                    if (!$this->dteModel->insertDte($data)) {
+                    // Verificar duplicados antes de insertar
+                    if ($this->dteModel->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
+                        $duplicateCount++;
+                        error_log("DTE duplicado omitido: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
+                        continue;
+                    }
+
+                    if ($this->dteModel->insertDte($data)) {
+                        $insertedCount++;
+                    } else {
                         error_log("Error al insertar DTE para fila: " . print_r($data, true));
                         header('Content-Type: application/json');
                         echo json_encode(['success' => false, 'message' => 'Error al guardar los datos en la base de datos.']);
@@ -132,9 +144,20 @@ class DteController {
                     }
                 }
 
-                header('Content-Type: application/json');
-                echo json_encode(['success' => true, 'message' => 'Archivo procesado y datos guardados correctamente.']);
-                exit;
+                // Generar mensaje según los resultados
+                if ($duplicateCount > 0 && $insertedCount == 0) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => "No se procesaron los datos. Se encontraron $duplicateCount DTEs duplicados."]);
+                    exit;
+                } elseif ($duplicateCount > 0) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => true, 'message' => "Archivo procesado: $insertedCount DTEs guardados correctamente, $duplicateCount DTEs duplicados omitidos."]);
+                    exit;
+                } else {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => true, 'message' => "Archivo procesado: $insertedCount DTEs guardados correctamente."]);
+                    exit;
+                }
             } catch (Exception $e) {
                 error_log("Error al procesar el archivo Excel: " . $e->getMessage());
                 header('Content-Type: application/json');
@@ -187,4 +210,3 @@ class DteController {
         }
     }
 }
-?>

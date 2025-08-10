@@ -8,8 +8,27 @@ class DteModel {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    public function isDteDuplicate($numero_autorizacion, $serie, $numero_dte) {
+        try {
+            $sql = "SELECT COUNT(*) FROM dte WHERE numero_autorizacion = ? AND serie = ? AND numero_dte = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$numero_autorizacion, $serie, $numero_dte]);
+            $count = $stmt->fetchColumn();
+            return $count > 0;
+        } catch (PDOException $e) {
+            error_log("Error al verificar duplicado de DTE: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function insertDte($data) {
         try {
+            // Verificar duplicados
+            if ($this->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
+                error_log("DTE duplicado detectado: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
+                return false; // Indicar que no se insertó por duplicado
+            }
+
             $sql = "INSERT INTO dte (
                 fecha_emision, numero_autorizacion, tipo_dte, serie, numero_dte, 
                 clasificacion_emisor, exportacion, nit_emisor, nombre_emisor, 
@@ -77,7 +96,7 @@ class DteModel {
                            d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, d.nit_emisor 
                     FROM dte d
                     WHERE d.nit_emisor LIKE :nit 
-                    AND d.usado = 'X'"; // Only include DTEs that are not used
+                    AND d.usado = 'X'";
             
             $params = ['nit' => "%$nit%"];
             
@@ -100,4 +119,3 @@ class DteModel {
         }
     }
 }
-?>
