@@ -133,8 +133,7 @@ class Usuario {
                 'create_detalles' => true,
                 'manage_facturas' => true,
                 'manage_cajachica' => true,
-                'manage_correcciones' => true,
-                'delete_liquidaciones' => true
+                'manage_correcciones' => true
             ],
             self::ROL_SUPERVISOR => [
                 'autorizar_liquidaciones' => true,
@@ -156,6 +155,7 @@ class Usuario {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
+                'manage_dte' => true
             ],
         ];
 

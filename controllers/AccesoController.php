@@ -57,7 +57,8 @@ class AccesoController {
             'autorizar_facturas' => 'Autorizar Facturas',
             'revisar_facturas' => 'Revisar Facturas',
             'manage_centros_costos' => 'Gestión de Centros de Costos',
-            'manage_correcciones' => 'Corrección de Liquidaciones'
+            'manage_correcciones' => 'Corrección de Liquidaciones',
+            'manage_dte' => 'Carga y Gestión de DTE'
         ];
     }
 
@@ -312,7 +313,7 @@ class AccesoController {
     private function getDefaultPermissions($rolNombre) {
         $defaultPermissions = [
             'ADMIN' => array_keys($this->getAvailableModules()),
-            'ENCARGADO_CAJA_CHICA' => ['create_liquidaciones', 'create_detalles', 'manage_facturas', 'manage_cajachica','manage_correcciones'],
+            'ENCARGADO_CAJA_CHICA' => ['create_liquidaciones', 'create_detalles', 'manage_facturas', 'manage_cajachica', 'manage_correcciones'],
             'SUPERVISOR_AUTORIZADOR' => ['autorizar_liquidaciones', 'autorizar_facturas', 'manage_cuentas_contables', 'manage_facturas', 'revisar_liquidaciones', 'revisar_detalles_liquidaciones', 'revisar_facturas'],
             'CONTABILIDAD' => [
                 'revisar_liquidaciones',
@@ -324,8 +325,8 @@ class AccesoController {
                 'manage_facturas',
                 'manage_centros_costos',
                 'manage_impuestos',
-                'manage_tipos_gastos'
-                
+                'manage_tipos_gastos',
+                'manage_dte'
             ],
         ];
 
@@ -363,7 +364,6 @@ class AccesoController {
                 'revisar_liquidaciones' => true,
                 'revisar_detalles_liquidaciones' => true,
                 'revisar_facturas' => true,
-                
             ],
             'CONTABILIDAD' => [
                 'revisar_liquidaciones' => true,
@@ -376,7 +376,7 @@ class AccesoController {
                 'manage_centros_costos' => true,
                 'manage_impuestos' => true,
                 'manage_tipos_gastos' => true,
-                
+                'manage_dte' => true,
             ],
         ];
 
