@@ -96,7 +96,7 @@ button:hover {
             const formData = new FormData(this);
             const messageDiv = document.getElementById('message');
 
-            fetch('../public/index.php?controller=dte&action=uploadExcel', {
+            fetch('/index.php?controller=dte&action=uploadExcel', {
                 method: 'POST',
                 body: formData
             })
