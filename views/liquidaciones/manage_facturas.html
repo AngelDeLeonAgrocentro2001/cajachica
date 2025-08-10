@@ -2167,77 +2167,83 @@ document.addEventListener('click', (e) => {
       }
 
       async function updateCuentaContableOptions() {
-        const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
-        const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-        const submitBtn = document.getElementById('submitBtn');
-        const tipoGastoSelect = document.getElementById('t_gasto');
-        const selectedCentroCosto = centroCostoSelects[0].value;
+    const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
+    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    const submitBtn = document.getElementById('submitBtn');
+    const tipoGastoSelect = document.getElementById('t_gasto');
+    const selectedCentroCosto = centroCostoSelects[0].value;
 
-        if (!selectedCentroCosto) {
-          cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
-          cuentaContableSelect.disabled = true;
-          submitBtn.disabled = true;
-          return;
-        }
+    // Guardar el valor actual de la cuenta contable antes de actualizar las opciones
+    const currentCuentaValue = cuentaContableSelect.value;
 
-        try {
-          const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>&subaction=getCuentasContables&id_centro_costo=${selectedCentroCosto}`, {
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>&subaction=getCuentasContables&id_centro_costo=${selectedCentroCosto}`, {
             method: 'GET',
             headers: {
-              'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest'
             }
-          });
-          const cuentas = await response.json();
-          if (!response.ok) {
+        });
+        const cuentas = await response.json();
+        if (!response.ok) {
             throw new Error(cuentas.error || 'Error al obtener las cuentas contables');
-          }
+        }
 
-          cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
-          cuentas.forEach(cuenta => {
+        // Limpiar opciones actuales y añadir la opción por defecto
+        cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+        cuentas.forEach(cuenta => {
             const option = document.createElement('option');
             option.value = cuenta.id;
             option.textContent = cuenta.nombre;
             cuentaContableSelect.appendChild(option);
-          });
+        });
 
-          submitBtn.disabled = cuentas.length === 0;
-          if (cuentas.length === 0) {
+        // Habilitar el botón de submit si hay cuentas disponibles
+        submitBtn.disabled = cuentas.length === 0;
+        if (cuentas.length === 0) {
             alert('No hay cuentas contables disponibles para el centro de costo seleccionado. Por favor, selecciona otro centro de costo o verifica la configuración de cuentas en SAP HANA.');
             cuentaContableSelect.disabled = true;
             return;
-          }
+        }
 
-          const tipoGasto = tipoGastoSelect.value;
-          const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
+        const tipoGasto = tipoGastoSelect.value;
+        const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
 
-          if (tipoGasto === 'otros...') {
+        if (tipoGasto === 'otros...') {
+            // Habilitar el select para que el usuario pueda elegir manualmente
             cuentaContableSelect.disabled = false;
-            cuentaContableSelect.value = '';
-          } else if (mappedCuenta) {
+            // Restaurar el valor previamente seleccionado si está disponible en las nuevas opciones
+            if (currentCuentaValue && Array.from(cuentaContableSelect.options).some(opt => opt.value === currentCuentaValue)) {
+                cuentaContableSelect.value = currentCuentaValue;
+            } else {
+                // Si no hay un valor previo o no es válido, dejar la opción por defecto
+                cuentaContableSelect.value = '';
+            }
+        } else if (mappedCuenta) {
+            // Seleccionar la cuenta contable predeterminada según el tipo de gasto
             const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
             if (option) {
-              cuentaContableSelect.value = option.value;
-              cuentaContableSelect.disabled = true;
+                cuentaContableSelect.value = option.value;
+                cuentaContableSelect.disabled = true;
             } else {
-              cuentaContableSelect.disabled = true;
-              cuentaContableSelect.value = '';
-              console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
-              alert('No se encontró la cuenta contable predeterminada para este tipo de gasto. Selecciona "otros..." para elegir manualmente.');
+                cuentaContableSelect.disabled = true;
+                cuentaContableSelect.value = '';
+                console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
+                alert('No se encontró la cuenta contable predeterminada para este tipo de gasto. Selecciona "otros..." para elegir manualmente.');
             }
-          } else {
+        } else {
             cuentaContableSelect.disabled = true;
             cuentaContableSelect.value = '';
-          }
-
-          updateTaxesAndTotal();
-        } catch (error) {
-          console.error('Error al actualizar cuentas contables:', error);
-          cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
-          cuentaContableSelect.disabled = true;
-          submitBtn.disabled = true;
-          alert('No se pudieron cargar las cuentas contables para el centro de costo seleccionado. Error: ' + error.message);
         }
-      }
+
+        updateTaxesAndTotal();
+    } catch (error) {
+        console.error('Error al actualizar cuentas contables:', error);
+        cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+        cuentaContableSelect.disabled = true;
+        submitBtn.disabled = true;
+        alert('No se pudieron cargar las cuentas contables para el centro de costo seleccionado. Error: ' + error.message);
+    }
+}
 
       document.getElementById('id_cuenta_contable').addEventListener('change', (e) => {
         const tipoGasto = document.getElementById('t_gasto').value;
@@ -2430,34 +2436,37 @@ document.addEventListener('click', (e) => {
         }
     });
 
-    await updateCuentaContableOptions();
+    // Configurar la cuenta contable
+await updateCuentaContableOptions();
 
-    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-    const cuentaOption = Array.from(cuentaContableSelect.options).find(
-        (option) => option.text.trim() === nombreCuentaContable
-    );
+const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+const cuentaOption = Array.from(cuentaContableSelect.options).find(
+    (option) => option.text.trim() === nombreCuentaContable
+);
 
-    if (cuentaOption) {
-        cuentaContableSelect.value = cuentaOption.value;
-        cuentaContableSelect.disabled = tipoGasto !== 'otros...';
-    } else {
-        console.warn(`Cuenta contable "${nombreCuentaContable}" no encontrada en las opciones.`);
-        Swal.fire({
-            title: 'Advertencia',
-            text: `La cuenta contable "${nombreCuentaContable}" no está disponible para el centro de costo seleccionado. Por favor, selecciona una cuenta válida.`,
-            icon: 'warning',
-            confirmButtonText: 'OK',
-        });
-        cuentaContableSelect.value = '';
-        cuentaContableSelect.disabled = tipoGasto !== 'otros...';
-    }
+if (cuentaOption) {
+    cuentaContableSelect.value = cuentaOption.value;
+    cuentaContableSelect.disabled = tipoGasto !== 'otros...';
+} else {
+    console.warn(`Cuenta contable "${nombreCuentaContable}" no encontrada en las opciones.`);
+    cuentaContableSelect.value = '';
+    cuentaContableSelect.disabled = tipoGasto !== 'otros...';
+    Swal.fire({
+        title: 'Advertencia',
+        text: `La cuenta contable "${nombreCuentaContable}" no está disponible para el centro de costo seleccionado. Por favor, selecciona una cuenta válida.`,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+    });
+}
 
-    document.getElementById('submitBtn').textContent = 'Actualizar';
+// Configurar el botón de submit
+document.getElementById('submitBtn').textContent = 'Actualizar';
 
-    updateFormFields();
-    updateTipoCombustibleField();
-    updateTaxFieldsVisibility();
-    validatePercentages();
+// Actualizar otros campos del formulario
+updateFormFields();
+updateTipoCombustibleField();
+updateTaxFieldsVisibility();
+validatePercentages();
 }
 
 function removeExistingFile(ruta, previewDiv) {
@@ -2584,15 +2593,16 @@ document.getElementById('facturaForm').addEventListener('submit', async (e) => {
 
   await updateCuentaContableOptions();
 
-  if (!cuentaContableSelect.value || cuentaContableSelect.value === '') {
+  // Validar que se haya seleccionado una cuenta contable si es necesario
+if (tipoGasto === 'otros...' && (!cuentaContableSelect.value || cuentaContableSelect.value === '')) {
     Swal.fire({
-      title: 'Error',
-      text: 'Por favor, seleccione una Cuenta Contable válida antes de continuar.',
-      icon: 'error',
-      confirmButtonText: 'OK',
+        title: 'Error',
+        text: 'Por favor, selecciona una Cuenta Contable válida antes de continuar.',
+        icon: 'error',
+        confirmButtonText: 'OK',
     });
     return;
-  }
+}
 
   const nombreCuentaContable = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
   formData.set('id_liquidacion', '<?php echo htmlspecialchars($data['id']); ?>');
