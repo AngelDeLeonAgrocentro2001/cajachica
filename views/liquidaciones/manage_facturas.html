@@ -113,7 +113,7 @@
         border-radius: 10%;
         background-color: #e6f7f798;
         padding: 5px;
-        font-size: 0.75rem;
+        font-size:0.75rem ;
       }
     
       .info-container {
@@ -1848,7 +1848,7 @@
     div.style.borderBottom = '1px solid #eee';
     div.style.transition = 'background-color 0.2s';
     div.innerHTML = `
-      <strong>${dte.serie || ''} ${dte.numero_dte || ''}</strong> | ${dte.nombre_emisor || ''} | ${dte.fecha_emision || ''} | Q${parseFloat(dte.gran_total || 0).toFixed(2)}
+      <strong>${dte.serie || ''}${dte.numero_dte || ''}</strong> | ${dte.nombre_emisor || ''} | ${dte.fecha_emision || ''} | Q${parseFloat(dte.gran_total || 0).toFixed(2)}
     `;
     div.addEventListener('click', () => {
       selectDte(dte);
@@ -1879,7 +1879,7 @@ function selectDte(dte) {
     return;
   }
 
-  document.getElementById('no_factura').value = dte.serie +' '+ dte.numero_dte || '';
+  document.getElementById('no_factura').value = dte.serie + dte.numero_dte || '';
   document.getElementById('nombre_proveedor').value = dte.nombre_emisor || '';
   document.getElementById('fecha').value = dte.fecha_emision ? dte.fecha_emision.split(' ')[0] : '';
   document.getElementById('total_factura').value = parseFloat(dte.gran_total || 0).toFixed(2);
