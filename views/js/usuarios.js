@@ -35,7 +35,7 @@ async function loadUsuarios() {
                         <td data-label="ID">${usuario.id}</td>
                         <td data-label="Nombre">${usuario.nombre}</td>
                         <td data-label="Email">${usuario.email}</td>
-                        <td data-label="Código">${usuario.clientes || 'No asignado'}</td>
+                        <td data-label="CÃ³digo">${usuario.clientes || 'No asignado'}</td>
                         <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
                         <td data-label="Rol">${usuario.rol}</td>
                         <td data-label="Acciones">
@@ -51,7 +51,7 @@ async function loadUsuarios() {
         return usuarios;
     } catch (error) {
         console.error('Error al cargar usuarios:', error);
-        alert('No se pudo cargar la lista de usuarios. Por favor, inicia sesión nuevamente.');
+        alert('No se pudo cargar la lista de usuarios. Por favor, inicia sesiÃ³n nuevamente.');
         window.location.href = 'index.php?controller=login&action=login';
     }
 }
@@ -69,7 +69,7 @@ async function checkEmailExists(email, excludeId = null) {
 
 async function checkCardCodeExists(cardCode) {
     if (!cardCode) {
-        return { exists: true }; // Si no se proporciona card_code, se considera válido
+        return { exists: true }; // Si no se proporciona card_code, se considera vÃ¡lido
     }
     try {
         const response = await fetch(`index.php?controller=usuario&action=checkCardCode&card_code=${encodeURIComponent(cardCode)}`, {
@@ -78,7 +78,7 @@ async function checkCardCodeExists(cardCode) {
             }
         });
         if (!response.ok) {
-            throw new Error('Error al verificar el código');
+            throw new Error('Error al verificar el cÃ³digo');
         }
         const result = await response.json();
         return result;
@@ -102,7 +102,7 @@ async function createUsuario(data) {
             const errorData = JSON.parse(text);
             throw new Error(errorData.error || text);
         } catch (parseError) {
-            throw new Error(`Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
         }
     }
     return response.json();
@@ -122,14 +122,14 @@ async function updateUsuario(id, data) {
             const errorData = JSON.parse(text);
             throw new Error(errorData.error || text);
         } catch (parseError) {
-            throw new Error(`Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
         }
     }
     return response.json();
 }
 
 async function deleteUsuario(id) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
+    if (!confirm('Â¿EstÃ¡s seguro de que deseas eliminar este usuario?')) return;
 
     try {
         const response = await fetch(`index.php?controller=usuario&action=delete&id=${id}`, {
@@ -143,7 +143,7 @@ async function deleteUsuario(id) {
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             console.error('Respuesta del servidor no es JSON:', text);
-            throw new Error(`Respuesta no es JSON válida: ${text}`);
+            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
         }
 
         const result = await response.json();
@@ -171,7 +171,7 @@ function closeModal() {
 async function showCreateForm() {
     if (!modal || !modalForm) {
         console.error('Modal o modalForm no encontrados en el DOM');
-        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        alert('Error: No se encontrÃ³ el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
@@ -187,7 +187,7 @@ async function showCreateForm() {
         }
         const html = await response.text();
         if (!html.includes('<form')) {
-            throw new Error('El servidor no devolvió un formulario válido');
+            throw new Error('El servidor no devolviÃ³ un formulario vÃ¡lido');
         }
         modalForm.innerHTML = html;
         modal.classList.add('active');
@@ -202,7 +202,7 @@ async function showCreateForm() {
 async function showEditForm(id) {
     if (!modal || !modalForm) {
         console.error('Modal o modalForm no encontrados en el DOM');
-        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
+        alert('Error: No se encontrÃ³ el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
@@ -218,7 +218,7 @@ async function showEditForm(id) {
         }
         const html = await response.text();
         if (!html.includes('<form')) {
-            throw new Error('El servidor no devolvió un formulario válido');
+            throw new Error('El servidor no devolviÃ³ un formulario vÃ¡lido');
         }
         modalForm.innerHTML = html;
         modal.classList.add('active');
@@ -233,7 +233,7 @@ async function showEditForm(id) {
 function addValidations(id = null) {
     const form = document.querySelector('#modalForm #usuarioFormInner');
     if (!form) {
-        console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #modalForm');
+        console.error('No se encontrÃ³ un elemento <form> con id="usuarioFormInner" dentro de #modalForm');
         return;
     }
 
@@ -271,7 +271,7 @@ function addValidations(id = null) {
                     e.target.classList.remove('invalid');
                     nombreInput.value = result.CardName || '';
                 } else {
-                    errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
+                    errorElement.textContent = 'CÃ³digo no encontrado en la tabla de cÃ³digos.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     nombreInput.value = '';
@@ -317,14 +317,14 @@ function addValidations(id = null) {
             if (fieldName === 'email') {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(value)) {
-                    errorElement.textContent = 'Por favor, ingresa un email válido.';
+                    errorElement.textContent = 'Por favor, ingresa un email vÃ¡lido.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
                 }
                 const emailExists = await checkEmailExists(value, id);
                 if (emailExists) {
-                    errorElement.textContent = `El email "${value}" ya está registrado. Por favor, usa un email diferente.`;
+                    errorElement.textContent = `El email "${value}" ya estÃ¡ registrado. Por favor, usa un email diferente.`;
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
@@ -352,7 +352,7 @@ function addValidations(id = null) {
                 cardCodeInput.parentNode.appendChild(errorElement);
             }
             if (!result || !result.exists) {
-                errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
+                errorElement.textContent = 'CÃ³digo no encontrado en la tabla de cÃ³digos.';
                 errorElement.style.display = 'block';
                 cardCodeInput.classList.add('invalid');
                 isValid = false;
@@ -369,7 +369,7 @@ function addValidations(id = null) {
             try {
                 const action = formId ? updateUsuario(formId, formData) : createUsuario(formData);
                 const result = await action;
-                alert(result.message || 'Operación exitosa');
+                alert(result.message || 'OperaciÃ³n exitosa');
                 closeModal();
                 loadUsuarios();
             } catch (error) {
