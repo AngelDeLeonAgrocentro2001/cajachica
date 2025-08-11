@@ -2532,67 +2532,75 @@ public function exportar($id)
                 $docTotal = 0;
                 $tipoDocumento = strtoupper($detalles[0]['tipo_documento'] ?? 'FACTURA');
                 $tipoA = in_array($detalles[0]['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : 'B';
+                
                 foreach ($detalles as $dl) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($dl['id_centro_costo'])['codigo']);
-                    $p_unitario = floatval($dl['p_unitario'] ?? 0);
                     $accountCode = $dl['id_cuenta_contable'] ?? null;
+                    
+                    // Usamos el total_factura como DocTotal
+                    $docTotal = floatval($dl['total_factura']);
+                    
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                        if (floatval($dl['iva']) > 0) {
+                        // Para facturas, desglosamos los impuestos
+                        $subtotal = floatval($dl['p_unitario']);
+                        $iva = floatval($dl['iva']);
+                        $idp = floatval($dl['idp']);
+                        $inguat = floatval($dl['inguat']);
+                        
+                        // Línea principal (IVA)
+                        if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => $dl['t_gasto'],
-                                "Price" => floatval($dl['iva']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $subtotal + $iva,
                                 "TaxCode" => "IVA",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
                                 "U_TipoA" => $tipoA
                             ];
-                            $docTotal += $p_unitario;
                         }
-                        if (floatval($dl['idp']) > 0) {
+                        
+                        // Línea para IDP
+                        if ($idp > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => "IDP",
-                                "Price" => floatval($dl['idp']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $idp,
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
+                                "U_TipoA" => "P"
                             ];
-                            $docTotal += $p_unitario;
                         }
-                        if (floatval($dl['inguat']) > 0) {
+                        
+                        // Línea para INGUAT
+                        if ($inguat > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => "INGUAT",
-                                "Price" => floatval($dl['inguat']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $inguat,
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
+                                "U_TipoA" => "S"
                             ];
-                            $docTotal += $p_unitario;
                         }
                     } else {
+                        // Para otros tipos de documentos, usamos el total_factura directamente
                         if (floatval($dl['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => $dl['t_gasto'] . " ({$tipoDocumento})",
-                                "Price" => floatval($dl['total_factura']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => floatval($dl['total_factura']),
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
                                 "U_TipoA" => $tipoA
                             ];
-                            $docTotal += $p_unitario;
                         }
                     }
                 }
@@ -2652,7 +2660,9 @@ public function exportar($id)
                 $docDate = date('Y-m-d', strtotime($dl['fecha']));
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
                 $documentLines = [];
-                $docTotal = 0;
+                
+                // Usamos el total_factura como DocTotal
+                $docTotal = floatval($dl['total_factura']);
 
                 // Calcular U_F_DEC y U_F_DEC_D
                 if (empty($dl['fecha']) || !strtotime($dl['fecha'])) {
@@ -2683,65 +2693,69 @@ public function exportar($id)
 
                 foreach ($detalles as $detalle) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
-                    $p_unitario = floatval($detalle['p_unitario'] ?? 0);
                     $accountCode = $detalle['id_cuenta_contable'] ?? null;
+                    
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                        if (floatval($detalle['iva']) > 0) {
+                        // Para facturas, desglosamos los impuestos
+                        $subtotal = floatval($detalle['p_unitario']);
+                        $iva = floatval($detalle['iva']);
+                        $idp = floatval($detalle['idp']);
+                        $inguat = floatval($detalle['inguat']);
+                        
+                        // Línea principal (IVA)
+                        if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => $detalle['t_gasto'],
-                                "Price" => floatval($detalle['iva']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $subtotal + $iva,
                                 "TaxCode" => "IVA",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
                                 "U_TipoA" => $tipoA
                             ];
-                            $docTotal += $p_unitario;
                         }
-                        if (floatval($detalle['idp']) > 0) {
+                        
+                        // Línea para IDP
+                        if ($idp > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => "IDP",
-                                "Price" => floatval($detalle['idp']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $idp,
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
+                                "U_TipoA" => "P"
                             ];
-                            $docTotal += $p_unitario;
                         }
-                        if (floatval($detalle['inguat']) > 0) {
+                        
+                        // Línea para INGUAT
+                        if ($inguat > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => "INGUAT",
-                                "Price" => floatval($detalle['inguat']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => $inguat,
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
+                                "U_TipoA" => "S"
                             ];
-                            $docTotal += $p_unitario;
                         }
                     } else {
+                        // Para otros tipos de documentos, usamos el total_factura directamente
                         if (floatval($detalle['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
                                 "ItemDescription" => $detalle['t_gasto'] . " ({$tipoDocumento})",
-                                "Price" => floatval($detalle['total_factura']),
-                                "PriceAfterVAT" => $p_unitario,
+                                "PriceAfterVAT" => floatval($detalle['total_factura']),
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
                                 "U_TipoA" => $tipoA
                             ];
-                            $docTotal += $p_unitario;
                         }
                     }
                 }
