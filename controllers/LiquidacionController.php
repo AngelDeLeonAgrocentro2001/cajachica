@@ -3149,8 +3149,6 @@ public function exportar($id)
                     $porcentaje = floatval($porcentajes[$index]);
                     $es_principal = ($index === 0) ? 1 : 0;
 
-                    $cantidad = isset($_POST['cantidad']) && $_POST['cantidad'] !== '' ? floatval($_POST['cantidad']) : null;
-
                     $detalle_id = $detalleModel->createDetalleLiquidacion(
                         $id_liquidacion, 
                         $tipo_documento, 
@@ -3234,7 +3232,7 @@ public function exportar($id)
                 $porcentajes = is_array($_POST['porcentaje']) ? $_POST['porcentaje'] : [$_POST['porcentaje'] ?? 100];
                 $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                 $nombre_cuenta_contable = $_POST['nombre_cuenta_contable'] ?? '';
-                $cantidad = isset($_POST['cantidad']) && $_POST['cantidad'] !== '' ? floatval($_POST['cantidad']) : null;
+                $cantidad = $_POST['cantidad'] ?? null;
                 $serie = $_POST['serie'] ?? null;
                 $comentarios = $_POST['comentarios'] ?? null;
                 $removed_files = isset($_POST['removed_files']) ? (is_array($_POST['removed_files']) ? $_POST['removed_files'] : [$_POST['removed_files']]) : [];
