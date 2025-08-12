@@ -178,13 +178,13 @@ class DteController {
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
-        $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$this->usuarioModel->tienePermiso($usuario, 'manage_dte')) {
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para buscar DTEs']);
-            exit;
-        }
+        // $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
+        // if (!$this->usuarioModel->tienePermiso($usuario, 'manage_dte')) {
+        //     header('Content-Type: application/json');
+        //     http_response_code(403);
+        //     echo json_encode(['error' => 'No tienes permiso para buscar DTEs']);
+        //     exit;
+        // }
     
         $nit = isset($_GET['nit']) ? trim($_GET['nit']) : '';
         $fechaInicio = isset($_GET['fecha_inicio']) ? trim($_GET['fecha_inicio']) : null;
