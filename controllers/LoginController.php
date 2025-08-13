@@ -102,7 +102,7 @@ class LoginController {
 
                     // Credenciales (ajusta con tus datos reales)
                     $mail->Username = $email; // Usar el email del formulario
-                    $mail->Password = 'ElcorreodeSimba2001'; // Nota: La contraseña debe ser la del email proporcionado
+                    $mail->Password = 'dhdktzzvklxjxxgk'; // Nota: La contraseña debe ser la del email proporcionado
 
                     // Remitente y destinatario
                     $mail->setFrom($email, 'AgroCaja Chica');
