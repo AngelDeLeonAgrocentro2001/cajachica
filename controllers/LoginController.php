@@ -122,7 +122,7 @@ class LoginController {
                     // Fallback: Si el email del usuario no puede ser usado como remitente, usar un email por defecto
                     try {
                         $mail->Username = 'angel.deleon@agrocentro.com'; // Email por defecto
-                        $mail->Password = 'ElcorreodeSimba2001';
+                        $mail->Password = 'dhdktzzvklxjxxgk';
                         $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
                         $mail->addReplyTo('angel.deleon@agrocentro.com');
                         $mail->send();
