@@ -114,8 +114,8 @@ class LoginController {
                     $mail->Password = $PassCuentaRemitente;
     
                     $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
-                    $mail->addAddress($email);
-                    $mail->addReplyTo($cuentaRemitente);
+                    $mail->setFrom('no-reply@agrocentro.com', 'AgroCaja Chica');
+                    $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
     
                     $mail->IsHTML(true);
                     $mail->Subject = $Asunto;
