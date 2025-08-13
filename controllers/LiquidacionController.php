@@ -3774,7 +3774,13 @@ public function exportar($id)
             $removedFiles = isset($_POST['removed_files']) ? (is_array($_POST['removed_files']) ? $_POST['removed_files'] : json_decode($_POST['removed_files'], true)) : [];
 
             // Obtener archivos actuales de la base de datos
-            $detalle_id = $_POST['detalle_id'] ?? '';
+            $detalle_id = isset($_POST['detalle_id']) ? trim($_POST['detalle_id']) : '';
+            if (!ctype_digit($detalle_id)) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de detalle inválido']);
+            exit;
+            }
             $detalle = $this->detalleModel->getDetalleById($detalle_id);
             $currentFiles = $detalle && !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
 
