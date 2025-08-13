@@ -82,54 +82,51 @@ class LoginController {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
                 exit;
             }
-
+    
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
-                $token = bin2hex(random_bytes(32)); // Generar token seguro
+                $token = bin2hex(random_bytes(32));
                 $_SESSION['reset_token'][$email] = $token;
-                $_SESSION['reset_token_expiry'][$email] = time() + 3600; // Válido por 1 hora
-
-                // Enviar email con PHPMailer
+                $_SESSION['reset_token_expiry'][$email] = time() + 3600;
+    
+                // Configuración de correo basada en SendEmail que funciona
+                $cuentaRemitente = 'no-reply@agrocentro.com';
+                $PassCuentaRemitente = 'Fob37021';
+                $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
+                
+                $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
+                $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
+                $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
+    
                 $mail = new PHPMailer(true);
                 try {
-                    // Configuración del servidor SMTP
+                    // Configuración probada que funciona
                     $mail->isSMTP();
                     $mail->Host = 'smtp.outlook.com';
                     $mail->SMTPAuth = true;
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port = 587;
-                    $mail->CharSet = 'UTF-8'; // Añadir codificación UTF-8
-
-                    // Credenciales (ajusta con tus datos reales)
-                    $mail->Username = $email; // Usar el email del formulario
-                    $mail->Password = 'dhdktzzvklxjxxgk'; // Nota: La contraseña debe ser la del email proporcionado
-
-                    // Remitente y destinatario
-                    $mail->setFrom($email, 'AgroCaja Chica');
+                    $mail->CharSet = 'UTF-8';
+                    $mail->Timeout = 30; // Aumentar timeout
+    
+                    // Usar las credenciales que sabemos que funcionan
+                    $mail->Username = $cuentaRemitente;
+                    $mail->Password = $PassCuentaRemitente;
+    
+                    $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
                     $mail->addAddress($email);
-                    $mail->addReplyTo($email);
-
-                    // Contenido del email
-                    $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
+                    $mail->addReplyTo($cuentaRemitente);
+    
                     $mail->IsHTML(true);
-                    $mail->Subject = 'Recuperación de Contraseña - AgroCaja Chica';
-                    $mail->Body = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
-                    $mail->AltBody = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
-
+                    $mail->Subject = $Asunto;
+                    $mail->Body = $Mensaje;
+                    $mail->AltBody = $MensajeAlterno;
+    
                     $mail->send();
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } catch (Exception $e) {
-                    // Fallback: Si el email del usuario no puede ser usado como remitente, usar un email por defecto
-                    try {
-                        $mail->Username = 'angel.deleon@agrocentro.com'; // Email por defecto
-                        $mail->Password = 'dhdktzzvklxjxxgk';
-                        $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
-                        $mail->addReplyTo('angel.deleon@agrocentro.com');
-                        $mail->send();
-                        header('Location: index.php?controller=login&action=resetPassword&success=1');
-                    } catch (Exception $e2) {
-                        header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email: ' . htmlspecialchars($mail->ErrorInfo));
-                    }
+                    error_log("Error al enviar email de recuperación: " . $e->getMessage());
+                    header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
                 }
             } else {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
