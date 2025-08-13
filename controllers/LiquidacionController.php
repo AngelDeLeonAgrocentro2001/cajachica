@@ -3825,7 +3825,7 @@ public function exportar($id)
                 $id_centro_costo = $_POST['id_centro_costo'] ?? null;
                 $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                 $nombre_cuenta_contable = $_POST['nombre_cuenta_contable'] ?? '';
-                $cantidad = $_POST['cantidad'] ?? null;
+                $cantidad = isset($_POST['cantidad']) && $_POST['cantidad'] !== '' ? floatval($_POST['cantidad']) : null;
                 $serie = $_POST['serie'] ?? null;
                 $correccion_comentario = $_POST['correccion_comentario'] ?? '';
 
