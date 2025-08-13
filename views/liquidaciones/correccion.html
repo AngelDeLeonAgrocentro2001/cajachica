@@ -1497,13 +1497,15 @@ function editFactura(detalle) {
     rutas.forEach(ruta => {
         const fileName = basename(ruta);
         const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => ruta.toLowerCase().endsWith(ext));
-        
         const previewDiv = document.createElement('div');
         previewDiv.classList.add('photo-preview');
-        
         if (isImage) {
             const img = document.createElement('img');
             img.src = '../' + ruta;
+            img.onerror = () => {
+                console.error('No se pudo cargar la imagen:', ruta);
+                previewDiv.innerHTML = `<span>Imagen no encontrada: ${fileName}</span>`;
+            };
             previewDiv.appendChild(img);
         } else {
             const link = document.createElement('a');
