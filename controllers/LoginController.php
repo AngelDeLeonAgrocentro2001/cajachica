@@ -110,7 +110,7 @@ class LoginController {
                     $mail->addReplyTo($email);
 
                     // Contenido del email
-                    $resetLink = "http://localhost:8080/agrocaja-chica/public/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
+                    $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
                     $mail->IsHTML(true);
                     $mail->Subject = 'Recuperación de Contraseña - AgroCaja Chica';
                     $mail->Body = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
