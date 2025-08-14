@@ -3963,8 +3963,8 @@ public function exportar($id)
                         });
                         $existing_detalle = reset($existing_detalle);
 
-                        if ($existing_detalle && $existing_detalle['id'] == $detalle_id && $index == 0) {
-                            // Actualizar detalle principal
+                        if ($index === 0) {
+                            // Siempre actualizar el detalle principal para el primer centro de costo
                             $stmt = $this->pdo->prepare("
                                 UPDATE detalle_liquidaciones
                                 SET
