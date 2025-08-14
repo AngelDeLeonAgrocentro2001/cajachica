@@ -4255,8 +4255,8 @@ public function exportar($id)
         }
 
         $data = $liquidacion;
-        $data['nombre_caja_chica'] = $cajaChica['name'];
-        $data['suggested_centro_costo_id'] = $cajaChica['id_centro_costo'] ?? null;
+        $data['nombre_caja_chica'] = $cajaChica['nombre'];
+        $data['clientes'] = $cajaChica['clientes'] ?? null;
         $data['originating_roles'] = $originating_roles;
 
         require '../views/liquidaciones/correccion.html';
