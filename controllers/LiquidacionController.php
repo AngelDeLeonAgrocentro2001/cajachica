@@ -4248,7 +4248,7 @@ public function exportar($id)
         $centrosCostos = $centroCostoModel->getAllCentrosCostos();
         $select_centros_costos = '';
         foreach ($centrosCostos as $centro) {
-            $select_centros_costos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
+            $select_centros_costos .= "<option value='{$centro['id']}' $selected>{$centro['nombre']} / {$centro['codigo']}</option>";
         }
 
         $data = $liquidacion;
