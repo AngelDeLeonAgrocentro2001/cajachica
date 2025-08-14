@@ -3807,9 +3807,10 @@ public function exportar($id)
                     // Extract and validate form data
                     $detalle_id = $_POST['detalle_id'] ?? '';
                     $tipo_documento = $_POST['tipo_documento'] ?? '';
-                    $no_factura = $_POST['no_factura'] ?? '';
-                    $serie = $_POST['serie'] ?? '';
+                    $no_factura = (string)($_POST['no_factura'] ?? '');
+                    $serie = (string)($_POST['serie'] ?? '');
                     $numero_dte = $serie && strpos($no_factura, $serie) === 0 ? substr($no_factura, strlen($serie)) : $no_factura;
+                    $numero_dte = (string)$numero_dte;
                     $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
                     $nit_proveedor = $_POST['nit_proveedor'] ?? null;
                     $dpi = $_POST['dpi'] ?? null;
