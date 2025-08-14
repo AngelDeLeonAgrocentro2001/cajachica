@@ -1993,7 +1993,7 @@ document.addEventListener('DOMContentLoaded', () => {
     existingFiles.forEach(file => formData.append('existing_files[]', file));
 
     // Enviar datos al servidor
-    const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
+    const response = await fetch(`/index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
       method: 'POST',
       body: formData,
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
