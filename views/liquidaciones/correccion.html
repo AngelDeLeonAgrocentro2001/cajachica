@@ -962,6 +962,8 @@
   }
 
   function openModal(fileUrl, fileName) {
+    // Normalizar la ruta del archivo
+    fileUrl = fileUrl.replace(/\\/g, '/'); // Reemplazar barras invertidas
     const modal = document.getElementById('fileModal');
     const iframe = document.getElementById('modalIframe');
     const image = document.getElementById('modalImage');
@@ -989,6 +991,7 @@
 
     modalTitle.textContent = fileName;
     modal.style.display = 'flex';
+    makeModalDraggable(modal.querySelector('.modal-content'));
 }
 
   function closeModal() {
