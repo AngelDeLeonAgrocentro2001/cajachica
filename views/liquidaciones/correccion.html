@@ -765,12 +765,22 @@
                 <?php
                   $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
                   if (is_array($rutas) && !empty($rutas)) {
-                    foreach ($rutas as $index => $ruta) {
-                      $fileName = basename($ruta);
-                      echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo</a></div>';
-                    }
+                      foreach ($rutas as $index => $ruta) {
+                        $fileName = basename($ruta);
+                        echo '
+                        <div>
+                          <a
+                            href="#"
+                            class="file-link"
+                            data-file="../' . htmlspecialchars($ruta) . '"
+                            onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')"
+                            >Ver Archivo
+                          </a>
+                        </div>
+                        ';
+                      }
                   } else {
-                    echo 'N/A';
+                      echo 'N/A';
                   }
                 ?>
               </td>
@@ -962,6 +972,8 @@
   }
 
   function openModal(fileUrl, fileName) {
+    // Normalizar la ruta del archivo
+    fileUrl = fileUrl.replace(/\\/g, '/'); // Reemplazar barras invertidas
     const modal = document.getElementById('fileModal');
     const iframe = document.getElementById('modalIframe');
     const image = document.getElementById('modalImage');
@@ -989,6 +1001,7 @@
 
     modalTitle.textContent = fileName;
     modal.style.display = 'flex';
+    makeModalDraggable(modal.querySelector('.modal-content'));
 }
 
   function closeModal() {
