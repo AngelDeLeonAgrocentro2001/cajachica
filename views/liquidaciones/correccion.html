@@ -765,12 +765,22 @@
                 <?php
                   $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
                   if (is_array($rutas) && !empty($rutas)) {
-                    foreach ($rutas as $index => $ruta) {
-                      $fileName = basename($ruta);
-                      echo '<div><a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">Ver Archivo</a></div>';
-                    }
+                      foreach ($rutas as $index => $ruta) {
+                        $fileName = basename($ruta);
+                        echo '
+                        <div>
+                          <a
+                            href="#"
+                            class="file-link"
+                            data-file="../' . htmlspecialchars($ruta) . '"
+                            onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')"
+                            >Ver Archivo
+                          </a>
+                        </div>
+                        ';
+                      }
                   } else {
-                    echo 'N/A';
+                      echo 'N/A';
                   }
                 ?>
               </td>
