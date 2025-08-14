@@ -1908,42 +1908,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const form = document.getElementById('facturaForm');
   form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    isSubmitting = true;
+  e.preventDefault();
+  if (isSubmitting) return;
+  isSubmitting = true;
 
-    if (!validatePercentages()) {
-      alert('Por favor, corrige los porcentajes de los centros de costo.');
-      isSubmitting = false;
-      return;
-    }
+  // Validar porcentajes de centros de costo
+  if (!validatePercentages()) {
+    alert('Por favor, corrige los porcentajes de los centros de costo.');
+    isSubmitting = false;
+    return;
+  }
 
-    const files = document.getElementById('archivos').files;
-    if (files.length > 0 && !validateFileTypes(files)) {
-      alert('Solo se permiten archivos PDF, PNG y JPG.');
-      isSubmitting = false;
-      return;
-    }
+  // Validar archivos adjuntos
+  const files = document.getElementById('archivos').files;
+  if (files.length > 0 && !validateFileTypes(files)) {
+    alert('Solo se permiten archivos PDF, PNG y JPG.');
+    isSubmitting = false;
+    return;
+  }
 
-    const fechaFactura = document.getElementById('fecha').value;
-    const fechaInicio = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
-    const fechaFin = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
+  // Validar campos numéricos
+  const totalFactura = parseFloat(document.getElementById('total_factura').value);
+  const subtotal = parseFloat(document.getElementById('subtotal').value);
+  const iva = parseFloat(document.getElementById('iva').value);
+  const idp = parseFloat(document.getElementById('idp').value);
+  const inguat = parseFloat(document.getElementById('inguat').value);
+
+  if (isNaN(totalFactura) || totalFactura <= 0) {
+    alert('El total de la factura debe ser un número válido mayor que 0.');
+    isSubmitting = false;
+    return;
+  }
+
+  if (isNaN(subtotal) || subtotal < 0) {
+    alert('El subtotal debe ser un número válido.');
+    isSubmitting = false;
+    return;
+  }
+
+  // Validar fecha
+  const fechaFactura = document.getElementById('fecha').value;
+  const fechaInicio = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
+  const fechaFin = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
+  
+  if (fechaInicio && fechaFin && fechaFactura) {
     const fecha = new Date(fechaFactura);
-
-    if (fechaInicio && fechaFin && fecha) {
-      if (fecha < new Date(fechaInicio) || fecha > new Date(fechaFin)) {
-        alert(`La fecha de la factura debe estar entre ${fechaInicio} y ${fechaFin}.`);
-        isSubmitting = false;
-        return;
-      }
+    if (fecha < new Date(fechaInicio) || fecha > new Date(fechaFin)) {
+      alert(`La fecha de la factura debe estar entre ${fechaInicio} y ${fechaFin}.`);
+      isSubmitting = false;
+      return;
     }
+  }
 
-    const formData = new FormData(form);
+  // Validar cuenta contable
+  const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+  const cuentaContable = cuentaContableSelect.value;
+  const nombreCuentaContable = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
+  
+  if (!cuentaContable || cuentaContable === '') {
+    alert('Por favor, seleccione una Cuenta Contable válida antes de continuar.');
+    isSubmitting = false;
+    return;
+  }
+
+  try {
+    // Preparar datos del formulario
+    const formData = new FormData(document.getElementById('facturaForm'));
     formData.append('id', liquidacionId);
-    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-    const nombreCuentaContable = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
     formData.append('nombre_cuenta_contable', nombreCuentaContable);
 
+    // Asegurar valores numéricos con 2 decimales
+    formData.set('total_factura', totalFactura.toFixed(2));
+    formData.set('subtotal', subtotal.toFixed(2));
+    formData.set('iva', iva.toFixed(2));
+    formData.set('idp', idp.toFixed(2));
+    formData.set('inguat', inguat.toFixed(2));
+
+    // Manejar archivos
     capturedFiles.forEach(file => formData.append('archivos[]', file));
     const removedFiles = Array.from(document.querySelectorAll('input[name="removed_files[]"]')).map(input => input.value).filter(val => val);
     formData.delete('removed_files[]');
@@ -1951,75 +1992,73 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.delete('existing_files[]');
     existingFiles.forEach(file => formData.append('existing_files[]', file));
 
-    const cuentaContable = formData.get('id_cuenta_contable');
-    if (!cuentaContable || cuentaContable === '') {
-      alert('Por favor, seleccione una Cuenta Contable antes de continuar.');
-      isSubmitting = false;
-      return;
+    // Enviar datos al servidor
+    const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || 'Error al actualizar la factura');
     }
 
-    try {
-      const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
+    // Actualizar la fila en la tabla si existe
+    const detalleId = result.detalle_id;
+    const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+    if (row) {
+      const tipoDocumento = formData.get('tipo_documento').toUpperCase();
+      row.querySelector('td[data-label="Grupo ID"]').textContent = result.grupo_id || 0;
+      row.querySelector('td[data-label="Tipo de Documento"]').textContent = formData.get('tipo_documento') || 'N/A';
+      row.querySelector('td[data-label="No. Factura"]').textContent = formData.get('no_factura') || 'N/A';
+      row.querySelector('td[data-label="Proveedor"]').textContent = formData.get('nombre_proveedor') || 'N/A';
+      row.querySelector('td[data-label="NIT"]').textContent = tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A';
+      row.querySelector('td[data-label="DPI"]').textContent = tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A';
+      row.querySelector('td[data-label="Cantidad"]').textContent = tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? (parseFloat(formData.get('cantidad')) || 'N/A') : 'N/A';
+      row.querySelector('td[data-label="Serie"]').textContent = tipoDocumento === 'COMPROBANTE' ? (formData.get('serie') || 'N/A') : 'N/A';
+      row.querySelector('td[data-label="Centro de Costo"]').textContent = document.querySelector(`#id_centro_costo_0 option[value="${formData.getAll('id_centro_costo[]')[0]}"]`)?.textContent || 'N/A';
+      row.querySelector('td[data-label="Porcentaje"]').textContent = (parseFloat(formData.getAll('porcentaje[]')[0]) || 100).toFixed(2) + '%';
+      row.querySelector('td[data-label="Tipo de Gasto"]').textContent = formData.get('t_gasto') || 'N/A';
+      row.querySelector('td[data-label="Tipo de Combustible"]').textContent = formData.get('tipo_combustible') || 'N/A';
+      row.querySelector('td[data-label="Cuenta Contable"]').textContent = nombreCuentaContable || 'N/A';
+      row.querySelector('td[data-label="Fecha"]').textContent = formData.get('fecha') || 'N/A';
+      row.querySelector('td[data-label="Subtotal"]').textContent = parseFloat(formData.get('subtotal')).toFixed(2);
+      row.querySelector('td[data-label="IVA"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('iva')).toFixed(2) : '0.00';
+      row.querySelector('td[data-label="IDP"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('idp')).toFixed(2) : '0.00';
+      row.querySelector('td[data-label="INGUAT"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00';
+      row.querySelector('td[data-label="Total Factura"]').textContent = parseFloat(formData.get('total_factura')).toFixed(2);
+      row.querySelector('td[data-label="Estado"]').textContent = 'EN_CORRECCION';
+      row.querySelector('td[data-label="Comentario Corrección"]').textContent = formData.get('correccion_comentario') || 'Sin comentario';
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Error al actualizar la factura');
-
-      const detalleId = result.detalle_id;
-      const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-      if (row) {
-        const tipoDocumento = formData.get('tipo_documento').toUpperCase();
-        row.querySelector('td[data-label="Grupo ID"]').textContent = result.grupo_id || 0;
-        row.querySelector('td[data-label="Tipo de Documento"]').textContent = formData.get('tipo_documento') || 'N/A';
-        row.querySelector('td[data-label="No. Factura"]').textContent = formData.get('no_factura') || 'N/A';
-        row.querySelector('td[data-label="Proveedor"]').textContent = formData.get('nombre_proveedor') || 'N/A';
-        row.querySelector('td[data-label="NIT"]').textContent = tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A';
-        row.querySelector('td[data-label="DPI"]').textContent = tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A';
-        row.querySelector('td[data-label="Cantidad"]').textContent = tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? (parseFloat(formData.get('cantidad')) || 'N/A') : 'N/A';
-        row.querySelector('td[data-label="Serie"]').textContent = tipoDocumento === 'COMPROBANTE' ? (formData.get('serie') || 'N/A') : 'N/A';
-        row.querySelector('td[data-label="Centro de Costo"]').textContent = document.querySelector(`#id_centro_costo_0 option[value="${formData.getAll('id_centro_costo[]')[0]}"]`)?.textContent || 'N/A';
-        row.querySelector('td[data-label="Porcentaje"]').textContent = (parseFloat(formData.getAll('porcentaje[]')[0]) || 100).toFixed(2) + '%';
-        row.querySelector('td[data-label="Tipo de Gasto"]').textContent = formData.get('t_gasto') || 'N/A';
-        row.querySelector('td[data-label="Tipo de Combustible"]').textContent = formData.get('tipo_combustible') || 'N/A';
-        row.querySelector('td[data-label="Cuenta Contable"]').textContent = nombreCuentaContable || 'N/A';
-        row.querySelector('td[data-label="Fecha"]').textContent = formData.get('fecha') || 'N/A';
-        row.querySelector('td[data-label="Subtotal"]').textContent = parseFloat(formData.get('subtotal')).toFixed(2);
-        row.querySelector('td[data-label="IVA"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('iva')).toFixed(2) : '0.00';
-        row.querySelector('td[data-label="IDP"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('idp')).toFixed(2) : '0.00';
-        row.querySelector('td[data-label="INGUAT"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00';
-        row.querySelector('td[data-label="Total Factura"]').textContent = parseFloat(formData.get('total_factura')).toFixed(2);
-        row.querySelector('td[data-label="Estado"]').textContent = 'EN_CORRECCION';
-        row.querySelector('td[data-label="Comentario Corrección"]').textContent = formData.get('correccion_comentario') || 'Sin comentario';
-
-        const archivosCell = row.querySelector('td[data-label="Archivos"]');
-        if (result.rutas_archivos && result.rutas_archivos.length > 0) {
-          let archivosHtml = '';
-          result.rutas_archivos.forEach(ruta => {
-            const fileName = ruta.split('/').pop();
-            archivosHtml += `<div><a href="#" class="file-link" data-file="../${ruta.replace(/\\/g, '/')}" onclick="openModal('../${ruta.replace(/\\/g, '/')}', '${fileName}')">Ver Archivo</a></div>`;
-          });
-          archivosCell.innerHTML = archivosHtml;
-        } else {
-          archivosCell.innerHTML = 'N/A';
-        }
-
-        document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
+      const archivosCell = row.querySelector('td[data-label="Archivos"]');
+      if (result.rutas_archivos && result.rutas_archivos.length > 0) {
+        let archivosHtml = '';
+        result.rutas_archivos.forEach(ruta => {
+          const fileName = ruta.split('/').pop();
+          archivosHtml += `<div><a href="#" class="file-link" data-file="../${ruta.replace(/\\/g, '/')}" onclick="openModal('../${ruta.replace(/\\/g, '/')}', '${fileName}')">Ver Archivo</a></div>`;
+        });
+        archivosCell.innerHTML = archivosHtml;
+      } else {
+        archivosCell.innerHTML = 'N/A';
       }
 
-      alert('Factura actualizada correctamente.');
-      resetForm();
-      window.location.reload()
-      
-    } catch (error) {
-      console.error('Error al actualizar factura:', error);
-      alert(error.message || 'Error al actualizar la factura. Intenta de nuevo.');
-    } finally {
-      isSubmitting = false;
+      document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
     }
-  });
+
+    // Mostrar mensaje de éxito y recargar la página
+    alert('Factura actualizada correctamente. La página se recargará.');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+
+  } catch (error) {
+    console.error('Error al actualizar factura:', error);
+    alert(error.message || 'Error al actualizar la factura. Verifique los datos e intente nuevamente.');
+  } finally {
+    isSubmitting = false;
+  }
+});
 
   updateFormFields();
   updateTipoCombustibleField();
