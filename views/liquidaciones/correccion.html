@@ -719,479 +719,613 @@
     <div class="container">
       <?php include '../views/partials/menu.php'; ?>
       <h2>
-        Corrección de Facturas - Liquidación ID:
-        <?php echo htmlspecialchars($data['id']); ?>
+          Corrección de Facturas - Liquidación ID:
+          <?php echo htmlspecialchars($data['id']); ?>
       </h2>
-      <p><strong>Caja Chica:</strong> <?php echo htmlspecialchars($data['nombre_caja_chica']); ?></p>
-      <p><strong>Fecha Inicio:</strong> <?php echo htmlspecialchars($data['fecha_inicio']); ?></p>
-      <p><strong>Fecha Fin:</strong> <?php echo htmlspecialchars($data['fecha_fin']); ?></p>
-      <p><strong>Monto Total:</strong> <?php echo number_format($data['monto_total'] ?? 0, 2); ?></p>
-      <p><strong>Estado:</strong> <?php echo htmlspecialchars($data['estado']); ?></p>
+      <div class="informacion">
+          <p><strong>Nombre de Caja Chica:</strong> <span><?php echo htmlspecialchars($data['nombre_caja_chica']); ?></span></p>
+          <p><strong>Código:</strong> <span><?php echo htmlspecialchars($data['clientes']); ?></span></p>
+          <p><strong>Centro de Costo:</strong> <span><?php echo htmlspecialchars($data['centro_costo_caja_chica_nombre']); ?> / <?php echo htmlspecialchars($data['centro_costo_caja_chica_codigo']); ?></span></p>
+          <p><strong>Fecha de Modificación:</strong> <span><?php echo htmlspecialchars($data['updated_at']); ?></span></p>
+          <p><strong>Fecha Inicio:</strong> <span><?php echo htmlspecialchars($data['fecha_inicio']); ?></span></p>
+          <p><strong>Fecha Fin:</strong> <span><?php echo htmlspecialchars($data['fecha_fin']); ?></span></p>
+          <p><strong>Monto Total:</strong> <span><?php echo number_format($data['monto_total'] ?? 0, 2); ?></span></p>
+          <p><strong>Estado:</strong> <span><?php echo htmlspecialchars($data['estado']); ?></span></p>
+      </div>
   
       <h3>Facturas Pendientes de Corrección</h3>
       <div class="table-wrapper">
-        <table id="facturasTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Archivos</th>
-              <th>Tipo de Documento</th>
-              <th>Número Factura</th>
-              <th>Proveedor</th>
-              <th>NIT</th>
-              <th>DPI</th>
-              <th>Cantidad</th>
-              <th>Serie</th>
-              <th>Centro de Costo</th>
-              <th>Tipo de Gasto</th>
-              <th>Tipo de Combustible</th>
-              <th>Cuenta Contable</th>
-              <th>Fecha</th>
-              <th>Subtotal</th>
-              <th>IVA</th>
-              <th>IDP</th>
-              <th>INGUAT</th>
-              <th>Total Factura</th>
-              <th>Estado</th>
-              <th>Comentario corrección</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($detalles as $detalle): ?>
-            <tr data-id="<?php echo htmlspecialchars($detalle['id']); ?>">
-              <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
-              <td data-label="Archivos">
-                <?php
-                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                  if (is_array($rutas) && !empty($rutas)) {
-                      foreach ($rutas as $index => $ruta) {
-                        $fileName = basename($ruta);
-                        echo '
-                        <div>
-                          <a
-                            href="#"
-                            class="file-link"
-                            data-file="../' . htmlspecialchars($ruta) . '"
-                            onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')"
-                            >Ver Archivo
-                          </a>
-                        </div>
-                        ';
-                      }
-                  } else {
-                      echo 'N/A';
-                  }
-                ?>
-              </td>
-              <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento'] ?? 'N/A'); ?></td>
-              <td data-label="Número Factura"><?php echo htmlspecialchars($detalle['no_factura'] ?? 'N/A'); ?></td>
-              <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A'); ?></td>
-              <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
-              <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
-              <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
-              <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-              <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
-              <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto'] ?? 'N/A'); ?></td>
-              <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-              <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['nombre_cuenta_contable'] ?? 'N/A'); ?></td>
-              <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha'] ?? 'N/A'); ?></td>
-              <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'] ?? 0, 2); ?></td>
-              <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
-              <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
-              <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
-              <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'] ?? 0, 2); ?></td>
-              <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado'] ?? 'N/A'); ?></td>
-              <td data-label="Comentario"><?php echo htmlspecialchars($detalle['correccion_comentario'] ?? 'Sin comentario'); ?></td>
-              <td data-label="Acciones">
-                <button class="edit-btn" onclick="editFactura(<?php echo htmlspecialchars(json_encode($detalle)); ?>)">Editar</button>
-                <button class="delete-btn" onclick="confirmDeleteFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Eliminar</button>
-              </td>
-            </tr>
-            <?php endforeach; ?>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="18" data-label="Total"><strong>Total</strong></td>
-              <td id="total_general" data-label="Monto"><?php echo number_format($data['monto_total'] ?? 0, 2); ?></td>
-              <td colspan="4"></td>
-            </tr>
-          </tfoot>
-        </table>
+          <table id="facturasTable">
+              <thead>
+                  <tr>
+                      <th>Grupo ID</th>
+                      <th>ID</th>
+                      <th>Archivos</th>
+                      <th>Tipo de Documento</th>
+                      <th>No. Factura</th>
+                      <th>Proveedor</th>
+                      <th>NIT</th>
+                      <th>DPI</th>
+                      <th>Cantidad</th>
+                      <th>Serie</th>
+                      <th>Centro de Costo</th>
+                      <th>Porcentaje</th>
+                      <th>Tipo de Gasto</th>
+                      <th>Tipo de Combustible</th>
+                      <th>Cuenta Contable</th>
+                      <th>Fecha</th>
+                      <th>Subtotal</th>
+                      <th>IVA</th>
+                      <th>IDP</th>
+                      <th>INGUAT</th>
+                      <th>Total Factura</th>
+                      <th>Estado</th>
+                      <th>Comentario Corrección</th>
+                      <th>Acciones</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <?php foreach ($detalles as $detalle): ?>
+                  <tr data-id="<?php echo htmlspecialchars($detalle['id']); ?>" data-grupo-id="<?php echo htmlspecialchars($detalle['grupo_id'] ?? 0); ?>">
+                      <td data-label="Grupo ID"><?php echo htmlspecialchars($detalle['grupo_id'] ?? 0); ?></td>
+                      <td data-label="ID"><?php echo htmlspecialchars($detalle['id']); ?></td>
+                      <td data-label="Archivos">
+                          <?php
+                          $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                          if (is_array($rutas) && !empty($rutas)) {
+                              foreach ($rutas as $index => $ruta) {
+                                  $fileName = basename($ruta);
+                                  echo '
+                                  <div>
+                                      <a href="#" class="file-link" data-file="../' . htmlspecialchars($ruta) . '" onclick="openModal(this.getAttribute(\'data-file\'), \'' . htmlspecialchars($fileName) . '\')">
+                                          Ver Archivo
+                                      </a>
+                                  </div>';
+                              }
+                          } else {
+                              echo 'N/A';
+                          }
+                          ?>
+                      </td>
+                      <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento'] ?? 'N/A'); ?></td>
+                      <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura'] ?? 'N/A'); ?></td>
+                      <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A'); ?></td>
+                      <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
+                      <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
+                      <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
+                      <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
+                      <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
+                      <td data-label="Porcentaje"><?php echo number_format($detalle['porcentaje'] ?? 100, 2); ?>%</td>
+                      <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto'] ?? 'N/A'); ?></td>
+                      <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
+                      <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['nombre_cuenta_contable'] ?? 'N/A'); ?></td>
+                      <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha'] ?? 'N/A'); ?></td>
+                      <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'] ?? 0, 2); ?></td>
+                      <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
+                      <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
+                      <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+                      <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'] ?? 'N/A'); ?></td>
+                      <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado'] ?? 'N/A'); ?></td>
+                      <td data-label="Comentario Corrección"><?php echo htmlspecialchars($detalle['correccion_comentario'] ?? 'Sin comentario'); ?></td>
+                      <td data-label="Acciones">
+                          <button class="edit-btn" onclick="editFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Editar</button>
+                          <button class="delete-btn" onclick="confirmDeleteFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Eliminar</button>
+                      </td>
+                  </tr>
+                  <?php endforeach; ?>
+              </tbody>
+              <tfoot>
+                  <tr>
+                      <td colspan="20" data-label="Total"><strong>Total</strong></td>
+                      <td id="total_general" data-label="Monto"><?php echo number_format($data['monto_total'] ?? 0, 2); ?></td>
+                      <td colspan="3"></td>
+                  </tr>
+              </tfoot>
+          </table>
       </div>
   
-      <form id="facturaForm" enctype="multipart/form-data" style="display: none;">
-        <input type="hidden" name="action" value="update" />
-        <input type="hidden" name="detalle_id" id="detalle_id" />
-        <div>
-          <label for="tipo_documento">Tipo de Documento:</label>
-          <select name="tipo_documento" id="tipo_documento" required><?php echo $select_tipos_documentos; ?></select>
-        </div>
-        <div><label for="no_factura">Número de Factura:</label><input type="text" name="no_factura" id="no_factura" required /></div>
-        <div><label for="nombre_proveedor">Proveedor:</label><input type="text" name="nombre_proveedor" id="nombre_proveedor" required /></div>
-        <div id="nit_dpi_fields">
-          <label for="nit_dpi_input" id="nit_dpi_label">NIT:</label>
-          <input type="text" id="nit_dpi_input" required />
-          <input type="hidden" name="nit_proveedor" id="nit_proveedor" />
-          <input type="hidden" name="dpi" id="dpi" />
-        </div>
-        <div id="comprobante_fields" style="display: none;">
-          <label for="serie">Serie:</label><input type="text" name="serie" id="serie" />
-        </div>
-        <div id="cantidad_field" style="display: none;">
-          <label for="cantidad">Cantidad (Galones):</label><input type="number" name="cantidad" id="cantidad" step="0.01" />
-        </div>
-        <div>
-          <label for="t_gasto">Tipo de Gasto:</label>
-          <select name="t_gasto" id="t_gasto" required><?php echo $select_tipos_gastos; ?></select>
-        </div>
-        <div id="tipo_combustible_field" style="display: none;">
-          <label for="tipo_combustible">Tipo de Combustible:</label>
-          <select name="tipo_combustible" id="tipo_combustible">
-            <option value="">Selecciona un tipo de combustible</option>
-            <option value="Súper">Súper</option>
-            <option value="Regular">Regular</option>
-            <option value="Diesel">Diésel</option>
-          </select>
-        </div>
-        <div><label for="fecha">Fecha:</label><input type="date" name="fecha" id="fecha" min="<?php echo htmlspecialchars($data['fecha_inicio']); ?>" max="<?php echo htmlspecialchars($data['fecha_fin']); ?>" required /></div>
-        <div><label for="total_factura">Total:</label><input type="number" name="total_factura" id="total_factura" step="0.01" required /></div>
-        <div id="tax_fields" style="display: none;">
-          <div id="iva_field"><label for="iva">IVA:</label><input type="number" name="iva" id="iva" step="0.01" readonly /></div>
-          <div id="idp_field"><label for="idp">IDP:</label><input type="number" name="idp" id="idp" step="0.01" readonly /></div>
-          <div id="inguat_field"><label for="inguat">INGUAT:</label><input type="number" name="inguat" id="inguat" step="0.01" readonly /></div>
-        </div>
-        <div><label for="subtotal">Subtotal:</label><input type="number" name="subtotal" id="subtotal" step="0.01" readonly /></div>
-        <div>
-          <label for="id_centro_costo">Centro de Costo:</label>
-          <select name="id_centro_costo" id="id_centro_costo" required><?php echo $select_centros_costos; ?></select>
-        </div>
-        <div>
-          <label for="id_cuenta_contable">Cuenta Contable:</label>
-          <select name="id_cuenta_contable" id="id_cuenta_contable" required>
-            <option value="">Selecciona una cuenta contable</option>
-          </select>
-        </div>
-        <div>
-          <label>Archivos:</label>
-          <input type="file" name="archivos[]" id="archivos" multiple accept=".pdf,.png,.jpg,.jpeg" />
-          <button type="button" id="take-photo-btn">Tomar Foto</button>
-          <div id="photo-preview-container"></div>
-        </div>
-        <div style="text-align: right">
-          <button type="submit">Guardar Cambios</button>
-          <button type="button" onclick="resetForm()">Cancelar</button>
-        </div>
+      <h3>Corregir Factura</h3>
+      <form id="facturaForm" enctype="multipart/form-data">
+          <input type="hidden" name="action" id="action" value="update" />
+          <input type="hidden" name="detalle_id" id="detalle_id" />
+          <input type="hidden" name="removed_files[]" id="removed_files" />
+          <div>
+              <label for="tipo_documento">Tipo de Documento:</label>
+              <select name="tipo_documento" id="tipo_documento" required>
+                  <option value="">Selecciona un tipo de documento</option>
+                  <?php echo $select_tipos_documentos; ?>
+              </select>
+          </div>
+          <div id="nit_dpi_fields">
+              <label for="nit_dpi_input" id="nit_dpi_label">NIT:</label>
+              <input type="text" id="nit_dpi_input" required />
+              <input type="hidden" name="nit_proveedor" id="nit_proveedor" />
+              <input type="hidden" name="dpi" id="dpi" />
+              <div id="dte-suggestions" style="position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; max-height: 300px; overflow-y: auto; width: 100%; display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                  <div style="position: sticky; top: 0; background: white; padding: 8px; border-bottom: 1px solid #ccc;">
+                      <input type="text" id="dte-search-input" placeholder="Filtrar por factura, nombre o fecha..." style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                  <div id="dte-suggestions-list"></div>
+              </div>
+          </div>
+          <div>
+              <label for="no_factura">No. Factura:</label>
+              <input type="text" name="no_factura" id="no_factura" required />
+          </div>
+          <div>
+              <label for="nombre_proveedor">Nombre Proveedor:</label>
+              <input type="text" name="nombre_proveedor" id="nombre_proveedor" required />
+          </div>
+          <div id="comprobante_fields" style="display: none;">
+              <div>
+                  <label for="serie">Serie:</label>
+                  <input type="text" name="serie" id="serie" />
+              </div>
+          </div>
+          <div id="cantidad_field" style="display: none;">
+              <label for="cantidad">Cantidad (galones):</label>
+              <input type="number" name="cantidad" id="cantidad" step="0.01" />
+          </div>
+          <div>
+              <label for="t_gasto">Tipo de Gasto:</label>
+              <select name="t_gasto" id="t_gasto" required>
+                  <option value="">Selecciona un tipo de gasto</option>
+                  <?php echo $select_tipos_gastos; ?>
+              </select>
+          </div>
+          <div id="tipo_combustible_field" style="display: none;">
+              <label for="tipo_combustible">Tipo de Combustible:</label>
+              <select name="tipo_combustible" id="tipo_combustible">
+                  <option value="">Selecciona un tipo de combustible</option>
+                  <option value="Súper">Súper</option>
+                  <option value="Regular">Regular</option>
+                  <option value="Diesel">Diésel</option>
+              </select>
+          </div>
+          <div>
+              <label for="fecha">Fecha:</label>
+              <input type="date" name="fecha" id="fecha" min="<?php echo htmlspecialchars($data['fecha_inicio']); ?>" max="<?php echo htmlspecialchars($data['fecha_fin']); ?>" required />
+          </div>
+          <div>
+              <label for="total_factura">Total:</label>
+              <input type="number" name="total_factura" id="total_factura" step="0.01" required />
+          </div>
+          <div id="tax_fields" style="display: none;">
+              <div id="iva_field">
+                  <label for="iva">IVA:</label>
+                  <input type="number" name="iva" id="iva" step="0.01" readonly />
+              </div>
+              <div id="idp_field">
+                  <label for="idp">IDP:</label>
+                  <input type="number" name="idp" id="idp" step="0.01" readonly />
+              </div>
+              <div id="inguat_field">
+                  <label for="inguat">INGUAT:</label>
+                  <input type="number" name="inguat" id="inguat" step="0.01" readonly />
+              </div>
+          </div>
+          <div>
+              <label for="subtotal">Subtotal:</label>
+              <input type="number" name="subtotal" id="subtotal" step="0.01" readonly />
+          </div>
+          <div id="centros_costo_container">
+              <div class="centro_costo_row">
+                  <label for="id_centro_costo_0">Centro de Costo:</label>
+                  <select name="id_centro_costo[]" id="id_centro_costo_0" class="centro_costo_select" required>
+                      <option value="">Selecciona un centro de costo</option>
+                      <?php echo $select_centros_costos; ?>
+                  </select>
+                  <label for="porcentaje_0">Porcentaje:</label>
+                  <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="100" class="porcentaje_input" required />
+                  <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
+              </div>
+          </div>
+          <span id="porcentaje_total_error" style="color: red; display: none;"></span>
+          <div>
+              <label for="id_cuenta_contable">Cuenta Contable:</label>
+              <select name="id_cuenta_contable" id="id_cuenta_contable" required>
+                  <option value="">Selecciona una cuenta contable</option>
+              </select>
+          </div>
+          <div>
+              <label for="correccion_comentario">Comentario de Corrección:</label>
+              <textarea name="correccion_comentario" id="correccion_comentario" rows="4" maxlength="500" style="resize: none;"></textarea>
+          </div>
+          <div style="display: flex; align-items: center;">
+              <div style="flex-grow: 1;">
+                  <label for="comentarios">Comentarios:</label>
+                  <textarea name="comentarios" id="comentarios" rows="4" maxlength="500" style="resize: none;"></textarea>
+              </div>
+              <button type="button" id="add_centro_costo" style="margin-left: 10px; margin-top: 20px; font-size: 24px;">+</button>
+          </div>
+          <div id="file-upload-container">
+              <label for="archivos">Subir Archivos o Tomar Foto:</label>
+              <input type="file" name="archivos[]" id="archivos" multiple accept="application/pdf,image/*" />
+              <button type="button" id="take-photo-btn">Tomar Foto</button>
+              <div id="photo-preview-container"></div>
+          </div>
+          <div style="text-align: right;">
+              <button type="submit" id="submitBtn">Guardar Cambios</button>
+              <button type="button" onclick="resetForm()">Cancelar</button>
+          </div>
       </form>
   
       <div class="buttons">
-        <button class="submit-corrections-btn" onclick="submitCorrections()">Enviar Correcciones</button>
-        <button class="cancel-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=correccion'">Volver</button>
+          <button class="submit-corrections-btn" onclick="submitCorrections()">Enviar Correcciones</button>
+          <button class="cancel-btn" onclick="window.location.href='index.php?controller=liquidacion&action=list&mode=correccion'">Volver</button>
       </div>
   
       <div id="cameraModal" class="camera-modal">
-        <div class="camera-modal-content">
-          <span class="close-modal" onclick="closeCameraModal()">×</span>
-          <video id="camera-feed" autoplay playsinline></video>
-          <canvas id="photo-canvas" style="display: none"></canvas>
-          <div class="camera-buttons">
-            <button id="capture-photo-btn" onclick="capturePhoto()">Capturar</button>
-            <button id="retake-photo-btn" style="display: none" onclick="retakePhoto()">Reintentar</button>
-            <button id="save-photo-btn" style="display: none" onclick="savePhoto()">Guardar</button>
+          <div class="camera-modal-content">
+              <span class="close-modal" onclick="closeCameraModal()">×</span>
+              <video id="camera-feed" autoplay playsinline></video>
+              <canvas id="photo-canvas" style="display: none"></canvas>
+              <div class="camera-buttons">
+                  <button id="capture-photo-btn" onclick="capturePhoto()">Capturar</button>
+                  <button id="retake-photo-btn" style="display: none" onclick="retakePhoto()">Reintentar</button>
+                  <button id="save-photo-btn" style="display: none" onclick="savePhoto()">Guardar</button>
+              </div>
           </div>
-        </div>
-      </div>
-  
-      <div id="finalizedModal" class="modal">
-        <div>
-          <h3>Liquidación Finalizada</h3>
-          <p id="finalizedMessage"></p>
-          <div id="finalizedOptions"></div>
-          <button onclick="closeFinalizedModal()">Cancelar</button>
-        </div>
-      </div>
-  
-      <div id="selectLiquidationModal" class="modal">
-        <div>
-          <h3>Selecciona una liquidación en proceso</h3>
-          <div id="liquidationOptions"></div>
-          <button onclick="closeSelectLiquidationModal()">Cancelar</button>
-        </div>
-      </div>
-  
-      <div id="deleteModal" class="modal">
-        <div>
-          <h3>Confirmar Eliminación</h3>
-          <p>¿Estás seguro de que deseas eliminar esta factura? Esta acción no se puede deshacer.</p>
-          <button id="confirmDeleteBtn">Eliminar</button>
-          <button onclick="closeDeleteModal()">Cancelar</button>
-        </div>
       </div>
   
       <div id="fileModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h4 id="modalTitle">Archivo</h4>
-            <button class="modal-close" onclick="closeModal()">×</button>
+          <div class="modal-content">
+              <div class="modal-header">
+                  <h4 id="modalTitle">Archivo</h4>
+                  <button class="modal-close" onclick="closeModal()">×</button>
+              </div>
+              <div class="modal-body">
+                  <iframe id="modalIframe" src=""></iframe>
+                  <img id="modalImage" src="" alt="Archivo" />
+              </div>
+              <div class="modal-footer">
+                  <button onclick="closeModal()">Cerrar</button>
+              </div>
           </div>
-          <div class="modal-body">
-            <iframe id="modalIframe" src=""></iframe>
-            <img id="modalImage" src="" alt="Archivo" />
-          </div>
-          <div class="modal-footer">
-            <button onclick="closeModal()">Cerrar</button>
-          </div>
-        </div>
       </div>
-      <script>
-  let stream = null;
-  let capturedFiles = [];
-  let existingFiles = []; // Nuevo: para rastrear archivos existentes
-  const liquidacionId = '<?php echo htmlspecialchars($data['id']); ?>';
-  const originatingRoles = <?php echo json_encode($data['originating_roles'] ?? ['CONTABILIDAD']); ?>;
-  let facturaIdToDelete = null;
+  
+      <div id="deleteModal" class="modal">
+          <div>
+              <h3>Confirmar Eliminación</h3>
+              <p>¿Estás seguro de que deseas eliminar esta factura? Esta acción no se puede deshacer.</p>
+              <button id="confirmDeleteBtn">Eliminar</button>
+              <button onclick="closeDeleteModal()">Cancelar</button>
+          </div>
+      </div>
+  
+      <div id="finalizedModal" class="modal">
+          <div>
+              <h3>Liquidación Finalizada</h3>
+              <p id="finalizedMessage"></p>
+              <div id="finalizedOptions"></div>
+              <button onclick="closeFinalizedModal()">Cancelar</button>
+          </div>
+      </div>
+  
+      <div id="selectLiquidationModal" class="modal">
+          <div>
+              <h3>Selecciona una liquidación en proceso</h3>
+              <div id="liquidationOptions"></div>
+              <button onclick="closeSelectLiquidationModal()">Cancelar</button>
+          </div>
+      </div>
+  </div>
+  <script>
+    let stream = null;
+let capturedFiles = [];
+let existingFiles = [];
+let isSubmitting = false;
+const liquidacionId = '<?php echo htmlspecialchars($data["id"]); ?>';
+const originatingRoles = <?php echo json_encode($data['originating_roles'] ?? ['CONTABILIDAD']); ?>;
+let facturaIdToDelete = null;
+let centroCostoCounter = 0;
 
-  const tipoGastoToCuentaContable = {
-    'Gasto Operativo': 'Servicios administrativos',
-    'Combustible': 'Vehículos',
-    'Hospedaje': 'Vacaciones',
-    'Alimentos': 'Suministros',
-    'Otros': null
-  };
+const tipoGastoToCuentaContable = {
+  'Gasto Operativo': 'Servicios administrativos',
+  'Combustible': 'Vehículos',
+  'Hospedaje': 'Impuesto de turismo (INGUAT)',
+  'Alimentos': 'Suministros',
+  'Otros': null
+};
 
-  const impuestosPorTipoGasto = {
-    'Gasto Operativo': { iva: 12, idp: 4.70, inguat: 0 },
-    'Combustible': { iva: 12, idp_super: 4.70, idp_regular: 4.60, idp_diesel: 1.30, inguat: 0 },
-    'Hospedaje': { iva: 12, idp: 0, inguat: 10 },
-    'Alimentos': { iva: 12, idp: 0, inguat: 0 },
-    'otros...': { iva: 12, idp: 0, inguat: 0 }
-  };
+const impuestosPorTipoGasto = {
+  'Gasto Operativo': { iva: 12, idp: 4.70, inguat: 0 },
+  'Combustible': { iva: 12, idp_super: 4.70, idp_regular: 4.60, idp_diesel: 1.30, inguat: 0 },
+  'Hospedaje': { iva: 12, idp: 0, inguat: 10 },
+  'Alimentos': { iva: 12, idp: 0, inguat: 0 },
+  'Otros': { iva: 12, idp: 0, inguat: 0 }
+};
 
-  function basename(path) {
-    return path.split('/').pop();
-  }
+const impuestosPequeñoContribuyente = {
+  'Gasto Operativo': { iva: 5, idp: 4.70, inguat: 0 },
+  'Combustible': { iva: 5, idp_super: 4.70, idp_regular: 4.60, idp_diesel: 1.30, inguat: 0 },
+  'Hospedaje': { iva: 5, idp: 0, inguat: 10 },
+  'Alimentos': { iva: 5, idp: 0, inguat: 0 },
+  'Otros': { iva: 5, idp: 0, inguat: 0 }
+};
 
-  function openModal(fileUrl, fileName) {
-    // Normalizar la ruta del archivo
-    fileUrl = fileUrl.replace(/\\/g, '/'); // Reemplazar barras invertidas
-    const modal = document.getElementById('fileModal');
-    const iframe = document.getElementById('modalIframe');
-    const image = document.getElementById('modalImage');
-    const modalTitle = document.getElementById('modalTitle');
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-    const pdfExtension = '.pdf';
-    const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
-    const isPdf = fileUrl.toLowerCase().endsWith(pdfExtension);
-
-    iframe.classList.remove('active');
-    image.classList.remove('active');
-    iframe.src = '';
-    image.src = '';
-
-    if (isImage) {
-        image.src = fileUrl;
-        image.classList.add('active');
-    } else if (isPdf) {
-        iframe.src = fileUrl;
-        iframe.classList.add('active');
-    } else {
-        alert('Formato de archivo no soportado.');
-        return;
-    }
-
-    modalTitle.textContent = fileName;
-    modal.style.display = 'flex';
-    makeModalDraggable(modal.querySelector('.modal-content'));
+function basename(path) {
+  return path.split('/').pop();
 }
 
-  function closeModal() {
-    const modal = document.getElementById('fileModal');
-    modal.style.display = 'none';
-    document.getElementById('modalIframe').src = '';
-    document.getElementById('modalImage').src = '';
+function openModal(fileUrl, fileName) {
+  fileUrl = fileUrl.replace(/\\/g, '/');
+  const modal = document.getElementById('fileModal');
+  const iframe = document.getElementById('modalIframe');
+  const image = document.getElementById('modalImage');
+  const modalTitle = document.getElementById('modalTitle');
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+  const pdfExtension = '.pdf';
+  const isImage = imageExtensions.some(ext => fileUrl.toLowerCase().endsWith(ext));
+  const isPdf = fileUrl.toLowerCase().endsWith(pdfExtension);
+
+  iframe.classList.remove('active');
+  image.classList.remove('active');
+  iframe.src = '';
+  image.src = '';
+
+  if (isImage) {
+    image.src = fileUrl;
+    image.classList.add('active');
+  } else if (isPdf) {
+    iframe.src = fileUrl;
+    iframe.classList.add('active');
+  } else {
+    alert('Formato de archivo no soportado.');
+    return;
   }
 
-  document.getElementById('fileModal').addEventListener('click', (event) => {
-    if (event.target === document.getElementById('fileModal')) closeModal();
-  });
+  modalTitle.textContent = fileName;
+  modal.style.display = 'flex';
+  makeModalDraggable(modal.querySelector('.modal-content'));
+}
 
-  function confirmDeleteFactura(facturaId) {
-    facturaIdToDelete = facturaId;
-    document.getElementById('deleteModal').style.display = 'flex';
-  }
+function closeModal() {
+  const modal = document.getElementById('fileModal');
+  modal.style.display = 'none';
+  document.getElementById('modalIframe').src = '';
+  document.getElementById('modalImage').src = '';
+}
 
-  function closeDeleteModal() {
-    facturaIdToDelete = null;
-    document.getElementById('deleteModal').style.display = 'none';
-  }
+document.getElementById('fileModal').addEventListener('click', (event) => {
+  if (event.target === document.getElementById('fileModal')) closeModal();
+});
 
-  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-    if (!facturaIdToDelete) return;
+function confirmDeleteFactura(facturaId) {
+  facturaIdToDelete = facturaId;
+  document.getElementById('deleteModal').style.display = 'flex';
+}
 
-    try {
-      const response = await fetch(`index.php?controller=liquidacion&action=deleteFacturaCorreccion&id=${liquidacionId}&detalle_id=${facturaIdToDelete}`, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Error al eliminar la factura');
+function closeDeleteModal() {
+  facturaIdToDelete = null;
+  document.getElementById('deleteModal').style.display = 'none';
+}
 
-      alert(result.message);
-      const row = document.querySelector(`tr[data-id="${facturaIdToDelete}"]`);
-      if (row) row.remove();
-      closeDeleteModal();
+document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+  if (!facturaIdToDelete) return;
 
-      const remainingRows = document.querySelectorAll('#facturasTable tbody tr');
-      if (remainingRows.length === 0) {
-        window.location.href = 'index.php?controller=liquidacion&action=list&mode=correccion';
-      }
-    } catch (error) {
-      console.error('Error al eliminar factura:', error);
-      alert(error.message || 'Error al eliminar la factura.');
-      closeDeleteModal();
-    }
-  });
-
-  function showFinalizedModal(message, options, callback) {
-    const modal = document.getElementById('finalizedModal');
-    const messageElement = document.getElementById('finalizedMessage');
-    const optionsContainer = document.getElementById('finalizedOptions');
-
-    messageElement.textContent = message;
-    optionsContainer.innerHTML = '';
-    options.forEach((option, index) => {
-      const button = document.createElement('button');
-      button.className = 'modal-option';
-      button.textContent = option.text;
-      button.onclick = () => { closeFinalizedModal(); callback(index + 1); };
-      optionsContainer.appendChild(button);
+  try {
+    const response = await fetch(`index.php?controller=liquidacion&action=deleteFacturaCorreccion&id=${liquidacionId}&detalle_id=${facturaIdToDelete}`, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
-    modal.style.display = 'flex';
-  }
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al eliminar la factura');
 
-  function showSelectLiquidationModal(liquidations, callback) {
-    const modal = document.getElementById('selectLiquidationModal');
-    const optionsContainer = document.getElementById('liquidationOptions');
+    alert(result.message);
+    const row = document.querySelector(`tr[data-id="${facturaIdToDelete}"]`);
+    if (row) row.remove();
+    closeDeleteModal();
 
-    optionsContainer.innerHTML = '';
-    liquidations.forEach((liq, index) => {
-      const button = document.createElement('button');
-      button.className = 'modal-option';
-      button.textContent = `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`;
-      button.onclick = () => { closeSelectLiquidationModal(); callback(index); };
-      optionsContainer.appendChild(button);
-    });
-    modal.style.display = 'flex';
-  }
-
-  function closeSelectLiquidationModal() {
-    document.getElementById('selectLiquidationModal').style.display = 'none';
-  }
-
-  function closeFinalizedModal() {
-    document.getElementById('finalizedModal').style.display = 'none';
-  }
-
-  function validateFileTypes(files) {
-    const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
-    return Array.from(files).every(file => allowedExtensions.includes(file.name.split('.').pop().toLowerCase()));
-  }
-
-  const fileInput = document.getElementById('archivos');
-  fileInput.addEventListener('change', (e) => {
-    const files = e.target.files;
-    if (files.length > 0 && !validateFileTypes(files)) {
-      alert('Solo se permiten archivos PDF, PNG y JPG.');
-      fileInput.value = '';
-    } else {
-      displayFilePreviews(files);
+    const remainingRows = document.querySelectorAll('#facturasTable tbody tr');
+    if (remainingRows.length === 0) {
+      window.location.href = 'index.php?controller=liquidacion&action=list&mode=correccion';
     }
+  } catch (error) {
+    console.error('Error al eliminar factura:', error);
+    alert(error.message || 'Error al eliminar la factura.');
+    closeDeleteModal();
+  }
+});
+
+function showFinalizedModal(message, options, callback) {
+  const modal = document.getElementById('finalizedModal');
+  const messageElement = document.getElementById('finalizedMessage');
+  const optionsContainer = document.getElementById('finalizedOptions');
+
+  messageElement.textContent = message;
+  optionsContainer.innerHTML = '';
+  options.forEach((option, index) => {
+    const button = document.createElement('button');
+    button.className = 'modal-option';
+    button.textContent = option.text;
+    button.onclick = () => { closeFinalizedModal(); callback(index + 1); };
+    optionsContainer.appendChild(button);
   });
+  modal.style.display = 'flex';
+}
 
-  function initializeCameraSupport() {
-    const takePhotoBtn = document.getElementById('take-photo-btn');
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      takePhotoBtn.disabled = false;
-    } else {
-      takePhotoBtn.disabled = true;
-      takePhotoBtn.textContent = 'Tomar Foto (No soportado)';
-    }
+function showSelectLiquidationModal(liquidations, callback) {
+  const modal = document.getElementById('selectLiquidationModal');
+  const optionsContainer = document.getElementById('liquidationOptions');
+
+  optionsContainer.innerHTML = '';
+  liquidations.forEach((liq, index) => {
+    const button = document.createElement('button');
+    button.className = 'modal-option';
+    button.textContent = `${index + 1}. Liquidación ID: ${liq.id} (Caja Chica: ${liq.nombre_caja_chica})`;
+    button.onclick = () => { closeSelectLiquidationModal(); callback(index); };
+    optionsContainer.appendChild(button);
+  });
+  modal.style.display = 'flex';
+}
+
+function closeSelectLiquidationModal() {
+  document.getElementById('selectLiquidationModal').style.display = 'none';
+}
+
+function closeFinalizedModal() {
+  document.getElementById('finalizedModal').style.display = 'none';
+}
+
+function validateFileTypes(files) {
+  const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
+  return Array.from(files).every(file => allowedExtensions.includes(file.name.split('.').pop().toLowerCase()));
+}
+
+function initializeCameraSupport() {
+  const takePhotoBtn = document.getElementById('take-photo-btn');
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    takePhotoBtn.disabled = false;
+  } else {
+    takePhotoBtn.disabled = true;
+    takePhotoBtn.textContent = 'Tomar Foto (No soportado)';
   }
+}
 
-  async function openCameraModal() {
-    const modal = document.getElementById('cameraModal');
-    const cameraFeed = document.getElementById('camera-feed');
-    const captureBtn = document.getElementById('capture-photo-btn');
-    const retakeBtn = document.getElementById('retake-photo-btn');
-    const saveBtn = document.getElementById('save-photo-btn');
+async function openCameraModal() {
+  const modal = document.getElementById('cameraModal');
+  const cameraFeed = document.getElementById('camera-feed');
+  const captureBtn = document.getElementById('capture-photo-btn');
+  const retakeBtn = document.getElementById('retake-photo-btn');
+  const saveBtn = document.getElementById('save-photo-btn');
 
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      cameraFeed.srcObject = stream;
-      modal.classList.add('active');
-      captureBtn.style.display = 'block';
-      retakeBtn.style.display = 'none';
-      saveBtn.style.display = 'none';
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('No se pudo acceder a la cámara.');
-      closeCameraModal();
-    }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    cameraFeed.srcObject = stream;
+    modal.classList.add('active');
+    captureBtn.style.display = 'block';
+    retakeBtn.style.display = 'none';
+    saveBtn.style.display = 'none';
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+    alert('No se pudo acceder a la cámara.');
+    closeCameraModal();
   }
+}
 
-  function capturePhoto() {
-    const cameraFeed = document.getElementById('camera-feed');
-    const canvas = document.getElementById('photo-canvas');
-    const captureBtn = document.getElementById('capture-photo-btn');
-    const retakeBtn = document.getElementById('retake-photo-btn');
-    const saveBtn = document.getElementById('save-photo-btn');
+function capturePhoto() {
+  const cameraFeed = document.getElementById('camera-feed');
+  const canvas = document.getElementById('photo-canvas');
+  const captureBtn = document.getElementById('capture-photo-btn');
+  const retakeBtn = document.getElementById('retake-photo-btn');
+  const saveBtn = document.getElementById('save-photo-btn');
 
-    canvas.width = cameraFeed.videoWidth;
-    canvas.height = cameraFeed.videoHeight;
-    canvas.getContext('2d').drawImage(cameraFeed, 0, 0);
-    if (stream) stream.getTracks().forEach(track => track.stop());
-    stream = null;
+  canvas.width = cameraFeed.videoWidth;
+  canvas.height = cameraFeed.videoHeight;
+  canvas.getContext('2d').drawImage(cameraFeed, 0, 0);
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = null;
 
-    cameraFeed.style.display = 'none';
-    canvas.style.display = 'block';
-    captureBtn.style.display = 'none';
-    retakeBtn.style.display = 'block';
-    saveBtn.style.display = 'block';
+  cameraFeed.style.display = 'none';
+  canvas.style.display = 'block';
+  captureBtn.style.display = 'none';
+  retakeBtn.style.display = 'block';
+  saveBtn.style.display = 'block';
+}
+
+async function retakePhoto() {
+  const cameraFeed = document.getElementById('camera-feed');
+  const canvas = document.getElementById('photo-canvas');
+  const captureBtn = document.getElementById('capture-photo-btn');
+  const retakeBtn = document.getElementById('retake-photo-btn');
+  const saveBtn = document.getElementById('save-photo-btn');
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    cameraFeed.srcObject = stream;
+    cameraFeed.style.display = 'block';
+    canvas.style.display = 'none';
+    captureBtn.style.display = 'block';
+    retakeBtn.style.display = 'none';
+    saveBtn.style.display = 'none';
+  } catch (error) {
+    console.error('Error restarting camera:', error);
+    alert('No se pudo reiniciar la cámara.');
+    closeCameraModal();
   }
+}
 
-  async function retakePhoto() {
-    const cameraFeed = document.getElementById('camera-feed');
-    const canvas = document.getElementById('photo-canvas');
-    const captureBtn = document.getElementById('capture-photo-btn');
-    const retakeBtn = document.getElementById('retake-photo-btn');
-    const saveBtn = document.getElementById('save-photo-btn');
+function savePhoto() {
+  const canvas = document.getElementById('photo-canvas');
+  const photoPreviewContainer = document.getElementById('photo-preview-container');
 
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      cameraFeed.srcObject = stream;
-      cameraFeed.style.display = 'block';
-      canvas.style.display = 'none';
-      captureBtn.style.display = 'block';
-      retakeBtn.style.display = 'none';
-      saveBtn.style.display = 'none';
-    } catch (error) {
-      console.error('Error restarting camera:', error);
-      alert('No se pudo reiniciar la cámara.');
-      closeCameraModal();
-    }
+  canvas.toBlob(blob => {
+    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    capturedFiles.push(file);
+    const dataTransfer = new DataTransfer();
+    capturedFiles.forEach(f => dataTransfer.items.add(f));
+    document.getElementById('archivos').files = dataTransfer.files;
+
+    const previewDiv = document.createElement('div');
+    previewDiv.classList.add('photo-preview');
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    const removeBtn = document.createElement('button');
+    removeBtn.classList.add('remove-photo-btn');
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => removePhoto(file, previewDiv);
+    previewDiv.appendChild(img);
+    previewDiv.appendChild(removeBtn);
+    photoPreviewContainer.appendChild(previewDiv);
+
+    closeCameraModal();
+  }, 'image/jpeg', 0.9);
+}
+
+function removePhoto(fileToRemove, previewDiv) {
+  capturedFiles = capturedFiles.filter(file => file !== fileToRemove);
+  const dataTransfer = new DataTransfer();
+  capturedFiles.forEach(f => dataTransfer.items.add(f));
+  document.getElementById('archivos').files = dataTransfer.files;
+  previewDiv.remove();
+}
+
+function removeExistingFile(ruta, previewDiv) {
+  existingFiles = existingFiles.filter(file => file !== ruta);
+  updateExistingFilesInput();
+  let removedFilesInput = document.getElementById('removed_files');
+  if (!removedFilesInput) {
+    removedFilesInput = document.createElement('input');
+    removedFilesInput.type = 'hidden';
+    removedFilesInput.name = 'removed_files[]';
+    removedFilesInput.id = 'removed_files';
+    document.getElementById('facturaForm').appendChild(removedFilesInput);
   }
+  removedFilesInput.value = ruta;
+  previewDiv.remove();
+}
 
-  function savePhoto() {
-    const canvas = document.getElementById('photo-canvas');
-    const photoPreviewContainer = document.getElementById('photo-preview-container');
+function updateExistingFilesInput() {
+  const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
+  existingInputs.forEach(input => input.remove());
+  existingFiles.forEach(ruta => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'existing_files[]';
+    input.value = ruta;
+    document.getElementById('facturaForm').appendChild(input);
+  });
+}
 
-    canvas.toBlob(blob => {
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      capturedFiles.push(file);
-      const dataTransfer = new DataTransfer();
-      capturedFiles.forEach(f => dataTransfer.items.add(f));
-      fileInput.files = dataTransfer.files;
+function closeCameraModal() {
+  const modal = document.getElementById('cameraModal');
+  const cameraFeed = document.getElementById('camera-feed');
+  const canvas = document.getElementById('photo-canvas');
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = null;
+  cameraFeed.style.display = 'block';
+  canvas.style.display = 'none';
+  document.getElementById('capture-photo-btn').style.display = 'block';
+  document.getElementById('retake-photo-btn').style.display = 'none';
+  document.getElementById('save-photo-btn').style.display = 'none';
+  modal.classList.remove('active');
+}
 
+function displayFilePreviews(files) {
+  const photoPreviewContainer = document.getElementById('photo-preview-container');
+  for (let file of files) {
+    if (file.type.startsWith('image/')) {
       const previewDiv = document.createElement('div');
       previewDiv.classList.add('photo-preview');
       const img = document.createElement('img');
@@ -1203,574 +1337,593 @@
       previewDiv.appendChild(img);
       previewDiv.appendChild(removeBtn);
       photoPreviewContainer.appendChild(previewDiv);
-
-      closeCameraModal();
-    }, 'image/jpeg', 0.9);
-  }
-
-  function removePhoto(fileToRemove, previewDiv) {
-    capturedFiles = capturedFiles.filter(file => file !== fileToRemove);
-    const dataTransfer = new DataTransfer();
-    capturedFiles.forEach(f => dataTransfer.items.add(f));
-    fileInput.files = dataTransfer.files;
-    previewDiv.remove();
-  }
-
-  function removeExistingFile(ruta, previewDiv) {
-    // Eliminar de existingFiles
-    existingFiles = existingFiles.filter(file => file !== ruta);
-    // Actualizar campo oculto existing_files[]
-    updateExistingFilesInput();
-    // Agregar a removed_files[]
-    let removedFilesInput = document.getElementById('removed_files');
-    if (!removedFilesInput) {
-      removedFilesInput = document.createElement('input');
-      removedFilesInput.type = 'hidden';
-      removedFilesInput.name = 'removed_files[]';
-      removedFilesInput.id = 'removed_files';
-      document.getElementById('facturaForm').appendChild(removedFilesInput);
     }
-    removedFilesInput.value = ruta;
-    previewDiv.remove();
+  }
+}
+
+function validatePercentages() {
+  const porcentajeInputs = document.querySelectorAll('.porcentaje_input');
+  let totalPercentage = 0;
+  let isValid = true;
+
+  porcentajeInputs.forEach((input, index) => {
+    const value = parseFloat(input.value) || 0;
+    const errorSpan = document.getElementById(`porcentaje_error_${index}`);
+    if (value <= 0 || value > 100) {
+      errorSpan.textContent = 'El porcentaje debe estar entre 0.01 y 100';
+      errorSpan.style.display = 'block';
+      isValid = false;
+    } else {
+      errorSpan.style.display = 'none';
+    }
+    totalPercentage += value;
+  });
+
+  const totalErrorSpan = document.getElementById('porcentaje_total_error');
+  if (Math.abs(totalPercentage - 100) > 0.01) {
+    totalErrorSpan.textContent = 'La suma de los porcentajes debe ser exactamente 100%';
+    totalErrorSpan.style.display = 'block';
+    isValid = false;
+  } else {
+    totalErrorSpan.style.display = 'none';
   }
 
-  function updateExistingFilesInput() {
-    // Eliminar campos existing_files[] existentes
-    const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
-    existingInputs.forEach(input => input.remove());
-    // Agregar nuevos campos para cada archivo existente
-    existingFiles.forEach(ruta => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'existing_files[]';
-      input.value = ruta;
-      document.getElementById('facturaForm').appendChild(input);
+  return isValid;
+}
+
+function addCentroCostoRow() {
+  const container = document.getElementById('centros_costo_container');
+  const row = document.createElement('div');
+  row.className = 'centro_costo_row';
+  row.id = `centro_costo_row_${centroCostoCounter}`;
+  row.innerHTML = `
+    <label for="id_centro_costo_${centroCostoCounter}">Centro de Costo:</label>
+    <select name="id_centro_costo[]" id="id_centro_costo_${centroCostoCounter}" class="centro_costo_select" required>
+      <option value="">Selecciona un centro de costo</option>
+      <?php echo $select_centros_costos; ?>
+    </select>
+    <label for="porcentaje_${centroCostoCounter}">Porcentaje:</label>
+    <input type="number" name="porcentaje[]" id="porcentaje_${centroCostoCounter}" step="0.01" min="0" max="100" value="0" class="porcentaje_input" required />
+    <span class="porcentaje_error" id="porcentaje_error_${centroCostoCounter}" style="color: red; display: none;"></span>
+    <button type="button" class="remove-centro-costo" onclick="removeCentroCostoRow(${centroCostoCounter})">-</button>
+  `;
+  container.appendChild(row);
+  centroCostoCounter++;
+  updatePercentageListeners();
+  updateCuentaContableOptions();
+}
+
+function removeCentroCostoRow(index) {
+  const row = document.getElementById(`centro_costo_row_${index}`);
+  if (row) row.remove();
+  validatePercentages();
+}
+
+function updatePercentageListeners() {
+  const porcentajeInputs = document.querySelectorAll('.porcentaje_input');
+  porcentajeInputs.forEach(input => {
+    input.removeEventListener('input', validatePercentages);
+    input.addEventListener('input', validatePercentages);
+  });
+}
+
+async function fetchDteSuggestions(nitDpi) {
+  try {
+    const response = await fetch(`index.php?controller=liquidacion&action=fetchDteSuggestions&nit=${nitDpi}`, {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
+    const suggestions = await response.json();
+    if (!response.ok) throw new Error(suggestions.error || 'Error al obtener sugerencias DTE');
+    return suggestions;
+  } catch (error) {
+    console.error('Error fetching DTE suggestions:', error);
+    return [];
+  }
+}
+
+function displayDteSuggestions(suggestions) {
+  const suggestionsList = document.getElementById('dte-suggestions-list');
+  const suggestionsContainer = document.getElementById('dte-suggestions');
+  suggestionsList.innerHTML = '';
+  if (suggestions.length === 0) {
+    suggestionsContainer.style.display = 'none';
+    return;
   }
 
-  function closeCameraModal() {
-    const modal = document.getElementById('cameraModal');
-    const cameraFeed = document.getElementById('camera-feed');
-    const canvas = document.getElementById('photo-canvas');
-    if (stream) stream.getTracks().forEach(track => track.stop());
-    stream = null;
-    cameraFeed.style.display = 'block';
-    canvas.style.display = 'none';
-    document.getElementById('capture-photo-btn').style.display = 'block';
-    document.getElementById('retake-photo-btn').style.display = 'none';
-    document.getElementById('save-photo-btn').style.display = 'none';
-    modal.classList.remove('active');
+  suggestions.forEach(suggestion => {
+    const div = document.createElement('div');
+    div.className = 'dte-suggestion';
+    div.innerHTML = `
+      <strong>No. Factura:</strong> ${suggestion.no_factura}<br>
+      <strong>Nombre Proveedor:</strong> ${suggestion.nombre_proveedor}<br>
+      <strong>Fecha:</strong> ${suggestion.fecha}<br>
+      <strong>Total:</strong> ${suggestion.total_factura}<br>
+      <button onclick="fillFormFromDte(${JSON.stringify(suggestion)})">Seleccionar</button>
+    `;
+    suggestionsList.appendChild(div);
+  });
+  suggestionsContainer.style.display = 'block';
+}
+
+function fillFormFromDte(suggestion) {
+  document.getElementById('tipo_documento').value = suggestion.tipo_documento || 'FACTURA';
+  document.getElementById('no_factura').value = suggestion.no_factura || '';
+  document.getElementById('nombre_proveedor').value = suggestion.nombre_proveedor || '';
+  document.getElementById('nit_dpi_input').value = suggestion.nit_proveedor || suggestion.dpi || '';
+  document.getElementById('nit_proveedor').value = suggestion.nit_proveedor || '';
+  document.getElementById('dpi').value = suggestion.dpi || '';
+  document.getElementById('serie').value = suggestion.serie || '';
+  document.getElementById('cantidad').value = suggestion.cantidad || '';
+  document.getElementById('t_gasto').value = suggestion.t_gasto || '';
+  document.getElementById('tipo_combustible').value = suggestion.tipo_combustible || '';
+  document.getElementById('fecha').value = suggestion.fecha || '';
+  document.getElementById('total_factura').value = parseFloat(suggestion.total_factura || 0).toFixed(2);
+  document.getElementById('iva').value = parseFloat(suggestion.iva || 0).toFixed(2);
+  document.getElementById('idp').value = parseFloat(suggestion.idp || 0).toFixed(2);
+  document.getElementById('inguat').value = parseFloat(suggestion.inguat || 0).toFixed(2);
+  document.getElementById('subtotal').value = parseFloat(suggestion.subtotal || 0).toFixed(2);
+
+  updateFormFields(suggestion.tipo_documento);
+  updateTipoCombustibleField(suggestion.tipo_documento, suggestion.t_gasto);
+  updateCantidadField(suggestion.tipo_documento, suggestion.t_gasto);
+  updateTaxFieldsVisibility(suggestion.tipo_documento, suggestion.t_gasto);
+  updateCuentaContableOptions();
+  updateTaxesAndTotal();
+  document.getElementById('dte-suggestions').style.display = 'none';
+}
+
+async function updateCuentaContableOptions() {
+  const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
+  const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const selectedCentroCosto = centroCostoSelects[0]?.value;
+
+  if (!selectedCentroCosto) {
+    cuentaContableSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
+    return;
   }
 
-  function displayFilePreviews(files) {
-    const photoPreviewContainer = document.getElementById('photo-preview-container');
-    for (let file of files) {
-      if (file.type.startsWith('image/')) {
-        const previewDiv = document.createElement('div');
-        previewDiv.classList.add('photo-preview');
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        const removeBtn = document.createElement('button');
-        removeBtn.classList.add('remove-photo-btn');
-        removeBtn.textContent = '×';
-        removeBtn.onclick = () => removePhoto(file, previewDiv);
-        previewDiv.appendChild(img);
-        previewDiv.appendChild(removeBtn);
-        photoPreviewContainer.appendChild(previewDiv);
+  const currentCuentaName = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
+  const tipoGasto = tipoGastoSelect.value;
+  const mappedCuenta = tipoGastoToCuentaContable[tipoGasto] || '';
+
+  try {
+    const response = await fetch(`index.php?controller=liquidacion&action=fetchHanaAccounts&id_centro_costo=${selectedCentroCosto}`, {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const cuentas = await response.json();
+    if (!response.ok) throw new Error(cuentas.error || 'Error al obtener cuentas contables');
+
+    cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+    cuentas.forEach(cuenta => {
+      const option = document.createElement('option');
+      option.value = cuenta.id;
+      option.textContent = cuenta.nombre;
+      cuentaContableSelect.appendChild(option);
+    });
+
+    if (mappedCuenta) {
+      const mappedOption = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
+      if (mappedOption) {
+        cuentaContableSelect.value = mappedOption.value;
+      } else {
+        const sameNameOption = Array.from(cuentaContableSelect.options).find(opt => opt.text === currentCuentaName);
+        if (sameNameOption) {
+          cuentaContableSelect.value = sameNameOption.value;
+        }
+      }
+    } else {
+      const sameNameOption = Array.from(cuentaContableSelect.options).find(opt => opt.text === currentCuentaName);
+      if (sameNameOption) {
+        cuentaContableSelect.value = sameNameOption.value;
       }
     }
+  } catch (error) {
+    console.error('Error al cargar cuentas contables:', error);
+    cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
   }
+}
+
+function editFactura(facturaId) {
+  const row = document.querySelector(`tr[data-id="${facturaId}"]`);
+  if (!row) {
+    alert('Factura no encontrada.');
+    return;
+  }
+
+  if (row.querySelector('td[data-label="Estado"]').textContent !== 'EN_CORRECCION') {
+    alert('Esta factura no puede ser editada porque no está en estado EN_CORRECCION.');
+    return;
+  }
+
+  const detalle = {
+    id: facturaId,
+    tipo_documento: row.querySelector('td[data-label="Tipo de Documento"]').textContent,
+    no_factura: row.querySelector('td[data-label="No. Factura"]').textContent,
+    nombre_proveedor: row.querySelector('td[data-label="Proveedor"]').textContent,
+    nit_proveedor: row.querySelector('td[data-label="NIT"]').textContent,
+    dpi: row.querySelector('td[data-label="DPI"]').textContent,
+    serie: row.querySelector('td[data-label="Serie"]').textContent,
+    cantidad: row.querySelector('td[data-label="Cantidad"]').textContent,
+    t_gasto: row.querySelector('td[data-label="Tipo de Gasto"]').textContent,
+    tipo_combustible: row.querySelector('td[data-label="Tipo de Combustible"]').textContent,
+    fecha: row.querySelector('td[data-label="Fecha"]').textContent,
+    subtotal: parseFloat(row.querySelector('td[data-label="Subtotal"]').textContent.replace(/,/g, '')) || 0,
+    iva: parseFloat(row.querySelector('td[data-label="IVA"]').textContent.replace(/,/g, '')) || 0,
+    idp: parseFloat(row.querySelector('td[data-label="IDP"]').textContent.replace(/,/g, '')) || 0,
+    inguat: parseFloat(row.querySelector('td[data-label="INGUAT"]').textContent.replace(/,/g, '')) || 0,
+    total_factura: parseFloat(row.querySelector('td[data-label="Total Factura"]').textContent.replace(/,/g, '')) || 0,
+    nombre_centro_costo: row.querySelector('td[data-label="Centro de Costo"]').textContent,
+    cuenta_contable_nombre: row.querySelector('td[data-label="Cuenta Contable"]').textContent,
+    rutas_archivos: row.querySelector('td[data-label="Archivos"]').querySelectorAll('.file-link').length > 0
+      ? Array.from(row.querySelectorAll('.file-link')).map(link => link.getAttribute('data-file').replace('../', ''))
+      : [],
+    porcentaje: parseFloat(row.querySelector('td[data-label="Porcentaje"]').textContent) || 100,
+    correccion_comentario: row.querySelector('td[data-label="Comentario Corrección"]').textContent
+  };
+
+  // Asignar valores al formulario
+  document.getElementById('detalle_id').value = detalle.id || '';
+  document.getElementById('tipo_documento').value = detalle.tipo_documento || '';
+  document.getElementById('no_factura').value = detalle.no_factura || '';
+  document.getElementById('nombre_proveedor').value = detalle.nombre_proveedor || '';
+  
+  const nitDpiInput = document.getElementById('nit_dpi_input');
+  const nitInput = document.getElementById('nit_proveedor');
+  const dpiInput = document.getElementById('dpi');
+  
+  nitDpiInput.value = detalle.tipo_documento.toUpperCase() === 'RECIBO' ? detalle.dpi : detalle.nit_proveedor;
+  nitInput.value = detalle.nit_proveedor || '';
+  dpiInput.value = detalle.dpi || '';
+  
+  document.getElementById('serie').value = detalle.serie !== 'N/A' ? detalle.serie : '';
+  document.getElementById('cantidad').value = detalle.cantidad !== 'N/A' ? detalle.cantidad : '';
+  document.getElementById('t_gasto').value = detalle.t_gasto || '';
+  document.getElementById('tipo_combustible').value = detalle.tipo_combustible || '';
+  document.getElementById('fecha').value = detalle.fecha || '';
+  
+  // Asegurarse de que los valores numéricos se asignen correctamente
+  document.getElementById('total_factura').value = detalle.total_factura.toFixed(2);
+  document.getElementById('iva').value = detalle.iva.toFixed(2);
+  document.getElementById('idp').value = detalle.idp.toFixed(2);
+  document.getElementById('inguat').value = detalle.inguat.toFixed(2);
+  document.getElementById('subtotal').value = detalle.subtotal.toFixed(2);
+  
+  document.getElementById('correccion_comentario').value = detalle.correccion_comentario || '';
+
+  const centrosCostoContainer = document.getElementById('centros_costo_container');
+  centrosCostoContainer.innerHTML = `
+    <div class="centro_costo_row" id="centro_costo_row_0">
+      <label for="id_centro_costo_0">Centro de Costo:</label>
+      <select name="id_centro_costo[]" id="id_centro_costo_0" class="centro_costo_select" required>
+        <option value="">Selecciona un centro de costo</option>
+        <?php echo $select_centros_costos; ?>
+      </select>
+      <label for="porcentaje_0">Porcentaje:</label>
+      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="${detalle.porcentaje}" class="porcentaje_input" required />
+      <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
+    </div>
+  `;
+  centroCostoCounter = 1;
+
+  const centroCostoSelect = document.getElementById('id_centro_costo_0');
+  const centroCostoOption = Array.from(centroCostoSelect.options).find(option => option.text === detalle.nombre_centro_costo);
+  centroCostoSelect.value = centroCostoOption ? centroCostoOption.value : '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
+
+  const photoPreviewContainer = document.getElementById('photo-preview-container');
+  photoPreviewContainer.innerHTML = '';
+  capturedFiles = [];
+  existingFiles = [...detalle.rutas_archivos];
+  detalle.rutas_archivos.forEach(ruta => {
+    const fileName = basename(ruta);
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => ruta.toLowerCase().endsWith(ext));
+    const previewDiv = document.createElement('div');
+    previewDiv.classList.add('photo-preview');
+    if (isImage) {
+      const img = document.createElement('img');
+      img.src = '../' + ruta;
+      previewDiv.appendChild(img);
+    } else {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.textContent = fileName;
+      link.classList.add('file-link');
+      link.setAttribute('data-file', '../' + ruta);
+      link.onclick = () => openModal('../' + ruta, fileName);
+      previewDiv.appendChild(link);
+    }
+    const removeBtn = document.createElement('button');
+    removeBtn.classList.add('remove-photo-btn');
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
+    previewDiv.appendChild(removeBtn);
+    photoPreviewContainer.appendChild(previewDiv);
+  });
+
+  updateExistingFilesInput();
+  updateCuentaContableOptions().then(() => {
+    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    const cuentaOption = Array.from(cuentaContableSelect.options).find(option => option.text === detalle.cuenta_contable_nombre);
+    cuentaContableSelect.value = cuentaOption ? cuentaOption.value : '';
+  });
+
+  updateFormFields(detalle.tipo_documento);
+  updateTipoCombustibleField(detalle.tipo_documento, detalle.t_gasto);
+  updateCantidadField(detalle.tipo_documento, detalle.t_gasto);
+  updateTaxFieldsVisibility(detalle.tipo_documento, detalle.t_gasto);
+  updateTaxesAndTotal();
+  updatePercentageListeners();
+
+  document.getElementById('facturaForm').style.display = 'flex';
+  document.querySelector('#facturaForm button[type="submit"]').textContent = 'Actualizar';
+  window.scrollTo({ top: document.getElementById('facturaForm').offsetTop, behavior: 'smooth' });
+}
+
+function resetForm() {
+  const form = document.getElementById('facturaForm');
+  form.reset();
+  form.style.display = 'none';
+  document.getElementById('detalle_id').value = '';
+  document.querySelector('#facturaForm button[type="submit"]').textContent = 'Guardar Cambios';
+  capturedFiles = [];
+  existingFiles = [];
+  document.getElementById('photo-preview-container').innerHTML = '';
+  const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
+  existingInputs.forEach(input => input.remove());
+  const removedFilesInput = document.getElementById('removed_files');
+  if (removedFilesInput) removedFilesInput.remove();
+  const centrosCostoContainer = document.getElementById('centros_costo_container');
+  centrosCostoContainer.innerHTML = `
+    <div class="centro_costo_row" id="centro_costo_row_0">
+      <label for="id_centro_costo_0">Centro de Costo:</label>
+      <select name="id_centro_costo[]" id="id_centro_costo_0" class="centro_costo_select" required>
+        <option value="">Selecciona un centro de costo</option>
+        <?php echo $select_centros_costos; ?>
+      </select>
+      <label for="porcentaje_0">Porcentaje:</label>
+      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="100" class="porcentaje_input" required />
+      <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
+    </div>
+  `;
+  centroCostoCounter = 1;
+  updateFormFields();
+  updateTipoCombustibleField();
+  updateCantidadField();
+  updateTaxFieldsVisibility();
+  updateTaxesAndTotal();
+  updatePercentageListeners();
+}
+
+async function submitCorrections() {
+  if (isSubmitting) return;
+  isSubmitting = true;
+  try {
+    const stateResponse = await fetch(`index.php?controller=liquidacion&action=getLiquidacionState&id=${liquidacionId}`, {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const stateResult = await stateResponse.json();
+    if (!stateResponse.ok) throw new Error(stateResult.error || 'Error al verificar el estado');
+
+    if (stateResult.estado === 'FINALIZADO') {
+      const detalleId = document.querySelector('#facturasTable tbody tr[data-id]')?.getAttribute('data-id');
+      if (!detalleId) {
+        alert('No hay detalles para procesar.');
+        return;
+      }
+
+      const detailResponse = await fetch(`index.php?controller=liquidacion&action=getDetalleInfo&id=${detalleId}`, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const detailData = await detailResponse.json();
+      if (!detailResponse.ok) throw new Error(detailData.error || 'Error al obtener detalle');
+
+      const idUsuario = detailData.id_usuario;
+      const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones&user_id=${idUsuario}`, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const enProcesoData = await enProcesoResponse.json();
+      if (!enProcesoResponse.ok) throw new Error(enProcesoData.error || 'Error al obtener liquidaciones');
+
+      const options = [{ text: 'Iniciar una nueva liquidación' }];
+      if (enProcesoData.liquidaciones.length > 0) options.push({ text: 'Agregar a una liquidación en proceso' });
+      options.push({ text: 'Eliminar detalle' });
+
+      showFinalizedModal(`La liquidación (ID ${liquidacionId}) está finalizada. ¿Qué deseas hacer con el detalle ${detalleId}?`, options, async (choice) => {
+        try {
+          if (choice === 1) {
+            const newResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+              body: JSON.stringify({ detalle_id: detalleId, user_id: idUsuario })
+            });
+            const newResult = await newResponse.json();
+            if (!newResponse.ok) throw new Error(newResult.error || 'Error al crear');
+            alert('Nueva liquidación creada');
+            window.location.reload();
+          } else if (choice === 2 && enProcesoData.liquidaciones.length > 0) {
+            showSelectLiquidationModal(enProcesoData.liquidaciones, async (index) => {
+              const liquidacionId = enProcesoData.liquidaciones[index].id;
+              const addResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: liquidacionId, user_id: idUsuario })
+              });
+              const addResult = await addResponse.json();
+              if (!addResponse.ok) throw new Error(addResult.error || 'Error al agregar');
+              alert('Detalle agregado');
+              window.location.reload();
+            });
+          } else if (choice === (enProcesoData.liquidaciones.length > 0 ? 3 : 2)) {
+            const deleteResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const deleteResult = await deleteResponse.json();
+            if (!deleteResponse.ok) throw new Error(deleteResult.error || 'Error al eliminar');
+            alert('Detalle eliminado');
+            window.location.reload();
+          }
+        } catch (error) {
+          alert(error.message || 'Error en la operación.');
+        } finally {
+          isSubmitting = false;
+        }
+      });
+      return;
+    }
+
+    let selectedRole;
+    if (originatingRoles.length === 1) {
+      selectedRole = originatingRoles[0];
+    } else {
+      const roleInput = prompt(`Selecciona rol:\n${originatingRoles.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+      if (roleInput === null) {
+        alert('Operación cancelada.');
+        isSubmitting = false;
+        return;
+      }
+      const selectedIndex = parseInt(roleInput) - 1;
+      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= originatingRoles.length) {
+        alert('Selección inválida. Por favor, selecciona un número válido.');
+        isSubmitting = false;
+        return;
+      }
+      selectedRole = originatingRoles[selectedIndex];
+    }
+
+    if (!['CONTABILIDAD', 'SUPERVISOR'].includes(selectedRole)) {
+      console.error('Rol seleccionado no válido:', selectedRole);
+      alert('Error: El rol seleccionado no es válido. Debe ser CONTABILIDAD o SUPERVISOR.');
+      isSubmitting = false;
+      return;
+    }
+
+    if (!confirm(`¿Enviar correcciones a ${selectedRole === 'SUPERVISOR' ? 'autorización' : 'contabilidad'}?`)) {
+      isSubmitting = false;
+      return;
+    }
+
+    const response = await fetch(`index.php?controller=liquidacion&action=submitCorreccion&id=${liquidacionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ originating_role: selectedRole })
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al enviar correcciones');
+
+    alert(result.message || 'Correcciones enviadas.');
+    setTimeout(() => window.location.href = `index.php?controller=liquidacion&action=list`, 500);
+  } catch (error) {
+    console.error('Error al enviar correcciones:', error);
+    alert(error.message || 'Error al enviar correcciones.');
+  } finally {
+    isSubmitting = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const tipoCombustibleSelect = document.getElementById('tipo_combustible');
+  const totalFacturaInput = document.getElementById('total_factura');
+  const cantidadInput = document.getElementById('cantidad');
+  const nitDpiInput = document.getElementById('nit_dpi_input');
+  const addCentroCostoBtn = document.getElementById('add_centro_costo');
+
+  const fechaInicioLiquidacion = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
+  const fechaFinLiquidacion = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
+  const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
+
+  if (suggestedCentroCostoId) {
+    document.getElementById('id_centro_costo_0').value = suggestedCentroCostoId;
+    updateCuentaContableOptions();
+  }
+
+  tipoDocumentoSelect.addEventListener('change', () => {
+    updateFormFields(tipoDocumentoSelect.value);
+    updateTipoCombustibleField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateCantidadField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxFieldsVisibility(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxesAndTotal();
+    updateCuentaContableOptions();
+  });
+
+  tipoGastoSelect.addEventListener('change', () => {
+    updateTipoCombustibleField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateCantidadField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxFieldsVisibility(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxesAndTotal();
+    updateCuentaContableOptions();
+  });
+
+  tipoCombustibleSelect.addEventListener('change', () => {
+    updateTaxesAndTotal();
+  });
+
+  totalFacturaInput.addEventListener('input', () => {
+    updateTaxesAndTotal();
+  });
+
+  cantidadInput.addEventListener('input', () => {
+    updateTaxesAndTotal();
+  });
+
+  nitDpiInput.addEventListener('input', async () => {
+    handleNitDpiInput();
+    const nitDpi = nitDpiInput.value;
+    if (nitDpi && tipoDocumentoSelect.value.toUpperCase() !== 'RECIBO') {
+      const suggestions = await fetchDteSuggestions(nitDpi);
+      displayDteSuggestions(suggestions);
+    } else {
+      document.getElementById('dte-suggestions').style.display = 'none';
+    }
+  });
+
+  document.getElementById('dte-search-input').addEventListener('input', (e) => {
+    const filter = e.target.value.toLowerCase();
+    const suggestions = document.querySelectorAll('#dte-suggestions-list .dte-suggestion');
+    suggestions.forEach(suggestion => {
+      const text = suggestion.textContent.toLowerCase();
+      suggestion.style.display = text.includes(filter) ? 'block' : 'none';
+    });
+  });
+
+  addCentroCostoBtn.addEventListener('click', addCentroCostoRow);
 
   document.getElementById('take-photo-btn').addEventListener('click', openCameraModal);
-  document.addEventListener('DOMContentLoaded', initializeCameraSupport);
-
-  function updateTaxFieldsVisibility(tipoDocumento = null, tipoGasto = null) {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
-    const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
-
-    const taxFields = document.getElementById('tax_fields');
-    const ivaField = document.getElementById('iva_field');
-    const idpField = document.getElementById('idp_field');
-    const inguatField = document.getElementById('inguat_field');
-
-    if (currentTipoDocumento.toUpperCase() !== 'FACTURA') {
-      taxFields.style.display = 'none';
-      return;
-    }
-
-    taxFields.style.display = 'block';
-    const impuestos = impuestosPorTipoGasto[currentTipoGasto] || { iva: 0, idp: 0, inguat: 0 };
-    ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
-    idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
-    inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
-  }
-
-  function updateFormFields(tipoDocumento = null) {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const nitDpiLabel = document.getElementById('nit_dpi_label');
-    const nitDpiInput = document.getElementById('nit_dpi_input');
-    const nitInput = document.getElementById('nit_proveedor');
-    const dpiInput = document.getElementById('dpi');
-    const comprobanteFields = document.getElementById('comprobante_fields');
-    const cantidadField = document.getElementById('cantidad_field');
-    const tipoCombustibleField = document.getElementById('tipo_combustible_field');
-    const taxFields = document.getElementById('tax_fields');
-
-    const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
-    if (currentTipoDocumento.toUpperCase() === 'RECIBO') {
-      nitDpiLabel.textContent = 'DPI:';
-      nitInput.value = '';
-      dpiInput.value = nitDpiInput.value || '';
+  document.getElementById('archivos').addEventListener('change', (e) => {
+    const files = e.target.files;
+    if (files.length > 0 && !validateFileTypes(files)) {
+      alert('Solo se permiten archivos PDF, PNG y JPG.');
+      e.target.value = '';
     } else {
-      nitDpiLabel.textContent = 'NIT:';
-      dpiInput.value = '';
-      nitInput.value = nitDpiInput.value || '';
+      displayFilePreviews(files);
     }
+  });
 
-    comprobanteFields.style.display = currentTipoDocumento.toUpperCase() === 'COMPROBANTE' ? 'block' : 'none';
-    cantidadField.style.display = ['COMPROBANTE', 'FACTURA'].includes(currentTipoDocumento.toUpperCase()) ? 'block' : 'none';
-    tipoCombustibleField.style.display = currentTipoDocumento.toUpperCase() === 'FACTURA' ? 'block' : 'none';
-    taxFields.style.display = currentTipoDocumento.toUpperCase() === 'FACTURA' ? 'block' : 'none';
-
-    updateTaxFieldsVisibility(currentTipoDocumento);
-    updateTaxesAndTotal();
-  }
-
-  function handleNitDpiInput() {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const nitDpiInput = document.getElementById('nit_dpi_input');
-    const nitInput = document.getElementById('nit_proveedor');
-    const dpiInput = document.getElementById('dpi');
-
-    const currentTipoDocumento = tipoDocumentoSelect.value.toUpperCase();
-    if (currentTipoDocumento === 'RECIBO') {
-      dpiInput.value = nitDpiInput.value;
-      nitInput.value = '';
-    } else {
-      nitInput.value = nitDpiInput.value;
-      dpiInput.value = '';
-    }
-  }
-
-  function updateCantidadField(tipoDocumento = null, tipoGasto = null) {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const cantidadField = document.getElementById('cantidad_field');
-    const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
-    const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
-
-    cantidadField.style.display = ['COMPROBANTE', 'FACTURA'].includes(currentTipoDocumento.toUpperCase()) && ['Combustible', 'Gasto Operativo'].includes(currentTipoGasto) ? 'block' : 'none';
-    updateTaxesAndTotal();
-  }
-
-  function updateTipoCombustibleField(tipoDocumento = null, tipoGasto = null) {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const tipoCombustibleField = document.getElementById('tipo_combustible_field');
-    const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
-    const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
-
-    tipoCombustibleField.style.display = currentTipoDocumento.toUpperCase() === 'FACTURA' && currentTipoGasto === 'Combustible' ? 'block' : 'none';
-    updateTaxesAndTotal();
-  }
-
-  function updateTaxesAndTotal() {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const tipoCombustibleSelect = document.getElementById('tipo_combustible');
-    const totalFacturaInput = document.getElementById('total_factura');
-    const cantidadInput = document.getElementById('cantidad');
-    const ivaInput = document.getElementById('iva');
-    const idpInput = document.getElementById('idp');
-    const inguatInput = document.getElementById('inguat');
-    const subtotalInput = document.getElementById('subtotal');
-
-    const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
-    if (tipoDocumento !== 'FACTURA') {
-      ivaInput.value = idpInput.value = inguatInput.value = '';
-      subtotalInput.value = totalFacturaInput.value || 0;
-      return;
-    }
-
-    const tipoGasto = tipoGastoSelect.value;
-    const tipoCombustible = tipoCombustibleSelect.value;
-    const impuestos = impuestosPorTipoGasto[tipoGasto] || { iva: 0, idp: 0, inguat: 0 };
-    let totalBruto = parseFloat(totalFacturaInput.value) || 0;
-    let cantidadGalones = parseFloat(cantidadInput.value) || 0;
-    let iva = 0, idp = 0, inguat = 0;
-
-    if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
-      idp = cantidadGalones * (tipoCombustible === 'Súper' ? impuestos.idp_super : tipoCombustible === 'Regular' ? impuestos.idp_regular : tipoCombustible === 'Diesel' ? impuestos.idp_diesel : 0);
-    } else if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
-      idp = cantidadGalones * impuestos.idp;
-    }
-
-    let subtotalSinImpuestos = totalBruto - idp;
-    const ivaRate = impuestos.iva / 100;
-    const inguatRate = impuestos.inguat / 100;
-    subtotalSinImpuestos = subtotalSinImpuestos / (1 + ivaRate + inguatRate) || subtotalSinImpuestos;
-    iva = subtotalSinImpuestos * ivaRate;
-    inguat = subtotalSinImpuestos * inguatRate;
-
-    ivaInput.value = iva.toFixed(2);
-    idpInput.value = idp.toFixed(2);
-    inguatInput.value = inguat.toFixed(2);
-    subtotalInput.value = (subtotalSinImpuestos + idp).toFixed(2);
-  }
-
-  async function updateCuentaContableOptions() {
-    const centroCostoSelect = document.getElementById('id_centro_costo');
-    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const selectedCentroCosto = centroCostoSelect.value;
-
-    if (!selectedCentroCosto) {
-        cuentaContableSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
-        return;
-    }
-
-    try {
-        const response = await fetch(`index.php?controller=liquidacion&action=fetchHanaAccounts&id_centro_costo=${selectedCentroCosto}`, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const cuentas = await response.json();
-        if (!response.ok) throw new Error(cuentas.error || 'Error al obtener cuentas contables');
-
-        cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
-        cuentas.forEach(cuenta => {
-            const option = document.createElement('option');
-            option.value = cuenta.id;
-            option.textContent = cuenta.nombre;
-            cuentaContableSelect.appendChild(option);
-        });
-
-        const tipoGasto = tipoGastoSelect.value;
-        const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
-        if (mappedCuenta) {
-            const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
-            if (option) cuentaContableSelect.value = option.value;
-        }
-    } catch (error) {
-        console.error('Error al cargar cuentas contables:', error);
-        cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
-    }
-}
-
-function editFactura(detalle) {
-    if (detalle.estado !== 'EN_CORRECCION') {
-        alert('Esta factura no puede ser editada porque no está en estado EN_CORRECCION.');
-        return;
-    }
-
-    document.getElementById('detalle_id').value = detalle.id || '';
-    document.getElementById('tipo_documento').value = detalle.tipo_documento || '';
-    document.getElementById('no_factura').value = detalle.no_factura || '';
-    document.getElementById('nombre_proveedor').value = detalle.nombre_proveedor || '';
-    const nitDpiInput = document.getElementById('nit_dpi_input');
-    const nitInput = document.getElementById('nit_proveedor');
-    const dpiInput = document.getElementById('dpi');
-    nitDpiInput.value = detalle.tipo_documento.toUpperCase() === 'RECIBO' ? detalle.dpi : detalle.nit_proveedor;
-    nitInput.value = detalle.nit_proveedor || '';
-    dpiInput.value = detalle.dpi || '';
-    document.getElementById('serie').value = detalle.serie || '';
-    document.getElementById('cantidad').value = detalle.cantidad || '';
-    document.getElementById('t_gasto').value = detalle.t_gasto || '';
-    document.getElementById('tipo_combustible').value = detalle.tipo_combustible || '';
-    document.getElementById('fecha').value = detalle.fecha || '';
-    document.getElementById('total_factura').value = detalle.total_factura || 0;
-    document.getElementById('iva').value = detalle.iva || 0;
-    document.getElementById('idp').value = detalle.idp || 0;
-    document.getElementById('inguat').value = detalle.inguat || 0;
-    document.getElementById('subtotal').value = detalle.subtotal || 0;
-
-    const centroCostoSelect = document.getElementById('id_centro_costo');
-    const centroCostoOption = Array.from(centroCostoSelect.options).find(option => option.text === detalle.nombre_centro_costo);
-    centroCostoSelect.value = centroCostoOption ? centroCostoOption.value : '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
-
-    // Limpiar contenedor de previsualización y archivos capturados
-    const photoPreviewContainer = document.getElementById('photo-preview-container');
-    photoPreviewContainer.innerHTML = '';
-    capturedFiles = [];
-    existingFiles = [];
-    const fileInput = document.getElementById('archivos');
-    fileInput.value = '';
-
-    // Limpiar campos ocultos previos
-    const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
-    existingInputs.forEach(input => input.remove());
-    const removedFilesInput = document.getElementById('removed_files');
-    if (removedFilesInput) removedFilesInput.remove();
-
-    // Cargar archivos existentes
-    const rutas = detalle.rutas_archivos ? JSON.parse(detalle.rutas_archivos) : [];
-    existingFiles = [...rutas];
-    rutas.forEach(ruta => {
-        const fileName = basename(ruta);
-        const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => ruta.toLowerCase().endsWith(ext));
-        
-        const previewDiv = document.createElement('div');
-        previewDiv.classList.add('photo-preview');
-        
-        if (isImage) {
-            const img = document.createElement('img');
-            img.src = '../' + ruta;
-            previewDiv.appendChild(img);
-        } else {
-            const link = document.createElement('a');
-            link.href = '#';
-            link.textContent = fileName;
-            link.classList.add('file-link');
-            link.setAttribute('data-file', '../' + ruta);
-            link.onclick = () => openModal('../' + ruta, fileName);
-            previewDiv.appendChild(link);
-        }
-
-        const removeBtn = document.createElement('button');
-        removeBtn.classList.add('remove-photo-btn');
-        removeBtn.textContent = '×';
-        removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
-        previewDiv.appendChild(removeBtn);
-        photoPreviewContainer.appendChild(previewDiv);
-    });
-
-    // Actualizar campos ocultos para existing_files[]
-    updateExistingFilesInput();
-
-    updateCuentaContableOptions().then(() => {
-        const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-        const cuentaOption = Array.from(cuentaContableSelect.options).find(option => option.text === detalle.cuenta_contable_nombre || option.value === detalle.id_cuenta_contable);
-        if (cuentaOption) {
-            cuentaContableSelect.value = cuentaOption.value;
-        } else {
-            cuentaContableSelect.value = ''; // Asegurar que no se seleccione una opción inválida
-        }
-    });
-
-    nitDpiInput.addEventListener('input', handleNitDpiInput);
-    updateFormFields(detalle.tipo_documento);
-    updateTipoCombustibleField(detalle.tipo_documento, detalle.t_gasto);
-    updateCantidadField(detalle.tipo_documento, detalle.t_gasto);
-    updateTaxFieldsVisibility(detalle.tipo_documento, detalle.t_gasto);
-    updateTaxesAndTotal();
-
-    document.getElementById('facturaForm').style.display = 'flex';
-    document.querySelector('#facturaForm button[type="submit"]').textContent = 'Actualizar';
-    window.scrollTo({ top: document.getElementById('facturaForm').offsetTop, behavior: 'smooth' });
-}
-
-  function resetForm() {
-    const form = document.getElementById('facturaForm');
-    form.reset();
-    form.style.display = 'none';
-    document.getElementById('detalle_id').value = '';
-    document.querySelector('#facturaForm button[type="submit"]').textContent = 'Guardar Cambios';
-    capturedFiles = [];
-    existingFiles = [];
-    document.getElementById('photo-preview-container').innerHTML = '';
-    // Limpiar campos ocultos
-    const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
-    existingInputs.forEach(input => input.remove());
-    const removedFilesInput = document.getElementById('removed_files');
-    if (removedFilesInput) removedFilesInput.remove();
-    updateFormFields();
-    updateTipoCombustibleField();
-    updateCantidadField();
-    updateTaxFieldsVisibility();
-    updateTaxesAndTotal();
-  }
-
-  async function submitCorrections() {
-    try {
-        const stateResponse = await fetch(`index.php?controller=liquidacion&action=getLiquidacionState&id=${liquidacionId}`, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const stateResult = await stateResponse.json();
-        if (!stateResponse.ok) throw new Error(stateResult.error || 'Error al verificar el estado');
-
-        if (stateResult.estado === 'FINALIZADO') {
-            const detalleId = document.querySelector('#facturasTable tbody tr[data-id]')?.getAttribute('data-id');
-            if (!detalleId) {
-                alert('No hay detalles para procesar.');
-                return;
-            }
-
-            const detailResponse = await fetch(`index.php?controller=liquidacion&action=getDetalleInfo&id=${detalleId}`, {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const detailData = await detailResponse.json();
-            if (!detailResponse.ok) throw new Error(detailData.error || 'Error al obtener detalle');
-
-            const idUsuario = detailData.id_usuario;
-            const enProcesoResponse = await fetch(`index.php?controller=liquidacion&action=getEnProcesoLiquidaciones&user_id=${idUsuario}`, {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const enProcesoData = await enProcesoResponse.json();
-            if (!enProcesoResponse.ok) throw new Error(enProcesoData.error || 'Error al obtener liquidaciones');
-
-            const options = [{ text: 'Iniciar una nueva liquidación' }];
-            if (enProcesoData.liquidaciones.length > 0) options.push({ text: 'Agregar a una liquidación en proceso' });
-            options.push({ text: 'Eliminar detalle' });
-
-            showFinalizedModal(`La liquidación (ID ${liquidacionId}) está finalizada. ¿Qué deseas hacer con el detalle ${detalleId}?`, options, async (choice) => {
-                try {
-                    if (choice === 1) {
-                        const newResponse = await fetch(`index.php?controller=liquidacion&action=createWithDetail`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                            body: JSON.stringify({ detalle_id: detalleId, user_id: idUsuario })
-                        });
-                        const newResult = await newResponse.json();
-                        if (!newResponse.ok) throw new Error(newResult.error || 'Error al crear');
-                        alert('Nueva liquidación creada');
-                        window.location.reload();
-                    } else if (choice === 2 && enProcesoData.liquidaciones.length > 0) {
-                        showSelectLiquidationModal(enProcesoData.liquidaciones, async (index) => {
-                            const liquidacionId = enProcesoData.liquidaciones[index].id;
-                            const addResponse = await fetch(`index.php?controller=liquidacion&action=addDetailToLiquidacion`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                                body: JSON.stringify({ detalle_id: detalleId, liquidacion_id: liquidacionId, user_id: idUsuario })
-                            });
-                            const addResult = await addResponse.json();
-                            if (!addResponse.ok) throw new Error(addResult.error || 'Error al agregar');
-                            alert('Detalle agregado');
-                            window.location.reload();
-                        });
-                    } else if (choice === (enProcesoData.liquidaciones.length > 0 ? 3 : 2)) {
-                        const deleteResponse = await fetch(`index.php?controller=liquidacion&action=deleteDetail&id=${detalleId}`, {
-                            method: 'POST',
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-                        const deleteResult = await deleteResponse.json();
-                        if (!deleteResponse.ok) throw new Error(deleteResult.error || 'Error al eliminar');
-                        alert('Detalle eliminado');
-                        window.location.reload();
-                    }
-                } catch (error) {
-                    alert(error.message || 'Error en la operación.');
-                }
-            });
-            return;
-        }
-
-        // Validar y seleccionar el rol
-        let selectedRole;
-        if (originatingRoles.length === 1) {
-            selectedRole = originatingRoles[0];
-        } else {
-            const roleInput = prompt(`Selecciona rol:\n${originatingRoles.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
-            if (roleInput === null) {
-                alert('Operación cancelada.');
-                return;
-            }
-            const selectedIndex = parseInt(roleInput) - 1;
-            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= originatingRoles.length) {
-                alert('Selección inválida. Por favor, selecciona un número válido.');
-                return;
-            }
-            selectedRole = originatingRoles[selectedIndex];
-        }
-
-        // Validar que el rol seleccionado sea válido
-        if (!['CONTABILIDAD', 'SUPERVISOR'].includes(selectedRole)) {
-            console.error('Rol seleccionado no válido:', selectedRole);
-            alert('Error: El rol seleccionado no es válido. Debe ser CONTABILIDAD o SUPERVISOR.');
-            return;
-        }
-
-        if (!confirm(`¿Enviar correcciones a ${selectedRole === 'SUPERVISOR' ? 'autorización' : 'contabilidad'}?`)) {
-            return;
-        }
-
-        console.log('Enviando correcciones con rol:', selectedRole); // Depuración
-
-        const response = await fetch(`index.php?controller=liquidacion&action=submitCorreccion&id=${liquidacionId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ originating_role: selectedRole })
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Error al enviar correcciones');
-        }
-
-        alert(result.message || 'Correcciones enviadas.');
-        setTimeout(() => window.location.href = `index.php?controller=liquidacion&action=list`, 500);
-    } catch (error) {
-        console.error('Error al enviar correcciones:', error);
-        alert(error.message || 'Error al enviar correcciones.');
-    }
-}
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const tipoDocumentoSelect = document.getElementById('tipo_documento');
-    const tipoGastoSelect = document.getElementById('t_gasto');
-    const tipoCombustibleSelect = document.getElementById('tipo_combustible');
-    const totalFacturaInput = document.getElementById('total_factura');
-    const cantidadInput = document.getElementById('cantidad');
-    const centroCostoSelect = document.getElementById('id_centro_costo');
-    const nitDpiInput = document.getElementById('nit_dpi_input');
-
-    const fechaInicioLiquidacion = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
-    const fechaFinLiquidacion = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
-
-    const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
-    if (centroCostoSelect && suggestedCentroCostoId) {
-      centroCostoSelect.value = suggestedCentroCostoId;
-      updateCuentaContableOptions();
-    }
-
-    tipoDocumentoSelect.addEventListener('change', () => {
-      updateFormFields(tipoDocumentoSelect.value);
-      updateTipoCombustibleField(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateCantidadField(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateTaxFieldsVisibility(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateTaxesAndTotal();
-    });
-
-    tipoGastoSelect.addEventListener('change', () => {
-      updateTipoCombustibleField(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateCantidadField(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateTaxFieldsVisibility(tipoDocumentoSelect.value, tipoGastoSelect.value);
-      updateCuentaContableOptions();
-      updateTaxesAndTotal();
-    });
-
-    tipoCombustibleSelect.addEventListener('change', () => {
-      updateTaxesAndTotal();
-    });
-
-    totalFacturaInput.addEventListener('input', () => {
-      updateTaxesAndTotal();
-    });
-
-    cantidadInput.addEventListener('input', () => {
-      updateTaxesAndTotal();
-    });
-
-    centroCostoSelect.addEventListener('change', () => {
-      updateCuentaContableOptions();
-    });
-
-    nitDpiInput.addEventListener('input', handleNitDpiInput);
-
-    const form = document.getElementById('facturaForm');
-    form.addEventListener('submit', async (e) => {
+  const form = document.getElementById('facturaForm');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    isSubmitting = true;
+
+    if (!validatePercentages()) {
+      alert('Por favor, corrige los porcentajes de los centros de costo.');
+      isSubmitting = false;
+      return;
+    }
 
     const files = document.getElementById('archivos').files;
-    if (files.length > 0) {
-        if (!validateFileTypes(files)) {
-            alert('Solo se permiten archivos PDF, PNG y JPG.');
-            return;
-        }
+    if (files.length > 0 && !validateFileTypes(files)) {
+      alert('Solo se permiten archivos PDF, PNG y JPG.');
+      isSubmitting = false;
+      return;
     }
 
     const fechaFactura = document.getElementById('fecha').value;
@@ -1779,102 +1932,257 @@ function editFactura(detalle) {
     const fecha = new Date(fechaFactura);
 
     if (fechaInicio && fechaFin && fecha) {
-        if (fecha < new Date(fechaInicio) || fecha > new Date(fechaFin)) {
-            alert(`La fecha de la factura debe estar entre ${fechaInicio} y ${fechaFin}.`);
-            return;
-        }
-    } else {
-        console.warn('Fecha de inicio o fin no definida, skipping validation.');
+      if (fecha < new Date(fechaInicio) || fecha > new Date(fechaFin)) {
+        alert(`La fecha de la factura debe estar entre ${fechaInicio} y ${fechaFin}.`);
+        isSubmitting = false;
+        return;
+      }
     }
 
-    const formData = new FormData(document.getElementById('facturaForm'));
+    const formData = new FormData(form);
     formData.append('id', liquidacionId);
-
-    // Añadir nombre_cuenta_contable
     const cuentaContableSelect = document.getElementById('id_cuenta_contable');
     const nombreCuentaContable = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
     formData.append('nombre_cuenta_contable', nombreCuentaContable);
 
-    // Añadir archivos capturados al FormData
     capturedFiles.forEach(file => formData.append('archivos[]', file));
-
-    // Asegurar que removed_files[] se envíe como array
     const removedFiles = Array.from(document.querySelectorAll('input[name="removed_files[]"]')).map(input => input.value).filter(val => val);
     formData.delete('removed_files[]');
     removedFiles.forEach(file => formData.append('removed_files[]', file));
-
-    // Asegurar que existing_files[] se envíe como array
     formData.delete('existing_files[]');
     existingFiles.forEach(file => formData.append('existing_files[]', file));
 
     const cuentaContable = formData.get('id_cuenta_contable');
     if (!cuentaContable || cuentaContable === '') {
-        alert('Por favor, seleccione una Cuenta Contable antes de continuar.');
-        return;
+      alert('Por favor, seleccione una Cuenta Contable antes de continuar.');
+      isSubmitting = false;
+      return;
     }
 
     try {
-        const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
+      const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
 
-        const result = await response.json();
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Error al actualizar la factura');
 
-        if (!response.ok) {
-            throw new Error(result.error || 'Error al actualizar la factura');
+      const detalleId = result.detalle_id;
+      const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+      if (row) {
+        const tipoDocumento = formData.get('tipo_documento').toUpperCase();
+        row.querySelector('td[data-label="Grupo ID"]').textContent = result.grupo_id || 0;
+        row.querySelector('td[data-label="Tipo de Documento"]').textContent = formData.get('tipo_documento') || 'N/A';
+        row.querySelector('td[data-label="No. Factura"]').textContent = formData.get('no_factura') || 'N/A';
+        row.querySelector('td[data-label="Proveedor"]').textContent = formData.get('nombre_proveedor') || 'N/A';
+        row.querySelector('td[data-label="NIT"]').textContent = tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A';
+        row.querySelector('td[data-label="DPI"]').textContent = tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A';
+        row.querySelector('td[data-label="Cantidad"]').textContent = tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? (parseFloat(formData.get('cantidad')) || 'N/A') : 'N/A';
+        row.querySelector('td[data-label="Serie"]').textContent = tipoDocumento === 'COMPROBANTE' ? (formData.get('serie') || 'N/A') : 'N/A';
+        row.querySelector('td[data-label="Centro de Costo"]').textContent = document.querySelector(`#id_centro_costo_0 option[value="${formData.getAll('id_centro_costo[]')[0]}"]`)?.textContent || 'N/A';
+        row.querySelector('td[data-label="Porcentaje"]').textContent = (parseFloat(formData.getAll('porcentaje[]')[0]) || 100).toFixed(2) + '%';
+        row.querySelector('td[data-label="Tipo de Gasto"]').textContent = formData.get('t_gasto') || 'N/A';
+        row.querySelector('td[data-label="Tipo de Combustible"]').textContent = formData.get('tipo_combustible') || 'N/A';
+        row.querySelector('td[data-label="Cuenta Contable"]').textContent = nombreCuentaContable || 'N/A';
+        row.querySelector('td[data-label="Fecha"]').textContent = formData.get('fecha') || 'N/A';
+        row.querySelector('td[data-label="Subtotal"]').textContent = parseFloat(formData.get('subtotal')).toFixed(2);
+        row.querySelector('td[data-label="IVA"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('iva')).toFixed(2) : '0.00';
+        row.querySelector('td[data-label="IDP"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('idp')).toFixed(2) : '0.00';
+        row.querySelector('td[data-label="INGUAT"]').textContent = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento) ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00';
+        row.querySelector('td[data-label="Total Factura"]').textContent = parseFloat(formData.get('total_factura')).toFixed(2);
+        row.querySelector('td[data-label="Estado"]').textContent = 'EN_CORRECCION';
+        row.querySelector('td[data-label="Comentario Corrección"]').textContent = formData.get('correccion_comentario') || 'Sin comentario';
+
+        const archivosCell = row.querySelector('td[data-label="Archivos"]');
+        if (result.rutas_archivos && result.rutas_archivos.length > 0) {
+          let archivosHtml = '';
+          result.rutas_archivos.forEach(ruta => {
+            const fileName = ruta.split('/').pop();
+            archivosHtml += `<div><a href="#" class="file-link" data-file="../${ruta.replace(/\\/g, '/')}" onclick="openModal('../${ruta.replace(/\\/g, '/')}', '${fileName}')">Ver Archivo</a></div>`;
+          });
+          archivosCell.innerHTML = archivosHtml;
+        } else {
+          archivosCell.innerHTML = 'N/A';
         }
 
-        const detalleId = result.detalle_id;
-        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+        document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
+      }
 
-        if (row) {
-            const tipoDocumento = formData.get('tipo_documento').toUpperCase();
-            row.querySelector('td[data-label="Tipo de Documento"]').textContent = formData.get('tipo_documento') || 'N/A';
-            row.querySelector('td[data-label="Número Factura"]').textContent = formData.get('no_factura') || 'N/A';
-            row.querySelector('td[data-label="Proveedor"]').textContent = formData.get('nombre_proveedor') || 'N/A';
-            row.querySelector('td[data-label="NIT"]').textContent = tipoDocumento === 'RECIBO' ? 'N/A' : formData.get('nit_proveedor') || 'N/A';
-            row.querySelector('td[data-label="DPI"]').textContent = tipoDocumento === 'RECIBO' ? formData.get('dpi') || 'N/A' : 'N/A';
-            row.querySelector('td[data-label="Cantidad"]').textContent = tipoDocumento === 'COMPROBANTE' || formData.get('t_gasto') === 'Combustible' || formData.get('t_gasto') === 'Gasto Operativo' ? formData.get('cantidad') || 'N/A' : 'N/A';
-            row.querySelector('td[data-label="Serie"]').textContent = tipoDocumento === 'COMPROBANTE' ? formData.get('serie') || 'N/A' : 'N/A';
-            row.querySelector('td[data-label="Centro de Costo"]').textContent = document.querySelector(`#id_centro_costo option[value="${formData.get('id_centro_costo')}"]`).textContent;
-            row.querySelector('td[data-label="Tipo de Gasto"]').textContent = formData.get('t_gasto') || 'N/A';
-            row.querySelector('td[data-label="Tipo de Combustible"]').textContent = formData.get('tipo_combustible') || 'N/A';
-            row.querySelector('td[data-label="Cuenta Contable"]').textContent = nombreCuentaContable || 'N/A';
-            row.querySelector('td[data-label="Fecha"]').textContent = formData.get('fecha') || 'N/A';
-            row.querySelector('td[data-label="Subtotal"]').textContent = parseFloat(formData.get('subtotal')).toFixed(2);
-            row.querySelector('td[data-label="IVA"]').textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('iva')).toFixed(2) : '0.00';
-            row.querySelector('td[data-label="IDP"]').textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('idp')).toFixed(2) : '0.00';
-            row.querySelector('td[data-label="INGUAT"]').textContent = tipoDocumento === 'FACTURA' ? parseFloat(formData.get('inguat')).toFixed(2) : '0.00';
-            row.querySelector('td[data-label="Total Factura"]').textContent = parseFloat(formData.get('total_factura')).toFixed(2);
-            row.querySelector('td[data-label="Estado"]').textContent = 'EN_CORRECCION';
-
-            const archivosCell = row.querySelector('td[data-label="Archivos"]');
-            if (result.rutas_archivos && result.rutas_archivos.length > 0) {
-                let archivosHtml = '';
-                result.rutas_archivos.forEach(ruta => {
-                    const fileName = ruta.split('/').pop();
-                    archivosHtml += `<div><a href="#" class="file-link" data-file="../${ruta.replace(/\\/g, '/')}" onclick="openModal('../${ruta.replace(/\\/g, '/')}', '${fileName}')">Ver Archivo</a></div>`;
-                });
-                archivosCell.innerHTML = archivosHtml;
-            } else {
-                archivosCell.innerHTML = 'N/A';
-            }
-
-            document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
-        }
-
-        alert('Factura actualizada correctamente.');
-        resetForm();
+      alert('Factura actualizada correctamente.');
+      resetForm();
+      window.location.reload()
+      
     } catch (error) {
-        console.error('Error al actualizar factura:', error);
-        alert(error.message || 'Error al actualizar la factura. Intenta de nuevo.');
+      console.error('Error al actualizar factura:', error);
+      alert(error.message || 'Error al actualizar la factura. Intenta de nuevo.');
+    } finally {
+      isSubmitting = false;
     }
-});
   });
-     </script>
+
+  updateFormFields();
+  updateTipoCombustibleField();
+  updateCantidadField();
+  updateTaxFieldsVisibility();
+  updateTaxesAndTotal();
+  updatePercentageListeners();
+  initializeCameraSupport();
+});
+
+function updateFormFields(tipoDocumento = null) {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const nitDpiLabel = document.getElementById('nit_dpi_label');
+  const nitDpiInput = document.getElementById('nit_dpi_input');
+  const nitInput = document.getElementById('nit_proveedor');
+  const dpiInput = document.getElementById('dpi');
+  const comprobanteFields = document.getElementById('comprobante_fields');
+  const cantidadField = document.getElementById('cantidad_field');
+  const tipoCombustibleField = document.getElementById('tipo_combustible_field');
+  const taxFields = document.getElementById('tax_fields');
+
+  const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
+  if (currentTipoDocumento.toUpperCase() === 'RECIBO') {
+    nitDpiLabel.textContent = 'DPI:';
+    nitInput.value = '';
+    dpiInput.value = nitDpiInput.value || '';
+  } else {
+    nitDpiLabel.textContent = 'NIT:';
+    dpiInput.value = '';
+    nitInput.value = nitDpiInput.value || '';
+  }
+
+  comprobanteFields.style.display = currentTipoDocumento.toUpperCase() === 'COMPROBANTE' ? 'block' : 'none';
+  cantidadField.style.display = ['COMPROBANTE', 'FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase()) ? 'block' : 'none';
+  tipoCombustibleField.style.display = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase()) ? 'block' : 'none';
+  taxFields.style.display = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase()) ? 'block' : 'none';
+
+  updateTaxFieldsVisibility(currentTipoDocumento);
+}
+
+function handleNitDpiInput() {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const nitDpiInput = document.getElementById('nit_dpi_input');
+  const nitInput = document.getElementById('nit_proveedor');
+  const dpiInput = document.getElementById('dpi');
+
+  const currentTipoDocumento = tipoDocumentoSelect.value.toUpperCase();
+  if (currentTipoDocumento === 'RECIBO') {
+    dpiInput.value = nitDpiInput.value;
+    nitInput.value = '';
+  } else {
+    nitInput.value = nitDpiInput.value;
+    dpiInput.value = '';
+  }
+}
+
+function updateCantidadField(tipoDocumento = null, tipoGasto = null) {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const cantidadField = document.getElementById('cantidad_field');
+  const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
+  const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
+
+  cantidadField.style.display = ['COMPROBANTE', 'FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase()) && ['Combustible', 'Gasto Operativo'].includes(currentTipoGasto) ? 'block' : 'none';
+}
+
+function updateTipoCombustibleField(tipoDocumento = null, tipoGasto = null) {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const tipoCombustibleField = document.getElementById('tipo_combustible_field');
+  const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
+  const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
+
+  tipoCombustibleField.style.display = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase()) && currentTipoGasto === 'Combustible' ? 'block' : 'none';
+}
+
+function updateTaxFieldsVisibility(tipoDocumento = null, tipoGasto = null) {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
+  const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
+
+  const taxFields = document.getElementById('tax_fields');
+  const ivaField = document.getElementById('iva_field');
+  const idpField = document.getElementById('idp_field');
+  const inguatField = document.getElementById('inguat_field');
+
+  if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(currentTipoDocumento.toUpperCase())) {
+    taxFields.style.display = 'none';
+    ivaField.style.display = 'none';
+    idpField.style.display = 'none';
+    inguatField.style.display = 'none';
+    return;
+  }
+
+  taxFields.style.display = 'block';
+  const impuestos = currentTipoDocumento.toUpperCase() === 'FACTURA PEQUEÑO CONTRIBUYENTE'
+    ? impuestosPequeñoContribuyente[currentTipoGasto] || { iva: 5, idp: 0, inguat: 0 }
+    : impuestosPorTipoGasto[currentTipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+
+  ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
+  idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
+  inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
+}
+
+function updateTaxesAndTotal() {
+  const tipoDocumentoSelect = document.getElementById('tipo_documento');
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const tipoCombustibleSelect = document.getElementById('tipo_combustible');
+  const totalFacturaInput = document.getElementById('total_factura');
+  const cantidadInput = document.getElementById('cantidad');
+  const ivaInput = document.getElementById('iva');
+  const idpInput = document.getElementById('idp');
+  const inguatInput = document.getElementById('inguat');
+  const subtotalInput = document.getElementById('subtotal');
+
+  const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
+  if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
+    ivaInput.value = '0.00';
+    idpInput.value = '0.00';
+    inguatInput.value = '0.00';
+    subtotalInput.value = parseFloat(totalFacturaInput.value || 0).toFixed(2);
+    return;
+  }
+
+  const tipoGasto = tipoGastoSelect.value;
+  const tipoCombustible = tipoCombustibleSelect.value;
+  const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
+    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }
+    : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+
+  let totalBruto = parseFloat(totalFacturaInput.value) || 0;
+  let cantidadGalones = parseFloat(cantidadInput.value) || 0;
+  let iva = 0, idp = 0, inguat = 0;
+
+  if (!Number.isFinite(totalBruto) || totalBruto < 0) totalBruto = 0;
+  if (!Number.isFinite(cantidadGalones) || cantidadGalones < 0) cantidadGalones = 0;
+
+  if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
+    idp = cantidadGalones * (tipoCombustible === 'Súper' ? impuestos.idp_super : tipoCombustible === 'Regular' ? impuestos.idp_regular : tipoCombustible === 'Diesel' ? impuestos.idp_diesel : 0);
+  } else if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
+    idp = cantidadGalones * impuestos.idp;
+  }
+
+  const ivaRate = impuestos.iva / 100;
+  const inguatRate = impuestos.inguat / 100;
+  let subtotalSinImpuestos = totalBruto / (1 + ivaRate + inguatRate) || 0;
+  iva = subtotalSinImpuestos * ivaRate;
+  inguat = subtotalSinImpuestos * inguatRate;
+  const subtotal = totalBruto - iva - inguat;
+
+  ivaInput.value = iva.toFixed(2);
+  idpInput.value = idp.toFixed(2);
+  inguatInput.value = inguat.toFixed(2);
+  subtotalInput.value = subtotal.toFixed(2);
+
+  // Ensure DOM updates are immediate
+  ivaInput.dispatchEvent(new Event('change'));
+  idpInput.dispatchEvent(new Event('change'));
+  inguatInput.dispatchEvent(new Event('change'));
+  subtotalInput.dispatchEvent(new Event('change'));
+}
+  </script>
   </body>
 </html>
