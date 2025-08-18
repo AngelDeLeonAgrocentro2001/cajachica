@@ -863,7 +863,7 @@
           </div>
           <div id="cantidad_field" style="display: none;">
               <label for="cantidad">Cantidad (galones):</label>
-              <input type="number" name="cantidad" id="cantidad" step="0.01" />
+              <input type="number" name="cantidad" id="cantidad" step="0.001" />
           </div>
           <div>
               <label for="t_gasto">Tipo de Gasto:</label>
@@ -887,25 +887,25 @@
           </div>
           <div>
               <label for="total_factura">Total:</label>
-              <input type="number" name="total_factura" id="total_factura" step="0.01" required />
+              <input type="number" name="total_factura" id="total_factura" step="0.001" required />
           </div>
           <div id="tax_fields" style="display: none;">
               <div id="iva_field">
                   <label for="iva">IVA:</label>
-                  <input type="number" name="iva" id="iva" step="0.01" readonly />
+                  <input type="number" name="iva" id="iva" step="0.001" readonly />
               </div>
               <div id="idp_field">
                   <label for="idp">IDP:</label>
-                  <input type="number" name="idp" id="idp" step="0.01" readonly />
+                  <input type="number" name="idp" id="idp" step="0.001" readonly />
               </div>
               <div id="inguat_field">
                   <label for="inguat">INGUAT:</label>
-                  <input type="number" name="inguat" id="inguat" step="0.01" readonly />
+                  <input type="number" name="inguat" id="inguat" step="0.001" readonly />
               </div>
           </div>
           <div>
               <label for="subtotal">Subtotal:</label>
-              <input type="number" name="subtotal" id="subtotal" step="0.01" readonly />
+              <input type="number" name="subtotal" id="subtotal" step="0.001" readonly />
           </div>
           <div id="centros_costo_container">
               <div class="centro_costo_row">
@@ -915,7 +915,7 @@
                       <?php echo $select_centros_costos; ?>
                   </select>
                   <label for="porcentaje_0">Porcentaje:</label>
-                  <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="100" class="porcentaje_input" required />
+                  <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.001" min="0" max="100" value="100" class="porcentaje_input" required />
                   <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
               </div>
           </div>
@@ -1382,7 +1382,7 @@ function addCentroCostoRow() {
       <?php echo $select_centros_costos; ?>
     </select>
     <label for="porcentaje_${centroCostoCounter}">Porcentaje:</label>
-    <input type="number" name="porcentaje[]" id="porcentaje_${centroCostoCounter}" step="0.01" min="0" max="100" value="0" class="porcentaje_input" required />
+    <input type="number" name="porcentaje[]" id="porcentaje_${centroCostoCounter}" step="0.001" min="0" max="100" value="0" class="porcentaje_input" required />
     <span class="porcentaje_error" id="porcentaje_error_${centroCostoCounter}" style="color: red; display: none;"></span>
     <button type="button" class="remove-centro-costo" onclick="removeCentroCostoRow(${centroCostoCounter})">-</button>
   `;
@@ -1601,7 +1601,7 @@ function editFactura(facturaId) {
         <?php echo $select_centros_costos; ?>
       </select>
       <label for="porcentaje_0">Porcentaje:</label>
-      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="${detalle.porcentaje}" class="porcentaje_input" required />
+      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.001" min="0" max="100" value="${detalle.porcentaje}" class="porcentaje_input" required />
       <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
     </div>
   `;
@@ -1682,7 +1682,7 @@ function resetForm() {
         <?php echo $select_centros_costos; ?>
       </select>
       <label for="porcentaje_0">Porcentaje:</label>
-      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.01" min="0" max="100" value="100" class="porcentaje_input" required />
+      <input type="number" name="porcentaje[]" id="porcentaje_0" step="0.001" min="0" max="100" value="100" class="porcentaje_input" required />
       <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
     </div>
   `;
