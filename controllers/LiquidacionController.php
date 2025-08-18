@@ -3809,7 +3809,7 @@ public function exportar($id)
                     $tipo_documento = $_POST['tipo_documento'] ?? '';
                     $no_factura = (string)($_POST['no_factura'] ?? '');
                     $serie = (string)($_POST['serie'] ?? '');
-                    $numero_dte = $serie && strpos($no_factura, $serie) === 0 ? (string)substr($no_factura, strlen($serie)) : (string)$no_factura;
+                    $numero_dte = $serie && strpos($no_factura, $serie) === 0 ? substr($no_factura, strlen($serie)) : $no_factura;
                     $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
                     $nit_proveedor = $_POST['nit_proveedor'] ?? null;
                     $dpi = $_POST['dpi'] ?? null;
