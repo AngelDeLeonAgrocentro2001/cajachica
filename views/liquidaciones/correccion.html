@@ -2194,32 +2194,45 @@ function updateTaxesAndTotal() {
   let cantidadGalones = parseFloat(cantidadInput.value) || 0;
   let iva = 0, idp = 0, inguat = 0;
 
-  if (!Number.isFinite(totalBruto) || totalBruto < 0) totalBruto = 0;
-  if (!Number.isFinite(cantidadGalones) || cantidadGalones < 0) cantidadGalones = 0;
+  // Validación de valores numéricos
+  if (isNaN(totalBruto) || totalBruto < 0) totalBruto = 0;
+  if (isNaN(cantidadGalones) || cantidadGalones < 0) cantidadGalones = 0;
 
+  // Cálculo de IDP basado en cantidad (solo para Combustible y Gasto Operativo)
   if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
-    idp = cantidadGalones * (tipoCombustible === 'Súper' ? impuestos.idp_super : tipoCombustible === 'Regular' ? impuestos.idp_regular : tipoCombustible === 'Diesel' ? impuestos.idp_diesel : 0);
+    if (tipoCombustible === 'Súper') {
+      idp = cantidadGalones * impuestos.idp_super;
+    } else if (tipoCombustible === 'Regular') {
+      idp = cantidadGalones * impuestos.idp_regular;
+    } else if (tipoCombustible === 'Diesel') {
+      idp = cantidadGalones * impuestos.idp_diesel;
+    }
   } else if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
     idp = cantidadGalones * impuestos.idp;
   }
 
+  // Cálculo correcto del subtotal e impuestos
   const ivaRate = impuestos.iva / 100;
   const inguatRate = impuestos.inguat / 100;
-  let subtotalSinImpuestos = totalBruto / (1 + ivaRate + inguatRate) || 0;
+  
+  // Primero restamos el IDP del total bruto
+  const totalSinIDP = totalBruto - idp;
+  
+  // Luego calculamos el subtotal sin impuestos
+  const subtotalSinImpuestos = totalSinIDP / (1 + ivaRate + inguatRate);
+  
+  // Finalmente calculamos los impuestos
   iva = subtotalSinImpuestos * ivaRate;
   inguat = subtotalSinImpuestos * inguatRate;
-  const subtotal = totalBruto - iva - inguat;
+  
+  // El subtotal es el valor antes de impuestos
+  const subtotal = subtotalSinImpuestos;
 
+  // Asignamos los valores a los campos
   ivaInput.value = iva.toFixed(2);
   idpInput.value = idp.toFixed(2);
   inguatInput.value = inguat.toFixed(2);
   subtotalInput.value = subtotal.toFixed(2);
-
-  // Ensure DOM updates are immediate
-  ivaInput.dispatchEvent(new Event('change'));
-  idpInput.dispatchEvent(new Event('change'));
-  inguatInput.dispatchEvent(new Event('change'));
-  subtotalInput.dispatchEvent(new Event('change'));
 }
   </script>
   </body>
