@@ -972,7 +972,7 @@
         </div>
         <div id="cantidad_field" style="display: none">
           <label for="cantidad">Cantidad (galones):</label>
-          <input type="number" name="cantidad" id="cantidad" step="0.01" />
+          <input type="number" name="cantidad" id="cantidad" step="0.001" />
         </div>
         <div>
           <label for="t_gasto">Tipo de Gasto:</label>
@@ -1000,18 +1000,18 @@
             type="number"
             name="total_factura"
             id="total_factura"
-            step="0.01"
+            step="0.001"
             required
           />
         </div>
         <div id="tax_fields" style="display: none">
           <div id="iva_field">
             <label for="iva">IVA:</label>
-            <input type="number" name="iva" id="iva" step="0.01" readonly />
+            <input type="number" name="iva" id="iva" step="0.001" readonly />
           </div>
           <div id="idp_field">
             <label for="idp">IDP:</label>
-            <input type="number" name="idp" id="idp" step="0.01" readonly />
+            <input type="number" name="idp" id="idp" step="0.001" readonly />
           </div>
           <div id="inguat_field">
             <label for="inguat">INGUAT:</label>
@@ -1019,7 +1019,7 @@
               type="number"
               name="inguat"
               id="inguat"
-              step="0.01"
+              step="0.001"
               readonly
             />
           </div>
@@ -1030,7 +1030,7 @@
             type="number"
             name="subtotal"
             id="subtotal"
-            step="0.01"
+            step="0.001"
             readonly
           />
         </div>
@@ -1046,7 +1046,7 @@
               type="number"
               name="porcentaje[]"
               id="porcentaje_0"
-              step="0.01"
+              step="0.001"
               min="0"
               max="100"
               value="100"
@@ -1642,7 +1642,7 @@
       type="number"
       name="porcentaje[]"
       id="porcentaje_${newIndex}"
-      step="0.01"
+      step="0.001"
       min="0"
       max="100"
       value="0"
@@ -1732,7 +1732,7 @@
               type="number"
               name="porcentaje[]"
               id="porcentaje_0"
-              step="0.01"
+              step="0.001"
               min="0"
               max="100"
               value="100"
@@ -2419,7 +2419,7 @@ document.addEventListener('click', (e) => {
                 type="number"
                 name="porcentaje[]"
                 id="porcentaje_${index}"
-                step="0.01"
+                step="0.001"
                 min="0"
                 max="100"
                 value="${porcentajes[index].toFixed(2)}"
