@@ -3262,13 +3262,13 @@ public function exportar($id)
                         throw new Exception("La fecha de la factura debe estar entre {$liquidacion['fecha_inicio']} y {$liquidacion['fecha_fin']}.");
                     }
 
-                    if ($serie && $numero_dte) {
-                        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM dte WHERE serie = ? AND numero_dte = ?");
-                        $stmt->execute([$serie, $numero_dte]);
-                        if ($stmt->fetchColumn() == 0) {
-                            throw new Exception("El DTE con serie '$serie' y número '$numero_dte' no existe en la base de datos.");
-                        }
-                    }
+                    // if ($serie && $numero_dte) {
+                    //     $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM dte WHERE serie = ? AND numero_dte = ?");
+                    //     $stmt->execute([$serie, $numero_dte]);
+                    //     if ($stmt->fetchColumn() == 0) {
+                    //         throw new Exception("El DTE con serie '$serie' y número '$numero_dte' no existe en la base de datos.");
+                    //     }
+                    // }
 
                     if ($no_factura) {
                         $stmt = $this->pdo->prepare("
