@@ -1056,6 +1056,13 @@
         </div>
         <span id="porcentaje_total_error" style="color: red; display: none;"></span>
         <div>
+          <label for="t_gasto">Tipo de Gasto:</label>
+          <select name="t_gasto" id="t_gasto" required>
+            <option value="">Selecciona un tipo de gasto</option>
+            <?php echo $select_tipos_gastos; ?>
+          </select>
+        </div>
+        <div>
           <label for="id_cuenta_contable">Cuenta Contable:</label>
           <select name="id_cuenta_contable" id="id_cuenta_contable" required>
             <option value="">Selecciona una cuenta contable</option>
@@ -1065,13 +1072,6 @@
           <label for="id_cuenta_contable_propina">Cuenta Contable Propina:</label>
           <select  name="id_cuenta_contable_propina" id="id_cuenta_contable_propina">
             <option value="">Selecciona una cuenta contable para propina</option>
-          </select>
-        </div>
-        <div>
-          <label for="t_gasto">Tipo de Gasto:</label>
-          <select name="t_gasto" id="t_gasto" required>
-            <option value="">Selecciona un tipo de gasto</option>
-            <?php echo $select_tipos_gastos; ?>
           </select>
         </div>
         <div style="display: flex; align-items: center;">
