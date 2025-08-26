@@ -129,8 +129,12 @@ class DetalleLiquidacionController {
             $iva = floatval($_POST['iva'] ?? 0);
             $idp = floatval($_POST['idp'] ?? 0);
             $inguat = floatval($_POST['inguat'] ?? 0);
+            $propina = floatval($_POST['propina'] ?? 0);
             $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
             $nombre_cuenta_contable = $_POST['nombre_cuenta_contable'] ?? 'N/A';
+            $id_cuenta_contable_propina = $_POST['id_cuenta_contable_propina'] ?? null;
+            $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp'] ?? null;
+            $nombre_cuenta_contable_propina = $_POST['nombre_cuenta_contable_propina'] ?? 'N/A';
             $tipo_combustible = $_POST['tipo_combustible'] ?? null;
             $comentarios = $_POST['comentarios'] ?? null;
             $id_usuario = $_SESSION['user_id'];
@@ -144,6 +148,19 @@ class DetalleLiquidacionController {
             // Validar cuenta contable
             if (empty($id_cuenta_contable) && $t_gasto !== 'otros...') {
                 throw new Exception('La Cuenta Contable es obligatoria para el tipo de gasto "' . $t_gasto . '".');
+            }
+    
+            // Validar cuenta contable de propina si aplica
+            if ($t_gasto === 'Alimentos' && $propina > 0 && empty($id_cuenta_contable_propina)) {
+                throw new Exception('La Cuenta Contable de Propina es obligatoria para el tipo de gasto "Alimentos" cuando hay propina.');
+            }
+            
+            if ($t_gasto === 'Combustible') {
+                $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
+                $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+            } else {
+                $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                $id_cuenta_contable_idp = null;
             }
     
             // Validar liquidación
@@ -170,6 +187,21 @@ class DetalleLiquidacionController {
             $totalPorcentaje = array_sum($porcentajes);
             if (abs($totalPorcentaje - 100) > 0.01) {
                 throw new Exception('La suma de los porcentajes debe ser exactamente 100%.');
+            }
+    
+            // Validar y recalcular IVA para Alimentos
+            if ($t_gasto === 'Alimentos' && in_array($tipo_documento, ['FACTURA', 'FACTURA ELECTRONICA'])) {
+                $ivaRate = 0.12; // Suponiendo IVA del 12% para Alimentos
+                $subtotalSinImpuestos = $total_factura - $idp - $inguat - $propina;
+                $expectedSubtotal = $subtotalSinImpuestos / (1 + $ivaRate);
+                $expectedIva = $expectedSubtotal * $ivaRate;
+
+                // Verificar si el IVA recibido coincide con el esperado (con tolerancia para redondeo)
+                if (abs($iva - $expectedIva) > 0.01) {
+                    error_log("IVA recibido ($iva) no coincide con el esperado ($expectedIva). Recalculando IVA.");
+                    $iva = $expectedIva;
+                    $p_unitario = $expectedSubtotal;
+                }
             }
     
             // Manejar archivos
@@ -230,25 +262,38 @@ class DetalleLiquidacionController {
     
             // Crear detalles por cada centro de costo
             $detalle_ids = [];
-            foreach ($id_centro_costo as $index => $centro_costo) {
-                $porcentaje = floatval($porcentajes[$index]);
-                $es_principal = ($index === 0) ? 1 : 0;
-    
-                $detalle_id = $detalleModel->createDetalleLiquidacion(
-                    $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, 
-                    $t_gasto, $p_unitario * ($porcentaje / 100), $total_factura * ($porcentaje / 100), $estado, 
-                    $centro_costo, $cantidad, $serie, $rutas_json, $iva * ($porcentaje / 100), 
-                    $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), $id_cuenta_contable, 
-                    $tipo_combustible, $id_usuario, $comentarios, $porcentaje, $nombre_cuenta_contable, $es_principal, $grupo_id
-                );
-    
-                if (!$detalle_id) {
-                    throw new Exception('Error al crear detalle de liquidación en la base de datos.');
-                }
-    
-                $detalle_ids[] = $detalle_id;
-                error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id para centro de costo $centro_costo con porcentaje $porcentaje");
-            }
+    foreach ($id_centro_costo as $index => $centro_costo) {
+        $porcentaje = floatval($porcentajes[$index]);
+        $es_principal = ($index === 0) ? 1 : 0;
+
+        // Para Alimentos con propina > 0, concatenar ambas cuentas contables
+        if ($t_gasto === 'Alimentos' && $propina > 0 && $id_cuenta_contable_propina) {
+            $cuenta_contable_nombre = $nombre_cuenta_contable . ' / ' . $nombre_cuenta_contable_propina;
+            $cuenta_contable_id = $id_cuenta_contable . ',' . $id_cuenta_contable_propina; // Guardar ambos IDs separados por coma
+        } else {
+            $cuenta_contable_id = $id_cuenta_contable;
+            $cuenta_contable_nombre = $nombre_cuenta_contable;
+        }
+
+        $detalle_id = $detalleModel->createDetalleLiquidacion(
+            $id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, 
+            $t_gasto, $p_unitario * ($porcentaje / 100), $total_factura * ($porcentaje / 100), $estado, 
+            $centro_costo, $cantidad, $serie, $rutas_json, $iva * ($porcentaje / 100), 
+            $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), $propina * ($porcentaje / 100), 
+            $id_cuenta_contable, $tipo_combustible, $id_usuario, $comentarios, $porcentaje, 
+            $nombre_cuenta_contable, $es_principal, $grupo_id,
+            $id_cuenta_contable_propina, // Nuevo parámetro
+            $nombre_cuenta_contable_propina, // Nuevo parámetro
+             $id_cuenta_contable_idp
+        );
+
+        if (!$detalle_id) {
+            throw new Exception('Error al crear detalle de liquidación en la base de datos.');
+        }
+
+        $detalle_ids[] = $detalle_id;
+        error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
+    }
     
             $auditoria = new Auditoria();
             foreach ($detalle_ids as $detalle_id) {
@@ -264,7 +309,7 @@ class DetalleLiquidacionController {
                 'detalle_id' => $detalle_ids[0],
                 'grupo_id' => $grupo_id,
                 'message' => 'Detalles de liquidación creados',
-                'cuenta_contable_nombre' => $nombre_cuenta_contable,
+                'cuenta_contable_nombre' => ($t_gasto === 'Alimentos' && $propina > 0) ? $nombre_cuenta_contable_propina : $nombre_cuenta_contable,
                 'rutas_archivos' => json_decode($rutas_json, true),
                 'centros_costo' => array_map(function($cc, $p) {
                     return ['id_centro_costo' => $cc, 'porcentaje' => $p];
@@ -301,6 +346,7 @@ class DetalleLiquidacionController {
         }
     
         $detalleModel = new DetalleLiquidacion();
+        
         $detalle = $detalleModel->getDetalleById($id);
         if (!$detalle) {
             error_log('Error: Detalle no encontrado para ID ' . $id);
@@ -341,8 +387,12 @@ class DetalleLiquidacionController {
                 $iva = floatval($_POST['iva'] ?? 0);
                 $idp = floatval($_POST['idp'] ?? 0);
                 $inguat = floatval($_POST['inguat'] ?? 0);
+                $propina = floatval($_POST['propina'] ?? 0);
                 $id_cuenta_contable = $_POST['id_cuenta_contable'] ?? null;
                 $nombre_cuenta_contable = $_POST['nombre_cuenta_contable'] ?? 'N/A';
+                $id_cuenta_contable_propina = $_POST['id_cuenta_contable_propina'] ?? null;
+                $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp'] ?? null;
+                $nombre_cuenta_contable_propina = $_POST['nombre_cuenta_contable_propina'] ?? 'N/A';
                 $tipo_combustible = $_POST['tipo_combustible'] ?? null;
                 $comentarios = $_POST['comentarios'] ?? null;
                 $estado = $_POST['estado'] ?? $detalle['estado'];
@@ -356,7 +406,7 @@ class DetalleLiquidacionController {
                 }
     
                 $allowedEstados = [
-                    'EN_PROCESO', 'PENDIENTE_AUTORIZACION', 'PENDIENTE_REVISION_CONTABILIDAD',
+                    'EN_PROceso', 'PENDIENTE_AUTORIZACION', 'PENDIENTE_REVISION_CONTABILIDAD',
                     'FINALIZADO', 'DESCARTADO', 'ENVIADO_A_CORRECCION', 'EN_CORRECCION'
                 ];
                 if (!in_array($estado, $allowedEstados)) {
@@ -375,6 +425,27 @@ class DetalleLiquidacionController {
                 if ($totalPorcentaje < 99.99 || $totalPorcentaje > 100.01) {
                     throw new Exception('La suma de los porcentajes debe ser entre 99.99% y 100.01%.');
                 }
+    
+                // Validar y recalcular IVA para Alimentos
+                if ($t_gasto === 'Alimentos' && in_array($tipo_documento, ['FACTURA', 'FACTURA ELECTRONICA'])) {
+                    $ivaRate = 0.12; // Suponiendo IVA del 12% para Alimentos
+                    $subtotalSinImpuestos = $total_factura - $idp - $inguat - $propina;
+                    $expectedSubtotal = $subtotalSinImpuestos / (1 + $ivaRate);
+                    $expectedIva = $expectedSubtotal * $ivaRate;
+    
+                    // Verificar si el IVA recibido coincide con el esperado (con tolerancia para redondeo)
+                    if (abs($iva - $expectedIva) > 0.01) {
+                        error_log("IVA recibido ($iva) no coincide con el esperado ($expectedIva). Recalculando IVA.");
+                        $iva = $expectedIva;
+                        $subtotal = $expectedSubtotal;
+                    }
+                }
+    
+                // Validar cuenta contable de propina si aplica
+                if ($t_gasto === 'Alimentos' && $propina > 0 && empty($id_cuenta_contable_propina)) {
+                    throw new Exception('La Cuenta Contable de Propina es obligatoria para el tipo de gasto "Alimentos" cuando hay propina.');
+                }
+
     
                 // Manejar archivos
                 $rutas_archivos = json_decode($detalle['rutas_archivos'] ?? '[]', true);
@@ -447,33 +518,47 @@ class DetalleLiquidacionController {
                 foreach ($id_centro_costo as $index => $centro_costo) {
                     $porcentaje = floatval($porcentajes[$index]);
                     $es_principal = ($index == 0) ? 1 : 0;
+    
+                    // Para Alimentos con propina > 0, concatenar ambas cuentas contables
+                    if ($t_gasto === 'Alimentos' && $propina > 0 && $id_cuenta_contable_propina) {
+                        $cuenta_contable_nombre = $nombre_cuenta_contable . ' / ' . $nombre_cuenta_contable_propina;
+                        $cuenta_contable_id = $id_cuenta_contable . ',' . $id_cuenta_contable_propina; // Guardar ambos IDs separados por coma
+                    } else {
+                        $cuenta_contable_id = $id_cuenta_contable;
+                        $cuenta_contable_nombre = $nombre_cuenta_contable;
+                    }
+    
                     if ($index == 0) {
                         // Actualizar el detalle principal
                         $result = $detalleModel->updateDetalleLiquidacion(
                             $id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto,
                             $subtotal * ($porcentaje / 100), $total_factura * ($porcentaje / 100), $centro_costo, 
                             $iva * ($porcentaje / 100), $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), 
-                            $id_cuenta_contable, $cantidad, $serie, $rutas_json, $tipo_combustible, $comentarios, 
-                            $porcentaje, $nombre_cuenta_contable, $estado, $new_grupo_id
+                            $propina * ($porcentaje / 100), $id_cuenta_contable, $cantidad, $serie, $rutas_json, 
+                            $tipo_combustible, $comentarios, $porcentaje, $nombre_cuenta_contable, $estado, $new_grupo_id,
+                            $id_cuenta_contable_propina, // Nuevo parámetro
+                            $nombre_cuenta_contable_propina, // Nuevo parámetro
+                            $id_cuenta_contable_idp
                         );
                         if (!$result) {
                             throw new Exception('Error al actualizar el detalle principal ID ' . $id);
                         }
-                        error_log("Actualizado detalle principal ID $id con grupo_id $new_grupo_id, centro de costo $centro_costo, porcentaje $porcentaje");
+                        error_log("Actualizado detalle principal ID $id con grupo_id $new_grupo_id, centro de costo $centro_costo, porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
                     } else {
                         // Crear nuevos detalles para otros centros de costo
                         $detalle_id = $detalleModel->createDetalleLiquidacion(
                             $detalle['id_liquidacion'], $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, 
                             $t_gasto, $subtotal * ($porcentaje / 100), $total_factura * ($porcentaje / 100), $estado, 
                             $centro_costo, $cantidad, $serie, $rutas_json, $iva * ($porcentaje / 100), 
-                            $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), $id_cuenta_contable, 
-                            $tipo_combustible, $_SESSION['user_id'], $comentarios, $porcentaje, $nombre_cuenta_contable, $es_principal, $new_grupo_id
+                            $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), $propina * ($porcentaje / 100), 
+                            $cuenta_contable_id, $tipo_combustible, $_SESSION['user_id'], $comentarios, $porcentaje, 
+                            $cuenta_contable_nombre, $es_principal, $new_grupo_id
                         );
                         if (!$detalle_id) {
                             throw new Exception('Error al crear detalle secundario para centro de costo ' . $centro_costo);
                         }
                         $detalle_ids[] = $detalle_id;
-                        error_log("Creado detalle secundario ID $detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje");
+                        error_log("Creado detalle secundario ID $detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
                     }
                 }
     
@@ -488,7 +573,8 @@ class DetalleLiquidacionController {
                     'detalle_id' => $id,
                     'grupo_id' => $new_grupo_id,
                     'message' => 'Detalles de liquidación actualizados',
-                    'cuenta_contable_nombre' => $nombre_cuenta_contable,
+                    'cuenta_contable_nombre' => ($t_gasto === 'Alimentos' && $propina > 0) ? 
+                        $nombre_cuenta_contable . ' / ' . $nombre_cuenta_contable_propina : $nombre_cuenta_contable,
                     'rutas_archivos' => json_decode($rutas_json, true),
                     'centros_costo' => array_map(function($cc, $p) {
                         return ['id_centro_costo' => $cc, 'porcentaje' => $p];
@@ -783,15 +869,6 @@ class DetalleLiquidacionController {
         }
         exit;
     }
-
-    // private function getCuentaContableNombre($id_cuenta_contable) {
-    //     if (empty($id_cuenta_contable)) {
-    //         return 'N/A';
-    //     }
-    //     $stmt = $this->pdo->prepare("SELECT nombre FROM cuentas_contables WHERE id = ?");
-    //     $stmt->execute([$id_cuenta_contable]);
-    //     return $stmt->fetchColumn() ?: 'N/A';
-    // }
 
     private function calcularMontoTotal($id_liquidacion) {
         $stmt = $this->pdo->prepare("SELECT SUM(total_factura) as monto_total FROM detalle_liquidaciones WHERE id_liquidacion = ?");
