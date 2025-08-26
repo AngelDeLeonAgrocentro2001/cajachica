@@ -24,7 +24,7 @@ class ReportesController {
         $this->cajaChicaModel = new CajaChica();
         $this->usuarioModel = new Usuario();
         // Define the base URL for absolute links (adjust for production)
-        $this->baseUrl = 'http://localhost:8080/agrocaja-chica/';
+        $this->baseUrl = 'https://caja-chica.agrocentro.site/';
     }
 
     public function list() {
