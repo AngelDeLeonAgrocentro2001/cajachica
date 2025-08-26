@@ -633,6 +633,7 @@
               <th>IVA</th>
               <th>IDP</th>
               <th>INGUAT</th>
+              <th>Propina</th>
               <th>Total Bruto</th>
               <th>Comentarios</th>
               <th>Estado</th>
@@ -720,6 +721,9 @@
               </td>
               <td data-label="INGUAT">
                 <?php echo number_format($detalle['inguat'] ?? 0, 2); ?>
+              </td>
+              <td data-label="Propina">
+                <?php echo number_format($detalle['propina'] ?? 0, 2); ?>
               </td>
               <td data-label="Total Bruto">
                 <?php echo number_format($detalle['total_factura'], 2); ?>
