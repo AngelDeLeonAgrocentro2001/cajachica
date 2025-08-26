@@ -757,6 +757,7 @@
                       <th>IVA</th>
                       <th>IDP</th>
                       <th>INGUAT</th>
+                      <th>Propina</th>
                       <th>Total Factura</th>
                       <th>Comentarios</th>
                       <th>Estado</th>
@@ -804,6 +805,7 @@
                       <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
                       <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
                       <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
+                      <td data-label="Propina"><?php echo number_format($detalle['propina'] ?? 0, 2); ?></td>
                       <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'] ?? 'N/A'); ?></td>
                       <td data-label="Comentarios">
                         <?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?>
@@ -819,7 +821,7 @@
               </tbody>
               <tfoot>
                   <tr>
-                      <td colspan="20" data-label="Total"><strong>Total</strong></td>
+                      <td colspan="21" data-label="Total"><strong>Total</strong></td>
                       <td id="total_general" data-label="Monto"><?php echo number_format($data['monto_total'] ?? 0, 2); ?></td>
                       <td colspan="3"></td>
                   </tr>
@@ -832,6 +834,9 @@
           <input type="hidden" name="action" id="action" value="update" />
           <input type="hidden" name="detalle_id" id="detalle_id" />
           <input type="hidden" name="removed_files[]" id="removed_files" />
+          <input type="hidden" name="nombre_cuenta_contable" id="nombre_cuenta_contable_input" />
+          <input type="hidden" name="nombre_cuenta_contable_propina" id="nombre_cuenta_contable_propina_input" />
+          <input type="hidden" name="id_cuenta_contable_idp" id="id_cuenta_contable_idp_value" />
           <div>
               <label for="tipo_documento">Tipo de Documento:</label>
               <select name="tipo_documento" id="tipo_documento" required>
@@ -911,6 +916,16 @@
               <label for="subtotal">Subtotal:</label>
               <input type="number" name="subtotal" id="subtotal" step="0.001" readonly />
           </div>
+          <div id="propina_field" style="display: none">
+            <label for="propina">Propina:</label>
+            <input type="number" name="propina" id="propina" step="0.001" value="0" min="0" />
+        </div>
+        <div id="cuenta_contable_propina_field" style="display: none">
+          <label for="id_cuenta_contable_propina">Cuenta Contable Propina:</label>
+          <select name="id_cuenta_contable_propina" id="id_cuenta_contable_propina">
+              <option value="">Selecciona una cuenta contable para propina</option>
+          </select>
+      </div>
           <div id="centros_costo_container">
               <div class="centro_costo_row">
                   <label for="id_centro_costo_0">Centro de Costo:</label>
@@ -1024,11 +1039,15 @@ let facturaIdToDelete = null;
 let centroCostoCounter = 0;
 
 const tipoGastoToCuentaContable = {
-  'Gasto Operativo': 'Servicios administrativos',
-  'Combustible': 'Vehículos',
+  'Gasto Operativo': 'Comisiones',
+  'Combustible': 'Combustibles y lubricantes',
   'Hospedaje': 'Impuesto de turismo (INGUAT)',
-  'Alimentos': 'Suministros',
-  'Otros': null
+  'Alimentos': ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'],
+  'otros...': null
+};
+
+const tipoGastoToIDP = {
+  'Combustible': 'IDP' // Solo para combustible
 };
 
 const impuestosPorTipoGasto = {
@@ -1480,56 +1499,140 @@ function fillFormFromDte(suggestion) {
 }
 
 async function updateCuentaContableOptions() {
-  const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
-  const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-  const tipoGastoSelect = document.getElementById('t_gasto');
-  const selectedCentroCosto = centroCostoSelects[0]?.value;
+    const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
+    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    const cuentaContablePropinaSelect = document.getElementById('id_cuenta_contable_propina');
+    const nombreCuentaContableInput = document.getElementById('nombre_cuenta_contable_input');
+    const nombreCuentaContablePropinaInput = document.getElementById('nombre_cuenta_contable_propina_input');
+    const tipoGastoSelect = document.getElementById('t_gasto');
+    const propinaInput = document.getElementById('propina');
+    const cuentaContablePropinaField = document.getElementById('cuenta_contable_propina_field');
+    const selectedCentroCosto = centroCostoSelects[0]?.value;
+    const tipoGasto = tipoGastoSelect.value;
+    const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
 
-  if (!selectedCentroCosto) {
-    cuentaContableSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
-    return;
-  }
 
-  const currentCuentaName = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
-  const tipoGasto = tipoGastoSelect.value;
-  const mappedCuenta = tipoGastoToCuentaContable[tipoGasto] || '';
-
-  try {
-    const response = await fetch(`index.php?controller=liquidacion&action=fetchHanaAccounts&id_centro_costo=${selectedCentroCosto}`, {
-      method: 'GET',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    });
-    const cuentas = await response.json();
-    if (!response.ok) throw new Error(cuentas.error || 'Error al obtener cuentas contables');
-
-    cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
-    cuentas.forEach(cuenta => {
-      const option = document.createElement('option');
-      option.value = cuenta.id;
-      option.textContent = cuenta.nombre;
-      cuentaContableSelect.appendChild(option);
-    });
-
-    if (mappedCuenta) {
-      const mappedOption = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
-      if (mappedOption) {
-        cuentaContableSelect.value = mappedOption.value;
-      } else {
-        const sameNameOption = Array.from(cuentaContableSelect.options).find(opt => opt.text === currentCuentaName);
-        if (sameNameOption) {
-          cuentaContableSelect.value = sameNameOption.value;
-        }
-      }
-    } else {
-      const sameNameOption = Array.from(cuentaContableSelect.options).find(opt => opt.text === currentCuentaName);
-      if (sameNameOption) {
-        cuentaContableSelect.value = sameNameOption.value;
-      }
+    if (!selectedCentroCosto) {
+        cuentaContableSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
+        cuentaContablePropinaSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
+        return;
     }
-  } catch (error) {
-    console.error('Error al cargar cuentas contables:', error);
-    cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
-  }
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=fetchHanaAccounts&id_centro_costo=${selectedCentroCosto}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const cuentas = await response.json();
+
+        // Buscar la cuenta de IDP
+        let idpCuentaValue = null;
+        const idpCuenta = cuentas.find(cuenta => cuenta.nombre === 'IDP');
+        if (idpCuenta) {
+            idpCuentaValue = idpCuenta.id;
+            document.getElementById('id_cuenta_contable_idp_value').value = idpCuentaValue;
+        }
+
+        
+        if (!response.ok) throw new Error(cuentas.error || 'Error al obtener cuentas contables');
+
+        // Limpiar selects
+        cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+        cuentaContablePropinaSelect.innerHTML = '<option value="">Selecciona una cuenta contable para propina</option>';
+
+        // Filtrar cuentas
+        const tipoGasto = tipoGastoSelect.value;
+        const propina = parseFloat(propinaInput.value) || 0;
+
+        let cuentasFiltradas = cuentas;
+        let cuentasPropinaFiltradas = cuentas.filter(cuenta => 
+            ['Gastos no deducibles'].includes(cuenta.nombre)
+        );
+
+        // Para Alimentos, solo mostrar las 3 cuentas específicas
+        if (tipoGasto === 'Alimentos') {
+            cuentasFiltradas = cuentas.filter(cuenta => 
+                ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'].includes(cuenta.nombre)
+            );
+        }
+
+        // Llenar selects
+        cuentasFiltradas.forEach(cuenta => {
+            const option = document.createElement('option');
+            option.value = cuenta.id;
+            option.textContent = cuenta.nombre;
+            option.setAttribute('data-nombre', cuenta.nombre);
+            cuentaContableSelect.appendChild(option);
+        });
+
+        cuentasPropinaFiltradas.forEach(cuenta => {
+            const option = document.createElement('option');
+            option.value = cuenta.id;
+            option.textContent = cuenta.nombre;
+            option.setAttribute('data-nombre', cuenta.nombre);
+            cuentaContablePropinaSelect.appendChild(option);
+        });
+
+        // Manejar propina
+        if (tipoGasto === 'Alimentos' && propina > 0) {
+            cuentaContablePropinaField.style.display = 'block';
+            // Establecer "Gastos no deducibles" como predeterminado
+            const propinaOption = Array.from(cuentaContablePropinaSelect.options).find(opt => 
+                opt.textContent.trim() === 'Gastos no deducibles'
+            );
+            if (propinaOption) {
+                cuentaContablePropinaSelect.value = propinaOption.value;
+                nombreCuentaContablePropinaInput.value = propinaOption.getAttribute('data-nombre');
+            }
+        } else {
+            cuentaContablePropinaField.style.display = 'none';
+            cuentaContablePropinaSelect.value = '';
+            nombreCuentaContablePropinaInput.value = '';
+        }
+
+        if (mappedCuenta) {
+    if (Array.isArray(mappedCuenta)) {
+        // Para Alimentos, establecer Viáticos locales como predeterminado
+        const viaticosOption = Array.from(cuentaContableSelect.options).find(opt => 
+            opt.textContent.trim() === 'Viáticos locales'
+        );
+        if (viaticosOption) {
+            cuentaContableSelect.value = viaticosOption.value;
+            nombreCuentaContableInput.value = viaticosOption.getAttribute('data-nombre');
+            cuentaContableSelect.disabled = false;
+        }
+    } else {
+        // Para otros tipos de gasto, establecer la cuenta predeterminada
+        const option = Array.from(cuentaContableSelect.options).find(opt => 
+            opt.textContent.trim() === mappedCuenta.trim()
+        );
+        if (option) {
+            cuentaContableSelect.value = option.value;
+            nombreCuentaContableInput.value = option.getAttribute('data-nombre');
+            cuentaContableSelect.disabled = true;
+        } else {
+            cuentaContableSelect.disabled = true;
+            cuentaContableSelect.value = '';
+            nombreCuentaContableInput.value = '';
+            console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
+        }
+    }
+} else if (tipoGasto === 'Otros') {
+    // Para "Otros", permitir selección manual
+    cuentaContableSelect.disabled = false;
+    cuentaContableSelect.value = '';
+    nombreCuentaContableInput.value = '';
+} else {
+    cuentaContableSelect.disabled = true;
+    cuentaContableSelect.value = '';
+    nombreCuentaContableInput.value = '';
+}
+
+    } catch (error) {
+        console.error('Error al cargar cuentas contables:', error);
+        cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+        cuentaContablePropinaSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+    }
 }
 
 async function editFactura(facturaId) {
@@ -1538,7 +1641,7 @@ async function editFactura(facturaId) {
         alert('Factura no encontrada.');
         return;
     }
-
+    const propina = parseFloat(row.querySelector('td[data-label="Propina"]')?.textContent || 0);
     if (row.querySelector('td[data-label="Estado"]').textContent !== 'EN_CORRECCION') {
         alert('Esta factura no puede ser editada porque no está en estado EN_CORRECCION.');
         return;
@@ -1617,6 +1720,7 @@ async function editFactura(facturaId) {
     document.getElementById('serie').value = detalle.serie !== 'N/A' ? detalle.serie : '';
     document.getElementById('cantidad').value = detalle.cantidad !== 'N/A' ? detalle.cantidad : '';
     document.getElementById('t_gasto').value = detalle.t_gasto !== 'N/A' ? detalle.t_gasto : '';
+    document.getElementById('propina').value = propina.toFixed(2);
     document.getElementById('tipo_combustible').value = detalle.tipo_combustible !== 'N/A' ? detalle.tipo_combustible : '';
     document.getElementById('fecha').value = detalle.fecha !== 'N/A' ? detalle.fecha : '';
     
@@ -1629,6 +1733,7 @@ async function editFactura(facturaId) {
     
     document.getElementById('correccion_comentario').value = detalle.correccion_comentario !== 'N/A' ? detalle.correccion_comentario : '';
     document.getElementById('comentarios').value = detalle.comentarios !== 'N/A' ? detalle.comentarios : ''; // Nuevo campo
+    updateTipoGastoFields();
 
     // Configurar centros de costo
     const centrosCostoContainer = document.getElementById('centros_costo_container');
@@ -1694,7 +1799,7 @@ async function editFactura(facturaId) {
     // Actualizar la cuenta contable
     await updateCuentaContableOptions();
     const cuentaContableSelect = document.getElementById('id_cuenta_contable');
-    const cuentaOption = Array.from(cuentaContableSelect.options).find(option => option.text === detalle.cuenta_contable_nombre);
+    const cuentaOption = Array.from(cuentaContableSelect.options).find((option) => option.text.trim() === detalle.cuenta_contable_nombre.trim());
     if (cuentaOption) {
         cuentaContableSelect.value = cuentaOption.value;
     } else {
@@ -1968,14 +2073,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSubmitting) return;
     isSubmitting = true;
 
-    // Validar porcentajes de centros de costo
+    // Instantiate formData at the beginning
+    const formData = new FormData(document.getElementById('facturaForm'));
+
+    // Validate percentages
     if (!validatePercentages()) {
         alert('Por favor, corrige los porcentajes de los centros de costo.');
         isSubmitting = false;
         return;
     }
 
-    // Validar archivos adjuntos
+    // Set IDP account for Combustible
+    const tipoGasto = document.getElementById('t_gasto').value;
+    if (tipoGasto === 'Combustible') {
+        const idpValue = document.getElementById('id_cuenta_contable_idp_value').value;
+        formData.set('id_cuenta_contable_idp', idpValue);
+    } else {
+        formData.set('id_cuenta_contable_idp', '');
+    }
+
+    // Validate files
     const files = document.getElementById('archivos').files;
     if (files.length > 0 && !validateFileTypes(files)) {
         alert('Solo se permiten archivos PDF, PNG y JPG.');
@@ -1983,7 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Validar campos numéricos
+    // Validate numeric fields
     const totalFactura = parseFloat(document.getElementById('total_factura').value);
     const subtotal = parseFloat(document.getElementById('subtotal').value);
     const iva = parseFloat(document.getElementById('iva').value);
@@ -2002,7 +2119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Validar fecha
+    // Validate date
     const fechaFactura = document.getElementById('fecha').value;
     const fechaInicio = '<?php echo htmlspecialchars($data['fecha_inicio']); ?>';
     const fechaFin = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
@@ -2016,7 +2133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Validar cuenta contable
+    // Validate accounting account
     const cuentaContableSelect = document.getElementById('id_cuenta_contable');
     const cuentaContable = cuentaContableSelect.value;
     const nombreCuentaContable = cuentaContableSelect.options[cuentaContableSelect.selectedIndex]?.text || '';
@@ -2028,19 +2145,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-        // Preparar datos del formulario
-        const formData = new FormData(document.getElementById('facturaForm'));
+        // Add additional form data
         formData.append('id', liquidacionId);
+        formData.append('id_cuenta_contable', cuentaContableSelect.value);
         formData.append('nombre_cuenta_contable', nombreCuentaContable);
 
-        // Asegurar valores numéricos con 2 decimales
+        // Ensure numeric values have 2 decimal places
         formData.set('total_factura', totalFactura.toFixed(2));
         formData.set('subtotal', subtotal.toFixed(2));
         formData.set('iva', iva.toFixed(2));
         formData.set('idp', idp.toFixed(2));
         formData.set('inguat', inguat.toFixed(2));
 
-        // Manejar archivos
+        // Handle files
         capturedFiles.forEach(file => formData.append('archivos[]', file));
         const removedFiles = Array.from(document.querySelectorAll('input[name="removed_files[]"]')).map(input => input.value).filter(val => val);
         formData.delete('removed_files[]');
@@ -2048,7 +2165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.delete('existing_files[]');
         existingFiles.forEach(file => formData.append('existing_files[]', file));
 
-        // Enviar datos al servidor
+        // Send data to server
         const response = await fetch(`index.php?controller=liquidacion&action=updateCorreccion&id=${liquidacionId}`, {
             method: 'POST',
             body: formData,
@@ -2060,16 +2177,16 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(result.error || 'Error al actualizar la factura');
         }
 
-        // Actualizar o crear filas en la tabla para cada centro de costo
+        // Update or create rows in the table for each cost center
         const grupoId = result.grupo_id || 0;
         const existingRows = document.querySelectorAll(`#facturasTable tbody tr[data-grupo-id="${grupoId}"]`);
-        existingRows.forEach(row => row.remove()); // Eliminar filas existentes del grupo
+        existingRows.forEach(row => row.remove()); // Remove existing rows for the group
 
         result.centros_costo.forEach((centro, index) => {
             const centroCostoSelect = document.querySelector(`#id_centro_costo_${index} option[value="${centro.id_centro_costo}"]`);
             const nombreCentroCosto = centroCostoSelect ? centroCostoSelect.textContent : 'N/A';
             const tipoDocumento = formData.get('tipo_documento').toUpperCase();
-            const detalleId = result.detalle_ids[index] || result.detalle_id; // Usar detalle_ids del servidor
+            const detalleId = result.detalle_ids[index] || result.detalle_id; // Use detalle_ids from server
 
             const newRow = document.createElement('tr');
             newRow.setAttribute('data-id', detalleId);
@@ -2115,7 +2232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('total_general').textContent = parseFloat(result.monto_total).toFixed(2);
 
-        // Mostrar mensaje de éxito y recargar la página
+        // Show success message and reload page
         alert('Factura actualizada correctamente. La página se recargará.');
         setTimeout(() => {
             window.location.reload();
@@ -2136,6 +2253,34 @@ document.addEventListener('DOMContentLoaded', () => {
   updateTaxesAndTotal();
   updatePercentageListeners();
   initializeCameraSupport();
+  document.getElementById('propina').addEventListener('input', () => {
+    updateTipoGastoFields();
+    updateTaxesAndTotal();
+});
+
+document.getElementById('id_cuenta_contable').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption && selectedOption.getAttribute('data-nombre')) {
+        document.getElementById('nombre_cuenta_contable_input').value = selectedOption.getAttribute('data-nombre');
+    }
+    updateTaxesAndTotal();
+});
+
+document.getElementById('id_cuenta_contable_propina').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption && selectedOption.getAttribute('data-nombre')) {
+        document.getElementById('nombre_cuenta_contable_propina_input').value = selectedOption.getAttribute('data-nombre');
+    }
+});
+
+tipoGastoSelect.addEventListener('change', () => {
+    updateTipoGastoFields(); // Esto mostrará/ocultará el campo de propina
+    updateTipoCombustibleField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateCantidadField(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxFieldsVisibility(tipoDocumentoSelect.value, tipoGastoSelect.value);
+    updateTaxesAndTotal();
+    updateCuentaContableOptions();
+});
 });
 
 function updateFormFields(tipoDocumento = null) {
@@ -2233,76 +2378,123 @@ function updateTaxFieldsVisibility(tipoDocumento = null, tipoGasto = null) {
   inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
 }
 
-function updateTaxesAndTotal() {
-  const tipoDocumentoSelect = document.getElementById('tipo_documento');
-  const tipoGastoSelect = document.getElementById('t_gasto');
-  const tipoCombustibleSelect = document.getElementById('tipo_combustible');
-  const totalFacturaInput = document.getElementById('total_factura');
-  const cantidadInput = document.getElementById('cantidad');
-  const ivaInput = document.getElementById('iva');
-  const idpInput = document.getElementById('idp');
-  const inguatInput = document.getElementById('inguat');
-  const subtotalInput = document.getElementById('subtotal');
+function updateTipoGastoFields(tipoGasto = null) {
+    const tipoGastoSelect = document.getElementById('t_gasto');
+    const propinaField = document.getElementById('propina_field');
+    const cuentaContablePropinaField = document.getElementById('cuenta_contable_propina_field');
+    const currentTipoGasto = tipoGasto || tipoGastoSelect.value || '';
 
-  const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
-  if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
-    ivaInput.value = '0.00';
-    idpInput.value = '0.00';
-    inguatInput.value = '0.00';
-    subtotalInput.value = parseFloat(totalFacturaInput.value || 0).toFixed(2);
-    return;
-  }
-
-  const tipoGasto = tipoGastoSelect.value;
-  const tipoCombustible = tipoCombustibleSelect.value;
-  const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
-    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }
-    : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
-
-  let totalBruto = parseFloat(totalFacturaInput.value) || 0;
-  let cantidadGalones = parseFloat(cantidadInput.value) || 0;
-  let iva = 0, idp = 0, inguat = 0;
-
-  // Validación de valores numéricos
-  if (isNaN(totalBruto) || totalBruto < 0) totalBruto = 0;
-  if (isNaN(cantidadGalones) || cantidadGalones < 0) cantidadGalones = 0;
-
-  // Cálculo de IDP basado en cantidad (solo para Combustible y Gasto Operativo)
-  if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
-    if (tipoCombustible === 'Súper') {
-      idp = cantidadGalones * impuestos.idp_super;
-    } else if (tipoCombustible === 'Regular') {
-      idp = cantidadGalones * impuestos.idp_regular;
-    } else if (tipoCombustible === 'Diesel') {
-      idp = cantidadGalones * impuestos.idp_diesel;
+    if (currentTipoGasto === 'Alimentos') {
+        propinaField.style.display = 'block';
+        // Mostrar campo de cuenta contable para propina si hay propina > 0
+        const propina = parseFloat(document.getElementById('propina').value) || 0;
+        if (propina > 0) {
+            cuentaContablePropinaField.style.display = 'block';
+        } else {
+            cuentaContablePropinaField.style.display = 'none';
+        }
+    } else {
+        propinaField.style.display = 'none';
+        cuentaContablePropinaField.style.display = 'none';
+        document.getElementById('propina').value = '0';
+        document.getElementById('id_cuenta_contable_propina').value = '';
     }
-  } else if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
-    idp = cantidadGalones * impuestos.idp;
-  }
 
-  // Cálculo correcto del subtotal e impuestos
-  const ivaRate = impuestos.iva / 100;
-  const inguatRate = impuestos.inguat / 100;
-  
-  // Primero restamos el IDP del total bruto
-  const totalSinIDP = totalBruto - idp;
-  
-  // Luego calculamos el subtotal sin impuestos
-  const subtotalSinImpuestos = totalSinIDP / (1 + ivaRate + inguatRate);
-  
-  // Finalmente calculamos los impuestos
-  iva = subtotalSinImpuestos * ivaRate;
-  inguat = subtotalSinImpuestos * inguatRate;
-  
-  // El subtotal es el valor antes de impuestos
-  const subtotal = subtotalSinImpuestos;
-
-  // Asignamos los valores a los campos
-  ivaInput.value = iva.toFixed(2);
-  idpInput.value = idp.toFixed(2);
-  inguatInput.value = inguat.toFixed(2);
-  subtotalInput.value = subtotal.toFixed(2);
+    updateTipoCombustibleField();
+    updateTaxFieldsVisibility();
+    updateTaxesAndTotal();
+    updateCuentaContableOptions();
 }
+
+function updateTaxesAndTotal() {
+    const tipoDocumentoSelect = document.getElementById('tipo_documento');
+    const tipoGastoSelect = document.getElementById('t_gasto');
+    const tipoCombustibleSelect = document.getElementById('tipo_combustible');
+    const totalFacturaInput = document.getElementById('total_factura');
+    const cantidadInput = document.getElementById('cantidad');
+    const propinaInput = document.getElementById('propina');
+    const ivaInput = document.getElementById('iva');
+    const idpInput = document.getElementById('idp');
+    const inguatInput = document.getElementById('inguat');
+    const subtotalInput = document.getElementById('subtotal');
+
+    const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
+    if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
+        ivaInput.value = '0.00';
+        idpInput.value = '0.00';
+        inguatInput.value = '0.00';
+        subtotalInput.value = parseFloat(totalFacturaInput.value || 0).toFixed(2);
+        return;
+    }
+
+    const tipoGasto = tipoGastoSelect.value;
+    const tipoCombustible = tipoCombustibleSelect.value;
+    const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
+        ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }
+        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+
+    let totalBruto = parseFloat(totalFacturaInput.value) || 0;
+    let cantidadGalones = parseFloat(cantidadInput.value) || 0;
+    let propina = parseFloat(propinaInput.value) || 0;
+    let iva = 0, idp = 0, inguat = 0;
+
+    // Validación de valores
+    if (isNaN(totalBruto) || totalBruto < 0) totalBruto = 0;
+    if (isNaN(cantidadGalones) || cantidadGalones < 0) cantidadGalones = 0;
+    if (isNaN(propina) || propina < 0) propina = 0;
+
+    // Cálculo de IDP
+    if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
+        if (tipoCombustible === 'Súper') {
+            idp = cantidadGalones * impuestos.idp_super;
+        } else if (tipoCombustible === 'Regular') {
+            idp = cantidadGalones * impuestos.idp_regular;
+        } else if (tipoCombustible === 'Diesel') {
+            idp = cantidadGalones * impuestos.idp_diesel;
+        }
+    } else if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
+        idp = cantidadGalones * impuestos.idp;
+    }
+
+    // Cálculo correcto considerando propina
+    const ivaRate = impuestos.iva / 100;
+    const inguatRate = impuestos.inguat / 100;
+    
+    // Restar IDP y propina del total bruto
+    const totalSinIDPPropina = totalBruto - idp - propina;
+    
+    // Calcular subtotal sin impuestos
+    const subtotalSinImpuestos = totalSinIDPPropina / (1 + ivaRate + inguatRate);
+    
+    // Calcular impuestos
+    iva = subtotalSinImpuestos * ivaRate;
+    inguat = subtotalSinImpuestos * inguatRate;
+    
+    // El subtotal es el valor antes de impuestos
+    const subtotal = subtotalSinImpuestos;
+
+    // Asignar valores
+    ivaInput.value = iva.toFixed(2);
+    idpInput.value = idp.toFixed(2);
+    inguatInput.value = inguat.toFixed(2);
+    subtotalInput.value = subtotal.toFixed(2);
+
+    // Actualizar campos ocultos de nombres de cuentas
+    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    const cuentaContablePropinaSelect = document.getElementById('id_cuenta_contable_propina');
+    
+    if (cuentaContableSelect && cuentaContableSelect.options[cuentaContableSelect.selectedIndex]) {
+        document.getElementById('nombre_cuenta_contable_input').value = 
+            cuentaContableSelect.options[cuentaContableSelect.selectedIndex].getAttribute('data-nombre') || '';
+    }
+    
+    if (cuentaContablePropinaSelect && cuentaContablePropinaSelect.options[cuentaContablePropinaSelect.selectedIndex]) {
+        document.getElementById('nombre_cuenta_contable_propina_input').value = 
+            cuentaContablePropinaSelect.options[cuentaContablePropinaSelect.selectedIndex].getAttribute('data-nombre') || '';
+    }
+}
+
+
   </script>
   </body>
 </html>
