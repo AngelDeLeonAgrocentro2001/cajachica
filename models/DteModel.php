@@ -106,7 +106,7 @@ class DteModel {
                 $params['fecha_fin'] = $fechaFin;
             }
             
-            $sql .= " LIMIT 10";
+            // $sql .= " LIMIT 10";
             
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
