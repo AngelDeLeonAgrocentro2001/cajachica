@@ -2736,6 +2736,20 @@ document.getElementById('facturaForm').addEventListener('submit', async (e) => {
   const noFactura = formData.get('no_factura');
   const numero_dte = noFactura;
 
+  // Validación del total_factura para las acciones 'create' y 'update'
+  const totalFactura = parseFloat(formData.get('total_factura')) || 0;
+  if (formData.get('action') === 'create' || formData.get('action') === 'update') {
+    if (totalFactura > 1500) {
+      Swal.fire({
+        title: 'Error',
+        text: 'No se puede agregar una factura con un total mayor a Q1500.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+      return;
+    }
+  }
+
   if (!validatePercentages()) {
     Swal.fire({
       title: 'Error',
