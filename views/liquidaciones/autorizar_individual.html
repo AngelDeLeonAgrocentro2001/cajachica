@@ -1044,54 +1044,69 @@
               confirmButtonText: 'OK',
             });
           } else if (selectedDetalles.length > 0) {
-            if (isContabilidadRole) {
-              if (accion === 'APROBADO') {
-                message = 'Aprobado por contabilidad, intentando exportar a SAP.';
-                try {
-                  const sapResponse = await exportToSap(id);
-                  message += `\n${sapResponse}`;
-                  await Swal.fire({
+    if (isContabilidadRole) {
+        if (accion === 'APROBADO') {
+            message = 'Aprobado por contabilidad, intentando exportar a SAP.';
+            try {
+                let sapResponse;
+                let reintentos = 0;
+                const maxReintentos = 3;
+                
+                while (reintentos < maxReintentos) {
+                    try {
+                        sapResponse = await exportToSap(id);
+                        // Si llegamos aquí, la exportación fue exitosa
+                        break;
+                    } catch (sapError) {
+                        reintentos++;
+                        console.error(`Intento ${reintentos} fallido:`, sapError);
+                        
+                        if (reintentos >= maxReintentos) {
+                            throw sapError; // Lanzar error después de máximo de reintentos
+                        }
+                        
+                        // Esperar un poco antes del próximo intento
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+                
+                message += `\n${sapResponse}`;
+                await Swal.fire({
                     icon: 'success',
                     title: 'Autorización y Exportación',
                     text: message,
                     confirmButtonText: 'OK',
                     didClose: () => {
-                      window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
+                        window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
                     }
-                  });
-                } catch (sapError) {
-                  console.error('Error en exportación a SAP:', sapError);
-                  await Swal.fire({
+                });
+            } catch (sapError) {
+                console.error('Error en exportación a SAP después de reintentos:', sapError);
+                
+                // Preguntar si quiere reintentar manualmente
+                const reintentar = await Swal.fire({
                     icon: 'error',
                     title: 'Error en SAP',
-                    text: 'No es posible exportar por problemas en SAP, intente más tarde',
-                    confirmButtonText: 'OK'
-                  });
-                  return;
+                    html: `No es posible exportar por problemas en SAP.<br>Error: ${sapError.message || 'Error desconocido'}<br><br>¿Deseas reintentar?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Reintentar',
+                    cancelButtonText: 'Cancelar'
+                });
+                
+                if (reintentar.isConfirmed) {
+                    // Llamar recursivamente a submitForm para reintentar
+                    return submitForm();
                 }
-              } else if (accion === 'RECHAZADO') {
-                message = 'Rechazado por contabilidad.';
+                
                 await Swal.fire({
-                  icon: 'info',
-                  title: 'Acción completada',
-                  text: message,
-                  confirmButtonText: 'OK',
-                  didClose: () => {
-                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                  }
+                    icon: 'info',
+                    title: 'Exportación cancelada',
+                    text: 'La exportación a SAP fue cancelada. Puedes intentarlo nuevamente más tarde.',
+                    confirmButtonText: 'OK'
                 });
-              } else if (accion === 'DESCARTADO') {
-                message = 'Descartado por contabilidad.';
-                await Swal.fire({
-                  icon: 'info',
-                  title: 'Acción completada',
-                  text: message,
-                  confirmButtonText: 'OK',
-                  didClose: () => {
-                    window.location.href = 'index.php?controller=liquidacion&action=list&mode=' + mode;
-                  }
-                });
-              }
+                return;
+            }
+        } 
             } else {
               if (accion === 'APROBADO') {
                 message = 'Liquidación autorizada correctamente y enviada a Contabilidad.';
@@ -1398,88 +1413,82 @@
         });
       }
 
-      async function exportToSap(id) {
-        Swal.fire({
-            icon: 'info',
-            title: 'Enviando a SAP',
-            text: 'La exportación a SAP está en proceso...',
-            showConfirmButton: false,
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
+      async function exportToSap(id, reintento = 0) {
+    const maxReintentosAutomaticos = 2;
+    
+    Swal.fire({
+        icon: 'info',
+        title: reintento > 0 ? `Reintentando exportación (${reintento}/${maxReintentosAutomaticos})` : 'Enviando a SAP',
+        text: 'La exportación a SAP está en proceso...',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    try {
+        const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
         });
-
+        
+        const rawResponse = await response.text();
+        let result;
+        
         try {
-            const response = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            result = JSON.parse(rawResponse);
+        } catch (e) {
+            throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+        }
+
+        if (!response.ok) {
+            let errorText = result.error || 'No es posible exportar por problemas en SAP, intente más tarde';
+            
+            // Verificar si hay errores manejados que requieren reintento automático
+            if (result.erroresManejados && result.erroresManejados.length > 0 && reintento < maxReintentosAutomaticos) {
+                errorText = 'Se detectaron y corrigieron automáticamente algunos errores. Reintentando...\n';
+                result.erroresManejados.forEach(error => {
+                    errorText += `- ${error.message}\n`;
+                });
+                
+                // Cerrar el SweetAlert actual
+                Swal.close();
+                
+                // Esperar un momento y reintentar automáticamente
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Reintentar con contador incrementado
+                return exportToSap(id, reintento + 1);
+            }
+            
+            // Si no hay reintentos automáticos o se alcanzó el límite, mostrar opción de reintento manual
+            const retry = await Swal.fire({
+                icon: 'warning',
+                title: 'Error en exportación',
+                html: errorText + '<br><br>¿Deseas reintentar la exportación?',
+                showCancelButton: true,
+                confirmButtonText: 'Reintentar',
+                cancelButtonText: 'Cancelar'
             });
-            const rawResponse = await response.text();
-            console.log('Raw response:', rawResponse);
-
-            let result;
-            try {
-                result = JSON.parse(rawResponse);
-            } catch (e) {
-                throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
+            
+            if (retry.isConfirmed) {
+                Swal.close();
+                return exportToSap(id, reintento + 1);
+            } else {
+                throw new Error('Exportación cancelada por el usuario');
             }
+        }
 
-            if (!response.ok) {
-                let errorText = result.error || 'No es posible exportar por problemas en SAP, intente más tarde';
-                if (response.status === 400 && result.results) {
-                    errorText = 'Errores al exportar la liquidación:\n';
-                    let hasPostingPeriodError = false;
-                    result.results.forEach(r => {
-                        if (!r.success || !r.valid) {
-                            errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
-                            if (r.reason === 'POSTING_PERIOD_LOCKED') {
-                                hasPostingPeriodError = true;
-                            }
-                        }
-                    });
-                    if (hasPostingPeriodError) {
-                        const datePrompt = await Swal.fire({
-                            icon: 'warning',
-                            title: 'Período contable cerrado',
-                            text: `${errorText}\nSeleccione una fecha alternativa en un período contable abierto:`,
-                            input: 'date',
-                            inputValue: new Date().toISOString().split('T')[0],
-                            showCancelButton: true,
-                            confirmButtonText: 'Reintentar con nueva fecha',
-                            cancelButtonText: 'Cancelar'
-                        });
-                        if (datePrompt.isConfirmed && datePrompt.value) {
-                            const retryResponse = await fetch(`index.php?controller=liquidacion&action=exportar&id=${id}&docDate=${datePrompt.value}`, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
-                            const retryRawResponse = await retryResponse.text();
-                            console.log('Retry export raw response:', retryRawResponse);
-                            if (!retryResponse.ok) {
-                                let retryErrorData;
-                                try {
-                                    retryErrorData = JSON.parse(retryRawResponse);
-                                } catch (e) {
-                                    throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
-                                }
-                                throw new Error(retryErrorData.error || 'No es posible exportar por problemas en SAP, intente más tarde');
-                            }
-                            const retryResult = JSON.parse(retryRawResponse);
-                            return processSapResponse(retryResult);
-                        } else {
-                            return 'Exportación cancelada.';
-                        }
-                    }
-                }
-                throw new Error(errorText);
-            }
-
-            return processSapResponse(result);
-        } catch (error) {
-            console.error('Error al exportar a SAP:', error);
+        // Éxito - procesar respuesta
+        return processSapResponse(result);
+        
+    } catch (error) {
+        console.error('Error al exportar a SAP:', error);
+        
+        // Solo mostrar diálogo de error si no es un reintento automático
+        if (reintento >= maxReintentosAutomaticos) {
             const retry = await Swal.fire({
                 icon: 'error',
                 title: 'Error al exportar',
@@ -1488,54 +1497,78 @@
                 confirmButtonText: 'Reintentar',
                 cancelButtonText: 'OK'
             });
+            
             if (retry.isConfirmed) {
-                return exportToSap(id);
+                Swal.close();
+                return exportToSap(id, reintento + 1);
             }
-            throw error;
-        } finally {
-            Swal.close();
         }
-      }
+        
+        throw error;
+    } finally {
+        Swal.close();
+    }
+}
 
-      function processSapResponse(result) {
-        if (result.success) {
-            let message = result.message + '\n';
-            let hasWarnings = false;
+function processSapResponse(result) {
+    if (result.success) {
+        let message = result.message + '\n';
+        let hasWarnings = false;
+        
+        if (result.results && Array.isArray(result.results)) {
             result.results.forEach(r => {
+                const detalleId = r.detalle_ids && r.detalle_ids.length > 0 ? r.detalle_ids[0] : 'N/A';
+                
                 if (r.warning) {
-                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.warning}\n`;
+                    message += `- Factura ${r.no_factura} (detalle ID: ${detalleId}): ${r.warning}\n`;
                     hasWarnings = true;
                 } else if (r.success) {
-                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.message}\n`;
-                } else {
-                    message += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
+                    message += `- Factura ${r.no_factura} (detalle ID: ${detalleId}): ${r.message}\n`;
+                } else if (r.error) {
+                    message += `- Factura ${r.no_factura} (detalle ID: ${detalleId}): ${r.error}\n`;
                 }
             });
-            Swal.fire({
-                icon: hasWarnings ? 'warning' : 'success',
-                title: hasWarnings ? 'Exportación con Advertencias' : 'Éxito',
-                text: message,
-                confirmButtonText: 'OK'
-            });
-            return message;
-        } else {
-            let errorText = 'Errores al exportar:\n';
-            result.results.forEach(r => {
-                if (!r.success && !r.warning) {
-                    errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.error}\n`;
-                } else if (r.warning) {
-                    errorText += `- Factura ${r.no_factura} (detalle ID: ${r.detalle_id}): ${r.warning}\n`;
-                }
-            });
-            Swal.fire({
-                icon: 'error',
-                title: 'Error al exportar',
-                text: errorText,
-                confirmButtonText: 'OK'
-            });
-            return errorText;
         }
-      }
+        
+        // Mostrar mensaje de éxito
+        Swal.fire({
+            icon: hasWarnings ? 'warning' : 'success',
+            title: hasWarnings ? 'Exportación con Advertencias' : 'Éxito',
+            text: message,
+            confirmButtonText: 'OK'
+        });
+        
+        return message;
+    } else {
+        let errorText = 'Errores al exportar:\n';
+        
+        if (result.results && Array.isArray(result.results)) {
+            result.results.forEach(r => {
+                const detalleId = r.detalle_ids && r.detalle_ids.length > 0 ? r.detalle_ids[0] : 'N/A';
+                
+                if (!r.success && !r.warning && r.error) {
+                    errorText += `- Factura ${r.no_factura} (detalle ID: ${detalleId}): ${r.error}\n`;
+                } else if (r.warning) {
+                    errorText += `- Factura ${r.no_factura} (detalle ID: ${detalleId}): ${r.warning}\n`;
+                }
+            });
+        }
+        
+        if (result.error) {
+            errorText += `- Error general: ${result.error}\n`;
+        }
+        
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al exportar',
+            text: errorText,
+            confirmButtonText: 'OK'
+        });
+        
+        throw new Error(errorText);
+    }
+}
+      
     </script>
   </body>
 </html>

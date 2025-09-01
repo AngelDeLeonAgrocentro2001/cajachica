@@ -2330,10 +2330,331 @@ private function logout_sap()
     return ['success' => true];
 }
 
-public function exportar($id)
+// Funciones para errores al exportar 
+private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
+{
+    error_log("Manejando error SAP: $errorCode - $errorMessage para NIT: $nitProveedor");
+    
+    // Si el código es -1116, intentar extraer el código real del mensaje
+    if ($errorCode == -1116) {
+        if (strpos($errorMessage, '2021032504') !== false) {
+            $errorCode = 2021032504;
+            error_log("Código real extraído del mensaje: 2021032504");
+        } elseif (strpos($errorMessage, '18000018') !== false) {
+            $errorCode = 18000018;
+            error_log("Código real extraído del mensaje: 18000018");
+        }
+    }
+    
+    switch ($errorCode) {
+        case 2021032504: // NIT Pequeño Contribuyente
+            error_log("Error de NIT Pequeño Contribuyente detectado para factura {$noFactura}");
+            return $this->manejarErrorPequeñoContribuyente($nitProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
+            
+        case 18000018: // NIT no existe
+            error_log("NIT no encontrado para factura {$noFactura}");
+            return $this->manejarErrorNitNoExiste($nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
+            
+        default:
+            error_log("Error no manejable: $errorCode");
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+                'manejable' => false
+            ];
+    }
+}
+
+private function manejarErrorPequeñoContribuyente($nitProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
+{
+    try {
+        // Consultar información del NIT en @NIT_PN
+        $conn = $this->CONEXION_HANA("T_GT_AGROCENTRO_2016");
+        $sql = 'SELECT "U_Validador" FROM "@NIT_PN" WHERE "U_NIT" = ?';
+        
+        $stmt = odbc_prepare($conn, $sql);
+        if (!$stmt) {
+            $sql = 'SELECT "U_Validador" FROM "T_GT_AGROCENTRO_2016"."@NIT_PN" WHERE "U_NIT" = ?';
+            $stmt = odbc_prepare($conn, $sql);
+        }
+        
+        if ($stmt && odbc_execute($stmt, [$nitProveedor])) {
+            if ($row = odbc_fetch_array($stmt)) {
+                $uValidador = $row['U_Validador'];
+                error_log("U_Validador actual para NIT {$nitProveedor}: {$uValidador}");
+                
+                if ($uValidador === 'S') {
+                    // Actualizar U_Validador a 'N'
+                    $updateSql = 'UPDATE "@NIT_PN" SET "U_Validador" = ? WHERE "U_NIT" = ?';
+                    $updateStmt = odbc_prepare($conn, $updateSql);
+                    
+                    if (!$updateStmt) {
+                        $updateSql = 'UPDATE "T_GT_AGROCENTRO_2016"."@NIT_PN" SET "U_Validador" = ? WHERE "U_NIT" = ?';
+                        $updateStmt = odbc_prepare($conn, $updateSql);
+                    }
+                    
+                    if ($updateStmt && odbc_execute($updateStmt, ['N', $nitProveedor])) {
+                        error_log("U_Validador actualizado exitosamente a 'N' para NIT {$nitProveedor}");
+                        odbc_close($conn);
+                        
+                        // Reintentar envío a SAP
+                        return $this->reintentarEnvioSAP($cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath, "U_Validador actualizado");
+                    } else {
+                        error_log("Error al ejecutar update de U_Validador: " . odbc_errormsg($conn));
+                    }
+                } else {
+                    error_log("U_Validador ya es 'N' para NIT {$nitProveedor}");
+                }
+            } else {
+                error_log("NIT {$nitProveedor} no encontrado en @NIT_PN");
+                
+                // Si no existe, insertarlo
+                $codigo = 13333;
+                $maxIntentos = 1000;
+                $codigoEncontrado = false;
+                
+                for ($i = 0; $i < $maxIntentos; $i++) {
+                    $codigoProbable = $codigo + $i;
+                    
+                    $sqlCheck = 'SELECT COUNT(*) as count FROM "@NIT_PN" WHERE "Code" = ?';
+                    $stmtCheck = odbc_prepare($conn, $sqlCheck);
+                    
+                    if ($stmtCheck && odbc_execute($stmtCheck, [(string)$codigoProbable])) {
+                        if ($rowCheck = odbc_fetch_array($stmtCheck)) {
+                            if (isset($rowCheck['count']) && $rowCheck['count'] == 0) {
+                                $codigo = $codigoProbable;
+                                $codigoEncontrado = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if ($codigoEncontrado) {
+                    // Insertar el NIT con U_Validador = 'N'
+                    $sqlInsert = 'INSERT INTO "@NIT_PN" ("Code", "Name", "U_NIT", "U_Razon", "U_Validador") VALUES (?, ?, ?, ?, ?)';
+                    $stmtInsert = odbc_prepare($conn, $sqlInsert);
+                    
+                    if ($stmtInsert && odbc_execute($stmtInsert, [(string)$codigo, (string)$codigo, $nitProveedor, 'Proveedor Automático', 'N'])) {
+                        error_log("NIT {$nitProveedor} insertado con U_Validador = 'N'");
+                        odbc_close($conn);
+                        
+                        // Reintentar envío a SAP
+                        return $this->reintentarEnvioSAP($cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath, "NIT insertado con U_Validador = 'N'");
+                    }
+                }
+            }
+        }
+        
+        odbc_close($conn);
+        
+        return [
+            'success' => false,
+            'error' => "No se pudo actualizar U_Validador para NIT {$nitProveedor}",
+            'manejable' => false
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Error al manejar pequeño contribuyente: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'manejable' => false
+        ];
+    }
+}
+
+private function manejarErrorNitNoExiste($nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
+{
+    try {
+        // Conectar a HANA para insertar directamente en @NIT_PN
+        $conn = $this->CONEXION_HANA("T_GT_AGROCENTRO_2016");
+        
+        // Buscar el próximo código disponible empezando desde 13333
+        $codigo = 13333;
+        $maxIntentos = 1000;
+        $codigoEncontrado = false;
+        
+        error_log("Buscando código disponible en @NIT_PN para NIT: $nitProveedor");
+        
+        for ($i = 0; $i < $maxIntentos; $i++) {
+            $codigoProbable = $codigo + $i;
+            
+            // Verificar si el código ya existe
+            $sqlCheck = 'SELECT "Code" FROM "@NIT_PN" WHERE "Code" = ?';
+            $stmtCheck = odbc_prepare($conn, $sqlCheck);
+            
+            if (!$stmtCheck) {
+                $sqlCheck = 'SELECT "Code" FROM "T_GT_AGROCENTRO_2016"."@NIT_PN" WHERE "Code" = ?';
+                $stmtCheck = odbc_prepare($conn, $sqlCheck);
+            }
+            
+            if ($stmtCheck) {
+                // Convertir a string ya que SAP espera strings
+                $codigoStr = (string)$codigoProbable;
+                $execCheck = odbc_execute($stmtCheck, [$codigoStr]);
+                
+                if ($execCheck) {
+                    // Si no hay resultados, el código está disponible
+                    if (!odbc_fetch_array($stmtCheck)) {
+                        $codigo = $codigoProbable;
+                        $codigoEncontrado = true;
+                        error_log("Código disponible encontrado: $codigo");
+                        break;
+                    } else {
+                        error_log("Código $codigoProbable ya existe, probando siguiente...");
+                    }
+                } else {
+                    error_log("Error al verificar código $codigoProbable: " . odbc_errormsg($conn));
+                }
+            }
+        }
+        
+        if (!$codigoEncontrado) {
+            odbc_close($conn);
+            throw new Exception("No se pudo encontrar un código disponible en @NIT_PN después de $maxIntentos intentos");
+        }
+        
+        error_log("Insertando en @NIT_PN: Code=$codigo, U_NIT=$nitProveedor, U_Razon=$nombreProveedor");
+        
+        // Insertar directamente en la tabla @NIT_PN
+        $sqlInsert = 'INSERT INTO "@NIT_PN" ("Code", "Name", "U_NIT", "U_Razon", "U_Validador") VALUES (?, ?, ?, ?, ?)';
+        $stmtInsert = odbc_prepare($conn, $sqlInsert);
+        
+        if (!$stmtInsert) {
+            $sqlInsert = 'INSERT INTO "T_GT_AGROCENTRO_2016"."@NIT_PN" ("Code", "Name", "U_NIT", "U_Razon", "U_Validador") VALUES (?, ?, ?, ?, ?)';
+            $stmtInsert = odbc_prepare($conn, $sqlInsert);
+        }
+        
+        if (!$stmtInsert) {
+            odbc_close($conn);
+            throw new Exception("Error al preparar inserción en @NIT_PN: " . odbc_errormsg($conn));
+        }
+        
+        // Code y Name deben ser iguales (solo números convertidos a string)
+        $codeStr = (string)$codigo;
+        $nameStr = (string)$codigo;
+        $uValidador = 'N'; // Por defecto 'N' para no pequeño contribuyente
+        
+        // Limitar la longitud de U_Razon si es necesario
+        $uRazon = substr($nombreProveedor, 0, 100);
+        
+        $execInsert = odbc_execute($stmtInsert, [$codeStr, $nameStr, $nitProveedor, $uRazon, $uValidador]);
+        
+        if (!$execInsert) {
+            $errorMsg = "Error al insertar en @NIT_PN: " . odbc_errormsg($conn);
+            error_log($errorMsg);
+            
+            // Si es error de duplicado, intentar con otro código
+            if (strpos(odbc_errormsg($conn), 'unique constraint') !== false) {
+                error_log("Código $codigo ya existe, intentando con siguiente...");
+                odbc_close($conn);
+                
+                // Llamar recursivamente con el siguiente código
+                return $this->manejarErrorNitNoExiste(
+                    $nitProveedor, 
+                    $nombreProveedor, 
+                    $noFactura, 
+                    $cookie, 
+                    $jsonContent, 
+                    $sapUrl, 
+                    $detalles, 
+                    $detalleLiquidacionModel, 
+                    $id, 
+                    $groupKey, 
+                    $groupedDetalles, 
+                    $jsonFilePath
+                );
+            }
+            
+            odbc_close($conn);
+            throw new Exception($errorMsg);
+        }
+        
+        odbc_close($conn);
+        
+        error_log("NIT insertado exitosamente en @NIT_PN: $nitProveedor con código $codigo");
+        
+        // Reintentar envío a SAP después de insertar en la tabla
+        return $this->reintentarEnvioSAP($cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath, "NIT insertado en @NIT_PN");
+
+    } catch (Exception $e) {
+        error_log("Error al insertar NIT en @NIT_PN: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'manejable' => false
+        ];
+    }
+}
+
+private function reintentarEnvioSAP($cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath, $accionRealizada)
+{
+    error_log("Reintentando envío a SAP después de: $accionRealizada");
+    
+    $ch = curl_init($sapUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Cookie: ' . $cookie
+        ],
+        CURLOPT_POSTFIELDS => $jsonContent,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($response === false || $curlError) {
+        error_log("Error en reintento: $curlError");
+        return [
+            'success' => false,
+            'error' => "Error de conexión SAP al reintentar: $curlError",
+            'manejable' => false
+        ];
+    }
+
+    $sapResponse = json_decode($response, true);
+    if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+        $errorMsg = "Error SAP al reintentar: HTTP $httpCode";
+        if (isset($sapResponse['error']['message']['value'])) {
+            $errorMsg .= " - {$sapResponse['error']['message']['value']}";
+        }
+        error_log($errorMsg);
+        return [
+            'success' => false,
+            'error' => $errorMsg,
+            'manejable' => false
+        ];
+    }
+
+    // Éxito en el reintento
+    error_log("Reintento exitoso después de: $accionRealizada");
+    
+    foreach ($detalles as $detalle) {
+        $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+        $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP después de corrección: {$accionRealizada}");
+    }
+
+    return [
+        'success' => true,
+        'message' => "Grupo {$groupKey} enviado a SAP exitosamente después de corrección",
+        'filePath' => $jsonFilePath,
+        'detalle_ids' => array_map(function($detalle) { return $detalle['id']; }, $detalles),
+        'sap_response' => $sapResponse,
+        'manejable' => true
+    ];
+}
+
+public function exportar($id, $docDate = null)
 {
     ob_start();
-    error_log("Iniciando exportar para id: $id");
+    error_log("Iniciando exportar para id: $id" . ($docDate ? " con docDate: $docDate" : ""));
 
     if (!isset($_SESSION['user_id'])) {
         error_log('Error: No hay session user_id en exportar');
@@ -2418,6 +2739,55 @@ public function exportar($id)
             exit;
         }
 
+        // Collect unique NITs from detalle_liquidaciones
+        $nitsToSearch = array_unique(array_map(function ($dl) {
+            return !empty(trim($dl['nit_proveedor'])) ? trim($dl['nit_proveedor']) : '321052';
+        }, $pendingDetalles));
+        error_log("NITs a buscar en @NIT_PN: " . implode(', ', $nitsToSearch));
+
+        // Query @NIT_PN table in HANA for the collected NITs
+        error_log("Realizando consulta a tabla @NIT_PN para NITs específicos");
+        $nitPnData = [];
+        try {
+            $conn = $this->CONEXION_HANA("T_GT_AGROCENTRO_2016");
+            $placeholders = implode(',', array_fill(0, count($nitsToSearch), '?'));
+            $sql = 'SELECT "Code","Name","U_Razon","U_NIT","U_Validador" FROM "@NIT_PN" WHERE "U_NIT" IN (' . $placeholders . ')';
+            
+            $stmt = odbc_prepare($conn, $sql);
+            if (!$stmt) {
+                error_log("Primer intento fallido, probando con esquema T_GT_AGROCENTRO_2016");
+                $sql = 'SELECT "Code","Name","U_Razon","U_NIT","U_Validador" FROM "T_GT_AGROCENTRO_2016"."@NIT_PN" WHERE "U_NIT" IN (' . $placeholders . ')';
+                $stmt = odbc_prepare($conn, $sql);
+                if (!$stmt) {
+                    throw new Exception("Error al preparar la consulta: " . odbc_errormsg($conn));
+                }
+            }
+
+            $exec = odbc_execute($stmt, $nitsToSearch);
+            if (!$exec) {
+                throw new Exception("Error al ejecutar la consulta: " . odbc_errormsg($conn));
+            }
+
+            while ($row = odbc_fetch_array($stmt)) {
+                $nitPnData[] = array_map(function ($value) {
+                    return is_string($value) ? utf8_encode($value) : $value;
+                }, $row);
+                error_log("Resultado @NIT_PN: Code={$row['Code']}, Name={$row['Name']}, U_Razon={$row['U_Razon']}, U_NIT={$row['U_NIT']}, U_Validador={$row['U_Validador']}");
+            }
+
+            odbc_close($conn);
+
+            error_log("Consulta @NIT_PN exitosa. Resultados: " . count($nitPnData));
+            if (empty($nitPnData)) {
+                error_log("No se encontraron resultados para los NITs: " . implode(', ', $nitsToSearch));
+                $nitPnData = ['info' => 'No se encontraron registros en @NIT_PN para los NITs especificados'];
+            }
+        } catch (Exception $e) {
+            error_log("Error en consulta @NIT_PN: " . $e->getMessage());
+            $nitPnData = ['error' => $e->getMessage()];
+        }
+        $nitPnResults = $nitPnData;
+
         // Start transaction
         $this->pdo->beginTransaction();
 
@@ -2442,7 +2812,7 @@ public function exportar($id)
         }
         $timestamp = date('Ymd\THis');
 
-        // Group detalles by no_factura and grupo_id to handle grupo_id = 0 separately
+        // Group detalles by no_factura and grupo_id
         $groupedDetalles = [];
         foreach ($pendingDetalles as $index => $dl) {
             $groupKey = $dl['grupo_id'] == 0 ? $dl['no_factura'] . '_' . $dl['id'] : $dl['no_factura'] . '_' . $dl['grupo_id'];
@@ -2470,7 +2840,6 @@ public function exportar($id)
 
                 foreach ($detalles as $dl) {
                     $index = array_search($dl['id'], $group['ids']);
-                    // Validate CostingCode
                     $costingCode = null;
                     if (!empty($dl['id_centro_costo'])) {
                         $centroCosto = $centroCostoModel->getCentroCostoById($dl['id_centro_costo']);
@@ -2486,7 +2855,6 @@ public function exportar($id)
                         throw new Exception("id_centro_costo no especificado para factura {$noFactura}");
                     }
 
-                    // Validate id_cuenta_contable_propina for Alimentos with propina
                     if ($dl['t_gasto'] === 'Alimentos' && floatval($dl['propina']) > 0) {
                         if (empty($dl['id_cuenta_contable_propina'])) {
                             error_log("id_cuenta_contable_propina no especificado para factura {$noFactura} con t_gasto=Alimentos y propina={$dl['propina']}");
@@ -2494,7 +2862,6 @@ public function exportar($id)
                         }
                     }
 
-                    // Map database TipoDoc to valid SAP U_F_Tipo values
                     $tipoDocMap = [
                         'FACTURA' => 'FN',
                         'FACTURA ELECTRONICA' => 'FEL',
@@ -2511,7 +2878,6 @@ public function exportar($id)
 
                     $validTipoDocValues = ['DA', 'FCE', 'FE', 'NC', 'FPC', 'FC', 'FDE', 'FEL', 'OT', 'REF', 'ID', 'MC', 'MI'];
 
-                    // Fetch TipoDoc
                     $tipoDocForUF = '';
                     $tipoDocForLines = '';
                     $stmt = $this->pdo->prepare("SELECT TipoDoc FROM tipos_documentos WHERE name = ?");
@@ -2535,7 +2901,6 @@ public function exportar($id)
                     }
                 }
 
-                // Validate document lines for the group
                 $documentLines = [];
                 $docTotal = 0;
                 $tipoDocumento = strtoupper($detalles[0]['tipo_documento'] ?? 'FACTURA');
@@ -2544,19 +2909,15 @@ public function exportar($id)
                 foreach ($detalles as $dl) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($dl['id_centro_costo'])['codigo']);
                     $accountCode = $dl['id_cuenta_contable'] ?? null;
-                    
-                    // Usamos el total_factura como DocTotal
                     $docTotal = floatval($dl['total_factura']);
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                        // Para facturas, desglosamos los impuestos
                         $subtotal = floatval($dl['p_unitario']);
                         $iva = floatval($dl['iva']);
                         $idp = floatval($dl['idp']);
                         $inguat = floatval($dl['inguat']);
                         $propina = floatval($dl['propina']);
                         
-                        // Línea principal (IVA)
                         if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2570,7 +2931,6 @@ public function exportar($id)
                             ];
                         }
                         
-                        // Línea para IDP
                         if ($idp > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2584,7 +2944,6 @@ public function exportar($id)
                             ];
                         }
                         
-                        // Línea para INGUAT
                         if ($inguat > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2594,11 +2953,10 @@ public function exportar($id)
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "S"
+                                "U_TipoA" => "H"
                             ];
                         }
                         
-                        // Línea para Propina (solo para Alimentos con propina > 0)
                         if ($dl['t_gasto'] === 'Alimentos' && $propina > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2612,7 +2970,6 @@ public function exportar($id)
                             ];
                         }
                     } else {
-                        // Para otros tipos de documentos, usamos el total_factura directamente
                         if (floatval($dl['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2674,20 +3031,18 @@ public function exportar($id)
 
         // Process valid invoices for SAP export
         $atLeastOneProcessed = false;
+        $successCount = 0;
         foreach ($validDetalles as $groupKey => $detalles) {
             $indices = $groupedDetalles[$groupKey]['indices'];
             $noFactura = $groupedDetalles[$groupKey]['no_factura'];
             try {
                 error_log("Procesando exportación para grupo {$groupKey} (Factura: {$noFactura}, Grupo ID: {$groupedDetalles[$groupKey]['grupo_id']}) con " . count($detalles) . " detalles");
-                $dl = $detalles[0]; // Use first detail for common fields
-                $docDate = date('Y-m-d', strtotime($dl['fecha']));
+                $dl = $detalles[0];
+                $docDate = $docDate ?? date('Y-m-d', strtotime($dl['fecha']));
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
                 $documentLines = [];
-                
-                // Usamos el total_factura como DocTotal
                 $docTotal = floatval($dl['total_factura']);
 
-                // Calcular U_F_DEC y U_F_DEC_D
                 if (empty($dl['fecha']) || !strtotime($dl['fecha'])) {
                     error_log("Fecha inválida para factura {$noFactura}: {$dl['fecha']}, usando fecha actual");
                     $fecha = new DateTime();
@@ -2698,7 +3053,6 @@ public function exportar($id)
                 $u_f_dec = $fechaParaDec->modify('first day of this month')->format('Y-m-d');
                 $u_f_dec_d = strtoupper($fecha->format('M-Y'));
 
-                // Generate document lines for all detalles in the group
                 $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
                 $tipoA = in_array($dl['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : ($dl['t_gasto'] === 'Combustible' ? 'C' : 'B');
                 $tipoDocForUF = '';
@@ -2719,14 +3073,12 @@ public function exportar($id)
                     $accountCode = $detalle['id_cuenta_contable'] ?? null;
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                        // Para facturas, desglosamos los impuestos
                         $subtotal = floatval($detalle['p_unitario']);
                         $iva = floatval($detalle['iva']);
                         $idp = floatval($detalle['idp']);
                         $inguat = floatval($detalle['inguat']);
                         $propina = floatval($detalle['propina']);
                         
-                        // Línea principal (IVA)
                         if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2740,7 +3092,6 @@ public function exportar($id)
                             ];
                         }
                         
-                        // Línea para IDP
                         if ($idp > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2754,7 +3105,6 @@ public function exportar($id)
                             ];
                         }
                         
-                        // Línea para INGUAT
                         if ($inguat > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2764,11 +3114,10 @@ public function exportar($id)
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $accountCode,
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "S"
+                                "U_TipoA" => "H"
                             ];
                         }
                         
-                        // Línea para Propina (solo para Alimentos con propina > 0)
                         if ($detalle['t_gasto'] === 'Alimentos' && $propina > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2778,11 +3127,10 @@ public function exportar($id)
                                 "CostingCode" => $costingCode,
                                 "AccountCode" => $detalle['id_cuenta_contable_propina'],
                                 "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "P"
+                                "U_TipoA" => "E"
                             ];
                         }
                     } else {
-                        // Para otros tipos de documentos, usamos el total_factura directamente
                         if (floatval($detalle['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -2802,13 +3150,11 @@ public function exportar($id)
                 $nombreProveedor = !empty(trim($dl['nombre_proveedor'])) ? substr(trim($dl['nombre_proveedor']), 0, 254) : '';
                 $nitProveedor = !empty(trim($dl['nit_proveedor'])) ? substr(trim($dl['nit_proveedor']), 0, 20) : '321052';
 
-                // Obtener el id_usuario de la liquidación
                 $liquidacion = $liquidacionModel->getLiquidacionById($id);
                 if (!$liquidacion || !isset($liquidacion['id_usuario'])) {
                     throw new Exception("No se pudo obtener el id_usuario de la liquidación ID $id");
                 }
 
-                // Obtener el código del cliente del usuario creador
                 $usuarioCreador = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
                 $cardCode = !empty($usuarioCreador['clientes']) ? trim($usuarioCreador['clientes']) : 'CCHA0010';
                 error_log("Código de cliente para usuario ID {$liquidacion['id_usuario']}: $cardCode");
@@ -2834,7 +3180,6 @@ public function exportar($id)
                     "DocumentLines" => $documentLines
                 ];
 
-                // Generate JSON file
                 $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$groupKey}.json";
                 $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent) === false) {
@@ -2842,7 +3187,6 @@ public function exportar($id)
                 }
                 error_log("JSON file generated at: $jsonFilePath");
 
-                // Send to SAP
                 $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
                 $ch = curl_init($sapUrl);
                 curl_setopt_array($ch, [
@@ -2867,142 +3211,96 @@ public function exportar($id)
                     throw new Exception("Error de conexión SAP para factura {$noFactura}: $curlError");
                 }
 
-                $sapResponse = json_decode($response, true);
-                if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
-                    $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
-                    if (isset($sapResponse['error']['message']['value'])) {
-                        $errorMsg .= " - {$sapResponse['error']['message']['value']}";
-                    }
-                    error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $errorMsg");
+                // Dentro del bloque donde procesas la respuesta de SAP, después de:
+// Dentro del bloque donde procesas la respuesta de SAP:
+$sapResponse = json_decode($response, true);
+if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+    $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
+    if (isset($sapResponse['error']['message']['value'])) {
+        $errorMsg .= " - {$sapResponse['error']['message']['value']}";
+    }
+    error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $errorMsg");
 
-                    // Handle NIT not found error (18000018)
-                    if (isset($sapResponse['error']['code']) && $sapResponse['error']['code'] == 18000018) {
-                        error_log("NIT no encontrado para factura {$noFactura}, intentando crear proveedor en SAP");
-                        
-                        // Generate unique NIT_PN Code and Name
-                        $codeNumber = 5500;
-                        $uniqueCodeFound = false;
-                        $maxAttempts = 1000; // Limitar intentos para evitar bucles infinitos
-                        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM detalle_liquidaciones WHERE nit_proveedor = ?");
-                        while (!$uniqueCodeFound && $codeNumber < 5500 + $maxAttempts) {
-                            $potentialCode = "PN$codeNumber";
-                            $stmt->execute([$potentialCode]);
-                            $count = $stmt->fetchColumn();
-                            if ($count == 0) {
-                                $uniqueCodeFound = true;
-                            } else {
-                                $codeNumber++;
-                            }
-                        }
-                        if (!$uniqueCodeFound) {
-                            throw new Exception("No se pudo generar un código único para el proveedor de factura {$noFactura}");
-                        }
-                        $nitPnCode = "PN$codeNumber";
-                        $nitPnName = $nitPnCode;
+    $errorCode = 0;
+$errorMessage = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
 
-                        // Create BusinessPartner in SAP
-                        $businessPartner = [
-                            "Code" => $nitPnCode,
-                            "Name " => $nitPnName,
-                            "U_NIT" => $nitProveedor,
-                            "U_Razon" => $nombreProveedor
-                        ];
-                        
-                        $bpUrl = "https://192.168.1.9:50000/b1s/v1/BusinessPartners";
-                        $ch = curl_init($bpUrl);
-                        curl_setopt_array($ch, [
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_POST => true,
-                            CURLOPT_HTTPHEADER => [
-                                'Content-Type: application/json',
-                                'Cookie: ' . $cookie
-                            ],
-                            CURLOPT_POSTFIELDS => json_encode($businessPartner, JSON_UNESCAPED_UNICODE),
-                            CURLOPT_SSL_VERIFYPEER => false,
-                            CURLOPT_SSL_VERIFYHOST => false,
-                        ]);
+// Extraer el código de error correctamente de la respuesta de SAP
+if (isset($sapResponse['error']['code'])) {
+    $errorCode = $sapResponse['error']['code'];
+    if (isset($sapResponse['error']['message']['value'])) {
+        $errorMessage .= " - {$sapResponse['error']['message']['value']}";
+        
+        // Intentar extraer el código numérico del mensaje si el code es -1116
+        if ($errorCode == -1116) {
+            // Buscar códigos específicos en el mensaje
+            if (strpos($sapResponse['error']['message']['value'], '2021032504') !== false) {
+                $errorCode = 2021032504;
+            } elseif (strpos($sapResponse['error']['message']['value'], '18000018') !== false) {
+                $errorCode = 18000018;
+            }
+        }
+    }
+}
 
-                        $bpResponse = curl_exec($ch);
-                        $bpHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        $bpCurlError = curl_error($ch);
-                        curl_close($ch);
+error_log("Código de error detectado: $errorCode, Mensaje: $errorMessage");
+    
+    // Intentar manejar el error automáticamente
+    $manejoResultado = $this->manejarErroresSapYReintentar(
+        $errorCode,
+        $errorMsg,
+        $nitProveedor,
+        $nombreProveedor,
+        $noFactura,
+        $cookie,
+        $jsonContent,
+        $sapUrl,
+        $detalles,
+        $detalleLiquidacionModel,
+        $id,
+        $groupKey,
+        $groupedDetalles,
+        $jsonFilePath
+    );
 
-                        if ($bpResponse === false || $bpCurlError) {
-                            error_log("Error al crear proveedor en SAP para factura {$noFactura}: $bpCurlError");
-                            throw new Exception("Error al crear proveedor en SAP para factura {$noFactura}: $bpCurlError");
-                        }
+    if ($manejoResultado['success']) {
+        // Éxito después del manejo del error
+        $results[] = [
+            'no_factura' => $noFactura,
+            'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+            'success' => true,
+            'message' => $manejoResultado['message'],
+            'filePath' => $manejoResultado['filePath'],
+            'detalle_ids' => $manejoResultado['detalle_ids'],
+            'sap_response' => $manejoResultado['sap_response'],
+            'manejado' => true
+        ];
+        $atLeastOneProcessed = true;
+        continue;
+    } elseif ($manejoResultado['manejable'] === false) {
+        // Error no manejable, proceder con el manejo normal
+        $isDuplicateError = ($errorCode == -5002);
+        if ($isDuplicateError) {
+            foreach ($detalles as $detalle) {
+                $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (duplicado): {$noFactura}, mensaje: {$errorMsg}");
+            }
+            $results[] = [
+                'no_factura' => $noFactura,
+                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                'success' => true,
+                'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (duplicado, exportada de nuevo)",
+                'filePath' => $jsonFilePath,
+                'detalle_ids' => array_column($detalles, 'id'),
+                'sap_response' => $sapResponse,
+                'manejado' => false
+            ];
+            $atLeastOneProcessed = true;
+            continue;
+        }
+        throw new Exception($errorMsg);
+    }
+}
 
-                        $bpSapResponse = json_decode($bpResponse, true);
-                        if ($bpHttpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
-                            $bpErrorMsg = "Error al crear proveedor en SAP para factura {$noFactura}: HTTP $bpHttpCode";
-                            if (isset($bpSapResponse['error']['message']['value'])) {
-                                $bpErrorMsg .= " - {$bpSapResponse['error']['message']['value']}";
-                            }
-                            error_log($bpErrorMsg);
-                            throw new Exception($bpErrorMsg);
-                        }
-
-                        error_log("Proveedor creado en SAP: CardCode=$nitPnCode, U_NIT=$nitProveedor, U_Razon=$nombreProveedor");
-
-                        // Retry sending the invoice
-                        $ch = curl_init($sapUrl);
-                        curl_setopt_array($ch, [
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_POST => true,
-                            CURLOPT_HTTPHEADER => [
-                                'Content-Type: application/json',
-                                'Cookie: ' . $cookie
-                            ],
-                            CURLOPT_POSTFIELDS => $jsonContent,
-                            CURLOPT_SSL_VERIFYPEER => false,
-                            CURLOPT_SSL_VERIFYHOST => false,
-                        ]);
-
-                        $response = curl_exec($ch);
-                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        $curlError = curl_error($ch);
-                        curl_close($ch);
-
-                        if ($response === false || $curlError) {
-                            error_log("SAP Error retry for grupo {$groupKey} (Factura: {$noFactura}): $curlError");
-                            throw new Exception("Error de conexión SAP al reintentar factura {$noFactura}: $curlError");
-                        }
-
-                        $sapResponse = json_decode($response, true);
-                        if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
-                            $errorMsg = "Error SAP al reintentar grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
-                            if (isset($sapResponse['error']['message']['value'])) {
-                                $errorMsg .= " - {$sapResponse['error']['message']['value']}";
-                            }
-                            error_log($errorMsg);
-                            throw new Exception($errorMsg);
-                        }
-                    } else {
-                        // Handle other SAP errors as blocking
-                        $isDuplicateError = isset($sapResponse['error']['code']) && $sapResponse['error']['code'] == -5002;
-                        if ($isDuplicateError) {
-                            // Handle duplicate error as non-blocking
-                            foreach ($detalles as $detalle) {
-                                $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
-                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (duplicado): {$noFactura}, mensaje: {$errorMsg}");
-                            }
-                            $results[] = [
-                                'no_factura' => $noFactura,
-                                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
-                                'success' => true,
-                                'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (duplicado, exportada de nuevo)",
-                                'filePath' => $jsonFilePath,
-                                'detalle_ids' => array_column($detalles, 'id'),
-                                'sap_response' => $sapResponse
-                            ];
-                            $atLeastOneProcessed = true;
-                            continue;
-                        }
-                        throw new Exception($errorMsg);
-                    }
-                }
-
-                // Update all details to FINALIZADO on success
                 foreach ($detalles as $detalle) {
                     $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
                     $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP: {$noFactura}");
@@ -3042,15 +3340,20 @@ public function exportar($id)
             error_log("SAP Logout Failed: {$logoutResult['error']}");
         }
 
-        // Finalize liquidation if at least one invoice was processed successfully
         $successCount = count(array_filter($results, fn($r) => $r['success']));
+        $erroresManejados = array_filter($results, function($r) {
+            return isset($r['manejado']) && $r['manejado'] === true && $r['success'] === true;
+        });
         $response = [
             'success' => $atLeastOneProcessed,
             'message' => $atLeastOneProcessed
                 ? "Exportación completada: $successCount facturas procesadas exitosamente"
                 : "Exportación fallida: ninguna factura procesada exitosamente",
             'results' => $results,
-            'validationResults' => $validationResults
+            'validationResults' => $validationResults,
+            'nitPnResults' => $nitPnResults,
+            'nitPnData' => $nitPnData,
+            'erroresManejados' => $erroresManejados
         ];
 
         if ($atLeastOneProcessed) {
@@ -3079,19 +3382,6 @@ public function exportar($id)
         exit;
     }
 }
-    // Función auxiliar para mapear Tipo_Gasto a AccountCode
-    
-    // private function getAccountCode($tipoGasto, $sociedad)
-    // {
-    //     $cuentaMap = [
-    //         'Combustible' => '630110002', // Validado desde factura existente
-    //         'Alimentación' => '630110002',
-    //         'Hospedaje' => '630110002',
-    //         'Transporte' => '630110002',
-    //         'Otros' => '630110002'
-    //     ];
-    //     return $cuentaMap[$tipoGasto] ?? '630110002'; // Cuenta por defecto
-    // }
     public function manageFacturas($id) {
         if (!isset($_SESSION['user_id'])) {
             header('Location: index.php?controller=auth&action=login');
@@ -4952,112 +5242,6 @@ public function exportar($id)
         echo json_encode($liquidacion);
         exit;
     }
-
-//     public function getCuentasContables($id_centro_costo)
-// {
-//     ob_start(); // Start output buffering
-//     error_log("Starting getCuentasContables with id_centro_costo=$id_centro_costo");
-//     if (!isset($_SESSION['user_id'])) {
-//         ob_end_clean();
-//         header('Content-Type: application/json');
-//         http_response_code(401);
-//         echo json_encode(['error' => 'Sesión no válida. Por favor, inicia sesión.']);
-//         exit;
-//     }
-
-//     try {
-//         // Validate centro de costo
-//         $centroCostoModel = new CentroCosto();
-//         $centro = $centroCostoModel->getCentroCostoById($id_centro_costo);
-//         if (!$centro) {
-//             ob_end_clean();
-//             header('Content-Type: application/json');
-//             http_response_code(404);
-//             echo json_encode(['error' => 'Centro de costo no encontrado']);
-//             exit;
-//         }
-
-//         // Initialize cuenta contable model
-//         $cuentaContableModel = new CuentaContable();
-//         $pdo = Database::getInstance()->getPdo();
-//         $cuentas_array = [];
-
-//         // Fetch accounts from local database first
-//         $local_cuentas = $cuentaContableModel->getCuentasByCentroCosto($id_centro_costo, 'ACTIVO');
-//         foreach ($local_cuentas as $cuenta) {
-//             $cuentas_array[] = ['id' => $cuenta['id'], 'nombre' => $cuenta['nombre']];
-//         }
-
-//         // Fetch accounts from HANA
-//         $sociedad = $_SESSION['sociedad'] ?? 'GT_AGROCENTRO_2016';
-//         $cuenta = $centro['tipo'] ?? '5';
-//         error_log("Fetching HANA accounts for sociedad=$sociedad, cuenta=$cuenta");
-//         $hana_cuentas = $this->ctrObtenerCuentas($sociedad, $cuenta);
-
-//         if ($hana_cuentas && $hana_cuentas !== 'sin_datos') {
-//             $cuentas_list = explode('|', trim($hana_cuentas, '|'));
-//             foreach ($cuentas_list as $cuenta_item) {
-//                 if (!empty($cuenta_item)) {
-//                     list($code, $name) = explode('-', $cuenta_item, 2);
-//                     $name = mb_convert_encoding($name, 'UTF-8', mb_detect_encoding($name));
-
-//                     // Check if the account exists with the same codigo_cuenta
-//                     $stmt = $pdo->prepare("
-//                         SELECT id, nombre, id_centro_costo 
-//                         FROM cuentas_contables 
-//                         WHERE codigo_cuenta = ?
-//                     ");
-//                     $stmt->execute([$code]);
-//                     $existingCuenta = $stmt->fetch(PDO::FETCH_ASSOC);
-
-//                     if (!$existingCuenta) {
-//                         // Insert new account
-//                         $stmt = $pdo->prepare("
-//                             INSERT INTO cuentas_contables (nombre, descripcion, estado, id_centro_costo, codigo_cuenta)
-//                             VALUES (?, ?, ?, ?, ?)
-//                         ");
-//                         $descripcion = '';
-//                         $estado = 'ACTIVO';
-//                         $stmt->execute([$name, $descripcion, $estado, $id_centro_costo, $code]);
-//                         $id = $pdo->lastInsertId();
-//                         $cuentas_array[] = ['id' => $id, 'nombre' => $name];
-//                         error_log("Inserted new account: codigo_cuenta=$code, nombre=$name, id_centro_costo=$id_centro_costo");
-//                     } elseif ($existingCuenta['id_centro_costo'] == $id_centro_costo && $existingCuenta['nombre'] == $name) {
-//                         // Account exists for this id_centro_costo and matches name, include it
-//                         if (!in_array(['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']], $cuentas_array)) {
-//                             $cuentas_array[] = ['id' => $existingCuenta['id'], 'nombre' => $existingCuenta['nombre']];
-//                         }
-//                     } else {
-//                         // Account exists for a different id_centro_costo, log and skip
-//                         error_log("Skipping duplicate account: codigo_cuenta=$code exists for id_centro_costo={$existingCuenta['id_centro_costo']}, requested id_centro_costo=$id_centro_costo");
-//                         continue;
-//                     }
-//                 }
-//             }
-//         } else {
-//             error_log("No HANA accounts found for id_centro_costo=$id_centro_costo, cuenta=$cuenta");
-//         }
-
-//         // Remove duplicates
-//         $cuentas_array = array_values(array_unique($cuentas_array, SORT_REGULAR));
-
-//         // Log the response
-//         error_log("getCuentasContables: id_centro_costo=$id_centro_costo, cuentas=" . json_encode($cuentas_array));
-
-//         ob_end_clean();
-//         header('Content-Type: application/json');
-//         http_response_code(200);
-//         echo json_encode($cuentas_array);
-//     } catch (Exception $e) {
-//         ob_end_clean();
-//         error_log("Error in getCuentasContables: id_centro_costo=$id_centro_costo, error=" . $e->getMessage());
-//         header('Content-Type: application/json');
-//         http_response_code(500);
-//         echo json_encode(['error' => 'Error al obtener cuentas contables: ' . $e->getMessage()]);
-//     }
-//     exit;
-// }
-
 public function fetchHanaAccounts($id_centro_costo) {
     ob_start();
     error_log("Starting fetchHanaAccounts with id_centro_costo=$id_centro_costo");
