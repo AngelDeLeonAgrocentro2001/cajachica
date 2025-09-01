@@ -943,29 +943,42 @@ class ReportesController {
             $html .= '</div>';
     
             $html .= '<div class="images-section">';
-            $html .= '<h2>Archivos Adjuntos</h2>';
-            $hasFiles = false;
-    
-            foreach ($detalles as $detalle) {
-                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                if (is_array($rutas) && !empty($rutas)) {
-                    foreach ($rutas as $ruta) {
-                        // Construct absolute URL
-                        $fileUrl = rtrim($this->baseUrl, '/') . '/' . ltrim($ruta, '/');
-                        $fileName = basename($ruta);
-                        $hasFiles = true;
-                        $html .= '<div>';
-                        $html .= '<p>Archivo de Factura #' . htmlspecialchars($detalle['no_factura']) . ':</p>';
-                        // $html .= '<a href="' . htmlspecialchars($fileUrl) . '" target="_blank">' . htmlspecialchars($fileName) . '</a>';
-                        $html .= '<img src="' . htmlspecialchars($fileUrl) . '" alt="" srcset="">';
-                        $html .= '</div>';
-                    }
-                }
+$html .= '<h2>Archivos Adjuntos</h2>';
+$hasFiles = false;
+
+foreach ($detalles as $detalle) {
+    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+    if (is_array($rutas) && !empty($rutas)) {
+        foreach ($rutas as $ruta) {
+            $localPath = '/var/www/cajachica/' . ltrim($ruta, '/');
+            $fileName = basename($ruta);
+            $hasFiles = true;
+            
+            $html .= '<div>';
+            $html .= '<p>Archivo de Factura #' . htmlspecialchars($detalle['no_factura']) . ':</p>';
+            
+            // Verificar si el archivo existe y es una imagen
+            if (file_exists($localPath) && $this->isImage($localPath)) {
+                // Convertir imagen a base64 para incluirla en el PDF
+                $imageData = base64_encode(file_get_contents($localPath));
+                $imageInfo = getimagesize($localPath);
+                $mimeType = $imageInfo['mime'];
+                
+                $html .= '<img src="data:' . $mimeType . ';base64,' . $imageData . '" ';
+                $html .= 'style="max-width: 300px; max-height: 200px; border: 1px solid #ccc;" ';
+                $html .= 'alt="' . htmlspecialchars($fileName) . '">';
+            } else {
+                $html .= '<p>Archivo: ' . htmlspecialchars($fileName) . ' (No es una imagen o no existe)</p>';
             }
-            if (!$hasFiles) {
-                $html .= '<p style="text-align: center;">No hay archivos disponibles.</p>';
-            }
+            
             $html .= '</div>';
+        }
+    }
+}
+if (!$hasFiles) {
+    $html .= '<p style="text-align: center;">No hay archivos disponibles.</p>';
+}
+$html .= '</div>';
     
             $html .= '</div>'; // Close content-container
     
