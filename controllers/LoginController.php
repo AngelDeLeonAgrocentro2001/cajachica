@@ -90,8 +90,8 @@ class LoginController {
                 $_SESSION['reset_token_expiry'][$email] = time() + 3600;
     
                 // Configuración de correo basada en SendEmail que funciona
-                $cuentaRemitente = 'no-reply@agrocentro.com';
-                $PassCuentaRemitente = 'Fob37021';
+                $cuentaRemitente = 'angel.deleon@agrocentro.com';
+                $PassCuentaRemitente = 'byvdynlmzjlpvncv';
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
                 
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
@@ -102,7 +102,7 @@ class LoginController {
                 try {
                     // Configuración probada que funciona
                     $mail->isSMTP();
-                    $mail->Host = 'smtp.outlook.com';
+                    $mail->Host = 'smtp.office365.com';
                     $mail->SMTPAuth = true;
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port = 587;
@@ -125,7 +125,8 @@ class LoginController {
                     $mail->send();
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } catch (Exception $e) {
-                    error_log("Error al enviar email de recuperación: " . $e->getMessage());
+                    error_log("Error detallado PHPMailer: " . $e->getMessage());
+                    error_log("Error completo: " . print_r($e, true));
                     header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
                 }
             } else {
