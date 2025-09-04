@@ -2343,6 +2343,9 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
         } elseif (strpos($errorMessage, '18000018') !== false) {
             $errorCode = 18000018;
             error_log("Código real extraído del mensaje: 18000018");
+        } elseif (strpos($errorMessage, '20170505') !== false) {
+            $errorCode = 20170505;
+            error_log("Código real extraído del mensaje: 20170505");
         }
     }
     
@@ -2354,6 +2357,10 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
         case 18000018: // NIT no existe
             error_log("NIT no encontrado para factura {$noFactura}");
             return $this->manejarErrorNitNoExiste($nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
+            
+        case 20170505: // No se permiten descuentos en esta factura
+            error_log("Error de descuentos detectado para factura {$noFactura}");
+            return $this->manejarErrorDescuentosNoPermitidos($jsonContent, $cookie, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
             
         default:
             error_log("Error no manejable: $errorCode");
@@ -2580,6 +2587,78 @@ private function manejarErrorNitNoExiste($nitProveedor, $nombreProveedor, $noFac
 
     } catch (Exception $e) {
         error_log("Error al insertar NIT en @NIT_PN: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'manejable' => false
+        ];
+    }
+}
+
+private function manejarErrorDescuentosNoPermitidos($jsonContent, $cookie, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
+{
+    try {
+        error_log("Manejando error de descuentos no permitidos (20170505)");
+        
+        // Decodificar el JSON para modificar los valores incorrectos
+        $invoiceData = json_decode($jsonContent, true);
+        
+        // Si hay múltiples detalles en este grupo, recalcular el DocTotal
+        if (count($detalles) > 1) {
+            $nuevoDocTotal = 0;
+            foreach ($detalles as $detalle) {
+                $nuevoDocTotal += floatval($detalle['total_factura']);
+            }
+            
+            error_log("Recalculando DocTotal: {$invoiceData['DocTotal']} -> {$nuevoDocTotal} (para " . count($detalles) . " detalles)");
+            $invoiceData['DocTotal'] = $nuevoDocTotal;
+            
+            // También asegurarse de que cada línea tenga el PriceAfterVAT correcto
+            if (isset($invoiceData['DocumentLines']) && is_array($invoiceData['DocumentLines'])) {
+                foreach ($invoiceData['DocumentLines'] as $index => &$line) {
+                    if (isset($detalles[$index])) {
+                        $line['PriceAfterVAT'] = floatval($detalles[$index]['total_factura']);
+                        error_log("Ajustando línea {$index}: PriceAfterVAT = {$line['PriceAfterVAT']}");
+                    }
+                }
+            }
+        }
+        
+        // Forzar TotalDiscount a 0 si existe
+        if (isset($invoiceData['TotalDiscount'])) {
+            error_log("TotalDiscount encontrado: {$invoiceData['TotalDiscount']}, forzando a 0");
+            $invoiceData['TotalDiscount'] = 0;
+        }
+        
+        // También verificar en las líneas del documento
+        if (isset($invoiceData['DocumentLines']) && is_array($invoiceData['DocumentLines'])) {
+            foreach ($invoiceData['DocumentLines'] as &$line) {
+                if (isset($line['DiscountPercent'])) {
+                    error_log("DiscountPercent encontrado en línea: {$line['DiscountPercent']}, forzando a 0");
+                    $line['DiscountPercent'] = 0;
+                }
+                if (isset($line['DiscountAmount'])) {
+                    error_log("DiscountAmount encontrado en línea: {$line['DiscountAmount']}, forzando a 0");
+                    $line['DiscountAmount'] = 0;
+                }
+            }
+        }
+        
+        // Codificar de nuevo a JSON
+        $modifiedJsonContent = json_encode($invoiceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        
+        // Guardar el JSON modificado
+        if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $modifiedJsonContent) === false) {
+            throw new Exception("No se pudo escribir el archivo JSON modificado: $jsonFilePath");
+        }
+        
+        error_log("JSON modificado guardado en: $jsonFilePath");
+        
+        // Reintentar envío a SAP con el JSON modificado
+        return $this->reintentarEnvioSAP($cookie, $modifiedJsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath, "DocTotal y descuentos corregidos");
+
+    } catch (Exception $e) {
+        error_log("Error al manejar descuentos no permitidos: " . $e->getMessage());
         return [
             'success' => false,
             'error' => $e->getMessage(),
@@ -2903,6 +2982,10 @@ public function exportar($id, $docDate = null)
 
                 $documentLines = [];
                 $docTotal = 0;
+                foreach ($detalles as $detalle) {
+                    $docTotal += floatval($detalle['total_factura']);
+                }
+                error_log("DocTotal calculado para factura {$noFactura}: {$docTotal} (suma de " . count($detalles) . " detalles)");
                 $tipoDocumento = strtoupper($detalles[0]['tipo_documento'] ?? 'FACTURA');
                 $tipoA = in_array($detalles[0]['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : ($detalles[0]['t_gasto'] === 'Combustible' ? 'C' : 'B');
                 
@@ -3037,6 +3120,7 @@ public function exportar($id, $docDate = null)
             $noFactura = $groupedDetalles[$groupKey]['no_factura'];
             try {
                 error_log("Procesando exportación para grupo {$groupKey} (Factura: {$noFactura}, Grupo ID: {$groupedDetalles[$groupKey]['grupo_id']}) con " . count($detalles) . " detalles");
+                
                 $dl = $detalles[0];
                 $docDate = $docDate ?? date('Y-m-d', strtotime($dl['fecha']));
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
@@ -3171,6 +3255,7 @@ public function exportar($id, $docDate = null)
                     "U_F_Tipo" => $tipoDocForUF,
                     "Series" => 82,
                     "DocTotal" => $docTotal,
+                    "TotalDiscount" => 0.0,
                     "Reference1" => "{$id}-{$noFactura}",
                     "NumAtCard" => $numAtCard,
                     "U_F_DEC" => $u_f_dec,
@@ -3179,6 +3264,11 @@ public function exportar($id, $docDate = null)
                     "DocRate" => 1,
                     "DocumentLines" => $documentLines
                 ];
+
+                foreach ($documentLines as &$line) {
+                    $line['DiscountPercent'] = 0;
+                    $line['DiscountAmount'] = 0;
+                }
 
                 $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$groupKey}.json";
                 $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -3222,27 +3312,29 @@ if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
     error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $errorMsg");
 
     $errorCode = 0;
-$errorMessage = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
+    $errorMessage = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
 
-// Extraer el código de error correctamente de la respuesta de SAP
-if (isset($sapResponse['error']['code'])) {
-    $errorCode = $sapResponse['error']['code'];
-    if (isset($sapResponse['error']['message']['value'])) {
-        $errorMessage .= " - {$sapResponse['error']['message']['value']}";
-        
-        // Intentar extraer el código numérico del mensaje si el code es -1116
-        if ($errorCode == -1116) {
-            // Buscar códigos específicos en el mensaje
-            if (strpos($sapResponse['error']['message']['value'], '2021032504') !== false) {
-                $errorCode = 2021032504;
-            } elseif (strpos($sapResponse['error']['message']['value'], '18000018') !== false) {
-                $errorCode = 18000018;
+    // Extraer el código de error correctamente de la respuesta de SAP
+    if (isset($sapResponse['error']['code'])) {
+        $errorCode = $sapResponse['error']['code'];
+        if (isset($sapResponse['error']['message']['value'])) {
+            $errorMessage .= " - {$sapResponse['error']['message']['value']}";
+            
+            // Intentar extraer el código numérico del mensaje si el code es -1116
+            if ($errorCode == -1116) {
+                // Buscar códigos específicos en el mensaje
+                if (strpos($sapResponse['error']['message']['value'], '2021032504') !== false) {
+                    $errorCode = 2021032504;
+                } elseif (strpos($sapResponse['error']['message']['value'], '18000018') !== false) {
+                    $errorCode = 18000018;
+                } elseif (strpos($sapResponse['error']['message']['value'], '20170505') !== false) {
+                    $errorCode = 20170505;
+                }
             }
         }
     }
-}
 
-error_log("Código de error detectado: $errorCode, Mensaje: $errorMessage");
+    error_log("Código de error detectado: $errorCode, Mensaje: $errorMessage");
     
     // Intentar manejar el error automáticamente
     $manejoResultado = $this->manejarErroresSapYReintentar(
