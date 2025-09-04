@@ -33,6 +33,7 @@ class DteController {
     }
 
     public function uploadExcel() {
+        error_log("=== INICIO uploadExcel ===", 3, '/var/www/cajachica/debug.log');
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);

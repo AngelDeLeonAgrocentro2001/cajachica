@@ -23,6 +23,12 @@ class DteModel {
 
     public function insertDte($data) {
         try {
+            error_log("Intentando insertar DTE: " . json_encode([
+                'numero_autorizacion' => $data['numero_autorizacion'],
+                'serie' => $data['serie'], 
+                'numero_dte' => $data['numero_dte']
+            ]), 3, '/var/www/cajachica/debug.log');
+
             // Verificar duplicados
             if ($this->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
                 error_log("DTE duplicado detectado: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
@@ -86,6 +92,8 @@ class DteModel {
             return true;
         } catch (PDOException $e) {
             error_log("Error al insertar DTE: " . $e->getMessage() . " | Data: " . print_r($data, true));
+            error_log("EXCEPCIÓN PDO: " . $e->getMessage(), 3, '/var/www/cajachica/debug.log');
+        error_log("TRACE PDO: " . $e->getTraceAsString(), 3, '/var/www/cajachica/debug.log');
             return false;
         }
     }
