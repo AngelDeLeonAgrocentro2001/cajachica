@@ -1414,7 +1414,7 @@
       }
 
       async function exportToSap(id, reintento = 0) {
-    const maxReintentosAutomaticos = 2;
+    const maxReintentosAutomaticos = 3;
     
     Swal.fire({
         icon: 'info',
@@ -1440,6 +1440,7 @@
         try {
             result = JSON.parse(rawResponse);
         } catch (e) {
+            console.error('Error parsing JSON:', e, 'Raw response:', rawResponse);
             throw new Error('No es posible exportar por problemas en SAP, intente más tarde');
         }
 
@@ -1457,7 +1458,7 @@
                 Swal.close();
                 
                 // Esperar un momento y reintentar automáticamente
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 
                 // Reintentar con contador incrementado
                 return exportToSap(id, reintento + 1);
@@ -1470,12 +1471,15 @@
                 html: errorText + '<br><br>¿Deseas reintentar la exportación?',
                 showCancelButton: true,
                 confirmButtonText: 'Reintentar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return exportToSap(id, reintento + 1);
+                }
             });
             
             if (retry.isConfirmed) {
-                Swal.close();
-                return exportToSap(id, reintento + 1);
+                return retry.value;
             } else {
                 throw new Error('Exportación cancelada por el usuario');
             }
@@ -1495,12 +1499,15 @@
                 text: error.message || 'No es posible exportar por problemas en SAP, intente más tarde',
                 showCancelButton: true,
                 confirmButtonText: 'Reintentar',
-                cancelButtonText: 'OK'
+                cancelButtonText: 'OK',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return exportToSap(id, reintento + 1);
+                }
             });
             
             if (retry.isConfirmed) {
-                Swal.close();
-                return exportToSap(id, reintento + 1);
+                return retry.value;
             }
         }
         
