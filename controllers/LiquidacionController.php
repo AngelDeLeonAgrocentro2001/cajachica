@@ -2335,17 +2335,18 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
 {
     error_log("Manejando error SAP: $errorCode - $errorMessage para NIT: $nitProveedor");
     
-    // Si el código es -1116, intentar extraer el código real del mensaje
+    // Mejorar la extracción de códigos de error
+    $codigosError = [
+        2021032504 => 'NIT Pequeño Contribuyente',
+        18000018 => 'NIT no existe',
+        20170505 => 'No se permiten descuentos'
+    ];
+    
+    // Si el código es -1116, intentar extraer el código real del mensaje con mejor regex
     if ($errorCode == -1116) {
-        if (strpos($errorMessage, '2021032504') !== false) {
-            $errorCode = 2021032504;
-            error_log("Código real extraído del mensaje: 2021032504");
-        } elseif (strpos($errorMessage, '18000018') !== false) {
-            $errorCode = 18000018;
-            error_log("Código real extraído del mensaje: 18000018");
-        } elseif (strpos($errorMessage, '20170505') !== false) {
-            $errorCode = 20170505;
-            error_log("Código real extraído del mensaje: 20170505");
+        if (preg_match('/\((\d+)\)/', $errorMessage, $matches)) {
+            $errorCode = (int)$matches[1];
+            error_log("Código real extraído del mensaje: $errorCode - " . ($codigosError[$errorCode] ?? 'Desconocido'));
         }
     }
     
@@ -2363,11 +2364,12 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
             return $this->manejarErrorDescuentosNoPermitidos($jsonContent, $cookie, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
             
         default:
-            error_log("Error no manejable: $errorCode");
+            error_log("Error no manejable ($errorCode): $errorMessage");
             return [
                 'success' => false,
                 'error' => $errorMessage,
-                'manejable' => false
+                'manejable' => false,
+                'error_code' => $errorCode
             ];
     }
 }
