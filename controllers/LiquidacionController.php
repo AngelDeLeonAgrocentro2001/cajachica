@@ -1494,9 +1494,9 @@ public function autorizar($id) {
         if ($action === 'send_to_correction') {
             $detalleIds = json_decode($_POST['detalle_ids'] ?? '[]', true);
             $correccionComentarios = json_decode($_POST['correccion_comentarios'] ?? '{}', true);
-
+        
             error_log("send_to_correction: detalleIds=" . json_encode($detalleIds) . ", user_id={$_SESSION['user_id']}, liquidation_id=$id, rol=$rol");
-
+        
             if (empty($detalleIds)) {
                 error_log("No se proporcionaron detalleIds");
                 header('Content-Type: application/json; charset=UTF-8');
@@ -1504,13 +1504,13 @@ public function autorizar($id) {
                 echo json_encode(['error' => 'No se proporcionaron IDs de detalle'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
-
+        
             try {
                 $this->pdo->beginTransaction();
                 $numCorrections = 0;
                 $skipReasons = [];
                 $processedGrupoIds = [];
-
+        
                 foreach ($detalleIds as $detalleId) {
                     $detalleId = intval($detalleId);
                     error_log("Procesando detalleId=$detalleId");
@@ -1526,40 +1526,70 @@ public function autorizar($id) {
                         $skipReasons[$detalleId] = "Pertenece a otra liquidación";
                         continue;
                     }
+                    
                     $grupoId = $detalle['grupo_id'] ?? '0';
-                    if (in_array($grupoId, $processedGrupoIds)) {
-                        error_log("Grupo ID $grupoId ya procesado");
+                    $estado = $detalle['estado'] ?? '';
+                    
+                    // Saltar si ya está en corrección
+                    if ($estado === 'EN_CORRECCION') {
+                        error_log("Detalle ID $detalleId ya está en EN_CORRECCION");
+                        $skipReasons[$detalleId] = "Ya en corrección";
                         continue;
                     }
-                    $processedGrupoIds[] = $grupoId;
-
-                    // Obtener todos los detalles con el mismo grupo_id
-                    $detallesGrupo = ($grupoId && $grupoId !== '0') ? $detalleModel->getDetallesByGrupoId($grupoId, $id) : [$detalle];
-
-                    foreach ($detallesGrupo as $grupoDetalle) {
-                        $grupoDetalleId = intval($grupoDetalle['id']);
-                        if ($grupoDetalle['estado'] === 'EN_CORRECCION') {
-                            error_log("Detalle ID $grupoDetalleId ya está en EN_CORRECCION");
-                            $skipReasons[$grupoDetalleId] = "Ya en corrección";
+                    
+                    // Para grupos, procesar todos los detalles del grupo
+                    if ($grupoId !== '0' && $grupoId !== 0) {
+                        if (in_array($grupoId, $processedGrupoIds)) {
+                            error_log("Grupo ID $grupoId ya procesado");
                             continue;
                         }
+                        $processedGrupoIds[] = $grupoId;
+        
+                        // Obtener todos los detalles del grupo
+                        $detallesGrupo = $detalleModel->getDetallesByGrupoId($grupoId, $id);
+                        
+                        foreach ($detallesGrupo as $grupoDetalle) {
+                            $grupoDetalleId = intval($grupoDetalle['id']);
+                            $grupoEstado = $grupoDetalle['estado'] ?? '';
+                            
+                            if ($grupoEstado === 'EN_CORRECCION') {
+                                error_log("Detalle ID $grupoDetalleId ya está en EN_CORRECCION");
+                                $skipReasons[$grupoDetalleId] = "Ya en corrección";
+                                continue;
+                            }
+                            
+                            $comment = $correccionComentarios[$detalleId] ?? '';
+                            if (empty($comment)) {
+                                error_log("Comentario vacío para detalle ID $detalleId");
+                                throw new Exception("Comentario de corrección requerido para el detalle ID $detalleId");
+                            }
+                            
+                            error_log("Actualizando detalle ID $grupoDetalleId a EN_CORRECCION con comentario='$comment'");
+                            $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
+                            $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
+                            $numCorrections++;
+                        }
+                    } 
+                    // Para detalles individuales, procesar solo este detalle
+                    else {
                         $comment = $correccionComentarios[$detalleId] ?? '';
                         if (empty($comment)) {
                             error_log("Comentario vacío para detalle ID $detalleId");
                             throw new Exception("Comentario de corrección requerido para el detalle ID $detalleId");
                         }
-                        error_log("Actualizando detalle ID $grupoDetalleId a EN_CORRECCION con comentario='$comment'");
-                        $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
-                        $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
+                        
+                        error_log("Actualizando detalle ID $detalleId a EN_CORRECCION con comentario='$comment'");
+                        $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
+                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
                         $numCorrections++;
                     }
                 }
-
+        
                 if ($numCorrections === 0 && !empty($skipReasons)) {
                     error_log("No se procesaron detalles. Razones: " . json_encode($skipReasons));
                     throw new Exception("No se procesaron detalles: " . json_encode($skipReasons));
                 }
-
+        
                 $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                 $allInCorrection = true;
                 foreach ($allDetalles as $detalle) {
@@ -1568,13 +1598,13 @@ public function autorizar($id) {
                         break;
                     }
                 }
-
+        
                 if ($allInCorrection) {
                     error_log("Todos los detalles en EN_CORRECCION, actualizando liquidación ID $id a EN_PROCESO");
                     $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                 }
-
+        
                 $this->pdo->commit();
                 error_log("Corrección completada: $numCorrections detalle(s) enviados a corrección");
                 header('Content-Type: application/json; charset=UTF-8');
@@ -1923,10 +1953,9 @@ public function revisar($id) {
         if ($action === 'send_to_correction') {
             $detalleIds = json_decode($_POST['detalle_ids'] ?? '[]', true);
             $correccionComentarios = json_decode($_POST['correccion_comentarios'] ?? '{}', true);
-            $idContador = isset($_POST['id_contador']) ? intval($_POST['id_contador']) : ($isContabilidadRole ? $_SESSION['user_id'] : null);
-
-            error_log("send_to_correction: detalleIds=" . json_encode($detalleIds) . ", idContador=$idContador, user_id={$_SESSION['user_id']}, liquidation_id=$id");
-
+        
+            error_log("send_to_correction: detalleIds=" . json_encode($detalleIds) . ", user_id={$_SESSION['user_id']}, liquidation_id=$id, rol=$rol");
+        
             if (empty($detalleIds)) {
                 error_log("No se proporcionaron detalleIds");
                 header('Content-Type: application/json; charset=UTF-8');
@@ -1934,21 +1963,16 @@ public function revisar($id) {
                 echo json_encode(['error' => 'No se proporcionaron IDs de detalle'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
-
-            if (!$idContador && $isContabilidadRole) {
-                error_log("idContador no establecido para Contabilidad role, usando user_id={$_SESSION['user_id']}");
-                $idContador = $_SESSION['user_id'];
-            }
-
+        
             try {
                 $this->pdo->beginTransaction();
                 $numCorrections = 0;
                 $skipReasons = [];
                 $processedGrupoIds = [];
-
+        
                 foreach ($detalleIds as $detalleId) {
                     $detalleId = intval($detalleId);
-                    error_log("Procesando detalleId=$detalleId, tipo=" . gettype($detalleId));
+                    error_log("Procesando detalleId=$detalleId");
                     $detalle = $detalleModel->getDetalleById($detalleId);
                     if (!$detalle) {
                         error_log("Detalle ID $detalleId no encontrado");
@@ -1956,75 +1980,90 @@ public function revisar($id) {
                         continue;
                     }
                     $detalleLiquidacionId = intval($detalle['id_liquidacion'] ?? 0);
-                    $id = intval($id);
-                    error_log("Validando: detalle_liquidacion_id=$detalleLiquidacionId, liquidation_id=$id");
-
-                    if ($detalleLiquidacionId === 0) {
-                        error_log("id_liquidacion=0 para detalle ID $detalleId, intentando corregir a $id");
-                        $detalleModel->updateLiquidacionId($detalleId, $id);
-                        $detalle = $detalleModel->getDetalleById($detalleId);
-                        $detalleLiquidacionId = intval($detalle['id_liquidacion'] ?? 0);
-                        if ($detalleLiquidacionId !== $id) {
-                            error_log("Fallo al corregir id_liquidacion para detalle ID $detalleId, sigue siendo $detalleLiquidacionId");
-                            $skipReasons[$detalleId] = "Pertenece a otra liquidación (detalle_liquidacion_id=$detalleLiquidacionId, esperado=$id)";
-                            continue;
-                        }
-                        error_log("id_liquidacion corregido a $id para detalle ID $detalleId");
-                    }
-
                     if ($detalleLiquidacionId !== $id) {
                         error_log("Detalle ID $detalleId pertenece a otra liquidación: $detalleLiquidacionId != $id");
-                        $skipReasons[$detalleId] = "Pertenece a otra liquidación (detalle_liquidacion_id=$detalleLiquidacionId, esperado=$id)";
+                        $skipReasons[$detalleId] = "Pertenece a otra liquidación";
                         continue;
                     }
+                    
                     $grupoId = $detalle['grupo_id'] ?? '0';
-                    if (in_array($grupoId, $processedGrupoIds)) {
-                        error_log("Grupo ID $grupoId ya procesado");
+                    $estado = $detalle['estado'] ?? '';
+                    
+                    // Saltar si ya está en corrección
+                    if ($estado === 'EN_CORRECCION') {
+                        error_log("Detalle ID $detalleId ya está en EN_CORRECCION");
+                        $skipReasons[$detalleId] = "Ya en corrección";
                         continue;
                     }
-                    $processedGrupoIds[] = $grupoId;
-
-                    $detallesGrupo = ($grupoId && $grupoId !== '0') ? $detalleModel->getDetallesByGrupoId($grupoId, $id) : [$detalle];
-
-                    foreach ($detallesGrupo as $grupoDetalle) {
-                        $grupoDetalleId = intval($grupoDetalle['id']);
-                        if ($grupoDetalle['estado'] === 'EN_CORRECCION') {
-                            error_log("Detalle ID $grupoDetalleId ya está en EN_CORRECCION");
-                            $skipReasons[$grupoDetalleId] = "Ya en corrección";
+                    
+                    // Para grupos, procesar todos los detalles del grupo
+                    if ($grupoId !== '0' && $grupoId !== 0) {
+                        if (in_array($grupoId, $processedGrupoIds)) {
+                            error_log("Grupo ID $grupoId ya procesado");
                             continue;
                         }
+                        $processedGrupoIds[] = $grupoId;
+        
+                        // Obtener todos los detalles del grupo
+                        $detallesGrupo = $detalleModel->getDetallesByGrupoId($grupoId, $id);
+                        
+                        foreach ($detallesGrupo as $grupoDetalle) {
+                            $grupoDetalleId = intval($grupoDetalle['id']);
+                            $grupoEstado = $grupoDetalle['estado'] ?? '';
+                            
+                            if ($grupoEstado === 'EN_CORRECCION') {
+                                error_log("Detalle ID $grupoDetalleId ya está en EN_CORRECCION");
+                                $skipReasons[$grupoDetalleId] = "Ya en corrección";
+                                continue;
+                            }
+                            
+                            $comment = $correccionComentarios[$detalleId] ?? '';
+                            if (empty($comment)) {
+                                error_log("Comentario vacío para detalle ID $detalleId");
+                                throw new Exception("Comentario de corrección requerido para el detalle ID $detalleId");
+                            }
+                            
+                            error_log("Actualizando detalle ID $grupoDetalleId a EN_CORRECCION con comentario='$comment'");
+                            $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
+                            $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
+                            $numCorrections++;
+                        }
+                    } 
+                    // Para detalles individuales, procesar solo este detalle
+                    else {
                         $comment = $correccionComentarios[$detalleId] ?? '';
                         if (empty($comment)) {
                             error_log("Comentario vacío para detalle ID $detalleId");
                             throw new Exception("Comentario de corrección requerido para el detalle ID $detalleId");
                         }
-                        error_log("Actualizando detalle ID $grupoDetalleId a EN_CORRECCION con comentario='$comment', id_contador=$idContador");
-                        $detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, null, $idContador);
-                        $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por contador ID " . ($idContador ?? 'N/A'));
+                        
+                        error_log("Actualizando detalle ID $detalleId a EN_CORRECCION con comentario='$comment'");
+                        $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
+                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
                         $numCorrections++;
                     }
                 }
-
+        
                 if ($numCorrections === 0 && !empty($skipReasons)) {
                     error_log("No se procesaron detalles. Razones: " . json_encode($skipReasons));
                     throw new Exception("No se procesaron detalles: " . json_encode($skipReasons));
                 }
-
-                $updatedDetalles = $detalleModel->getDetallesByLiquidacionId($id);
+        
+                $allDetalles = $this->detalleModel->getDetallesByLiquidacionId($id);
                 $allInCorrection = true;
-                foreach ($updatedDetalles as $detalle) {
+                foreach ($allDetalles as $detalle) {
                     if ($detalle['estado'] !== 'EN_CORRECCION') {
                         $allInCorrection = false;
                         break;
                     }
                 }
-
+        
                 if ($allInCorrection) {
                     error_log("Todos los detalles en EN_CORRECCION, actualizando liquidación ID $id a EN_PROCESO");
                     $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                 }
-
+        
                 $this->pdo->commit();
                 error_log("Corrección completada: $numCorrections detalle(s) enviados a corrección");
                 header('Content-Type: application/json; charset=UTF-8');
