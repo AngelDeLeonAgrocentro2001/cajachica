@@ -1227,128 +1227,182 @@
       }
 
       async function bulkSendToCorrection() {
-        const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
-        if (unselectedDetalles.length === 0) {
-          Swal.fire({
+    const unselectedDetalles = Array.from(document.querySelectorAll('input[name="detalles[]"]:not(:checked)')).map(input => input.value);
+    if (unselectedDetalles.length === 0) {
+        Swal.fire({
             icon: 'warning',
             title: 'Sin selección',
             text: 'Por favor, deselecciona al menos un detalle para enviar a corrección.',
             confirmButtonText: 'OK'
-          });
-          return;
-        }
-
-        // Collect all detalle_ids in the same grupo_id
-        const detallesToCorrect = new Set(unselectedDetalles);
-        unselectedDetalles.forEach(detalleId => {
-          const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-          const grupoId = row.getAttribute('data-grupo-id') || '0';
-          if (grupoId !== '0') {
-            document.querySelectorAll(`tr[data-grupo-id="${grupoId}"]`).forEach(groupRow => {
-              const groupDetalleId = groupRow.getAttribute('data-id');
-              const estado = groupRow.querySelector('td[data-label="Estado"]').textContent.trim();
-              if (estado !== 'EN_CORRECCION') {
-                detallesToCorrect.add(groupDetalleId);
-              }
-            });
-          }
         });
+        return;
+    }
 
-        const validDetalles = [];
-        const correccionComentarios = {};
-        for (const detalleId of detallesToCorrect) {
-          const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-          const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
-          if (estado !== 'EN_CORRECCION') {
-            const commentInput = document.querySelector(`input[name="correccion_comentario_${detalleId}"]`);
+    // Obtener TODOS los detalles no seleccionados, tanto individuales como grupales
+    const detallesToCorrect = new Set();
+    const processedGrupoIds = new Set();
+    const processedIndividualIds = new Set();
+    
+    unselectedDetalles.forEach(detalleId => {
+        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+        if (!row) return;
+        
+        const grupoId = row.getAttribute('data-grupo-id') || '0';
+        const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
+        
+        // Saltar si ya está en corrección
+        if (estado === 'EN_CORRECCION') return;
+        
+        // Procesar grupos
+        if (grupoId !== '0') {
+            if (!processedGrupoIds.has(grupoId)) {
+                processedGrupoIds.add(grupoId);
+                
+                // Agregar todos los detalles de este grupo
+                document.querySelectorAll(`tr[data-grupo-id="${grupoId}"]`).forEach(groupRow => {
+                    const groupDetalleId = groupRow.getAttribute('data-id');
+                    const groupEstado = groupRow.querySelector('td[data-label="Estado"]').textContent.trim();
+                    
+                    if (groupEstado !== 'EN_CORRECCION') {
+                        detallesToCorrect.add(groupDetalleId);
+                    }
+                });
+            }
+        } 
+        // Procesar detalles individuales
+        else {
+            if (!processedIndividualIds.has(detalleId)) {
+                processedIndividualIds.add(detalleId);
+                detallesToCorrect.add(detalleId);
+            }
+        }
+    });
+
+    const validDetalles = [];
+    const correccionComentarios = {};
+    
+    // Recolectar comentarios para TODOS los detalles a corregir
+    for (const detalleId of detallesToCorrect) {
+        const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+        if (!row) continue;
+        
+        const estado = row.querySelector('td[data-label="Estado"]').textContent.trim();
+        if (estado !== 'EN_CORRECCION') {
+            // Para detalles individuales, usar su propio comentario
+            // Para detalles grupales, usar el comentario del detalle que se deseleccionó
+            let commentDetalleId = detalleId;
+            
+            // Si es parte de un grupo, buscar el detalle original que fue deseleccionado
+            const grupoId = row.getAttribute('data-grupo-id') || '0';
+            if (grupoId !== '0') {
+                // Buscar el detalle original que inició el proceso de corrección
+                const originalDetalle = unselectedDetalles.find(id => {
+                    const originalRow = document.querySelector(`tr[data-id="${id}"]`);
+                    if (!originalRow) return false;
+                    const originalGrupoId = originalRow.getAttribute('data-grupo-id') || '0';
+                    return originalGrupoId === grupoId;
+                });
+                
+                if (originalDetalle) {
+                    commentDetalleId = originalDetalle;
+                }
+            }
+            
+            const commentInput = document.querySelector(`input[name="correccion_comentario_${commentDetalleId}"]`);
             const comment = commentInput ? commentInput.value.trim() : '';
-            // if (!comment) {
-            //   Swal.fire({
-            //     icon: 'warning',
-            //     title: 'Comentario requerido',
-            //     text: `Por favor, ingresa un comentario para el detalle ID ${detalleId} antes de enviarlo a corrección.`,
-            //     confirmButtonText: 'OK'
-            //   });
-            //   commentInput.focus();
-            //   return;
-            // }
+            
             correccionComentarios[detalleId] = comment;
             validDetalles.push(detalleId);
-          }
         }
+    }
 
-        if (validDetalles.length === 0) {
-          Swal.fire({
+    if (validDetalles.length === 0) {
+        Swal.fire({
             icon: 'warning',
             title: 'Sin detalles válidos',
             text: 'No hay detalles válidos para enviar a corrección.',
             confirmButtonText: 'OK'
-          });
-          return;
-        }
-
-        const confirmSend = await Swal.fire({
-          icon: 'question',
-          title: 'Confirmar corrección',
-          text: `¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
-          showCancelButton: true,
-          confirmButtonText: 'Sí',
-          cancelButtonText: 'No'
         });
-        if (!confirmSend.isConfirmed) return;
+        return;
+    }
 
-        Swal.fire({
-          icon: 'info',
-          title: 'Enviando a corrección',
-          text: 'Los detalles seleccionados están siendo enviados a corrección.',
-          confirmButtonText: 'OK'
-        });
+    console.log('Detalles a enviar a corrección:', validDetalles);
+    console.log('Comentarios:', correccionComentarios);
 
-        bulkSendToCorrectionBtn.disabled = true;
+    const confirmSend = await Swal.fire({
+        icon: 'question',
+        title: 'Confirmar corrección',
+        text: `¿Estás seguro de que deseas enviar ${validDetalles.length} detalle(s) a corrección?`,
+        showCancelButton: true,
+        confirmButtonText: 'Sí',
+        cancelButtonText: 'No'
+    });
+    if (!confirmSend.isConfirmed) return;
 
-        const formData = new FormData();
-        formData.append('action', 'send_to_correction');
-        formData.append('detalle_ids', JSON.stringify(validDetalles));
-        formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+    Swal.fire({
+        icon: 'info',
+        title: 'Enviando a corrección',
+        text: 'Los detalles seleccionados están siendo enviados a corrección.',
+        confirmButtonText: 'OK'
+    });
 
-        try {
-          const action = isContabilidadRole ? 'revisar' : 'autorizar';
-          console.log('Enviando a acción:', action);
-          console.log('FormData:', {
+    bulkSendToCorrectionBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('action', 'send_to_correction');
+    formData.append('detalle_ids', JSON.stringify(validDetalles));
+    formData.append('correccion_comentarios', JSON.stringify(correccionComentarios));
+
+    try {
+        const action = isContabilidadRole ? 'revisar' : 'autorizar';
+        console.log('Enviando a acción:', action);
+        console.log('FormData:', {
             action: 'send_to_correction',
             detalle_ids: JSON.stringify(validDetalles),
             correccion_comentarios: JSON.stringify(correccionComentarios)
-          });
-          const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
+        });
+        
+        const response = await fetch(`index.php?controller=liquidacion&action=${action}&id=<?php echo htmlspecialchars($data['id']); ?>`, {
             method: 'POST',
             body: formData,
             headers: {
-              'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest'
             }
-          });
-          const result = await response.json();
-          console.log('Respuesta del servidor:', result);
+        });
+        
+        const result = await response.json();
+        console.log('Respuesta del servidor:', result);
 
-          if (!response.ok) {
+        if (!response.ok) {
             throw new Error(result.error || 'Error al enviar a corrección');
-          }
+        }
 
-          if (result.num_corrections > 0) {
+        if (result.num_corrections > 0) {
             Swal.fire({
-              icon: 'success',
-              title: 'Corrección enviada',
-              text: result.message,
-              confirmButtonText: 'OK'
+                icon: 'success',
+                title: 'Corrección enviada',
+                text: result.message,
+                confirmButtonText: 'OK'
             });
+            
+            // Actualizar UI para todos los detalles corregidos
             validDetalles.forEach(detalleId => {
-              const row = document.querySelector(`tr[data-id="${detalleId}"]`);
-              row.classList.add('in-correction');
-              row.style.display = isContabilidadRole ? 'none' : '';
-              row.querySelector('input[name="detalles[]"]').disabled = true;
-              row.querySelector('input[name="detalles[]"]').checked = false;
-              row.querySelector('.comment-column').classList.add('hidden');
-              row.querySelector('.correccion-comment').disabled = true;
-              row.querySelector('td[data-label="Estado"]').textContent = 'En Corrección';
+                const row = document.querySelector(`tr[data-id="${detalleId}"]`);
+                if (row) {
+                    row.classList.add('in-correction');
+                    row.style.display = isContabilidadRole ? 'none' : '';
+                    const checkbox = row.querySelector('input[name="detalles[]"]');
+                    if (checkbox) {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                    }
+                    const commentColumn = row.querySelector('.comment-column');
+                    if (commentColumn) commentColumn.classList.add('hidden');
+                    const commentInput = row.querySelector('.correccion-comment');
+                    if (commentInput) commentInput.disabled = true;
+                    const estadoCell = row.querySelector('td[data-label="Estado"]');
+                    if (estadoCell) estadoCell.textContent = 'En Corrección';
+                }
             });
 
             hasCorrections = true;
@@ -1357,27 +1411,27 @@
             bulkSendToCorrectionBtn.classList.toggle('hidden', !anyCommentVisible);
 
             if (isContabilidadRole) {
-              filterNonCorrectedInvoices();
+                filterNonCorrectedInvoices();
             } else if (userRole.includes('SUPERVISOR')) {
-              filterSupervisorInvoices();
+                filterSupervisorInvoices();
             } else {
-              filterNonCorrectedInvoices();
+                filterNonCorrectedInvoices();
             }
-          } else {
+        } else {
             throw new Error(result.error || 'No se procesaron detalles.');
-          }
-        } catch (error) {
-          console.error('Error al enviar a corrección:', error);
-          Swal.fire({
+        }
+    } catch (error) {
+        console.error('Error al enviar a corrección:', error);
+        Swal.fire({
             icon: 'error',
             title: 'Error',
             text: `Error al enviar a corrección: ${error.message}`,
             confirmButtonText: 'OK'
-          });
-        } finally {
-          bulkSendToCorrectionBtn.disabled = false;
-        }
-      }
+        });
+    } finally {
+        bulkSendToCorrectionBtn.disabled = false;
+    }
+}
 
       function filterSupervisorInvoices() {
         const rows = document.querySelectorAll('#facturasTable tbody tr');
