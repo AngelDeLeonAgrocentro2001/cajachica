@@ -33,13 +33,13 @@ class DteController {
     }
 
     public function uploadExcel() {
-        error_log("=== INICIO uploadExcel ===", 3, '/var/www/cajachica/debug.log');
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
             echo json_encode(['error' => 'No autorizado']);
             exit;
         }
+        
         $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$this->usuarioModel->tienePermiso($usuario, 'manage_dte')) {
             header('Content-Type: application/json');
@@ -47,12 +47,12 @@ class DteController {
             echo json_encode(['error' => 'No tienes permiso para cargar DTE']);
             exit;
         }
-
+    
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file'])) {
             $file = $_FILES['excel_file'];
             $uploadDir = '../Uploads/';
             $uploadFile = $uploadDir . basename($file['name']);
-
+    
             // Validar tipo de archivo
             $fileType = strtolower(pathinfo($uploadFile, PATHINFO_EXTENSION));
             if ($fileType != 'xls' && $fileType != 'xlsx') {
@@ -60,38 +60,45 @@ class DteController {
                 echo json_encode(['success' => false, 'message' => 'Solo se permiten archivos Excel (.xls, .xlsx).']);
                 exit;
             }
-
+    
             // Mover archivo a la carpeta uploads
             if (!move_uploaded_file($file['tmp_name'], $uploadFile)) {
                 header('Content-Type: application/json');
                 echo json_encode(['success' => false, 'message' => 'Error al subir el archivo.']);
                 exit;
             }
-
+    
             try {
                 // Leer archivo Excel con PHPSpreadsheet
                 $spreadsheet = IOFactory::load($uploadFile);
                 $sheet = $spreadsheet->getActiveSheet();
                 $rows = $sheet->toArray();
                 $header = array_shift($rows); // Quitar encabezado
-
+    
                 // Validar que el número de columnas sea el esperado (32)
                 if (count($header) < 32) {
                     header('Content-Type: application/json');
                     echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 32 columnas.']);
                     exit;
                 }
-
+    
                 $insertedCount = 0;
                 $duplicateCount = 0;
-
-                foreach ($rows as $row) {
-                    // Validar que la fila tenga suficientes columnas
-                    if (count($row) < 32) {
-                        error_log("Fila incompleta detectada: " . print_r($row, true));
-                        continue; // Saltar filas incompletas
+                $errorCount = 0;
+    
+                foreach ($rows as $index => $row) {
+                    // Saltar filas vacías
+                    if (empty(array_filter($row))) {
+                        continue;
                     }
-
+    
+                    // Validar que la fila tenga suficientes columnas y datos esenciales
+                    if (count($row) < 32 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
+                        error_log("Fila $index incompleta o sin datos esenciales: " . print_r($row, true));
+                        $errorCount++;
+                        continue;
+                    }
+    
                     $data = [
                         'fecha_emision' => $row[0] ?: null,
                         'numero_autorizacion' => $row[1] ?: '',
@@ -127,38 +134,53 @@ class DteController {
                         'tarifa_portuaria' => $row[31] ?: 0.00,
                         'usado' => 'X' // Default value for usado
                     ];
-
+    
+                    // Validar campos esenciales para duplicados
+                    if (empty($data['numero_autorizacion']) || empty($data['serie']) || empty($data['numero_dte'])) {
+                        error_log("Fila $index: Campos esenciales vacíos para verificación de duplicado");
+                        $errorCount++;
+                        continue;
+                    }
+    
                     // Verificar duplicados antes de insertar
                     if ($this->dteModel->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
                         $duplicateCount++;
-                        error_log("DTE duplicado omitido: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
+                        error_log("DTE duplicado omitido - Fila $index: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
                         continue;
                     }
-
+    
                     if ($this->dteModel->insertDte($data)) {
                         $insertedCount++;
                     } else {
-                        error_log("Error al insertar DTE para fila: " . print_r($data, true));
-                        header('Content-Type: application/json');
-                        echo json_encode(['success' => false, 'message' => 'Error al guardar los datos en la base de datos.']);
-                        exit;
+                        $errorCount++;
+                        error_log("Error al insertar DTE para fila $index: " . print_r($data, true));
                     }
                 }
-
+    
                 // Generar mensaje según los resultados
-                if ($duplicateCount > 0 && $insertedCount == 0) {
-                    header('Content-Type: application/json');
-                    echo json_encode(['success' => false, 'message' => "No se procesaron los datos. Se encontraron $duplicateCount DTEs duplicados."]);
-                    exit;
-                } elseif ($duplicateCount > 0) {
-                    header('Content-Type: application/json');
-                    echo json_encode(['success' => true, 'message' => "Archivo procesado: $insertedCount DTEs guardados correctamente, $duplicateCount DTEs duplicados omitidos."]);
-                    exit;
-                } else {
-                    header('Content-Type: application/json');
-                    echo json_encode(['success' => true, 'message' => "Archivo procesado: $insertedCount DTEs guardados correctamente."]);
-                    exit;
+                $message = "Archivo procesado: ";
+                if ($insertedCount > 0) {
+                    $message .= "$insertedCount DTEs guardados correctamente. ";
                 }
+                if ($duplicateCount > 0) {
+                    $message .= "$duplicateCount DTEs duplicados omitidos. ";
+                }
+                if ($errorCount > 0) {
+                    $message .= "$errorCount DTEs con errores. ";
+                }
+    
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => $insertedCount > 0,
+                    'message' => $message,
+                    'stats' => [
+                        'inserted' => $insertedCount,
+                        'duplicates' => $duplicateCount,
+                        'errors' => $errorCount
+                    ]
+                ]);
+                exit;
+    
             } catch (Exception $e) {
                 error_log("Error al procesar el archivo Excel: " . $e->getMessage());
                 header('Content-Type: application/json');
@@ -166,7 +188,7 @@ class DteController {
                 exit;
             }
         }
-
+    
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'No se recibió ningún archivo.']);
         exit;

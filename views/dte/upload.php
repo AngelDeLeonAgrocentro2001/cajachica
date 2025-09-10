@@ -12,13 +12,22 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
+            transition: margin-left 0.3s ease-in-out;
             margin: 0;
             padding: 0;
-            transition: margin-left 0.3s ease-in-out;
+            box-sizing: border-box;
         }
 
         body.menu-open {
             margin-left: 250px;
+        }
+
+        .contenedor{
+            background-color:rgba(5, 119, 32, 0.25);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .content-container {
@@ -81,6 +90,7 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
     </style>
 </head>
 <body>
+    <div class="contenedor">
     <div class="content-container">
         <h1>Subir Archivo Excel DTE</h1>
         <form id="uploadForm" enctype="multipart/form-data">
@@ -89,6 +99,7 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
             <button type="submit">Subir y Procesar</button>
         </form>
         <div id="message"></div>
+    </div>
     </div>
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
