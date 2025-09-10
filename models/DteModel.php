@@ -10,10 +10,21 @@ class DteModel {
 
     public function isDteDuplicate($numero_autorizacion, $serie, $numero_dte) {
         try {
+            // Verificar que todos los campos necesarios estén presentes
+            if (empty($numero_autorizacion) || empty($serie) || empty($numero_dte)) {
+                error_log("Campos incompletos para verificación de duplicado: numero_autorizacion=$numero_autorizacion, serie=$serie, numero_dte=$numero_dte");
+                return false;
+            }
+            
             $sql = "SELECT COUNT(*) FROM dte WHERE numero_autorizacion = ? AND serie = ? AND numero_dte = ?";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$numero_autorizacion, $serie, $numero_dte]);
             $count = $stmt->fetchColumn();
+            
+            if ($count > 0) {
+                error_log("DTE DUPLICADO ENCONTRADO: numero_autorizacion=$numero_autorizacion, serie=$serie, numero_dte=$numero_dte");
+            }
+            
             return $count > 0;
         } catch (PDOException $e) {
             error_log("Error al verificar duplicado de DTE: " . $e->getMessage());
@@ -85,6 +96,12 @@ class DteModel {
             }
             return true;
         } catch (PDOException $e) {
+            // Verificar si es error de duplicado
+            if ($e->getCode() == 23000) { // Código de error para violación de restricción única
+                error_log("DTE duplicado detectado a nivel de BD: " . $e->getMessage());
+                return false;
+            }
+            
             error_log("Error al insertar DTE: " . $e->getMessage() . " | Data: " . print_r($data, true));
             return false;
         }
