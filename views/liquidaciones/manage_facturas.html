@@ -894,7 +894,25 @@
     padding: 5px;
   }
 }
+.cuenta_contable_centro_costo {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
 
+.cuenta_contable_centro_select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.cuenta_contable_centro_select:disabled {
+  background-color: #f5f5f5;
+  color: #666;
+}
     </style>
   </head>
   <body>
@@ -1051,6 +1069,13 @@
               class="porcentaje_input"
               required
             />
+            <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
+            <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_0" style="display: none;">
+              <label for="id_cuenta_contable_centro_0">Cuenta Contable:</label>
+              <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_0" class="cuenta_contable_centro_select">
+                <option value="">Selecciona una cuenta contable</option>
+              </select>
+            </div>
             <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
           </div>
         </div>
@@ -1630,6 +1655,88 @@ function validatePercentages() {
   return isValid;
 }
 
+async function updateCuentaContableOptionsForCentro(centroCostoId, index) {
+  const cuentaContableSelect = document.getElementById(`id_cuenta_contable_centro_${index}`);
+  const tipoGastoSelect = document.getElementById('t_gasto');
+  const tipoGasto = tipoGastoSelect.value;
+  
+  if (!centroCostoId) {
+    cuentaContableSelect.innerHTML = '<option value="">Selecciona un centro de costo primero</option>';
+    cuentaContableSelect.disabled = true;
+    return;
+  }
+
+  try {
+    const response = await fetch(`index.php?controller=liquidacion&action=manageFacturas&id=<?php echo htmlspecialchars($data['id']); ?>&subaction=getCuentasContables&id_centro_costo=${centroCostoId}`, {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    const cuentas = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(cuentas.error || 'Error al obtener las cuentas contables');
+    }
+
+    cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+    cuentaContableSelect.disabled = false;
+
+    // Filtrar cuentas según el tipo de gasto (misma lógica que la cuenta principal)
+    let cuentasFiltradas = cuentas;
+    
+    const tipoGastoToCuentaContable = {
+      'Gasto Operativo': 'Comisiones',
+      'Combustible': 'Combustibles y lubricantes',
+      'Hospedaje': 'Impuesto de turismo (INGUAT)',
+      'Alimentos': ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'],
+      'otros...': null
+    };
+
+    // Para Alimentos, solo mostrar las 3 cuentas específicas
+    if (tipoGasto === 'Alimentos') {
+      cuentasFiltradas = cuentas.filter(cuenta => 
+        ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'].includes(cuenta.nombre)
+      );
+    }
+
+    // Llenar el select con las cuentas filtradas
+    cuentasFiltradas.forEach(cuenta => {
+      const option = document.createElement('option');
+      option.value = cuenta.id;
+      option.textContent = cuenta.nombre;
+      option.setAttribute('data-nombre', cuenta.nombre);
+      cuentaContableSelect.appendChild(option);
+    });
+
+    // Establecer la cuenta predeterminada según el tipo de gasto
+    const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
+    if (mappedCuenta) {
+      if (Array.isArray(mappedCuenta)) {
+        // Para Alimentos, establecer Viáticos locales como predeterminado
+        const viaticosOption = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === 'Viáticos locales');
+        if (viaticosOption) {
+          cuentaContableSelect.value = viaticosOption.value;
+        }
+      } else {
+        const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
+        if (option) {
+          cuentaContableSelect.value = option.value;
+          // Para tipos de gasto que no sean "otros..." o "Alimentos", deshabilitar la selección
+          if (tipoGasto !== 'otros...' && tipoGasto !== 'Alimentos') {
+            cuentaContableSelect.disabled = true;
+          }
+        }
+      }
+    }
+
+  } catch (error) {
+    console.error('Error al actualizar cuentas contables para centro de costo:', error);
+    cuentaContableSelect.innerHTML = '<option value="">Error al cargar cuentas</option>';
+    cuentaContableSelect.disabled = true;
+  }
+}
+
 function addCentroCosto() {
   const container = document.getElementById('centros_costo_container');
   const newIndex = centroCostoCount++;
@@ -1653,12 +1760,27 @@ function addCentroCosto() {
       class="porcentaje_input"
       required
     />
+    <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
+    <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_${newIndex}">
+      <label for="id_cuenta_contable_centro_${newIndex}">Cuenta Contable:</label>
+      <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_${newIndex}" class="cuenta_contable_centro_select" required>
+        <option value="">Selecciona un centro de costo primero</option>
+      </select>
+    </div>
     <span class="porcentaje_error" id="porcentaje_error_${newIndex}" style="color: red; display: none;"></span>
     <button type="button" onclick="removeCentroCosto(this, ${newIndex})">×</button>
   `;
   container.appendChild(newRow);
   validatePercentages();
-  updateCuentaContableOptions();
+  
+  // Agregar event listener al nuevo select de centro de costo
+  const newSelect = document.getElementById(`id_centro_costo_${newIndex}`);
+  newSelect.addEventListener('change', function() {
+    updateCuentaContableOptionsForCentro(this.value, newIndex);
+  });
+  
+  // Inicializar las opciones de cuenta contable para este centro
+  updateCuentaContableOptionsForCentro(newSelect.value, newIndex);
 }
 
 function removeCentroCosto(button, index) {
@@ -2235,6 +2357,7 @@ function updateTaxesAndTotal() {
 }
 
 async function updateCuentaContableOptions() {
+  console.log('updateCuentaContableOptions llamado');
   const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
   const cuentaContableSelect = document.getElementById('id_cuenta_contable');
   const cuentaContablePropinaSelect = document.getElementById('id_cuenta_contable_propina');
@@ -2245,6 +2368,15 @@ async function updateCuentaContableOptions() {
   const propinaInput = document.getElementById('propina');
   const cuentaContablePropinaField = document.getElementById('cuenta_contable_propina_field');
   const selectedCentroCosto = centroCostoSelects[0].value;
+
+  if (!selectedCentroCosto) {
+    cuentaContableSelect.disabled = true;
+    cuentaContablePropinaSelect.disabled = true;
+    cuentaContableSelect.innerHTML = '<option value="">Selecciona un centro de costo primero</option>';
+    cuentaContablePropinaSelect.innerHTML = '<option value="">Selecciona un centro de costo primero</option>';
+    submitBtn.disabled = true;
+    return;
+  }
 
   const currentCuentaValue = cuentaContableSelect.value;
 
@@ -2257,11 +2389,12 @@ async function updateCuentaContableOptions() {
     });
     const cuentas = await response.json();
     let idpCuentaValue = null;
-        const idpCuenta = cuentas.find(cuenta => cuenta.nombre === 'IDP');
-        if (idpCuenta) {
-            idpCuentaValue = idpCuenta.id;
-            document.getElementById('id_cuenta_contable_idp_value').value = idpCuentaValue;
-        }
+    const idpCuenta = cuentas.find(cuenta => cuenta.nombre === 'IDP');
+    if (idpCuenta) {
+      idpCuentaValue = idpCuenta.id;
+      document.getElementById('id_cuenta_contable_idp_value').value = idpCuentaValue;
+    }
+    
     if (!response.ok) {
       throw new Error(cuentas.error || 'Error al obtener las cuentas contables');
     }
@@ -2289,7 +2422,7 @@ async function updateCuentaContableOptions() {
       const option = document.createElement('option');
       option.value = cuenta.id;
       option.textContent = cuenta.nombre;
-      option.setAttribute('data-nombre', cuenta.nombre); // Guardar el nombre como atributo
+      option.setAttribute('data-nombre', cuenta.nombre);
       cuentaContableSelect.appendChild(option);
     });
 
@@ -2298,7 +2431,7 @@ async function updateCuentaContableOptions() {
       const option = document.createElement('option');
       option.value = cuenta.id;
       option.textContent = cuenta.nombre;
-      option.setAttribute('data-nombre', cuenta.nombre); // Guardar el nombre como atributo
+      option.setAttribute('data-nombre', cuenta.nombre);
       cuentaContablePropinaSelect.appendChild(option);
     });
 
@@ -2364,8 +2497,16 @@ async function updateCuentaContableOptions() {
       }
     } else {
       // Para otros tipos de gasto, establecer la cuenta predeterminada
+      const tipoGastoToCuentaContable = {
+        'Gasto Operativo': 'Comisiones',
+        'Combustible': 'Combustibles y lubricantes',
+        'Hospedaje': 'Impuesto de turismo (INGUAT)',
+        'Alimentos': ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'],
+        'otros...': null
+      };
+      
       const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
-      if (mappedCuenta) {
+      if (mappedCuenta && !Array.isArray(mappedCuenta)) {
         const option = Array.from(cuentaContableSelect.options).find(opt => opt.textContent.trim() === mappedCuenta.trim());
         if (option) {
           cuentaContableSelect.value = option.value;
@@ -2480,6 +2621,7 @@ async function editFactura(id) {
   // Calculate total factura and gather centros de costo
   let centrosCosto = [];
   let porcentajes = [];
+  let cuentasContables = [];
   let totalFactura = 0;
 
   detallesGrupo.forEach((detalleRow, index) => {
@@ -2489,11 +2631,14 @@ async function editFactura(id) {
     );
     const idCentroCosto = centroCostoOption ? centroCostoOption.value : '';
     const porcentaje = parseFloat(detalleRow.cells[10].textContent.trim().replace('%', '')) || 100;
+    const nombreCuentaContable = detalleRow.cells[13].textContent.trim();
+    
     totalFactura += parseFloat(detalleRow.cells[20].textContent.trim().replace(/,/g, '')) || 0;
 
     if (idCentroCosto) {
       centrosCosto.push(idCentroCosto);
       porcentajes.push(porcentaje);
+      cuentasContables.push(nombreCuentaContable);
     } else {
       console.warn(`No se encontró el ID del centro de costo para "${nombreCentroCosto}"`);
     }
@@ -2589,40 +2734,71 @@ async function editFactura(id) {
         class="porcentaje_input"
         required
       />
+      <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
+      <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_${index}" ${index === 0 ? 'style="display: none;"' : ''}>
+        <label for="id_cuenta_contable_centro_${index}">Cuenta Contable:</label>
+        <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_${index}" class="cuenta_contable_centro_select" ${index === 0 ? '' : 'required'}>
+          <option value="">Selecciona una cuenta contable</option>
+        </select>
+      </div>
       <span class="porcentaje_error" id="porcentaje_error_${index}" style="color: red; display: none;"></span>
       ${index > 0 ? `<button type="button" onclick="removeCentroCosto(this, ${index})">×</button>` : ''}
     `;
     centrosCostoContainer.appendChild(newRow);
+    
     const centroCostoSelect = document.getElementById(`id_centro_costo_${index}`);
     centroCostoSelect.value = centroCostoId;
+
+    // Agregar event listener para actualizar cuentas contables cuando cambie el centro de costo
+    centroCostoSelect.addEventListener('change', function() {
+      if (index === 0) {
+        updateCuentaContableOptions();
+      } else {
+        updateCuentaContableOptionsForCentro(this.value, index);
+      }
+    });
+
     if (!centroCostoSelect.value) {
       console.warn(`El valor ${centroCostoId} no se encontró en las opciones del select id_centro_costo_${index}`);
     }
+
+    // Para centros de costo adicionales, cargar sus cuentas contables
+    if (index > 0) {
+      // Primero cargar las opciones de cuenta contable para este centro
+      updateCuentaContableOptionsForCentro(centroCostoId, index).then(() => {
+        // Una vez cargadas las opciones, establecer la cuenta contable correcta
+        const cuentaContableCentroSelect = document.getElementById(`id_cuenta_contable_centro_${index}`);
+        if (cuentaContableCentroSelect) {
+          // Buscar la opción que coincida con el nombre de la cuenta contable
+          const options = Array.from(cuentaContableCentroSelect.options);
+          const cuentaOption = options.find(opt => opt.text.trim() === cuentasContables[index]);
+          
+          if (cuentaOption) {
+            cuentaContableCentroSelect.value = cuentaOption.value;
+          } else {
+            console.warn(`No se encontró la cuenta contable "${cuentasContables[index]}" para el centro de costo ${centroCostoId}`);
+          }
+        }
+      });
+    }
   });
 
-  // Update cuenta contable options
+  // Update cuenta contable options for the main center
   await updateCuentaContableOptions();
 
-  // Set cuenta contable
+  // Set cuenta contable principal
   const cuentaOption = Array.from(cuentaContableSelect.options).find(
-    (option) => option.text.trim() === nombreCuentaContable
+    (option) => option.text.trim() === cuentasContables[0]
   );
   if (cuentaOption) {
     cuentaContableSelect.value = cuentaOption.value;
     nombreCuentaContableInput.value = cuentaOption.getAttribute('data-nombre');
     cuentaContableSelect.disabled = tipoGasto !== 'otros...' && !(tipoGasto === 'Alimentos' && parseFloat(propina) === 0);
   } else {
-    console.warn(`Cuenta contable "${nombreCuentaContable}" no encontrada en las opciones.`);
+    console.warn(`Cuenta contable "${cuentasContables[0]}" no encontrada en las opciones.`);
     cuentaContableSelect.value = '';
     nombreCuentaContableInput.value = '';
     cuentaContableSelect.disabled = tipoGasto !== 'otros...' && !(tipoGasto === 'Alimentos' && parseFloat(propina) === 0);
-    // Optionally, uncomment to alert the user
-    // Swal.fire({
-    //   title: 'Advertencia',
-    //   text: `La cuenta contable "${nombreCuentaContable}" no está disponible para el centro de costo seleccionado. Por favor, selecciona una cuenta válida.`,
-    //   icon: 'warning',
-    //   confirmButtonText: 'OK',
-    // });
   }
 
   // Set cuenta contable for propina if applicable
@@ -2735,6 +2911,16 @@ document.getElementById('facturaForm').addEventListener('submit', async (e) => {
   const serie = formData.get('serie');
   const noFactura = formData.get('no_factura');
   const numero_dte = noFactura;
+
+  const cuentasContablesCentros = document.querySelectorAll('.cuenta_contable_centro_select');
+  cuentasContablesCentros.forEach((select, index) => {
+    formData.append(`id_cuenta_contable_centro_${index}`, select.value);
+    
+    const selectedOption = select.options[select.selectedIndex];
+    if (selectedOption && selectedOption.getAttribute('data-nombre')) {
+      formData.append(`nombre_cuenta_contable_centro_${index}`, selectedOption.getAttribute('data-nombre'));
+    }
+  });
 
   // Validación del total_factura para las acciones 'create' y 'update'
   const totalFactura = parseFloat(formData.get('total_factura')) || 0;
@@ -3080,18 +3266,32 @@ document.getElementById('resetBtn').addEventListener('click', resetForm);
 document.addEventListener('DOMContentLoaded', () => {
   updateFormFields();
   updateTipoGastoFields();
-  updateCuentaContableOptions();
+  updateCuentaContableOptions(); // Inicializar cuenta principal
   initializeCameraSupport();
 
   const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
   if (suggestedCentroCostoId) {
     document.getElementById('id_centro_costo_0').value = suggestedCentroCostoId;
-    updateCuentaContableOptions();
+    updateCuentaContableOptions(); // Actualizar cuenta principal con el centro sugerido
   }
 
-  document.querySelectorAll('.centro_costo_select').forEach(select => {
-    select.addEventListener('change', updateCuentaContableOptions);
+  // Agregar event listeners a todos los selects de centro de costo
+  document.querySelectorAll('.centro_costo_select').forEach((select, index) => {
+    select.addEventListener('change', function() {
+      if (index === 0) {
+        // Centro de costo principal
+        updateCuentaContableOptions();
+      } else {
+        // Centros de costo adicionales
+        updateCuentaContableOptionsForCentro(this.value, index);
+      }
+    });
   });
+  // Event listener específico para el centro de costo principal (por si acaso)
+  const centroCostoPrincipal = document.getElementById('id_centro_costo_0');
+  if (centroCostoPrincipal) {
+    centroCostoPrincipal.addEventListener('change', updateCuentaContableOptions);
+  }
 });
 
 function initializeTable() {
@@ -3124,6 +3324,20 @@ document.getElementById('id_cuenta_contable_propina').addEventListener('change',
   if (selectedOption && selectedOption.getAttribute('data-nombre')) {
     document.getElementById('nombre_cuenta_contable_propina_input').value = selectedOption.getAttribute('data-nombre');
   }
+});
+
+// Event listener para tipo de gasto (actualiza tanto principal como adicionales)
+document.getElementById('t_gasto').addEventListener('change', () => {
+  // Actualizar cuenta principal
+  updateCuentaContableOptions();
+  
+  // Actualizar cuentas de centros de costo adicionales
+  const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
+  centroCostoSelects.forEach((select, index) => {
+    if (index > 0 && select.value) { // Solo para centros de costo adicionales con valor
+      updateCuentaContableOptionsForCentro(select.value, index);
+    }
+  });
 });
 
     </script>
