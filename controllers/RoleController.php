@@ -99,6 +99,8 @@ class RoleController {
     
         $combinedPermissions = [];
         $rolNombreUpper = strtoupper($rolNombre);
+        
+        // Para roles mixtos, combinar permisos de todos los roles detectados
         foreach ($defaultPermissions as $rol => $permissions) {
             if (strpos($rolNombreUpper, $rol) !== false ||
                 ($rol === 'CONTABILIDAD' && (
@@ -108,6 +110,7 @@ class RoleController {
                 $combinedPermissions = array_merge($combinedPermissions, $permissions);
             }
         }
+        
         return array_unique($combinedPermissions);
     }
 
