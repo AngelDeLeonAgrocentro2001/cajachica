@@ -194,35 +194,48 @@ public function listLiquidaciones()
     $id_rol = $usuario['id_rol'] ?? null;
     $urlParams = $_GET['mode'] ?? '';
     $isRevisarMode = $urlParams === 'revisar';
+    $isAutorizarMode = $urlParams === 'autorizar';
 
     // Fetch role details to check name and description
     $isSupervisorRole = false;
     $isContabilidadRole = false;
+    $isEncargadoRole = false;
+    
     if ($id_rol) {
         $rolModel = new Role();
         $roleData = $rolModel->getRolById($id_rol);
         if ($roleData) {
             $roleName = strtoupper($roleData['nombre'] ?? '');
             $roleDescription = strtoupper($roleData['descripcion'] ?? '');
-            $isSupervisorRole = strpos($roleName, 'SUPERVISOR') !== false || strpos($roleDescription, 'SUPERVISOR') !== false;
+            
+            $isSupervisorRole = strpos($roleName, 'SUPERVISOR') !== false || 
+                               strpos($roleDescription, 'SUPERVISOR') !== false;
             $isContabilidadRole = $roleName === 'CONTABILIDAD' ||
                                 $id_rol == 4 ||
                                 strpos($roleName, 'CONTADOR') !== false ||
                                 strpos($roleName, 'CONTABILIDAD') !== false ||
                                 strpos($roleDescription, 'CONTADOR') !== false ||
                                 strpos($roleDescription, 'CONTABILIDAD') !== false;
+            
+            // Detectar rol de encargado
+            $isEncargadoRole = strpos($roleName, 'ENCARGADO') !== false || 
+                              strpos($roleDescription, 'ENCARGADO') !== false ||
+                              strpos($roleName, 'CAJA_CHICA') !== false ||
+                              strpos($roleDescription, 'CAJA_CHICA') !== false ||
+                              strpos($roleName, 'ENCARGADO_CAJA_CHICA') !== false;
         }
-        error_log("Usuario ID: {$_SESSION['user_id']}, id_rol: {$id_rol}, es rol supervisor: " . ($isSupervisorRole ? 'SÍ' : 'NO') . ", es rol contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO'));
+        error_log("Usuario ID: {$_SESSION['user_id']}, id_rol: {$id_rol}, es rol supervisor: " . ($isSupervisorRole ? 'SÍ' : 'NO') . ", es rol contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO') . ", es rol encargado: " . ($isEncargadoRole ? 'SÍ' : 'NO'));
     }
 
     // Fetch liquidations based on role
     $liquidaciones = [];
     $supervisorLiquidaciones = [];
     $contabilidadLiquidaciones = [];
+    $encargadoLiquidaciones = [];
 
-    if ($isSupervisorRole) {
-        // Fetch liquidations for supervisor
-        if ($urlParams === 'autorizar') {
+    // 1. Si es supervisor O tiene rol mixto con supervisor, obtener liquidaciones para supervisar
+    if ($isSupervisorRole || ($isEncargadoRole && $isAutorizarMode)) {
+        if ($isAutorizarMode) {
             $supervisorLiquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, $_SESSION['user_id'], 'PENDIENTE_AUTORIZACION');
             error_log('Liquidaciones obtenidas para rol supervisor (autorizar, ID: ' . $_SESSION['user_id'] . '): ' . count($supervisorLiquidaciones) . ' registros');
         } else {
@@ -237,39 +250,22 @@ public function listLiquidaciones()
         error_log('Liquidaciones filtradas por id_supervisor (ID: ' . $_SESSION['user_id'] . '): ' . count($supervisorLiquidaciones) . ' registros');
     }
 
-    if ($isContabilidadRole) {
-        // Fetch all liquidations for contabilidad, without id_contador filter
-        $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, null);
-        error_log('Liquidaciones obtenidas para CONTABILIDAD (sin filtro id_contador, ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
-        foreach ($contabilidadLiquidaciones as $liquidacion) {
-            error_log('Liquidacion ID: ' . $liquidacion['id'] . ', id_contador: ' . ($liquidacion['id_contador'] ?? 'N/A') . ', Estado: ' . ($liquidacion['estado'] ?? 'N/A'));
-        }
-
-        // Apply state filter
-        $contabilidadLiquidaciones = array_filter($contabilidadLiquidaciones, function ($liquidacion) {
-            return in_array($liquidacion['estado'], [
-                'PENDIENTE_AUTORIZACION',
-                'PENDIENTE_REVISION_CONTABILIDAD',
-                'EN_PROCESO',
-                'FINALIZADO',
-                'RECHAZADO_POR_CONTABILIDAD'
-            ]);
-        });
-        error_log('Liquidaciones filtradas por estado para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
+    // 2. Si es contabilidad O tiene rol mixto con contabilidad, obtener liquidaciones para revisar
+if ($isContabilidadRole || ($isEncargadoRole && $isRevisarMode)) {
+    // Fetch liquidations where the user is id_contador or id_usuario
+    $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, null, $_SESSION['user_id']);
+    $userLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
+    $contabilidadLiquidaciones = array_merge($contabilidadLiquidaciones, $userLiquidaciones);
+    
+    error_log('Liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
+    
+    foreach ($contabilidadLiquidaciones as $liquidacion) {
+        error_log('Liquidacion ID: ' . $liquidacion['id'] . ', id_contador: ' . ($liquidacion['id_contador'] ?? 'N/A') . ', id_usuario: ' . ($liquidacion['id_usuario'] ?? 'N/A') . ', Estado: ' . ($liquidacion['estado'] ?? 'N/A'));
     }
 
-    // Combine liquidations for hybrid roles
-    $liquidaciones = array_merge($supervisorLiquidaciones, $contabilidadLiquidaciones);
-    // Remove duplicates by ID
-    $liquidaciones = array_values(array_reduce($liquidaciones, function ($carry, $liquidacion) {
-        $carry[$liquidacion['id']] = $liquidacion;
-        return $carry;
-    }, []));
-    error_log('Liquidaciones combinadas (tras eliminar duplicados): ' . count($liquidaciones) . ' registros');
-
-    // Additional filtering for CONTABILIDAD in revisar mode
-    if ($isRevisarMode && $isContabilidadRole) {
-        $liquidaciones = array_filter($liquidaciones, function ($liquidacion) {
+    // Apply state filter only in revisar mode
+    if ($isRevisarMode) {
+        $contabilidadLiquidaciones = array_filter($contabilidadLiquidaciones, function ($liquidacion) {
             return in_array($liquidacion['estado'], [
                 'PENDIENTE_REVISION_CONTABILIDAD',
                 'FINALIZADO',
@@ -277,18 +273,83 @@ public function listLiquidaciones()
                 'EN_PROCESO'
             ]);
         });
-        error_log('Liquidaciones filtradas para CONTABILIDAD en modo revisar: ' . count($liquidaciones) . ' registros');
     }
+    // Remove duplicates
+    $contabilidadLiquidaciones = array_values(array_reduce($contabilidadLiquidaciones, function ($carry, $liquidacion) {
+        $carry[$liquidacion['id']] = $liquidacion;
+        return $carry;
+    }, []));
+    error_log('Liquidaciones filtradas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
+}
 
-    // For non-supervisor/non-contabilidad roles, fetch liquidations by id_usuario
-    if (!$isSupervisorRole && !$isContabilidadRole) {
+    // 3. Si es encargado, obtener sus propias liquidaciones (solo si no está en modo autorizar/revisar)
+if ($isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
+    $encargadoLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
+    error_log('Liquidaciones obtenidas para ENCARGADO (ID: ' . $_SESSION['user_id'] . '): ' . count($encargadoLiquidaciones) . ' registros');
+
+    $encargadoLiquidaciones = array_filter($encargadoLiquidaciones, function ($liquidacion) use ($usuario) {
+        return $liquidacion['id_usuario'] == $usuario['id'];
+    });
+    error_log('Liquidaciones filtradas para usuario ENCARGADO: ' . count($encargadoLiquidaciones) . ' registros');
+}
+
+// 4. PARA USUARIOS MIXTOS: Obtener liquidaciones adicionales según sus roles
+if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
+    $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
+    error_log('Liquidaciones propias para usuario mixto (ID: ' . $_SESSION['user_id'] . '): ' . count($misLiquidaciones) . ' registros');
+    
+    // Inicializar el array si no existe
+    if (!isset($encargadoLiquidaciones)) {
+        $encargadoLiquidaciones = [];
+    }
+    $encargadoLiquidaciones = array_merge($encargadoLiquidaciones, $misLiquidaciones);
+}
+
+    // COMBINAR LIQUIDACIONES - PRIORIZAR SEGÚN MODO
+if ($isAutorizarMode) {
+    // En modo autorizar, mostrar solo liquidaciones de supervisor (incluyendo usuarios mixtos)
+    $liquidaciones = $supervisorLiquidaciones;
+    error_log('Modo autorizar: mostrando ' . count($liquidaciones) . ' liquidaciones de supervisor');
+} elseif ($isRevisarMode) {
+    // En modo revisar, mostrar solo liquidaciones de contabilidad (incluyendo usuarios mixtos)
+    $liquidaciones = $contabilidadLiquidaciones;
+    error_log('Modo revisar: mostrando ' . count($liquidaciones) . ' liquidaciones de contabilidad');
+} else {
+    // Modo normal: combinar todas las liquidaciones según roles
+    if ($isEncargadoRole) {
+        // Para usuarios encargados (puros o mixtos), mostrar sus propias liquidaciones
+        $liquidaciones = array_merge($encargadoLiquidaciones, $supervisorLiquidaciones, $contabilidadLiquidaciones);
+        error_log('Liquidaciones combinadas para ENCARGADO (mixto): ' . count($liquidaciones) . ' registros');
+    } else {
+        // Para otros roles, mostrar según sus permisos
+        $liquidaciones = array_merge($supervisorLiquidaciones, $contabilidadLiquidaciones);
+        error_log('Liquidaciones combinadas para NO ENCARGADO: ' . count($liquidaciones) . ' registros');
+    }
+    
+    // PARA USUARIOS MIXTOS: Asegurar que ven sus propias liquidaciones incluso si no son encargados puros
+    if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole) {
+        $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
+        $liquidaciones = array_merge($liquidaciones, $misLiquidaciones);
+        error_log('Usuario mixto (no encargado): añadiendo ' . count($misLiquidaciones) . ' liquidaciones propias');
+    }
+}
+
+    // Remove duplicates by ID
+    $liquidaciones = array_values(array_reduce($liquidaciones, function ($carry, $liquidacion) {
+        $carry[$liquidacion['id']] = $liquidacion;
+        return $carry;
+    }, []));
+    error_log('Liquidaciones combinadas (tras eliminar duplicados): ' . count($liquidaciones) . ' registros');
+
+    // For non-supervisor/non-contabilidad/non-encargado roles, fetch liquidations by id_usuario
+    if (!$isSupervisorRole && !$isContabilidadRole && !$isEncargadoRole) {
         $liquidaciones = $this->liquidacionModel->getAllLiquidaciones();
         error_log('Liquidaciones obtenidas: ' . count($liquidaciones) . ' registros para el usuario ID ' . $_SESSION['user_id']);
 
         $liquidaciones = array_filter($liquidaciones, function ($liquidacion) use ($usuario) {
             return $liquidacion['id_usuario'] == $usuario['id'];
         });
-        error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD: ' . count($liquidaciones) . ' registros');
+        error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD/ENCARGADO: ' . count($liquidaciones) . ' registros');
     }
 
     foreach ($liquidaciones as &$liquidacion) {
@@ -298,7 +359,7 @@ public function listLiquidaciones()
 
     // Fetch corrected details based on role
     $correctedDetalles = [];
-    if ($isSupervisorRole && $urlParams === 'autorizar') {
+    if ($isSupervisorRole && $isAutorizarMode) {
         $correctedDetalles = $this->detalleModel->getAllCorrectedDetallesForSupervisors($_SESSION['user_id']);
         error_log('Detalles corregidos obtenidos para supervisor ID: ' . $_SESSION['user_id'] . ': ' . count($correctedDetalles) . ' registros');
     } elseif ($isContabilidadRole && $urlParams === 'corrections') {
@@ -311,7 +372,10 @@ public function listLiquidaciones()
         $response = [
             'liquidaciones' => array_values($liquidaciones),
             'corrected_detalles' => array_values($correctedDetalles),
-            'isContabilidadLike' => $isContabilidadRole
+            'isContabilidadLike' => $isContabilidadRole,
+            'isSupervisorLike' => $isSupervisorRole, // Añadir esta línea
+            'isEncargadoLike' => $isEncargadoRole,
+        'userRole' => $usuario['rol'] // Añadir esta línea
         ];
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     } else {
@@ -1384,11 +1448,70 @@ public function autorizar($id) {
         exit;
     }
 
-    if (!$usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
-        error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para autorizar liquidaciones. Rol: " . ($usuario['rol'] ?? 'N/A'));
+    // Obtener información detallada del rol
+    $rol = strtoupper($usuario['rol'] ?? 'INVALID_ROLE');
+    $id_rol = $usuario['id_rol'] ?? null;
+    
+    $isSupervisorRole = false;
+    $isContabilidadRole = false;
+    $isEncargadoRole = false;
+    
+    if ($id_rol) {
+        $rolModel = new Role();
+        $roleData = $rolModel->getRolById($id_rol);
+        if ($roleData) {
+            $roleName = strtoupper($roleData['nombre'] ?? '');
+            $roleDescription = strtoupper($roleData['descripcion'] ?? '');
+            
+            $isSupervisorRole = strpos($roleName, 'SUPERVISOR') !== false || 
+                               strpos($roleDescription, 'SUPERVISOR') !== false;
+            $isContabilidadRole = $roleName === 'CONTABILIDAD' ||
+                                $id_rol == 4 ||
+                                strpos($roleName, 'CONTADOR') !== false ||
+                                strpos($roleName, 'CONTABILIDAD') !== false ||
+                                strpos($roleDescription, 'CONTADOR') !== false ||
+                                strpos($roleDescription, 'CONTABILIDAD') !== false;
+            
+            // Detectar rol de encargado
+            $isEncargadoRole = strpos($roleName, 'ENCARGADO') !== false || 
+                              strpos($roleDescription, 'ENCARGADO') !== false ||
+                              strpos($roleName, 'CAJA_CHICA') !== false ||
+                              strpos($roleDescription, 'CAJA_CHICA') !== false ||
+                              strpos($roleName, 'ENCARGADO_CAJA_CHICA') !== false;
+        }
+    }
+
+    // VERIFICAR PERMISOS FLEXIBLES PARA ROLES MIXTOS
+$tienePermisoAutorizar = false;
+
+// Si es supervisor (puro o mixto)
+if ($isSupervisorRole) {
+    $tienePermisoAutorizar = $usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones');
+}
+
+// Si es contabilidad (puro o mixto) y está en modo revisar
+if ($isContabilidadRole && isset($_GET['mode']) && $_GET['mode'] === 'revisar') {
+    $tienePermisoAutorizar = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones');
+}
+
+// Si es encargado con rol mixto (encargado + supervisor)
+if ($isEncargadoRole && $isSupervisorRole) {
+    $tienePermisoAutorizar = $usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones');
+}
+
+// Si es encargado con rol mixto (encargado + contabilidad) y está en modo revisar
+if ($isEncargadoRole && $isContabilidadRole && isset($_GET['mode']) && $_GET['mode'] === 'revisar') {
+    $tienePermisoAutorizar = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones');
+}
+
+    if (!$tienePermisoAutorizar) {
+        error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para autorizar/revisar liquidaciones. Rol: " . ($usuario['rol'] ?? 'N/A') . 
+                 ", es supervisor: " . ($isSupervisorRole ? 'SÍ' : 'NO') . 
+                 ", es contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO') . 
+                 ", es encargado: " . ($isEncargadoRole ? 'SÍ' : 'NO'));
         header('Content-Type: application/json; charset=UTF-8');
         http_response_code(403);
-        echo json_encode(['error' => 'No tienes permiso para autorizar liquidaciones'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['error' => 'No tienes permiso para autorizar/revisar liquidaciones'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -1401,34 +1524,13 @@ public function autorizar($id) {
         exit;
     }
 
-    $rol = strtoupper($usuario['rol'] ?? 'INVALID_ROLE');
-    if (!is_string($usuario['rol']) || empty(trim($usuario['rol']))) {
-        error_log("Rol inválido para usuario ID: {$_SESSION['user_id']}");
-        $rol = 'INVALID_ROLE';
+    // Determinar el estado esperado basado en el rol REAL del usuario
+    $expectedEstado = '';
+    if ($isSupervisorRole || ($isEncargadoRole && $isSupervisorRole)) {
+        $expectedEstado = 'PENDIENTE_AUTORIZACION';
+    } elseif ($isContabilidadRole || ($isEncargadoRole && $isContabilidadRole)) {
+        $expectedEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
     }
-
-    $isContabilidadRole = false;
-    $isSupervisorRole = false;
-    $id_rol = $usuario['id_rol'] ?? null;
-    if ($id_rol) {
-        $rolModel = new Role();
-        $roleData = $rolModel->getRolById($id_rol);
-        if ($roleData) {
-            $roleName = strtoupper($roleData['nombre'] ?? '');
-            $roleDescription = strtoupper($roleData['descripcion'] ?? '');
-            $isContabilidadRole = $roleName === 'CONTABILIDAD' ||
-                                 $id_rol == 4 ||
-                                 strpos($roleName, 'CONTADOR') !== false ||
-                                 strpos($roleName, 'CONTABILIDAD') !== false ||
-                                 strpos($roleDescription, 'CONTADOR') !== false ||
-                                 strpos($roleDescription, 'CONTABILIDAD') !== false;
-            $isSupervisorRole = strpos($roleName, 'SUPERVISOR') !== false ||
-                                strpos($roleDescription, 'SUPERVISOR') !== false;
-        }
-    }
-    error_log("Usuario ID: {$_SESSION['user_id']}, Rol: $rol, id_rol: {$id_rol}, es contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO') . ", es supervisor: " . ($isSupervisorRole ? 'SÍ' : 'NO'));
-
-    $expectedEstado = $isSupervisorRole ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
 
     $isFromCorrection = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_correccion';
     if (!$isFromCorrection && $liquidacion['estado'] !== $expectedEstado) {
@@ -1600,7 +1702,7 @@ public function autorizar($id) {
                 }
         
                 if ($allInCorrection) {
-                    error_log("Todos los detalles en EN_CORRECCION, actualizando liquidación ID $id a EN_PROCESO");
+                    error_log("Todos los detalles en EN_CORRECCION, actualizando liquidación ID $id to EN_PROCESO");
                     $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                     $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                 }
@@ -1647,21 +1749,21 @@ public function autorizar($id) {
             $message = '';
 
             if ($accion === 'APROBADO') {
-                if ($isSupervisorRole) {
+                if ($isSupervisorRole || ($isEncargadoRole && $isSupervisorRole)) {
                     $nuevoEstado = 'PENDIENTE_REVISION_CONTABILIDAD';
                     $auditoriaAccion = 'AUTORIZADO_POR_SUPERVISOR';
                     $message = 'Liquidación autorizada por supervisor';
-                } elseif ($isContabilidadRole) {
+                } elseif ($isContabilidadRole || ($isEncargadoRole && $isContabilidadRole)) {
                     $nuevoEstado = 'FINALIZADO';
                     $auditoriaAccion = 'AUTORIZADO_POR_CONTABILIDAD';
                     $message = 'Liquidación finalizada por contabilidad';
                 }
             } elseif ($accion === 'RECHAZADO') {
-                if ($isSupervisorRole) {
+                if ($isSupervisorRole || ($isEncargadoRole && $isSupervisorRole)) {
                     $nuevoEstado = 'RECHAZADO_AUTORIZACION';
                     $auditoriaAccion = 'RECHAZADO_POR_SUPERVISOR';
                     $message = 'Liquidación rechazada por supervisor';
-                } elseif ($isContabilidadRole) {
+                } elseif ($isContabilidadRole || ($isEncargadoRole && $isContabilidadRole)) {
                     $nuevoEstado = 'RECHAZADO_POR_CONTABILIDAD';
                     $auditoriaAccion = 'RECHAZADO_POR_CONTABILIDAD';
                     $message = 'Liquidación rechazada por contabilidad';
@@ -1744,10 +1846,10 @@ public function autorizar($id) {
             if ($allInCorrection && !$anySelected) {
                 $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
-            } elseif ($isSupervisorRole && $accion === 'APROBADO' && $hasApprovedDetails) {
+            } elseif (($isSupervisorRole || ($isEncargadoRole && $isSupervisorRole)) && $accion === 'APROBADO' && $hasApprovedDetails) {
                 $this->liquidacionModel->updateEstado($id, 'PENDIENTE_REVISION_CONTABILIDAD', null, null);
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
-            } elseif ($isContabilidadRole && $accion === 'APROBADO' && $hasNonCorrectionDetails) {
+            } elseif (($isContabilidadRole || ($isEncargadoRole && $isContabilidadRole)) && $accion === 'APROBADO' && $hasNonCorrectionDetails) {
                 $this->liquidacionModel->updateEstado($id, 'FINALIZADO');
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], $auditoriaAccion, $motivo);
             } else {
@@ -1756,7 +1858,7 @@ public function autorizar($id) {
             }
 
             $isExported = $this->liquidacionModel->isExported($id);
-            if ($isExported && $isContabilidadRole && $accion === 'APROBADO') {
+            if ($isExported && ($isContabilidadRole || ($isEncargadoRole && $isContabilidadRole)) && $accion === 'APROBADO') {
                 $message .= "\nLa liquidación ya fue exportada. Se ha reenviado a corrección.";
                 $this->liquidacionModel->updateEstado($id, 'EN_PROCESO');
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'REENVIADO_A_CORRECCION', 'Liquidación reenviada a corrección por exportación previa');
@@ -1842,48 +1944,56 @@ public function revisar($id) {
         exit;
     }
 
-    $hasPermission = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones');
-    if (!$hasPermission) {
-        error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para revisar liquidaciones. Rol: " . ($usuario['rol'] ?? 'N/A'));
-        header('Content-Type: application/json; charset=UTF-8');
-        http_response_code(403);
-        echo json_encode(['error' => 'No tienes permiso para revisar liquidaciones'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
+    // Obtener información detallada del rol
     $rol = strtoupper($usuario['rol'] ?? 'INVALID_ROLE');
-    if (!is_string($usuario['rol']) || empty(trim($usuario['rol']))) {
-        error_log("Rol inválido para usuario ID: {$_SESSION['user_id']}");
-        $rol = 'INVALID_ROLE';
-    }
-
-    $isContabilidadRole = false;
     $id_rol = $usuario['id_rol'] ?? null;
+    
+    $isContabilidadRole = false;
+    $isEncargadoRole = false;
+    
     if ($id_rol) {
         $rolModel = new Role();
         $roleData = $rolModel->getRolById($id_rol);
         if ($roleData) {
             $roleName = strtoupper($roleData['nombre'] ?? '');
             $roleDescription = strtoupper($roleData['descripcion'] ?? '');
-            error_log("Role data for id_rol {$id_rol}: nombre={$roleName}, descripcion={$roleDescription}");
+            
             $isContabilidadRole = $roleName === 'CONTABILIDAD' ||
-                                 $id_rol == 4 ||
-                                 strpos($roleName, 'CONTADOR') !== false ||
-                                 strpos($roleName, 'CONTABILIDAD') !== false ||
-                                 strpos($roleDescription, 'CONTADOR') !== false ||
-                                 strpos($roleDescription, 'CONTABILIDAD') !== false;
-        } else {
-            error_log("No se encontró role data para id_rol: {$id_rol}");
+                                $id_rol == 4 ||
+                                strpos($roleName, 'CONTADOR') !== false ||
+                                strpos($roleName, 'CONTABILIDAD') !== false ||
+                                strpos($roleDescription, 'CONTADOR') !== false ||
+                                strpos($roleDescription, 'CONTABILIDAD') !== false;
+            
+            // Detectar rol de encargado
+            $isEncargadoRole = strpos($roleName, 'ENCARGADO') !== false || 
+                              strpos($roleDescription, 'ENCARGADO') !== false ||
+                              strpos($roleName, 'CAJA_CHICA') !== false ||
+                              strpos($roleDescription, 'CAJA_CHICA') !== false ||
+                              strpos($roleName, 'ENCARGADO_CAJA_CHICA') !== false;
         }
-    } else {
-        error_log("id_rol no definido para usuario ID: {$_SESSION['user_id']}");
     }
-    error_log("Usuario ID: {$_SESSION['user_id']}, Rol: {$rol}, id_rol: {$id_rol}, es contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO'));
 
-    if (!$hasPermission && !$isContabilidadRole) {
+    // VERIFICAR PERMISOS FLEXIBLES PARA ROLES MIXTOS
+    $tienePermisoRevisar = false;
+    
+    // Si es contabilidad (puro o mixto)
+    if ($isContabilidadRole) {
+        $tienePermisoRevisar = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones');
+    }
+    
+    // Si es encargado con rol mixto (encargado + contabilidad)
+    if ($isEncargadoRole && $isContabilidadRole) {
+        $tienePermisoRevisar = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones');
+    }
+
+    if (!$tienePermisoRevisar) {
+        error_log("Usuario ID {$_SESSION['user_id']} no tiene permiso para revisar liquidaciones. Rol: " . ($usuario['rol'] ?? 'N/A') . 
+                 ", es contabilidad: " . ($isContabilidadRole ? 'SÍ' : 'NO') . 
+                 ", es encargado: " . ($isEncargadoRole ? 'SÍ' : 'NO'));
         header('Content-Type: application/json; charset=UTF-8');
         http_response_code(403);
-        echo json_encode(['error' => 'Acceso denegado: se requiere permiso o rol de contabilidad'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['error' => 'No tienes permiso para revisar liquidaciones'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -2024,8 +2134,8 @@ public function revisar($id) {
                             }
                             
                             error_log("Actualizando detalle ID $grupoDetalleId a EN_CORRECCION con comentario='$comment'");
-                            $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
-                            $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
+                            $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, null);
+                            $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por contador");
                             $numCorrections++;
                         }
                     } 
@@ -2038,8 +2148,8 @@ public function revisar($id) {
                         }
                         
                         error_log("Actualizando detalle ID $detalleId a EN_CORRECCION con comentario='$comment'");
-                        $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
-                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
+                        $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, null);
+                        $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por contador");
                         $numCorrections++;
                     }
                 }
@@ -2100,17 +2210,17 @@ public function revisar($id) {
             $message = '';
 
             if ($accion === 'APROBADO') {
-                $nuevoEstado = $isContabilidadRole ? 'PENDIENTE_REVISION_CONTABILIDAD' : 'FINALIZADO';
-                $auditoriaAccion = $isContabilidadRole ? 'APROBADO_POR_CONTABILIDAD' : 'AUTORIZADO_POR_CONTABILIDAD';
-                $message = $isContabilidadRole ? 'Aprobado por contabilidad, listo para exportar a SAP.' : 'Se autorizaron por contabilidad.';
+                $nuevoEstado = 'FINALIZADO';
+                $auditoriaAccion = 'AUTORIZADO_POR_CONTABILIDAD';
+                $message = 'Liquidación finalizada por contabilidad';
             } elseif ($accion === 'RECHAZADO') {
                 $nuevoEstado = 'RECHAZADO_POR_CONTABILIDAD';
                 $auditoriaAccion = 'RECHAZADO_POR_CONTABILIDAD';
-                $message = 'Rechazado por contabilidad.';
+                $message = 'Rechazado por contabilidad';
             } elseif ($accion === 'DESCARTADO') {
                 $nuevoEstado = 'DESCARTADO';
                 $auditoriaAccion = 'DESCARTADO_POR_CONTABILIDAD';
-                $message = 'Descartado por contabilidad.';
+                $message = 'Descartado por contabilidad';
             }
 
             $detailsToCorrect = [];

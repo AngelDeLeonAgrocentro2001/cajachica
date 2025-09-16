@@ -32,7 +32,7 @@ class Usuario {
     }
 
     public function getAllUsuarios() {
-        $stmt = $this->pdo->query("SELECT u.*, r.nombre AS rol, cc.nombre AS nombre_caja_chica FROM usuarios u JOIN roles r ON u.id_rol = r.id LEFT JOIN cajas_chicas cc ON u.id_caja_chica = cc.id");
+        $stmt = $this->pdo->query("SELECT u.*, r.nombre AS rol, r.descripcion, cc.nombre AS nombre_caja_chica FROM usuarios u JOIN roles r ON u.id_rol = r.id LEFT JOIN cajas_chicas cc ON u.id_caja_chica = cc.id");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
