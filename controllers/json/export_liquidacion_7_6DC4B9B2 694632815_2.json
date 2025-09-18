@@ -1,0 +1,42 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-27",
+    "Comments": "regalos proveedores china, alejandro S",
+    "JournalMemo": "regalos proveedores china, alejandro S",
+    "U_NIT": "25233181",
+    "U_NOMBRE": "FOLKLORICA, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 808,
+    "TotalDiscount": 0,
+    "Reference1": "7-6DC4B9B2 694632815",
+    "NumAtCard": "6DC4B9B2 694632815",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 404,
+            "TaxCode": "IVA",
+            "CostingCode": "D06",
+            "AccountCode": "640201002",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 404,
+            "TaxCode": "IVA",
+            "CostingCode": "D01",
+            "AccountCode": "640201002",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-29",
+    "Comments": "lester motta",
+    "JournalMemo": "lester motta",
+    "U_NIT": "78070171",
+    "U_NOMBRE": "SOLUCIONES TOTALES EN ELECTRONICA S.A.",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 36,
+    "TotalDiscount": 0,
+    "Reference1": "9-1F149F66 1664109882",
+    "NumAtCard": "1F149F66 1664109882",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 36,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "640901002",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

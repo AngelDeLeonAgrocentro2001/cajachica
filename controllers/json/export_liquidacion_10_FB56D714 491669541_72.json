@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-06",
+    "Comments": "viaje local, jose sarat",
+    "JournalMemo": "viaje local, jose sarat",
+    "U_NIT": "69936463",
+    "U_NOMBRE": "PAPA POLLO, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 48,
+    "TotalDiscount": 0,
+    "Reference1": "10-FB56D714 491669541",
+    "NumAtCard": "FB56D714 491669541",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "PriceAfterVAT": 48,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

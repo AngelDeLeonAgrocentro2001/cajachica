@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-05",
+    "Comments": "parqueo hector regalado",
+    "JournalMemo": "parqueo hector regalado",
+    "U_NIT": "12778419",
+    "U_NOMBRE": "INMOBILIARIA CIMIENTOS, S.A.",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 15,
+    "TotalDiscount": 0,
+    "Reference1": "10-78C5C0ED 784548847",
+    "NumAtCard": "78C5C0ED 784548847",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 15,
+            "TaxCode": "IVA",
+            "CostingCode": "D29",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

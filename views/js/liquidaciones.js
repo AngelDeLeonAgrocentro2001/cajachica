@@ -518,7 +518,7 @@ function renderCorrectedDetalles() {
         });
     } else {
         // console.log("Hiding correctedDetallesSection: Conditions not met");
-        correctedDetallesSection.style.display = "none";
+       // correctedDetallesSection.style.display = "none";
     }
   }
 

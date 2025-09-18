@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-06",
+    "Comments": "reparaciones oficinas zona 10, lester vicente , Eddy",
+    "JournalMemo": "reparaciones oficinas zona 10, lester vicente , Eddy",
+    "U_NIT": "904945",
+    "U_NOMBRE": "POLLO CAMPERO SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 149,
+    "TotalDiscount": 0,
+    "Reference1": "10-892951FD 191384253",
+    "NumAtCard": "892951FD 191384253",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "PriceAfterVAT": 149,
+            "TaxCode": "IVA",
+            "CostingCode": "D17",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

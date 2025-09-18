@@ -1,0 +1,42 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-02",
+    "Comments": "combustible, lester vicente",
+    "JournalMemo": "combustible, lester vicente",
+    "U_NIT": "92881408",
+    "U_NOMBRE": "ENERGÍA SAN LUCAS, SOCIEDAD ANÓNIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 100,
+    "TotalDiscount": 0,
+    "Reference1": "10-44069F09 3204923442",
+    "NumAtCard": "44069F09 3204923442",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible",
+            "PriceAfterVAT": 84.92999999999999,
+            "TaxCode": "IVA",
+            "CostingCode": "D73",
+            "AccountCode": "631101001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "C"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "PriceAfterVAT": 15.07,
+            "TaxCode": "EXE",
+            "CostingCode": "D73",
+            "AccountCode": "631001001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "P"
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-29",
+    "Comments": "parqueo, hector regalado",
+    "JournalMemo": "parqueo, hector regalado",
+    "U_NIT": "793701",
+    "U_NOMBRE": "BIENES INMOBILIARIOS SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 5,
+    "TotalDiscount": 0,
+    "Reference1": "9-1A26005A 896027697",
+    "NumAtCard": "1A26005A 896027697",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 5,
+            "TaxCode": "IVA",
+            "CostingCode": "D29",
+            "AccountCode": "521501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

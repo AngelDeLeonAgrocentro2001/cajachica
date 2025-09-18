@@ -68,6 +68,9 @@ async function checkEmailExists(email, excludeId = null) {
 }
 
 async function checkCardCodeExists(cardCode) {
+    if (!cardCode) {
+        return { exists: true }; // Si no se proporciona card_code, se considera válido
+    }
     try {
         const response = await fetch(`index.php?controller=usuario&action=checkCardCode&card_code=${encodeURIComponent(cardCode)}`, {
             headers: {
@@ -235,7 +238,7 @@ function addValidations(id = null) {
     }
 
     const fields = {
-        card_code: { required: true },
+        card_code: { required: false },
         nombre: { required: true, minLength: 2 },
         email: { required: true },
         password: { required: false, minLength: 6 },
@@ -246,7 +249,6 @@ function addValidations(id = null) {
     const formMode = id ? 'update' : 'create';
     if (formMode === 'create') {
         fields.password.required = true;
-        fields.card_code.required = true;
     }
 
     const cardCodeInput = form.querySelector('input[name="card_code"]');
@@ -255,15 +257,15 @@ function addValidations(id = null) {
     if (cardCodeInput) {
         cardCodeInput.addEventListener('blur', async (e) => {
             const cardCode = e.target.value.trim();
+            const errorElement = form.querySelector('.error[data-field="card_code"]') || document.createElement('div');
+            errorElement.className = 'error';
+            errorElement.setAttribute('data-field', 'card_code');
+            if (!form.contains(errorElement)) {
+                e.target.parentNode.appendChild(errorElement);
+            }
+
             if (cardCode) {
                 const result = await checkCardCodeExists(cardCode);
-                const errorElement = form.querySelector('.error[data-field="card_code"]') || document.createElement('div');
-                errorElement.className = 'error';
-                errorElement.setAttribute('data-field', 'card_code');
-                if (!form.contains(errorElement)) {
-                    e.target.parentNode.appendChild(errorElement);
-                }
-
                 if (result && result.exists) {
                     errorElement.style.display = 'none';
                     e.target.classList.remove('invalid');
@@ -274,6 +276,10 @@ function addValidations(id = null) {
                     e.target.classList.add('invalid');
                     nombreInput.value = '';
                 }
+            } else {
+                errorElement.style.display = 'none';
+                e.target.classList.remove('invalid');
+                nombreInput.value = nombreInput.value || '';
             }
         });
     }
@@ -336,7 +342,7 @@ function addValidations(id = null) {
         );
         isValid = validations.every(valid => valid);
 
-        if (formMode === 'create' && cardCodeInput) {
+        if (cardCodeInput && cardCodeInput.value.trim()) {
             const cardCode = cardCodeInput.value.trim();
             const result = await checkCardCodeExists(cardCode);
             const errorElement = form.querySelector('.error[data-field="card_code"]') || document.createElement('div');

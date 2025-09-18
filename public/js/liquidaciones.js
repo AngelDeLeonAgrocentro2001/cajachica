@@ -499,7 +499,11 @@ function renderCorrectedDetalles() {
         });
     } else {
         console.log("Hiding correctedDetallesSection: Conditions not met");
+<<<<<<< HEAD
         correctedDetallesSection.style.display = "none";
+=======
+       // correctedDetallesSection.style.display = "none";
+>>>>>>> 2123cb1 (servidor)
     }
   }
 

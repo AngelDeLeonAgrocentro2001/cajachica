@@ -1,0 +1,42 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-29",
+    "Comments": "combustible, hector regalado",
+    "JournalMemo": "combustible, hector regalado",
+    "U_NIT": "69563845",
+    "U_NOMBRE": "RBSS, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 75.05,
+    "TotalDiscount": 0,
+    "Reference1": "9-73C3376E 1401113195",
+    "NumAtCard": "73C3376E 1401113195",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible",
+            "PriceAfterVAT": 62.97,
+            "TaxCode": "IVA",
+            "CostingCode": "D29",
+            "AccountCode": "521101001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "C"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "PriceAfterVAT": 12.08,
+            "TaxCode": "EXE",
+            "CostingCode": "D29",
+            "AccountCode": "521001001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "P"
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-08-29",
+    "Comments": "viaje local, Vanessa A",
+    "JournalMemo": "viaje local, Vanessa A",
+    "U_NIT": "48447838",
+    "U_NOMBRE": "SACBE, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 20,
+    "TotalDiscount": 0,
+    "Reference1": "9-10738229 3259909884",
+    "NumAtCard": "10738229 3259909884",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 20,
+            "TaxCode": "IVA",
+            "CostingCode": "D08",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

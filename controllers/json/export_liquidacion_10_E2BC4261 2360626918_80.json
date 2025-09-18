@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-06",
+    "Comments": "parqueo, jose sarat",
+    "JournalMemo": "parqueo, jose sarat",
+    "U_NIT": "5049245",
+    "U_NOMBRE": "INVERSIONES REFORMA PALACE, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 50,
+    "TotalDiscount": 0,
+    "Reference1": "10-E2BC4261 2360626918",
+    "NumAtCard": "E2BC4261 2360626918",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 50,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

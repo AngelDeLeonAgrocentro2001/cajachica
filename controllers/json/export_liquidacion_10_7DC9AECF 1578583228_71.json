@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-06",
+    "Comments": "glenda O",
+    "JournalMemo": "glenda O",
+    "U_NIT": "73999504",
+    "U_NOMBRE": "DOLLARCITY GUATEMALA, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 16,
+    "TotalDiscount": 0,
+    "Reference1": "10-7DC9AECF 1578583228",
+    "NumAtCard": "7DC9AECF 1578583228",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros...",
+            "PriceAfterVAT": 16,
+            "TaxCode": "IVA",
+            "CostingCode": "D99",
+            "AccountCode": "520900002",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

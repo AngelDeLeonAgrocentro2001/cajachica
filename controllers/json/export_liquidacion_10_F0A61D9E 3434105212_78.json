@@ -1,0 +1,32 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-06",
+    "Comments": "auditoria ISO externa, alex lopez, edgar gomez, vanessa, rafael",
+    "JournalMemo": "auditoria ISO externa, alex lopez, edgar gomez, vanessa, rafael",
+    "U_NIT": "28155106",
+    "U_NOMBRE": "LA PANERIA SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 337,
+    "TotalDiscount": 0,
+    "Reference1": "10-F0A61D9E 3434105212",
+    "NumAtCard": "F0A61D9E 3434105212",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "PriceAfterVAT": 337,
+            "TaxCode": "IVA",
+            "CostingCode": "D31",
+            "AccountCode": "521501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}
