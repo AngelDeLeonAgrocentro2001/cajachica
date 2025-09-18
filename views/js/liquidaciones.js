@@ -120,6 +120,7 @@ async function loadLiquidations() {
         liquidacionesData = data.liquidaciones;
         correctedDetallesData = data.corrected_detalles || [];
         
+        // GUARDAR LAS VARIABLES DE ROL GLOBALMENTE
         window.isContabilidadLike = data.isContabilidadLike || false;
         window.isSupervisorLike = data.isSupervisorLike || false;
         window.isEncargadoLike = data.isEncargadoLike || false;
@@ -131,15 +132,6 @@ async function loadLiquidations() {
             isEncargadoLike: window.isEncargadoLike,
             userRole: window.userRole
         });
-
-        // Remove restrictive contabilidad filter
-        // if (window.isContabilidadLike) {
-        //     liquidacionesData = liquidacionesData.filter(
-        //         (liquidacion) =>
-        //             !liquidacion.id_contador ||
-        //             liquidacion.id_contador == window.currentUserId
-        //     );
-        // }
 
         filteredLiquidacionesData = [...liquidacionesData];
         currentPage = 1;
@@ -311,10 +303,12 @@ function renderLiquidations() {
                 );
             }
 
-            // DETECTAR SI EL USUARIO TIENE PERMISOS DE AUTORIZACIÓN
+            // DETECTAR SI EL USUARIO TIENE PERMISOS DE AUTORIZACIÓN - CORRECCIÓN MEJORADA
             const tienePermisoAutorizar = 
-                (window.userPermissions.autorizar_liquidaciones && window.isSupervisorLike) ||
-                (window.userPermissions.revisar_liquidaciones && window.isContabilidadLike);
+                (window.userPermissions.autorizar_liquidaciones && 
+                 (window.isSupervisorLike || window.userRole.toUpperCase().includes('SUPERVISOR'))) ||
+                (window.userPermissions.revisar_liquidaciones && 
+                 (window.isContabilidadLike || window.userRole.toUpperCase().includes('CONTABILIDAD') || window.userRole.toUpperCase().includes('CONTADOR')));
 
             console.log('Verificación de permisos:', {
                 liquidacionId: liquidacion.id,
@@ -323,8 +317,9 @@ function renderLiquidations() {
                 isSupervisorLike: window.isSupervisorLike,
                 isContabilidadLike: window.isContabilidadLike,
                 isEncargadoLike: window.isEncargadoLike,
-                isCreator: isCreator,
-                permisos: window.userPermissions
+                userRole: window.userRole,
+                permisosAutorizar: window.userPermissions.autorizar_liquidaciones,
+                permisosRevisar: window.userPermissions.revisar_liquidaciones
             });
 
             // BOTÓN "AUTORIZAR" PARA SUPERVISORES (INCLUYENDO ROLES MIXTOS)
