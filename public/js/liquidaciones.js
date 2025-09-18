@@ -95,59 +95,60 @@ function closeSelectLiquidationModal() {
 }
 
 async function loadLiquidations() {
-  try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const mode = urlParams.get("mode") || "";
-      const fetchUrl = mode ? `index.php?controller=liquidacion&action=list&mode=${mode}` : "index.php?controller=liquidacion&action=list";
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get("mode") || "";
+        const fetchUrl = mode ? `index.php?controller=liquidacion&action=list&mode=${mode}` : "index.php?controller=liquidacion&action=list";
 
-      const response = await fetch(fetchUrl, {
-          headers: {
-              "X-Requested-With": "XMLHttpRequest",
-          }
-      });
-      if (!response.ok) {
-          const errorData = await response.json();
-          if (response.status === 403) {
-              alert("No tienes permiso para ver esta lista. Serás redirigido.");
-              window.location.href = "index.php?controller=index";
-              return;
-          }
-          throw new Error(errorData.error || `HTTP error: ${response.status}`);
-      }
-      const rawText = await response.text();
-      console.log("Raw backend response:", rawText);
-      const data = JSON.parse(rawText);
-      console.log("Parsed backend data:", data);
-      liquidacionesData = data.liquidaciones;
-      correctedDetallesData = data.corrected_detalles || data.correctedDetalles || []; // Use correct key
-      console.log("correctedDetallesData assigned:", correctedDetallesData);
-      window.isContabilidadLike = data.isContabilidadLike || false;
+        const response = await fetch(fetchUrl, {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 403) {
+                alert("No tienes permiso para ver esta lista. Serás redirigido.");
+                window.location.href = "index.php?controller=index";
+                return;
+            }
+            throw new Error(errorData.error || `HTTP error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        liquidacionesData = data.liquidaciones;
+        correctedDetallesData = data.corrected_detalles || [];
+        
+        window.isContabilidadLike = data.isContabilidadLike || false;
+        window.isSupervisorLike = data.isSupervisorLike || false;
+        window.isEncargadoLike = data.isEncargadoLike || false;
+        window.userRole = data.userRole || window.userRole || '';
+        
+        console.log('Datos del backend:', {
+            isContabilidadLike: window.isContabilidadLike,
+            isSupervisorLike: window.isSupervisorLike,
+            isEncargadoLike: window.isEncargadoLike,
+            userRole: window.userRole
+        });
 
-      // Additional filter for CONTABILIDAD role
-      if (window.isContabilidadLike) {
-          liquidacionesData = liquidacionesData.filter(
-              (liquidacion) =>
-                  !liquidacion.id_contador ||
-                  liquidacion.id_contador == window.currentUserId
-          );
-          console.log(
-              `Liquidaciones filtradas para CONTABILIDAD (ID: ${window.currentUserId}): ${liquidacionesData.length} registros`
-          );
-          liquidacionesData.forEach((liquidacion) => {
-              console.log(
-                  `Liquidacion ID: ${liquidacion.id}, id_contador: ${liquidacion.id_contador}, Estado: ${liquidacion.estado}`
-              );
-          });
-      }
+        // Remove restrictive contabilidad filter
+        // if (window.isContabilidadLike) {
+        //     liquidacionesData = liquidacionesData.filter(
+        //         (liquidacion) =>
+        //             !liquidacion.id_contador ||
+        //             liquidacion.id_contador == window.currentUserId
+        //     );
+        // }
 
-      filteredLiquidacionesData = [...liquidacionesData];
-      currentPage = 1;
-      renderLiquidations();
-      renderCorrectedDetalles();
-  } catch (error) {
-      console.error("Error al cargar liquidaciones:", error);
-      alert("Error al cargar las liquidaciones. Intenta de nuevo.");
-  }
+        filteredLiquidacionesData = [...liquidacionesData];
+        currentPage = 1;
+        renderLiquidations();
+        renderCorrectedDetalles();
+    } catch (error) {
+        console.error("Error al cargar liquidaciones:", error);
+        alert("Error al cargar las liquidaciones. Intenta de nuevo.");
+    }
 }
 
 function filterLiquidations() {
@@ -158,11 +159,11 @@ function filterLiquidations() {
 
     let filtered = liquidacionesData;
 
-    // Apply role-based filters first
-    if (
-        window.userRole === "SUPERVISOR" &&
-        new URLSearchParams(window.location.search).get("mode") === "autorizar"
-    ) {
+    // Apply role-based filters first - LÓGICA MEJORADA
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get("mode");
+    
+    if (mode === "autorizar" && window.isSupervisorLike) {
         if (isShowingCorrected) {
             filtered = liquidacionesData.filter((liquidacion) => {
                 return (
@@ -177,6 +178,10 @@ function filterLiquidations() {
                 (liquidacion) => liquidacion.estado === "PENDIENTE_AUTORIZACION"
             );
         }
+    } else if (mode === "revisar" && window.isContabilidadLike) {
+        filtered = liquidacionesData.filter(
+            (liquidacion) => liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD"
+        );
     }
 
     // Apply search filters
@@ -266,32 +271,32 @@ function renderLiquidations() {
                 );
             const isCreator = liquidacion.id_usuario == window.currentUserId;
 
+            // PERMISOS PARA CREACIÓN/EDICIÓN (ENCARGADOS, INCLUYENDO ROLES MIXTOS)
             if (
                 window.userPermissions.create_liquidaciones &&
-                !window.userRole.toUpperCase().includes("SUPERVISOR") &&
-                window.userRole !== "CONTABILIDAD" &&
-                isCreator
+                window.isEncargadoLike && // Allow for Encargado-like roles
+                isCreator &&
+                liquidacion.estado === "EN_PROCESO"
             ) {
-                if (liquidacion.estado === "EN_PROCESO") {
-                    actions.push(
-                        `<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`
-                    );
-                    actions.push(
-                        `<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`
-                    );
-                    actions.push(
-                        `<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`
-                    );
-                    actions.push(
-                        `<button onclick="finalizarLiquidacion(${
-                            liquidacion.id
-                        })" class="finalize-btn" ${
-                            hasCorrections ? "disabled" : ""
-                        }>Finalizar</button>`
-                    );
-                }
+                actions.push(
+                    `<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`
+                );
+                actions.push(
+                    `<button onclick="deleteLiquidation(${liquidacion.id})" class="delete-btn">Eliminar</button>`
+                );
+                actions.push(
+                    `<button onclick="manageFacturas(${liquidacion.id})" class="edit-btn">Agregar Facturas</button>`
+                );
+                actions.push(
+                    `<button onclick="finalizarLiquidacion(${
+                        liquidacion.id
+                    })" class="finalize-btn" ${
+                        hasCorrections ? "disabled" : ""
+                    }>Finalizar</button>`
+                );
             }
 
+            // BOTÓN "VER LIQUIDACIÓN" PARA TODOS LOS ESTADOS RELEVANTES
             if (
                 [
                     "PENDIENTE_AUTORIZACION",
@@ -306,25 +311,39 @@ function renderLiquidations() {
                 );
             }
 
-            if (
-                window.userPermissions.autorizar_liquidaciones &&
-                window.userRole.toUpperCase().includes("SUPERVISOR")
-            ) {
-                if (liquidacion.estado === "PENDIENTE_AUTORIZACION") {
+            // DETECTAR SI EL USUARIO TIENE PERMISOS DE AUTORIZACIÓN
+            const tienePermisoAutorizar = 
+                (window.userPermissions.autorizar_liquidaciones && window.isSupervisorLike) ||
+                (window.userPermissions.revisar_liquidaciones && window.isContabilidadLike);
+
+            console.log('Verificación de permisos:', {
+                liquidacionId: liquidacion.id,
+                estado: liquidacion.estado,
+                tienePermisoAutorizar: tienePermisoAutorizar,
+                isSupervisorLike: window.isSupervisorLike,
+                isContabilidadLike: window.isContabilidadLike,
+                isEncargadoLike: window.isEncargadoLike,
+                isCreator: isCreator,
+                permisos: window.userPermissions
+            });
+
+            // BOTÓN "AUTORIZAR" PARA SUPERVISORES (INCLUYENDO ROLES MIXTOS)
+            if (tienePermisoAutorizar) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const mode = urlParams.get("mode");
+                
+                if (mode === "autorizar" && liquidacion.estado === "PENDIENTE_AUTORIZACION") {
                     actions.push(
                         `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`
                     );
+                    console.log('Añadiendo botón Autorizar para liquidación:', liquidacion.id);
                 }
-            }
-
-            if (
-                window.userPermissions.revisar_liquidaciones &&
-                window.isContabilidadLike
-            ) {
-                if (liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD") {
+                
+                if (mode === "revisar" && liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD") {
                     actions.push(
                         `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`
                     );
+                    console.log('Añadiendo botón Revisar para liquidación:', liquidacion.id);
                 }
             }
 
@@ -352,10 +371,10 @@ function renderLiquidations() {
                     ).toFixed(2)}</td>
                     <td data-label="Estado">${estado}</td>
                     <td data-label="Acciones" style="
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-    ">${actionsHtml}</td>
+                        display: flex;
+                        flex-direction: column;
+                        gap: 7px;
+                    ">${actionsHtml}</td>
                 </tr>
             `;
         });
@@ -407,9 +426,7 @@ function renderCorrectedDetalles() {
     const correctedDetallesSection = document.querySelector("#correctedDetallesSection");
     const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
     const mode = new URLSearchParams(window.location.search).get("mode") || "";
-  
-    console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
-  
+
     if (
         window.userRole.toUpperCase().includes("SUPERVISOR") &&
         mode === "autorizar" &&
@@ -436,22 +453,22 @@ function renderCorrectedDetalles() {
                 );
             }
             const actionsHtml = actions.join("");
-  
+
             let archivosHtml = "N/A";
             if (detalle.rutas_archivos && detalle.rutas_archivos.length > 0) {
                 try {
                     const rutas = Array.isArray(detalle.rutas_archivos)
                         ? detalle.rutas_archivos
                         : JSON.parse(detalle.rutas_archivos);
-  
+
                     if (Array.isArray(rutas) && rutas.length > 0) {
                         archivosHtml = rutas
                             .map((ruta) => {
                                 let normalizedPath = ruta
                                     .replace(/\\/g, "/")
                                     .replace(/^\/+/, "");
-                                if (!normalizedPath.startsWith("uploads/")) {
-                                    normalizedPath = `uploads/${normalizedPath}`;
+                                if (!normalizedPath.startsWith("Uploads/")) {
+                                    normalizedPath = `Uploads/${normalizedPath}`;
                                 }
                                 return `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Archivos</a></div>`;
                             })
@@ -463,14 +480,14 @@ function renderCorrectedDetalles() {
                         let normalizedPath = detalle.rutas_archivos
                             .replace(/\\/g, "/")
                             .replace(/^\/+/, "");
-                        if (!normalizedPath.startsWith("uploads/")) {
-                            normalizedPath = `uploads/${normalizedPath}`;
+                        if (!normalizedPath.startsWith("Uploads/")) {
+                            normalizedPath = `Uploads/${normalizedPath}`;
                         }
                         archivosHtml = `<div><a href="/agrocaja-chica/${normalizedPath}" target="_blank">Ver Documentos</a></div>`;
                     }
                 }
             }
-  
+
             correctedDetallesTbody.innerHTML += `
                 <tr>
                     <td data-label="ID">${detalle.id || "N/A"}</td>
@@ -498,14 +515,12 @@ function renderCorrectedDetalles() {
             `;
         });
     } else {
-        console.log("Hiding correctedDetallesSection: Conditions not met");
-<<<<<<< HEAD
+        // 👇 Esta es la parte de tu commit cambios3
+        // console.log("Hiding correctedDetallesSection: Conditions not met");
         correctedDetallesSection.style.display = "none";
-=======
-       // correctedDetallesSection.style.display = "none";
->>>>>>> 2123cb1 (servidor)
     }
-  }
+}
+
 
 function toggleLiquidationView() {
     isShowingCorrected = !isShowingCorrected;
@@ -1267,5 +1282,4 @@ function addFormValidations(id = null) {
         }
     });
 }
-
 
