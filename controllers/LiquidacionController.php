@@ -250,89 +250,84 @@ public function listLiquidaciones()
         error_log('Liquidaciones filtradas por id_supervisor (ID: ' . $_SESSION['user_id'] . '): ' . count($supervisorLiquidaciones) . ' registros');
     }
 
-    // 2. Si es contabilidad O tiene rol mixto con contabilidad, obtener liquidaciones para revisar
-if ($isContabilidadRole || ($isEncargadoRole && $isRevisarMode)) {
-    // Fetch liquidations where the user is id_contador or id_usuario
-    $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, null, $_SESSION['user_id']);
-    $userLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
-    $contabilidadLiquidaciones = array_merge($contabilidadLiquidaciones, $userLiquidaciones);
-    
-    error_log('Liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
-    
-    foreach ($contabilidadLiquidaciones as $liquidacion) {
-        error_log('Liquidacion ID: ' . $liquidacion['id'] . ', id_contador: ' . ($liquidacion['id_contador'] ?? 'N/A') . ', id_usuario: ' . ($liquidacion['id_usuario'] ?? 'N/A') . ', Estado: ' . ($liquidacion['estado'] ?? 'N/A'));
+    // 2. MODIFICACIÓN: Si es contabilidad O tiene rol mixto con contabilidad, obtener TODAS las liquidaciones
+    if ($isContabilidadRole || ($isEncargadoRole && $isRevisarMode)) {
+        // OBTENER TODAS LAS LIQUIDACIONES, NO SOLO LAS ASIGNADAS
+        $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
+        error_log('TODAS las liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
+        
+        // Apply state filter only in revisar mode
+        if ($isRevisarMode) {
+            $contabilidadLiquidaciones = array_filter($contabilidadLiquidaciones, function ($liquidacion) {
+                return in_array($liquidacion['estado'], [
+                    'PENDIENTE_REVISION_CONTABILIDAD',
+                    'FINALIZADO',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'EN_PROCESO'
+                ]);
+            });
+            error_log('Liquidaciones filtradas por estado para revisar: ' . count($contabilidadLiquidaciones) . ' registros');
+        }
+        
+        // Remove duplicates
+        $contabilidadLiquidaciones = array_values(array_reduce($contabilidadLiquidaciones, function ($carry, $liquidacion) {
+            $carry[$liquidacion['id']] = $liquidacion;
+            return $carry;
+        }, []));
+        error_log('Liquidaciones finales para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
     }
-
-    // Apply state filter only in revisar mode
-    if ($isRevisarMode) {
-        $contabilidadLiquidaciones = array_filter($contabilidadLiquidaciones, function ($liquidacion) {
-            return in_array($liquidacion['estado'], [
-                'PENDIENTE_REVISION_CONTABILIDAD',
-                'FINALIZADO',
-                'RECHAZADO_POR_CONTABILIDAD',
-                'EN_PROCESO'
-            ]);
-        });
-    }
-    // Remove duplicates
-    $contabilidadLiquidaciones = array_values(array_reduce($contabilidadLiquidaciones, function ($carry, $liquidacion) {
-        $carry[$liquidacion['id']] = $liquidacion;
-        return $carry;
-    }, []));
-    error_log('Liquidaciones filtradas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
-}
 
     // 3. Si es encargado, obtener sus propias liquidaciones (solo si no está en modo autorizar/revisar)
-if ($isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
-    $encargadoLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
-    error_log('Liquidaciones obtenidas para ENCARGADO (ID: ' . $_SESSION['user_id'] . '): ' . count($encargadoLiquidaciones) . ' registros');
+    if ($isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
+        $encargadoLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
+        error_log('Liquidaciones obtenidas para ENCARGADO (ID: ' . $_SESSION['user_id'] . '): ' . count($encargadoLiquidaciones) . ' registros');
 
-    $encargadoLiquidaciones = array_filter($encargadoLiquidaciones, function ($liquidacion) use ($usuario) {
-        return $liquidacion['id_usuario'] == $usuario['id'];
-    });
-    error_log('Liquidaciones filtradas para usuario ENCARGADO: ' . count($encargadoLiquidaciones) . ' registros');
-}
-
-// 4. PARA USUARIOS MIXTOS: Obtener liquidaciones adicionales según sus roles
-if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
-    $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
-    error_log('Liquidaciones propias para usuario mixto (ID: ' . $_SESSION['user_id'] . '): ' . count($misLiquidaciones) . ' registros');
-    
-    // Inicializar el array si no existe
-    if (!isset($encargadoLiquidaciones)) {
-        $encargadoLiquidaciones = [];
+        $encargadoLiquidaciones = array_filter($encargadoLiquidaciones, function ($liquidacion) use ($usuario) {
+            return $liquidacion['id_usuario'] == $usuario['id'];
+        });
+        error_log('Liquidaciones filtradas para usuario ENCARGADO: ' . count($encargadoLiquidaciones) . ' registros');
     }
-    $encargadoLiquidaciones = array_merge($encargadoLiquidaciones, $misLiquidaciones);
-}
+
+    // 4. PARA USUARIOS MIXTOS: Obtener liquidaciones adicionales según sus roles
+    if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole && !$isAutorizarMode && !$isRevisarMode) {
+        $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
+        error_log('Liquidaciones propias para usuario mixto (ID: ' . $_SESSION['user_id'] . '): ' . count($misLiquidaciones) . ' registros');
+        
+        // Inicializar el array si no existe
+        if (!isset($encargadoLiquidaciones)) {
+            $encargadoLiquidaciones = [];
+        }
+        $encargadoLiquidaciones = array_merge($encargadoLiquidaciones, $misLiquidaciones);
+    }
 
     // COMBINAR LIQUIDACIONES - PRIORIZAR SEGÚN MODO
-if ($isAutorizarMode) {
-    // En modo autorizar, mostrar solo liquidaciones de supervisor (incluyendo usuarios mixtos)
-    $liquidaciones = $supervisorLiquidaciones;
-    error_log('Modo autorizar: mostrando ' . count($liquidaciones) . ' liquidaciones de supervisor');
-} elseif ($isRevisarMode) {
-    // En modo revisar, mostrar solo liquidaciones de contabilidad (incluyendo usuarios mixtos)
-    $liquidaciones = $contabilidadLiquidaciones;
-    error_log('Modo revisar: mostrando ' . count($liquidaciones) . ' liquidaciones de contabilidad');
-} else {
-    // Modo normal: combinar todas las liquidaciones según roles
-    if ($isEncargadoRole) {
-        // Para usuarios encargados (puros o mixtos), mostrar sus propias liquidaciones
-        $liquidaciones = array_merge($encargadoLiquidaciones, $supervisorLiquidaciones, $contabilidadLiquidaciones);
-        error_log('Liquidaciones combinadas para ENCARGADO (mixto): ' . count($liquidaciones) . ' registros');
+    if ($isAutorizarMode) {
+        // En modo autorizar, mostrar solo liquidaciones de supervisor (incluyendo usuarios mixtos)
+        $liquidaciones = $supervisorLiquidaciones;
+        error_log('Modo autorizar: mostrando ' . count($liquidaciones) . ' liquidaciones de supervisor');
+    } elseif ($isRevisarMode) {
+        // En modo revisar, mostrar solo liquidaciones de contabilidad (incluyendo usuarios mixtos)
+        $liquidaciones = $contabilidadLiquidaciones;
+        error_log('Modo revisar: mostrando ' . count($liquidaciones) . ' liquidaciones de contabilidad');
     } else {
-        // Para otros roles, mostrar según sus permisos
-        $liquidaciones = array_merge($supervisorLiquidaciones, $contabilidadLiquidaciones);
-        error_log('Liquidaciones combinadas para NO ENCARGADO: ' . count($liquidaciones) . ' registros');
+        // Modo normal: combinar todas las liquidaciones según roles
+        if ($isEncargadoRole) {
+            // Para usuarios encargados (puros o mixtos), mostrar sus propias liquidaciones
+            $liquidaciones = array_merge($encargadoLiquidaciones, $supervisorLiquidaciones, $contabilidadLiquidaciones);
+            error_log('Liquidaciones combinadas para ENCARGADO (mixto): ' . count($liquidaciones) . ' registros');
+        } else {
+            // Para otros roles, mostrar según sus permisos
+            $liquidaciones = array_merge($supervisorLiquidaciones, $contabilidadLiquidaciones);
+            error_log('Liquidaciones combinadas para NO ENCARGADO: ' . count($liquidaciones) . ' registros');
+        }
+        
+        // PARA USUARIOS MIXTOS: Asegurar que ven sus propias liquidaciones incluso si no son encargados puros
+        if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole) {
+            $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
+            $liquidaciones = array_merge($liquidaciones, $misLiquidaciones);
+            error_log('Usuario mixto (no encargado): añadiendo ' . count($misLiquidaciones) . ' liquidaciones propias');
+        }
     }
-    
-    // PARA USUARIOS MIXTOS: Asegurar que ven sus propias liquidaciones incluso si no son encargados puros
-    if (($isContabilidadRole || $isSupervisorRole) && !$isEncargadoRole) {
-        $misLiquidaciones = $this->liquidacionModel->getAllLiquidaciones($_SESSION['user_id']);
-        $liquidaciones = array_merge($liquidaciones, $misLiquidaciones);
-        error_log('Usuario mixto (no encargado): añadiendo ' . count($misLiquidaciones) . ' liquidaciones propias');
-    }
-}
 
     // Remove duplicates by ID
     $liquidaciones = array_values(array_reduce($liquidaciones, function ($carry, $liquidacion) {
@@ -373,9 +368,9 @@ if ($isAutorizarMode) {
             'liquidaciones' => array_values($liquidaciones),
             'corrected_detalles' => array_values($correctedDetalles),
             'isContabilidadLike' => $isContabilidadRole,
-            'isSupervisorLike' => $isSupervisorRole, // Añadir esta línea
+            'isSupervisorLike' => $isSupervisorRole,
             'isEncargadoLike' => $isEncargadoRole,
-        'userRole' => $usuario['rol'] // Añadir esta línea
+            'userRole' => $usuario['rol']
         ];
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     } else {
@@ -2209,18 +2204,19 @@ public function revisar($id) {
             $auditoriaAccion = '';
             $message = '';
 
+            // CORRECCIÓN CRÍTICA: Mantener la lógica de estados de la versión anterior
             if ($accion === 'APROBADO') {
-                $nuevoEstado = 'FINALIZADO';
-                $auditoriaAccion = 'AUTORIZADO_POR_CONTABILIDAD';
-                $message = 'Liquidación finalizada por contabilidad';
+                $nuevoEstado = $isContabilidadRole ? 'PENDIENTE_REVISION_CONTABILIDAD' : 'FINALIZADO';
+                $auditoriaAccion = $isContabilidadRole ? 'APROBADO_POR_CONTABILIDAD' : 'AUTORIZADO_POR_CONTABILIDAD';
+                $message = $isContabilidadRole ? 'Aprobado por contabilidad, listo para exportar a SAP.' : 'Se autorizaron por contabilidad.';
             } elseif ($accion === 'RECHAZADO') {
                 $nuevoEstado = 'RECHAZADO_POR_CONTABILIDAD';
                 $auditoriaAccion = 'RECHAZADO_POR_CONTABILIDAD';
-                $message = 'Rechazado por contabilidad';
+                $message = 'Rechazado por contabilidad.';
             } elseif ($accion === 'DESCARTADO') {
                 $nuevoEstado = 'DESCARTADO';
                 $auditoriaAccion = 'DESCARTADO_POR_CONTABILIDAD';
-                $message = 'Descartado por contabilidad';
+                $message = 'Descartado por contabilidad.';
             }
 
             $detailsToCorrect = [];
@@ -3142,6 +3138,16 @@ public function exportar($id, $docDate = null)
                     $costingCode = trim($centroCostoModel->getCentroCostoById($dl['id_centro_costo'])['codigo']);
                     $accountCode = $dl['id_cuenta_contable'] ?? null;
                     $docTotal = floatval($dl['total_factura']);
+
+                    // Preparar el ItemDescription con comentarios si existen
+                    $itemDescription = $detalle['t_gasto'];
+                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+    
+                    // Solo agregar comentarios si no es uno de los casos especiales
+                    $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
+                    if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
+                    $itemDescription .= " - " . substr($comments, 0, 100); // Limitar longitud
+                    }
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
                         $subtotal = floatval($dl['p_unitario']);
@@ -3153,7 +3159,7 @@ public function exportar($id, $docDate = null)
                         if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
-                                "ItemDescription" => $dl['t_gasto'],
+                                "ItemDescription" => $itemDescription,
                                 "PriceAfterVAT" => $subtotal + $iva,
                                 "TaxCode" => "IVA",
                                 "CostingCode" => $costingCode,
@@ -3205,7 +3211,7 @@ public function exportar($id, $docDate = null)
                         if (floatval($dl['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
-                                "ItemDescription" => $dl['t_gasto'] . " ({$tipoDocumento})",
+                                "ItemDescription" => $itemDescription . " ({$tipoDocumento})",
                                 "PriceAfterVAT" => floatval($dl['total_factura']),
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
@@ -3304,6 +3310,16 @@ public function exportar($id, $docDate = null)
                 foreach ($detalles as $detalle) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
                     $accountCode = $detalle['id_cuenta_contable'] ?? null;
+
+                     // Preparar el ItemDescription con comentarios si existen
+                    $itemDescription = $detalle['t_gasto'];
+                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+    
+                    // Solo agregar comentarios si no es uno de los casos especiales
+                    $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
+                    if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
+                    $itemDescription .= " - " . substr($comments, 0, 100); // Limitar longitud
+                    }
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
                         $subtotal = floatval($detalle['p_unitario']);
@@ -3315,7 +3331,7 @@ public function exportar($id, $docDate = null)
                         if ($iva > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
-                                "ItemDescription" => $detalle['t_gasto'],
+                                "ItemDescription" => $itemDescription,
                                 "PriceAfterVAT" => $subtotal + $iva,
                                 "TaxCode" => "IVA",
                                 "CostingCode" => $costingCode,
@@ -3367,7 +3383,7 @@ public function exportar($id, $docDate = null)
                         if (floatval($detalle['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
-                                "ItemDescription" => $detalle['t_gasto'] . " ({$tipoDocumento})",
+                                "ItemDescription" => $itemDescription . " ({$tipoDocumento})",
                                 "PriceAfterVAT" => floatval($detalle['total_factura']),
                                 "TaxCode" => "EXE",
                                 "CostingCode" => $costingCode,
