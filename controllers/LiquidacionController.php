@@ -3141,8 +3141,8 @@ public function exportar($id, $docDate = null)
                     $docTotal = floatval($dl['total_factura']);
 
                     // Preparar el ItemDescription con comentarios si existen
-                    $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+                    $itemDescription = $dl['t_gasto'];
+                    $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
     
                     // Solo agregar comentarios si no es uno de los casos especiales
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
@@ -3314,7 +3314,7 @@ public function exportar($id, $docDate = null)
 
                      // Preparar el ItemDescription con comentarios si existen
                     $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+                    $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
     
                     // Solo agregar comentarios si no es uno de los casos especiales
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
