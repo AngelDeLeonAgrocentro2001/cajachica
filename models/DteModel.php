@@ -34,12 +34,6 @@ class DteModel {
 
     public function insertDte($data) {
         try {
-            // Verificar duplicados
-            if ($this->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
-                error_log("DTE duplicado detectado: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
-                return false; // Indicar que no se insertó por duplicado
-            }
-
             $sql = "INSERT INTO dte (
                 fecha_emision, numero_autorizacion, tipo_dte, serie, numero_dte, 
                 clasificacion_emisor, exportacion, nit_emisor, nombre_emisor, 
@@ -66,6 +60,7 @@ class DteModel {
                 $data['nit_emisor'],
                 $data['nombre_emisor'],
                 $data['codigo_establecimiento'],
+                $data['codigo_establecimiento'],
                 $data['nombre_establecimiento'],
                 $data['id_receptor'],
                 $data['nombre_receptor'],
@@ -77,32 +72,35 @@ class DteModel {
                 $data['iva'],
                 $data['marca_anulado'],
                 $data['fecha_anulacion'] ?: null,
-                $data['petroleo'],
-                $data['turismo_hospedaje'],
-                $data['turismo_pasajes'],
-                $data['timbre_prensa'],
-                $data['bomberos'],
-                $data['tasa_municipal'],
-                $data['bebidas_alcoholicas'],
-                $data['tabaco'],
-                $data['cemento'],
-                $data['bebidas_no_alcoholicas'],
-                $data['tarifa_portuaria'],
-                'X' // Default value for usado
+                $data['petroleo'] ?? 0.00,
+                $data['turismo_hospedaje'] ?? 0.00,
+                $data['turismo_pasajes'] ?? 0.00,
+                $data['timbre_prensa'] ?? 0.00,
+                $data['bomberos'] ?? 0.00,
+                $data['tasa_municipal'] ?? 0.00,
+                $data['bebidas_alcoholicas'] ?? 0.00,
+                $data['tabaco'] ?? 0.00,
+                $data['cemento'] ?? 0.00,
+                $data['bebidas_no_alcoholicas'] ?? 0.00,
+                $data['tarifa_portuaria'] ?? 0.00,
+                'X'
             ]);
-            if (!$result) {
-                error_log("Error al ejecutar la consulta SQL: " . print_r($stmt->errorInfo(), true));
-                return false;
-            }
+    
             return true;
+            
         } catch (PDOException $e) {
-            // Verificar si es error de duplicado
-            if ($e->getCode() == 23000) { // Código de error para violación de restricción única
-                error_log("DTE duplicado detectado a nivel de BD: " . $e->getMessage());
-                return false;
+            // Verificar si es error de duplicado (código 23000 para violación de restricción única)
+            if ($e->getCode() == '23000') {
+                error_log("DTE duplicado (manejado por BD): " . 
+                         $data['numero_autorizacion'] . ", " . 
+                         $data['serie'] . ", " . 
+                         $data['numero_dte']);
+                return false; // Indicar que es duplicado
             }
             
-            error_log("Error al insertar DTE: " . $e->getMessage() . " | Data: " . print_r($data, true));
+            error_log("Error al insertar DTE: " . $e->getMessage() . 
+                     " | Código: " . $e->getCode() . 
+                     " | Data: " . print_r($data, true));
             return false;
         }
     }
