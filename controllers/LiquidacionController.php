@@ -2481,30 +2481,19 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
 {
     error_log("Manejando error SAP: $errorCode - $errorMessage para NIT: $nitProveedor");
     
-    // DEBUG: Log completo del mensaje para diagnóstico
-    error_log("Mensaje de error completo: " . $errorMessage);
-    
     // Si el código es -1116, intentar extraer el código real del mensaje
     if ($errorCode == -1116) {
-        error_log("Código -1116 detectado, buscando código real en mensaje: $errorMessage");
-        
-        // Buscar patrones de códigos en el mensaje
-        if (preg_match('/\((\d+)\)/', $errorMessage, $matches)) {
-            $errorCode = (int)$matches[1];
-            error_log("Código real extraído del mensaje: $errorCode");
-        } else {
-            error_log("No se pudo extraer código del mensaje: $errorMessage");
+        if (strpos($errorMessage, '2021032504') !== false) {
+            $errorCode = 2021032504;
+            error_log("Código real extraído del mensaje: 2021032504");
+        } elseif (strpos($errorMessage, '18000018') !== false) {
+            $errorCode = 18000018;
+            error_log("Código real extraído del mensaje: 18000018");
+        } elseif (strpos($errorMessage, '20170505') !== false) {
+            $errorCode = 20170505;
+            error_log("Código real extraído del mensaje: 20170505");
         }
     }
-    
-    // Mapeo de códigos de error
-    $codigosError = [
-        2021032504 => 'NIT Pequeño Contribuyente',
-        18000018 => 'NIT no existe',
-        20170505 => 'No se permiten descuentos'
-    ];
-    
-    error_log("Procesando código de error: $errorCode - " . ($codigosError[$errorCode] ?? 'Desconocido'));
     
     switch ($errorCode) {
         case 2021032504: // NIT Pequeño Contribuyente
@@ -2520,12 +2509,11 @@ private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitPro
             return $this->manejarErrorDescuentosNoPermitidos($jsonContent, $cookie, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath);
             
         default:
-            error_log("Error no manejable ($errorCode): $errorMessage");
+            error_log("Error no manejable: $errorCode");
             return [
                 'success' => false,
                 'error' => $errorMessage,
-                'manejable' => false,
-                'error_code' => $errorCode
+                'manejable' => false
             ];
     }
 }
@@ -2632,13 +2620,8 @@ private function manejarErrorPequeñoContribuyente($nitProveedor, $noFactura, $c
 private function manejarErrorNitNoExiste($nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
 {
     try {
-        error_log("Intentando insertar NIT {$nitProveedor} en @NIT_PN");
-        
         // Conectar a HANA para insertar directamente en @NIT_PN
         $conn = $this->CONEXION_HANA("GT_AGROCENTRO_2016");
-        if (!$conn) {
-            throw new Exception("No se pudo conectar a la base de datos HANA");
-        }
         
         // Buscar el próximo código disponible empezando desde 13333
         $codigo = 13333;
@@ -3329,7 +3312,7 @@ public function exportar($id, $docDate = null)
                     $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
                     $accountCode = $detalle['id_cuenta_contable'] ?? null;
 
-                    // Preparar el ItemDescription con comentarios si existen
+                     // Preparar el ItemDescription con comentarios si existen
                     $itemDescription = $detalle['t_gasto'];
                     $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
     
@@ -3486,111 +3469,98 @@ public function exportar($id, $docDate = null)
                     throw new Exception("Error de conexión SAP para factura {$noFactura}: $curlError");
                 }
 
+                // Dentro del bloque donde procesas la respuesta de SAP, después de:
                 // Dentro del bloque donde procesas la respuesta de SAP:
-$sapResponse = json_decode($response, true);
-if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
-    $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
-    
-    // Verificar si la respuesta es un JSON válido
-    if (json_last_error() === JSON_ERROR_NONE && isset($sapResponse['error'])) {
-        $errorCode = $sapResponse['error']['code'] ?? 0;
-        
-        // Extraer el mensaje de error de manera más robusta
-        $sapErrorMessage = '';
-        if (isset($sapResponse['error']['message']['value'])) {
-            $sapErrorMessage = $sapResponse['error']['message']['value'];
-        } elseif (is_string($sapResponse['error']['message'])) {
-            $sapErrorMessage = $sapResponse['error']['message'];
-        } else {
-            $sapErrorMessage = 'Error desconocido';
-        }
-        
-        $errorMsg .= " - {$sapErrorMessage}";
-        
-        // DEBUG: Log completo de la respuesta para diagnóstico
-        error_log("Respuesta completa de SAP: " . json_encode($sapResponse, JSON_PRETTY_PRINT));
-        
-        // Si el código es -1116, intentar extraer el código real del mensaje
-        if ($errorCode == -1116) {
-            error_log("Código -1116 detectado, buscando código real en mensaje: $sapErrorMessage");
-            
-            if (preg_match('/\((\d+)\)/', $sapErrorMessage, $matches)) {
-                $errorCode = (int)$matches[1];
-                error_log("Código real extraído del mensaje: $errorCode");
-            } else {
-                error_log("No se pudo extraer código del mensaje: $sapErrorMessage");
-                // Si no podemos extraer el código, tratar como error no manejable
-                throw new Exception($errorMsg);
-            }
-        }
-        
-        error_log("Código de error detectado: $errorCode, Mensaje: $sapErrorMessage");
-        
-        // Intentar manejar el error automáticamente
-        $manejoResultado = $this->manejarErroresSapYReintentar(
-            $errorCode,
-            $sapErrorMessage,
-            $nitProveedor,
-            $nombreProveedor,
-            $noFactura,
-            $cookie,
-            $jsonContent,
-            $sapUrl,
-            $detalles,
-            $detalleLiquidacionModel,
-            $id,
-            $groupKey,
-            $groupedDetalles,
-            $jsonFilePath
-        );
+                $sapResponse = json_decode($response, true);
+                if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+                    $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
+                    
+                    // Verificar si la respuesta es un JSON válido
+                    if (json_last_error() === JSON_ERROR_NONE && isset($sapResponse['error'])) {
+                        $errorCode = $sapResponse['error']['code'] ?? 0;
+                        
+                        // Extraer el mensaje de error
+                        $sapErrorMessage = $sapResponse['error']['message']['value'] ?? 
+                                          (is_string($sapResponse['error']['message']) ? 
+                                          $sapResponse['error']['message'] : 'Error desconocido');
+                        
+                        $errorMsg .= " - {$sapErrorMessage}";
+                        
+                        // Si el código es -1116, intentar extraer el código real del mensaje
+                        if ($errorCode == -1116) {
+                            if (preg_match('/\((\d+)\)/', $sapErrorMessage, $matches)) {
+                                $errorCode = (int)$matches[1];
+                                error_log("Código real extraído del mensaje: $errorCode");
+                            }
+                        }
+                        
+                        error_log("Código de error detectado: $errorCode, Mensaje: $sapErrorMessage");
+                        
+                        // Intentar manejar el error automáticamente
+                        $manejoResultado = $this->manejarErroresSapYReintentar(
+                            $errorCode,
+                            $sapErrorMessage,
+                            $nitProveedor,
+                            $nombreProveedor,
+                            $noFactura,
+                            $cookie,
+                            $jsonContent,
+                            $sapUrl,
+                            $detalles,
+                            $detalleLiquidacionModel,
+                            $id,
+                            $groupKey,
+                            $groupedDetalles,
+                            $jsonFilePath
+                        );
 
-        if ($manejoResultado['success']) {
-            // Éxito después del manejo del error
-            $results[] = [
-                'no_factura' => $noFactura,
-                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
-                'success' => true,
-                'message' => $manejoResultado['message'],
-                'filePath' => $manejoResultado['filePath'],
-                'detalle_ids' => $manejoResultado['detalle_ids'],
-                'sap_response' => $manejoResultado['sap_response'],
-                'manejado' => true
-            ];
-            $atLeastOneProcessed = true;
-            continue;
-        } elseif ($manejoResultado['manejable'] === false) {
-            // Error no manejable, proceder con el manejo normal
-            $isDuplicateError = ($errorCode == -5002);
-            if ($isDuplicateError) {
-                foreach ($detalles as $detalle) {
-                    $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
-                    $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (duplicado): {$noFactura}, mensaje: {$errorMsg}");
+                        if ($manejoResultado['success']) {
+                            // Éxito después del manejo del error
+                            $results[] = [
+                                'no_factura' => $noFactura,
+                                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                                'success' => true,
+                                'message' => $manejoResultado['message'],
+                                'filePath' => $manejoResultado['filePath'],
+                                'detalle_ids' => $manejoResultado['detalle_ids'],
+                                'sap_response' => $manejoResultado['sap_response'],
+                                'manejado' => true
+                            ];
+                            $atLeastOneProcessed = true;
+                            continue;
+                        } elseif ($manejoResultado['manejable'] === false) {
+                            // Error no manejable, proceder con el manejo normal
+                            $isDuplicateError = ($errorCode == -5002);
+                            if ($isDuplicateError) {
+                                foreach ($detalles as $detalle) {
+                                    $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                                    $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (duplicado): {$noFactura}, mensaje: {$errorMsg}");
+                                }
+                                $results[] = [
+                                    'no_factura' => $noFactura,
+                                    'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                                    'success' => true,
+                                    'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (duplicado, exportada de nuevo)",
+                                    'filePath' => $jsonFilePath,
+                                    'detalle_ids' => array_column($detalles, 'id'),
+                                    'sap_response' => $sapResponse,
+                                    'manejado' => false
+                                ];
+                                $atLeastOneProcessed = true;
+                                continue;
+                            }
+                        }
+                    } else {
+                        // Respuesta no es JSON válido o no tiene la estructura esperada
+                        $errorMsg .= " - Respuesta no válida de SAP";
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $errorMsg .= " (Error JSON: " . json_last_error_msg() . ")";
+                        }
+                        error_log("Respuesta SAP no válida: " . substr($response, 0, 500));
+                    }
+                    
+                    throw new Exception($errorMsg);
                 }
-                $results[] = [
-                    'no_factura' => $noFactura,
-                    'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
-                    'success' => true,
-                    'message' => "Grupo {$groupKey} (Factura: {$noFactura}) procesada (duplicado, exportada de nuevo)",
-                    'filePath' => $jsonFilePath,
-                    'detalle_ids' => array_column($detalles, 'id'),
-                    'sap_response' => $sapResponse,
-                    'manejado' => false
-                ];
-                $atLeastOneProcessed = true;
-                continue;
-            }
-        }
-    } else {
-        // Respuesta no es JSON válido o no tiene la estructura esperada
-        $errorMsg .= " - Respuesta no válida de SAP";
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $errorMsg .= " (Error JSON: " . json_last_error_msg() . ")";
-        }
-        error_log("Respuesta SAP no válida: " . substr($response, 0, 500));
-    }
-    
-    throw new Exception($errorMsg);
-}
 
                 foreach ($detalles as $detalle) {
                     $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
