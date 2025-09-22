@@ -2363,7 +2363,7 @@ public function revisar($id) {
 private function login_sap($db)
     {
         $usuario = 'manager';
-        $contrasena = 'ACtest';
+        $contrasena = 'Team64110';
         $sociedad = $db;
 
         $curl = curl_init();
