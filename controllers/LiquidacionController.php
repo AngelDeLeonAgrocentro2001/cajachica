@@ -3140,8 +3140,8 @@ public function exportar($id, $docDate = null)
                     $docTotal = floatval($dl['total_factura']);
 
                     // Preparar el ItemDescription con comentarios si existen
-                    $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+                    $itemDescription = $dl['t_gasto'];
+                    $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
     
                     // Solo agregar comentarios si no es uno de los casos especiales
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
@@ -3313,7 +3313,7 @@ public function exportar($id, $docDate = null)
 
                      // Preparar el ItemDescription con comentarios si existen
                     $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+                    $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
     
                     // Solo agregar comentarios si no es uno de los casos especiales
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
@@ -3468,9 +3468,8 @@ public function exportar($id, $docDate = null)
                     throw new Exception("Error de conexión SAP para factura {$noFactura}: $curlError");
                 }
 
-                // Dentro del bloque donde procesas la respuesta de SAP, después de:
-// Dentro del bloque donde procesas la respuesta de SAP:
-$sapResponse = json_decode($response, true);
+                // Dentro del bloque donde procesas la respuesta de SAP:
+                $sapResponse = json_decode($response, true);
                 if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
                     $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
                     
