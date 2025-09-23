@@ -99,36 +99,38 @@ class LoginController {
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
     
                 $mail = new PHPMailer(true);
-                try {
-                    // Configuración probada que funciona
-                    $mail->isSMTP();
-                    $mail->Host = 'smtp.office365.com';
-                    $mail->SMTPAuth = true;
-                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                    $mail->Port = 587;
-                    $mail->CharSet = 'UTF-8';
-                    $mail->Timeout = 30; // Aumentar timeout
-    
-                    // Usar las credenciales que sabemos que funcionan
-                    $mail->Username = $cuentaRemitente;
-                    $mail->Password = $PassCuentaRemitente;
-    
-                    $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
-                    $mail->setFrom('no-reply@agrocentro.com', 'AgroCaja Chica');
-                    $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
-    
-                    $mail->IsHTML(true);
-                    $mail->Subject = $Asunto;
-                    $mail->Body = $Mensaje;
-                    $mail->AltBody = $MensajeAlterno;
-    
-                    $mail->send();
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } catch (Exception $e) {
-                    error_log("Error detallado PHPMailer: " . $e->getMessage());
-                    error_log("Error completo: " . print_r($e, true));
-                    header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
-                }
+            try {
+                $mail->isSMTP();
+                $mail->Host = 'smtp.office365.com';
+                $mail->SMTPAuth = true;
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port = 587;
+                $mail->CharSet = 'UTF-8';
+                $mail->Timeout = 60;
+
+                // Credenciales correctas (usuario real de Office365)
+                $mail->Username = $cuentaRemitente; // angel.deleon@agrocentro.com
+                $mail->Password = $PassCuentaRemitente;
+
+                // Remitente debe coincidir con la cuenta autenticada
+                $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
+                $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
+
+                // Destinatario = usuario que pidió reset
+                $mail->addAddress($email, $user['nombre'] ?? '');
+
+                $mail->isHTML(true);
+                $mail->Subject = $Asunto;
+                $mail->Body = $Mensaje;
+                $mail->AltBody = $MensajeAlterno;
+
+                $mail->send();
+                header('Location: index.php?controller=login&action=resetPassword&success=1');
+            } catch (Exception $e) {
+                error_log("Error detallado PHPMailer: " . $mail->ErrorInfo);
+                header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+            }
+
             } else {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
             }
