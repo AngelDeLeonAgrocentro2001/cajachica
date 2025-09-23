@@ -1496,39 +1496,39 @@ async function updateCuentaContableOptionsForCentro(centroCostoId, index) {
 }
 
 function addCentroCostoRow() {
-  const container = document.getElementById('centros_costo_container');
-  const row = document.createElement('div');
-  row.className = 'centro_costo_row';
-  row.id = `centro_costo_row_${centroCostoCounter}`;
-  row.innerHTML = `
-    <label for="id_centro_costo_${centroCostoCounter}">Centro de Costo:</label>
-    <select name="id_centro_costo[]" id="id_centro_costo_${centroCostoCounter}" class="centro_costo_select" required>
-      <option value="">Selecciona un centro de costo</option>
-      <?php echo $select_centros_costos; ?>
-    </select>
-    <label for="porcentaje_${centroCostoCounter}">Porcentaje:</label>
-    <input type="number" name="porcentaje[]" id="porcentaje_${centroCostoCounter}" step="0.001" min="0" max="100" value="0" class="porcentaje_input" required />
-    <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
-    <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_${centroCostoCounter}">
-      <label for="id_cuenta_contable_centro_${centroCostoCounter}">Cuenta Contable:</label>
-      <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_${centroCostoCounter}" class="cuenta_contable_centro_select" required>
-        <option value="">Selecciona un centro de costo primero</option>
-      </select>
-    </div>
-    <span class="porcentaje_error" id="porcentaje_error_${centroCostoCounter}" style="color: red; display: none;"></span>
-    <button type="button" class="remove-centro-costo" onclick="removeCentroCostoRow(${centroCostoCounter})">-</button>
-  `;
-  container.appendChild(row);
-  
-  // Agregar event listener al nuevo select de centro de costo
-  const newSelect = document.getElementById(`id_centro_costo_${centroCostoCounter}`);
-  newSelect.addEventListener('change', function() {
-    updateCuentaContableOptionsForCentro(this.value, centroCostoCounter);
-  });
-  
-  centroCostoCounter++;
-  updatePercentageListeners();
-  updateCuentaContableOptions();
+    const container = document.getElementById('centros_costo_container');
+    const row = document.createElement('div');
+    row.className = 'centro_costo_row';
+    row.id = `centro_costo_row_${centroCostoCounter}`;
+    row.innerHTML = `
+        <label for="id_centro_costo_${centroCostoCounter}">Centro de Costo:</label>
+        <select name="id_centro_costo[]" id="id_centro_costo_${centroCostoCounter}" class="centro_costo_select" required>
+            <option value="">Selecciona un centro de costo</option>
+            <?php echo $select_centros_costos; ?>
+        </select>
+        <label for="porcentaje_${centroCostoCounter}">Porcentaje:</label>
+        <input type="number" name="porcentaje[]" id="porcentaje_${centroCostoCounter}" step="0.001" min="0" max="100" value="0" class="porcentaje_input" required />
+        <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
+        <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_${centroCostoCounter}">
+            <label for="id_cuenta_contable_centro_${centroCostoCounter}">Cuenta Contable:</label>
+            <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_${centroCostoCounter}" class="cuenta_contable_centro_select" required>
+                <option value="">Selecciona un centro de costo primero</option>
+            </select>
+        </div>
+        <span class="porcentaje_error" id="porcentaje_error_${centroCostoCounter}" style="color: red; display: none;"></span>
+        <button type="button" class="remove-centro-costo" onclick="removeCentroCostoRow(${centroCostoCounter})">-</button>
+    `;
+    container.appendChild(row);
+    
+    // Agregar event listener al nuevo select de centro de costo
+    const newSelect = document.getElementById(`id_centro_costo_${centroCostoCounter}`);
+    newSelect.addEventListener('change', function() {
+        updateCuentaContableOptionsForCentro(this.value, centroCostoCounter);
+    });
+    
+    centroCostoCounter++;
+    updatePercentageListeners();
+    updateCuentaContableOptions();
 }
 
 function removeCentroCostoRow(index) {
@@ -1611,6 +1611,11 @@ function fillFormFromDte(suggestion) {
   document.getElementById('dte-suggestions').style.display = 'none';
 }
 
+// Event listener para el centro de costo principal
+document.getElementById('id_centro_costo_0').addEventListener('change', function() {
+    updateCuentaContableOptions();
+});
+
 async function updateCuentaContableOptions() {
     const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
     const cuentaContableSelect = document.getElementById('id_cuenta_contable');
@@ -1623,6 +1628,19 @@ async function updateCuentaContableOptions() {
     const selectedCentroCosto = centroCostoSelects[0]?.value;
     const tipoGasto = tipoGastoSelect.value;
     const mappedCuenta = tipoGastoToCuentaContable[tipoGasto];
+
+    // Agregar event listeners a todos los selects de centro de costo existentes
+    document.querySelectorAll('.centro_costo_select').forEach((select, index) => {
+        select.addEventListener('change', function() {
+            if (index === 0) {
+                // Centro de costo principal - actualizar cuenta contable principal
+                updateCuentaContableOptions();
+            } else {
+                // Centros de costo adicionales - actualizar sus cuentas contables
+                updateCuentaContableOptionsForCentro(this.value, index);
+            }
+        });
+    });
 
 
     if (!selectedCentroCosto) {
@@ -2620,16 +2638,16 @@ document.getElementById('id_centro_costo_0').addEventListener('change', function
 });
 
 document.getElementById('t_gasto').addEventListener('change', () => {
-  // Actualizar cuenta principal
-  updateCuentaContableOptions();
-  
-  // Actualizar cuentas de centros de costo adicionales
-  const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
-  centroCostoSelects.forEach((select, index) => {
-    if (index > 0 && select.value) { // Solo para centros de costo adicionales con valor
-      updateCuentaContableOptionsForCentro(select.value, index);
-    }
-  });
+    // Actualizar cuenta principal
+    updateCuentaContableOptions();
+    
+    // Actualizar cuentas de centros de costo adicionales
+    const centroCostoSelects = document.querySelectorAll('.centro_costo_select');
+    centroCostoSelects.forEach((select, index) => {
+        if (index > 0 && select.value) { // Solo para centros de costo adicionales con valor
+            updateCuentaContableOptionsForCentro(select.value, index);
+        }
+    });
 });
 
   </script>
