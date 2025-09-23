@@ -99,7 +99,7 @@ class LoginController {
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
     
                 $mail = new PHPMailer(true);
-                $mail->SMTPDebug = 3;
+                $mail->SMTPDebug = 0;
                 $mail->Debugoutput = 'error_log';
             try {
                 $mail->isSMTP();
