@@ -1,0 +1,44 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-03",
+    "DocDueDate": "2025-09-03",
+    "TaxDate": "2025-09-03",
+    "Comments": "combustible, hector regalado",
+    "JournalMemo": "combustible, hector regalado",
+    "U_NIT": "5892015",
+    "U_NOMBRE": "PROMOTORA INTE EL TRIANGULO SA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 80,
+    "TotalDiscount": 0,
+    "Reference1": "14-BFE36B9A 1790266657",
+    "NumAtCard": "BFE36B9A 1790266657",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible - combustible, hector regalado",
+            "PriceAfterVAT": 67.52,
+            "TaxCode": "IVA",
+            "CostingCode": "D29",
+            "AccountCode": "641101001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "C"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "PriceAfterVAT": 12.48,
+            "TaxCode": "EXE",
+            "CostingCode": "D29",
+            "AccountCode": "641001001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "P"
+        }
+    ]
+}
