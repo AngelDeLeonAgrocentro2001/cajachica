@@ -1737,6 +1737,10 @@ async function updateCuentaContableOptionsForCentro(centroCostoId, index) {
   }
 }
 
+document.getElementById('id_centro_costo_0').addEventListener('change', function() {
+    updateCuentaContableOptions();
+});
+
 function addCentroCosto() {
   const container = document.getElementById('centros_costo_container');
   const newIndex = centroCostoCount++;
@@ -3266,32 +3270,27 @@ document.getElementById('resetBtn').addEventListener('click', resetForm);
 document.addEventListener('DOMContentLoaded', () => {
   updateFormFields();
   updateTipoGastoFields();
-  updateCuentaContableOptions(); // Inicializar cuenta principal
+  updateCuentaContableOptions();
   initializeCameraSupport();
 
   const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
   if (suggestedCentroCostoId) {
     document.getElementById('id_centro_costo_0').value = suggestedCentroCostoId;
-    updateCuentaContableOptions(); // Actualizar cuenta principal con el centro sugerido
+    updateCuentaContableOptions();
   }
 
-  // Agregar event listeners a todos los selects de centro de costo
+  // Agregar event listeners a todos los selects de centro de costo (incluyendo el principal)
   document.querySelectorAll('.centro_costo_select').forEach((select, index) => {
     select.addEventListener('change', function() {
       if (index === 0) {
-        // Centro de costo principal
+        // Centro de costo principal - actualizar cuenta contable principal
         updateCuentaContableOptions();
       } else {
-        // Centros de costo adicionales
+        // Centros de costo adicionales - actualizar sus cuentas contables
         updateCuentaContableOptionsForCentro(this.value, index);
       }
     });
   });
-  // Event listener específico para el centro de costo principal (por si acaso)
-  const centroCostoPrincipal = document.getElementById('id_centro_costo_0');
-  if (centroCostoPrincipal) {
-    centroCostoPrincipal.addEventListener('change', updateCuentaContableOptions);
-  }
 });
 
 function initializeTable() {

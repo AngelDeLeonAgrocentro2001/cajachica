@@ -1552,7 +1552,7 @@ if ($isEncargadoRole && $isContabilidadRole && isset($_GET['mode']) && $_GET['mo
         $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
         $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
         $detalle['cuenta_contable_nombre'] = htmlspecialchars($cuentaContable['nombre'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
-        $detalle['nombre_centro_costo'] = htmlspecialchars($centroCosto['nombre'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
+        $detalle['nombre_centro_costo'] = htmlspecialchars($centroCosto['nombre'] . ' / ' . $centroCosto['codigo'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
         $detalle['subtotal'] = floatval($detalle['p_unitario'] ?? $detalle['total_factura']);
         $detalle['iva'] = floatval($detalle['iva'] ?? 0);
         $detalle['idp'] = floatval($detalle['idp'] ?? 0);
@@ -2020,7 +2020,7 @@ public function revisar($id) {
         $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
         $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
         $detalle['cuenta_contable_nombre'] = htmlspecialchars($cuentaContable['nombre'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
-        $detalle['nombre_centro_costo'] = htmlspecialchars($centroCosto['nombre'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
+        $detalle['nombre_centro_costo'] = htmlspecialchars($centroCosto['nombre'] . ' / ' . $centroCosto['codigo'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
         $detalle['subtotal'] = floatval($detalle['p_unitario'] ?? $detalle['total_factura']);
         $detalle['iva'] = floatval($detalle['iva'] ?? 0);
         $detalle['idp'] = floatval($detalle['idp'] ?? 0);
@@ -4466,7 +4466,7 @@ public function manageFacturas($id) {
             $detalle['cuenta_contable_nombre'] = 'N/A';
         }
         $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
-        $detalle['nombre_centro_costo'] = $centroCosto ? $centroCosto['nombre'] : 'N/A';
+        $detalle['nombre_centro_costo'] = $centroCosto ? $centroCosto['nombre'] . ' / ' . $centroCosto['codigo'] : 'N/A';
     }
     unset($detalle);
 
@@ -5004,7 +5004,7 @@ public function manageFacturas($id) {
     $cuentaContableModel = new CuentaContable();
     foreach ($detalles as &$detalle) {
         $centroCosto = $centroCostoModel->getCentroCostoById($detalle['id_centro_costo']);
-        $detalle['nombre_centro_costo'] = $centroCosto['nombre'] ?? 'N/A';
+        $detalle['nombre_centro_costo'] = $centroCosto['nombre'] . ' / ' . $centroCosto['codigo'] ?? 'N/A';
         $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
         $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
         $detalle['tipo_documento'] = $detalle['tipo_documento'] ?? null;
