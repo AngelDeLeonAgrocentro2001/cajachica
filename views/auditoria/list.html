@@ -314,14 +314,21 @@
             }
 
             #auditoriaTable tbody td {
-                display: block;
+                display: flex;
+                justify-content: right;
+                align-items: center;
                 text-align: right;
-                padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
+                /* padding: 0.5rem 0.75rem; */
+                font-size: 0.7rem;
                 position: relative;
                 border-bottom: 1px solid var(--border-color);
                 white-space: normal;
                 overflow-wrap: break-word;
+            }
+
+            #auditoriaTable tbody td span{
+                /* background-color: red; */
+                width: 65%;
             }
 
             #auditoriaTable tbody td:last-child {

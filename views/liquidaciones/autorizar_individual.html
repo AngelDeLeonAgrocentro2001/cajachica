@@ -501,13 +501,20 @@
         }
 
         #facturasTable tbody td {
-          display: block;
-          text-align: right;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          position: relative;
-          border-bottom: 1px solid var(--border-color);
+          display: flex;
+                justify-content: right;
+                align-items: center;
+                text-align: right;
+                /* padding: 0.5rem 0.75rem; */
+                font-size: 0.74rem;
+                position: relative;
+                border-bottom: 1px solid var(--border-color);
         }
+
+        #facturasTable tbody td span{
+                /* background-color: red; */
+                width: 70%;
+            }
 
         #facturasTable tbody td:last-child {
           border-bottom: none;
@@ -678,7 +685,7 @@
                 <?php echo htmlspecialchars($detalle['no_factura']); ?>
               </td>
               <td data-label="Proveedor">
-                <?php echo htmlspecialchars($detalle['nombre_proveedor']); ?>
+                <span><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></span>
               </td>
               <td data-label="NIT">
                 <?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?>
@@ -729,7 +736,7 @@
                 <?php echo number_format($detalle['total_factura'], 2); ?>
               </td>
               <td data-label="Comentarios">
-                <?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?>
+                <span><?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?></span>
               </td>
               <td data-label="Estado">
                 <?php echo htmlspecialchars($detalle['estado']); ?>

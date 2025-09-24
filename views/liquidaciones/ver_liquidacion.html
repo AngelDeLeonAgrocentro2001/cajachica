@@ -290,12 +290,19 @@
             }
 
             #facturasTable tbody td {
-                display: block;
+                display: flex;
+                justify-content: right;
+                align-items: center;
                 text-align: right;
-                padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
+                /* padding: 0.5rem 0.75rem; */
+                font-size: 0.74rem;
                 position: relative;
                 border-bottom: 1px solid var(--border-color);
+            }
+
+            #facturasTable tbody td span{
+                /* background-color: red; */
+                width: 70%;
             }
 
             #facturasTable tbody td:last-child {
@@ -396,7 +403,7 @@
                             </td>
                             <td data-label="Tipo de Documento"><?php echo htmlspecialchars($detalle['tipo_documento']); ?></td>
                             <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                            <td data-label="Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></td>
+                            <td data-label="Proveedor"><span><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></span></td>
                             <td data-label="NIT"><?php echo htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A'); ?></td>
                             <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
                             <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
@@ -411,7 +418,7 @@
                             <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
                             <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
                             <td data-label="Total Bruto"><?php echo number_format($detalle['total_factura'], 2); ?></td>
-                            <td data-label="Comentarios"><?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?></td>
+                            <td data-label="Comentarios"><span><?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?></span></td>
                             <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
                         </tr>
                     <?php endforeach; ?>
