@@ -599,13 +599,16 @@
 
         #liquidacionesTable tbody td,
         #correctedDetallesTable tbody td {
-          display: block;
-          text-align: right;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          position: relative;
-          border-bottom: 1px solid var(--border-color);
+          display: flex;
+                justify-content: right;
+                align-items: center;
+                text-align: right;
+                /* padding: 0.5rem 0.75rem; */
+                font-size: 0.7rem;
+                position: relative;
+                border-bottom: 1px solid var(--border-color);
         }
+
 
         #liquidacionesTable tbody td:last-child,
         #correctedDetallesTable tbody td:last-child {

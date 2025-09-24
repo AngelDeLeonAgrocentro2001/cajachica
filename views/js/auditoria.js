@@ -20,7 +20,7 @@ async function loadAuditoria() {
             }
         }
         const auditoria = await response.json();
-        console.log('Registros recibidos:', auditoria);
+        // console.log('Registros recibidos:', auditoria);
         const tbody = document.querySelector('#auditoriaTable tbody');
         tbody.innerHTML = '';
         if (auditoria.length > 0) {
@@ -36,7 +36,7 @@ async function loadAuditoria() {
                     }
                     detallesHtml += '</tbody></table>';
                 } catch (e) {
-                    console.error('Error al parsear detalles para entrada ID ' + entry.id + ':', e);
+                    // console.error('Error al parsear detalles para entrada ID ' + entry.id + ':', e);
                     detallesHtml = entry.detalles || '-';
                 }
 
@@ -55,8 +55,8 @@ async function loadAuditoria() {
                         <td data-label="Liquidación">${entry.id_liquidacion || '-'}</td>
                         <td data-label="Detalle">${entry.id_detalle_liquidacion || '-'}</td>
                         <td data-label="Usuario">${entry.usuario_nombre}</td>
-                        <td data-label="Tipo de Acción">${entry.tipo_accion}</td>
-                        <td data-label="Detalles">${detallesHtml}</td>
+                        <td data-label="Tipo de Acción"><span>${entry.tipo_accion}</span></td>
+                        <td data-label="Detalles"><span>${detallesHtml}</span></td>
                         <td data-label="Fecha">${fecha}</td>
                     </tr>
                 `;

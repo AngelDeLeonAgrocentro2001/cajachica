@@ -125,12 +125,12 @@ async function loadLiquidations() {
         window.isEncargadoLike = data.isEncargadoLike || false;
         window.userRole = data.userRole || window.userRole || '';
         
-        console.log('Datos del backend:', {
-            isContabilidadLike: window.isContabilidadLike,
-            isSupervisorLike: window.isSupervisorLike,
-            isEncargadoLike: window.isEncargadoLike,
-            userRole: window.userRole
-        });
+        // console.log('Datos del backend:', {
+        //     isContabilidadLike: window.isContabilidadLike,
+        //     isSupervisorLike: window.isSupervisorLike,
+        //     isEncargadoLike: window.isEncargadoLike,
+        //     userRole: window.userRole
+        // });
 
         // Remove restrictive contabilidad filter
         // if (window.isContabilidadLike) {
@@ -316,16 +316,16 @@ function renderLiquidations() {
                 (window.userPermissions.autorizar_liquidaciones && window.isSupervisorLike) ||
                 (window.userPermissions.revisar_liquidaciones && window.isContabilidadLike);
 
-            console.log('Verificación de permisos:', {
-                liquidacionId: liquidacion.id,
-                estado: liquidacion.estado,
-                tienePermisoAutorizar: tienePermisoAutorizar,
-                isSupervisorLike: window.isSupervisorLike,
-                isContabilidadLike: window.isContabilidadLike,
-                isEncargadoLike: window.isEncargadoLike,
-                isCreator: isCreator,
-                permisos: window.userPermissions
-            });
+            // console.log('Verificación de permisos:', {
+            //     liquidacionId: liquidacion.id,
+            //     estado: liquidacion.estado,
+            //     tienePermisoAutorizar: tienePermisoAutorizar,
+            //     isSupervisorLike: window.isSupervisorLike,
+            //     isContabilidadLike: window.isContabilidadLike,
+            //     isEncargadoLike: window.isEncargadoLike,
+            //     isCreator: isCreator,
+            //     permisos: window.userPermissions
+            // });
 
             // BOTÓN "AUTORIZAR" PARA SUPERVISORES (INCLUYENDO ROLES MIXTOS)
             if (tienePermisoAutorizar) {
