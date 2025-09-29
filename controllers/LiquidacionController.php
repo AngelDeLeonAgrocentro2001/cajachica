@@ -3279,42 +3279,6 @@ public function exportar($id, $docDate = null)
                 
                 $dl = $detalles[0];
                 $docDate = $docDate ?? date('Y-m-d', strtotime($dl['fecha']));
-                // LÓGICA PARA FECHAS SEGÚN MES CONTABLE
-                $fechaActual = new DateTime();
-                $mesContableActual = $fechaActual->format('Y-m');
-
-                // Usar fecha_documento si existe, de lo contrario usar la fecha normal del documento
-                $fechaParaComparar = !empty($dl['fecha_documento']) ? new DateTime($dl['fecha_documento']) : new DateTime($dl['fecha']);
-                error_log("Factura {$noFactura}: Fecha para comparar: " . $fechaParaComparar->format('Y-m-d') . " (fecha_documento: " . ($dl['fecha_documento'] ?? 'No disponible') . ")");
-
-                // Determinar si es del mismo mes contable o mes anterior
-                if ($fechaParaComparar->format('Y-m') === $mesContableActual) {
-                    // Mismo mes contable: todas las fechas iguales a la fecha del documento
-                    $docDate = $fechaParaComparar->format('Y-m-d');
-                    $taxDate = $fechaParaComparar->format('Y-m-d');
-                    $docDueDate = $fechaParaComparar->format('Y-m-d');
-                    error_log("Factura {$noFactura}: Mismo mes contable - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
-                } else {
-                    // Mes anterior: 
-                    // - DocDate = primer día del mes contable actual (fecha de contabilización)
-                    // - TaxDate = primer día del mes contable actual (fecha del documento)
-                    // - DocDueDate = fecha del documento original (fecha de vencimiento)
-   
-                    $primerDiaMesActual = (new DateTime())->modify('first day of this month')->format('Y-m-d');
-                    $docDate = $primerDiaMesActual;
-                    $taxDate = $primerDiaMesActual;
-                    $docDueDate = $fechaParaComparar->format('Y-m-d');
-   
-                    error_log("Factura {$noFactura}: Mes anterior - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
-                }
-
-                // Si se proporciona un docDate específico, usarlo (para sobreescritura manual)
-                if ($docDateParam !== null) {
-                    $docDate = $docDateParam;
-                    $taxDate = $docDateParam;
-                    $docDueDate = $docDateParam;
-                    error_log("Factura {$noFactura}: Usando fecha proporcionada - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
-                }
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
                 $documentLines = [];
                 $docTotal = floatval($dl['total_factura']);
@@ -3451,7 +3415,7 @@ public function exportar($id, $docDate = null)
                     "U_CODIGO" => $cardCode,
                     "DocDate" => $docDate,
                     "DocDueDate"=> $docDate,
-                    "TaxDate"=> $taxDate,
+                    "TaxDate"=> $docDate,
                     "Comments" => $comments,
                     "JournalMemo" => $comments,
                     "U_NIT" => $nitProveedor,
