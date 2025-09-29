@@ -949,6 +949,7 @@
         <input type="hidden" name="nombre_cuenta_contable" id="nombre_cuenta_contable_input" />
         <input type="hidden" name="nombre_cuenta_contable_propina" id="nombre_cuenta_contable_propina_input" />
         <input type="hidden" name="id_cuenta_contable_idp" id="id_cuenta_contable_idp_value" />
+        <input type="hidden" name="fecha_documento" id="fecha_documento" />
         <div>
           <label for="tipo_documento">Tipo de Documento:</label>
           <select name="tipo_documento" id="tipo_documento" required>
@@ -1337,6 +1338,7 @@
 const fechaFin = '<?php echo $data['fecha_fin']; ?>';
 let cachedDtes = [];
 let isNitInputActive = false;
+let fechaDocumentoEstablecida = false;
 
 function basename(path) {
   return path.split('/').pop();
@@ -1442,6 +1444,39 @@ function initializeCameraSupport() {
     takePhotoBtn.textContent = 'Tomar Foto (No soportado)';
     console.warn('Camera not supported on this device.');
   }
+}
+
+function setFechaDocumento(fecha) {
+    const fechaDocumentoInput = document.getElementById('fecha_documento');
+    if (!fechaDocumentoEstablecida && fecha) {
+        fechaDocumentoInput.value = fecha;
+        fechaDocumentoEstablecida = true;
+        console.log("Fecha documento establecida:", fecha);
+    }
+}
+
+function resetFechaDocumento() {
+    fechaDocumentoEstablecida = false;
+    document.getElementById('fecha_documento').value = '';
+    console.log("Estado de fecha_documento reseteado");
+}
+
+// Función para actualizar automáticamente fecha_documento
+function updateFechaDocumento() {
+    const fechaInput = document.getElementById('fecha');
+    const fechaDocumentoInput = document.getElementById('fecha_documento');
+    const fechaActual = new Date();
+    const fechaFactura = new Date(fechaInput.value);
+    
+    // Si la fecha de la factura NO es del mes actual, guardar en fecha_documento
+    if (fechaFactura.getFullYear() !== fechaActual.getFullYear() || 
+        fechaFactura.getMonth() !== fechaActual.getMonth()) {
+        fechaDocumentoInput.value = fechaInput.value;
+        console.log("Fecha documento guardada:", fechaInput.value, "(mes diferente al actual)");
+    } else {
+        fechaDocumentoInput.value = '';
+        console.log("Fecha documento NO guardada (mes igual al actual)");
+    }
 }
 
 async function openCameraModal() {
@@ -1829,7 +1864,9 @@ function resetForm() {
   form.reset();
   document.getElementById('action').value = 'create';
   document.getElementById('detalle_id').value = '';
+  document.getElementById('fecha_documento').value = '';
   document.getElementById('submitBtn').textContent = 'Agregar';
+  resetFechaDocumento();
   document.getElementById('nit_dpi_label').textContent = 'NIT:';
   document.getElementById('comprobante_fields').style.display = 'none';
   document.getElementById('tax_fields').style.display = 'none';
@@ -1896,11 +1933,11 @@ const impuestosPorTipoGasto = {
 };
 
 const impuestosPequeñoContribuyente = {
-  'Gasto Operativo': { iva: 5, idp: 0, inguat: 0 },
-  'Combustible': { iva: 5, idp: 0, inguat: 0 },
-  'Hospedaje': { iva: 5, idp: 0, inguat: 10 },
-  'Alimentos': { iva: 5, idp: 0, inguat: 0 },
-  'otros...': { iva: 5, idp: 0, inguat: 0 }
+  'Gasto Operativo': { iva: 0, idp: 4.70, inguat: 0 },        // IVA = 0
+  'Combustible': { iva: 0, idp_super: 4.70, idp_regular: 4.60, idp_diesel: 1.30, inguat: 0 }, // IVA = 0
+  'Hospedaje': { iva: 0, idp: 0, inguat: 10 },                // IVA = 0
+  'Alimentos': { iva: 0, idp: 0, inguat: 0 },                 // IVA = 0
+  'otros...': { iva: 0, idp: 0, inguat: 0 }                   // IVA = 0
 };
 
 const tipoGastoToCuentaContable = {
@@ -1931,10 +1968,13 @@ function updateTaxFieldsVisibility() {
 
   const tipoGasto = tipoGastoSelect.value;
   const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
-    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, inguat: 0 }
+    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 0, idp: 0, inguat: 0 }
     : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
 
-  ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
+  // Para FACTURA PEQUEÑO CONTRIBUYENTE, el IVA siempre se oculta (es 0)
+  ivaField.style.display = (tipoDocumento !== 'FACTURA PEQUEÑO CONTRIBUYENTE' && impuestos.iva > 0) ? 'block' : 'none';
+  
+  // IDP e INGUAT se muestran según corresponda (igual que antes)
   idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
   inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
 }
@@ -2030,27 +2070,42 @@ function displayDteSuggestions(dtes) {
   suggestionsContainer.style.display = 'block';
 }
 
+document.getElementById('fecha').addEventListener('change', function() {
+    const fechaActual = this.value;
+    if (fechaActual) {
+        setFechaDocumento(fechaActual);
+    }
+});
+
+
 function selectDte(dte) {
-  if (dte.usado === 'Y') {
-    Swal.fire({
-      title: 'Error',
-      text: `El DTE con serie ${dte.serie}${dte.numero_dte} ya está en uso.`,
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
+    if (dte.usado === 'Y') {
+        Swal.fire({
+            title: 'Error',
+            text: `El DTE con serie ${dte.serie}${dte.numero_dte} ya está en uso.`,
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
 
-  document.getElementById('no_factura').value = dte.serie + ' ' + dte.numero_dte || '';
-  document.getElementById('nombre_proveedor').value = dte.nombre_emisor || '';
-  document.getElementById('fecha').value = dte.fecha_emision ? dte.fecha_emision.split(' ')[0] : '';
-  document.getElementById('total_factura').value = parseFloat(dte.gran_total || 0).toFixed(2);
-  document.getElementById('iva').value = parseFloat(dte.iva || 0).toFixed(2);
-  document.getElementById('nit_proveedor').value = dte.nit_emisor || '';
-  document.getElementById('nit_dpi_input').value = dte.nit_emisor || '';
-  document.getElementById('serie').value = dte.serie || '';
+    document.getElementById('no_factura').value = dte.serie + ' ' + dte.numero_dte || '';
+    document.getElementById('nombre_proveedor').value = dte.nombre_emisor || '';
+    
+    // PRIMERO establecer fecha_documento con la fecha del DTE (fecha original)
+    const fechaDte = dte.fecha_emision ? dte.fecha_emision.split(' ')[0] : '';
+    setFechaDocumento(fechaDte);
+    
+    // LUEGO establecer la fecha actual (que el usuario puede modificar)
+    document.getElementById('fecha').value = fechaDte;
+    
+    document.getElementById('total_factura').value = parseFloat(dte.gran_total || 0).toFixed(2);
+    document.getElementById('iva').value = parseFloat(dte.iva || 0).toFixed(2);
+    document.getElementById('nit_proveedor').value = dte.nit_emisor || '';
+    document.getElementById('nit_dpi_input').value = dte.nit_emisor || '';
+    document.getElementById('serie').value = dte.serie || '';
 
-  updateTaxesAndTotal();
+    updateTaxesAndTotal();
 }
 
 function filterDteSuggestions(searchTerm) {
@@ -2072,36 +2127,32 @@ document.getElementById('dte-search-input').addEventListener('input', (e) => {
 });
 
 document.getElementById('nit_dpi_input').addEventListener('input', async (e) => {
-  const tipoDocumento = document.getElementById('tipo_documento').value.toUpperCase();
-  const nit = e.target.value.trim();
+    const tipoDocumento = document.getElementById('tipo_documento').value.toUpperCase();
+    const nit = e.target.value.trim();
 
-  if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
-    document.getElementById('dte-suggestions').style.display = 'none';
-    cachedDtes = [];
-    return;
-  }
+    if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
+        document.getElementById('dte-suggestions').style.display = 'none';
+        cachedDtes = [];
+        return;
+    }
 
-  if (nit.length >= 3) {
-    isNitInputActive = true;
-    cachedDtes = await fetchDteSuggestions(nit);
-    displayDteSuggestions(cachedDtes);
-    document.getElementById('dte-search-input').value = '';
-  } else {
-    isNitInputActive = false;
-    document.getElementById('dte-suggestions').style.display = 'none';
-    cachedDtes = [];
-    document.getElementById('dte-search-input').value = '';
-  }
-});
-
-document.getElementById('nit_dpi_input').addEventListener('focus', () => {
-  isNitInputActive = true;
-  const nit = document.getElementById('nit_dpi_input').value.trim();
-  if (nit.length >= 3) {
-    fetchDteSuggestions(nit).then(dtes => {
-      displayDteSuggestions(dtes);
-    });
-  }
+    if (nit.length >= 3) {
+        isNitInputActive = true;
+        cachedDtes = await fetchDteSuggestions(nit);
+        displayDteSuggestions(cachedDtes);
+        document.getElementById('dte-search-input').value = '';
+        
+        // Si ya hay una fecha establecida y no se ha guardado fecha_documento, usarla
+        const fechaActual = document.getElementById('fecha').value;
+        if (fechaActual && !fechaDocumentoEstablecida) {
+            setFechaDocumento(fechaActual);
+        }
+    } else {
+        isNitInputActive = false;
+        document.getElementById('dte-suggestions').style.display = 'none';
+        cachedDtes = [];
+        document.getElementById('dte-search-input').value = '';
+    }
 });
 
 document.addEventListener('click', (e) => {
@@ -2282,54 +2333,65 @@ function updateTaxesAndTotal() {
 
   const tipoGasto = tipoGastoSelect.value;
   const tipoCombustible = tipoCombustibleSelect.value;
+  
+  // Obtener los impuestos según el tipo de documento
   const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
-    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, inguat: 0 }
+    ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 0, idp: 0, inguat: 0 } // IVA = 0 para pequeño contribuyente
     : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
 
   let totalBruto = parseFloat(totalFacturaInput.value) || 0;
   let propina = parseFloat(propinaInput.value) || 0;
-  let iva = parseFloat(ivaInput.value) || 0;
+  let iva = 0; // Siempre 0 para pequeño contribuyente
   let idp = 0, inguat = 0;
   const cantidadGalones = parseFloat(cantidadInput.value) || 0;
 
-  // Calcular IDP (si aplica)
-  if (tipoDocumento !== 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-    if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
-      idp = cantidadGalones * impuestos.idp;
-    } else if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
-      if (tipoCombustible === 'Súper') {
-        idp = cantidadGalones * impuestos.idp_super;
-      } else if (tipoCombustible === 'Regular') {
-        idp = cantidadGalones * impuestos.idp_regular;
-      } else if (tipoCombustible === 'Diesel') {
-        idp = cantidadGalones * impuestos.idp_diesel;
-      } else {
-        idp = 0;
-      }
+  // Calcular IDP (si aplica) - se calcula igual para todos los tipos de documento
+  if (tipoGasto === 'Gasto Operativo' && cantidadGalones > 0) {
+    idp = cantidadGalones * (impuestos.idp || 0);
+  } else if (tipoGasto === 'Combustible' && cantidadGalones > 0) {
+    if (tipoCombustible === 'Súper') {
+      idp = cantidadGalones * (impuestos.idp_super || 0);
+    } else if (tipoCombustible === 'Regular') {
+      idp = cantidadGalones * (impuestos.idp_regular || 0);
+    } else if (tipoCombustible === 'Diesel') {
+      idp = cantidadGalones * (impuestos.idp_diesel || 0);
     } else {
       idp = 0;
     }
+  } else {
+    idp = 0;
   }
 
-  // Si el IVA no está calculado aún, calcularlo normalmente
-  if (iva === 0 && impuestos.iva > 0) {
-    const subtotalSinImpuestos = totalBruto - idp - propina;
-    const ivaRate = impuestos.iva / 100;
-    const inguatRate = impuestos.inguat / 100;
-    const totalTaxRate = ivaRate + inguatRate;
-    let subtotalBase = totalTaxRate > 0 ? subtotalSinImpuestos / (1 + totalTaxRate) : subtotalSinImpuestos;
+  // Para FACTURA PEQUEÑO CONTRIBUYENTE, el IVA siempre es 0
+  if (tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+    iva = 0;
     
-    iva = subtotalBase * ivaRate;
-    
-    // Calcular INGUAT basado en el mismo subtotal
+    // Calcular INGUAT si aplica (misma lógica que antes)
     if (impuestos.inguat > 0) {
+      const subtotalSinImpuestos = totalBruto - idp - propina;
+      const inguatRate = impuestos.inguat / 100;
+      const subtotalBase = inguatRate > 0 ? subtotalSinImpuestos / (1 + inguatRate) : subtotalSinImpuestos;
       inguat = subtotalBase * inguatRate;
     }
-  } else if (iva > 0 && impuestos.inguat > 0) {
-    // Si el IVA ya existe, calcular INGUAT basado en el mismo subtotal
-    const ivaRate = impuestos.iva / 100;
-    const subtotalBase = iva / ivaRate;
-    inguat = subtotalBase * (impuestos.inguat / 100);
+  } else {
+    // Lógica normal para otros tipos de factura
+    if (iva === 0 && impuestos.iva > 0) {
+      const subtotalSinImpuestos = totalBruto - idp - propina;
+      const ivaRate = impuestos.iva / 100;
+      const inguatRate = impuestos.inguat / 100;
+      const totalTaxRate = ivaRate + inguatRate;
+      let subtotalBase = totalTaxRate > 0 ? subtotalSinImpuestos / (1 + totalTaxRate) : subtotalSinImpuestos;
+      
+      iva = subtotalBase * ivaRate;
+      
+      if (impuestos.inguat > 0) {
+        inguat = subtotalBase * inguatRate;
+      }
+    } else if (iva > 0 && impuestos.inguat > 0) {
+      const ivaRate = impuestos.iva / 100;
+      const subtotalBase = iva / ivaRate;
+      inguat = subtotalBase * (impuestos.inguat / 100);
+    }
   }
 
   // Calcular el subtotal
@@ -2350,6 +2412,7 @@ function updateTaxesAndTotal() {
 
   // Verificación
   console.log("Verificación:", {
+    tipoDocumento: tipoDocumento,
     subtotal: subtotal,
     iva: iva,
     idp: idp,
@@ -2915,6 +2978,11 @@ document.getElementById('facturaForm').addEventListener('submit', async (e) => {
   const serie = formData.get('serie');
   const noFactura = formData.get('no_factura');
   const numero_dte = noFactura;
+  
+
+  // VERIFICAR FECHA_DOCUMENTO EN EL ENVÍO
+  const fechaDocumento = formData.get('fecha_documento');
+    console.log("Enviando fecha_documento:", fechaDocumento || 'NULL');
 
   const cuentasContablesCentros = document.querySelectorAll('.cuenta_contable_centro_select');
   cuentasContablesCentros.forEach((select, index) => {
@@ -3268,29 +3336,32 @@ document.getElementById('propina').addEventListener('input', () => {
 document.getElementById('resetBtn').addEventListener('click', resetForm);
 
 document.addEventListener('DOMContentLoaded', () => {
-  updateFormFields();
-  updateTipoGastoFields();
-  updateCuentaContableOptions();
-  initializeCameraSupport();
-
-  const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
-  if (suggestedCentroCostoId) {
-    document.getElementById('id_centro_costo_0').value = suggestedCentroCostoId;
+    updateFormFields();
+    updateTipoGastoFields();
     updateCuentaContableOptions();
-  }
+    initializeCameraSupport();
+    
+    // INICIALIZAR ESTADO DE FECHA_DOCUMENTO
+    resetFechaDocumento();
 
-  // Agregar event listeners a todos los selects de centro de costo (incluyendo el principal)
-  document.querySelectorAll('.centro_costo_select').forEach((select, index) => {
-    select.addEventListener('change', function() {
-      if (index === 0) {
-        // Centro de costo principal - actualizar cuenta contable principal
+    const suggestedCentroCostoId = '<?php echo htmlspecialchars($data['suggested_centro_costo_id']); ?>';
+    if (suggestedCentroCostoId) {
+        document.getElementById('id_centro_costo_0').value = suggestedCentroCostoId;
         updateCuentaContableOptions();
-      } else {
-        // Centros de costo adicionales - actualizar sus cuentas contables
-        updateCuentaContableOptionsForCentro(this.value, index);
-      }
+    }
+
+    // Agregar event listeners a todos los selects de centro de costo (incluyendo el principal)
+    document.querySelectorAll('.centro_costo_select').forEach((select, index) => {
+        select.addEventListener('change', function() {
+            if (index === 0) {
+                // Centro de costo principal - actualizar cuenta contable principal
+                updateCuentaContableOptions();
+            } else {
+                // Centros de costo adicionales - actualizar sus cuentas contables
+                updateCuentaContableOptionsForCentro(this.value, index);
+            }
+        });
     });
-  });
 });
 
 function initializeTable() {
@@ -3325,6 +3396,9 @@ document.getElementById('id_cuenta_contable_propina').addEventListener('change',
   }
 });
 
+// Event listener para cuando cambia la fecha manualmente
+document.getElementById('fecha').addEventListener('change', updateFechaDocumento);
+
 // Event listener para tipo de gasto (actualiza tanto principal como adicionales)
 document.getElementById('t_gasto').addEventListener('change', () => {
   // Actualizar cuenta principal
@@ -3337,6 +3411,13 @@ document.getElementById('t_gasto').addEventListener('change', () => {
       updateCuentaContableOptionsForCentro(select.value, index);
     }
   });
+});
+
+document.getElementById('fecha').addEventListener('input', function() {
+    const fechaActual = this.value;
+    if (fechaActual && !fechaDocumentoEstablecida) {
+        setFechaDocumento(fechaActual);
+    }
 });
 
     </script>

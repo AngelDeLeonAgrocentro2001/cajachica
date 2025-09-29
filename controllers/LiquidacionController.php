@@ -3128,6 +3128,10 @@ public function exportar($id, $docDate = null)
 
                 $documentLines = [];
                 $docTotal = 0;
+                foreach ($documentLines as $line) {
+                    $docTotal += floatval($line['PriceAfterVAT']);
+                }
+                error_log("DocTotal recalculado para factura {$noFactura}: {$docTotal} (suma de " . count($documentLines) . " líneas)");
                 foreach ($detalles as $detalle) {
                     $docTotal += floatval($detalle['total_factura']);
                 }
@@ -3138,16 +3142,14 @@ public function exportar($id, $docDate = null)
                 foreach ($detalles as $dl) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($dl['id_centro_costo'])['codigo']);
                     $accountCode = $dl['id_cuenta_contable'] ?? null;
-                    $docTotal = floatval($dl['total_factura']);
-
-                    // Preparar el ItemDescription con comentarios si existen
+                
+                    // Preparar el ItemDescription
                     $itemDescription = $dl['t_gasto'];
                     $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
-    
-                    // Solo agregar comentarios si no es uno de los casos especiales
+                    
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
-                    if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
-                    $itemDescription .= " - " . substr($comments, 0, 100); // Limitar longitud
+                    if (!empty($comments) && !in_array($dl['t_gasto'], $casosEspeciales)) {
+                        $itemDescription .= " - " . substr($comments, 0, 100);
                     }
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
@@ -3157,58 +3159,64 @@ public function exportar($id, $docDate = null)
                         $inguat = floatval($dl['inguat']);
                         $propina = floatval($dl['propina']);
                         
-                        if ($iva > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => $itemDescription,
-                                "PriceAfterVAT" => $subtotal + $iva,
-                                "TaxCode" => "IVA",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
-                            ];
+                        // LÍNEA PRINCIPAL - Para FACTURA PEQUEÑO CONTRIBUYENTE usar EXE, para otras IVA
+                         if ($subtotal > 0) {
+                             if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+                                 // Para pequeño contribuyente: solo subtotal con EXE
+                                 $documentLines[] = [
+                                     "LineType" => count($documentLines),
+                                     "ItemDescription" => $itemDescription,
+                                     "PriceAfterVAT" => $subtotal,
+                                     "TaxCode" => "EXE",
+                                     "CostingCode" => $costingCode,
+                                     "AccountCode" => $accountCode,
+                                     "U_TipoDoc" => $tipoDocForLines,
+                                     "U_TipoA" => $tipoA
+                                 ];
+                                 error_log("Agregada línea principal PEQUEÑO CONTRIBUYENTE: $itemDescription, PriceAfterVAT: $subtotal, TaxCode: EXE");
+                             } else {
+                                 // Para facturas normales: subtotal + IVA con IVA
+                                 $documentLines[] = [
+                                     "LineType" => count($documentLines),
+                                     "ItemDescription" => $itemDescription,
+                                     "PriceAfterVAT" => ($subtotal + $iva),
+                                     "TaxCode" => "IVA",
+                                     "CostingCode" => $costingCode,
+                                     "AccountCode" => $accountCode,
+                                     "U_TipoDoc" => $tipoDocForLines,
+                                     "U_TipoA" => $tipoA
+                                 ];
+                                 error_log("Agregada línea principal FACTURA NORMAL: $itemDescription, PriceAfterVAT: " . ($subtotal + $iva) . ", TaxCode: IVA");
+                             }
+                         }
+                        
+                        // LÍNEAS ADICIONALES - Siempre incluir si existen
+                        $impuestos = [
+                            ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $dl['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
+                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+                        ];
+                        
+                        if ($dl['t_gasto'] === 'Alimentos') {
+                            $impuestos[] = ['valor' => $propina, 'desc' => 'Propina', 'cuenta' => $dl['id_cuenta_contable_propina'], 'tipoA' => 'E'];
                         }
                         
-                        if ($idp > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "IDP",
-                                "PriceAfterVAT" => $idp,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $dl['id_cuenta_contable_idp'] ?? $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "P"
-                            ];
+                        foreach ($impuestos as $impuesto) {
+                            if ($impuesto['valor'] > 0) {
+                                $documentLines[] = [
+                                    "LineType" => count($documentLines),
+                                    "ItemDescription" => $impuesto['desc'],
+                                    "PriceAfterVAT" => $impuesto['valor'],
+                                    "TaxCode" => "EXE",
+                                    "CostingCode" => $costingCode,
+                                    "AccountCode" => $impuesto['cuenta'],
+                                    "U_TipoDoc" => $tipoDocForLines,
+                                    "U_TipoA" => $impuesto['tipoA']
+                                ];
+                            }
                         }
                         
-                        if ($inguat > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "INGUAT",
-                                "PriceAfterVAT" => $inguat,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "H"
-                            ];
-                        }
-                        
-                        if ($dl['t_gasto'] === 'Alimentos' && $propina > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "Propina",
-                                "PriceAfterVAT" => $propina,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $dl['id_cuenta_contable_propina'],
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "E"
-                            ];
-                        }
                     } else {
+                        // Otros tipos de documento
                         if (floatval($dl['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -3279,6 +3287,42 @@ public function exportar($id, $docDate = null)
                 
                 $dl = $detalles[0];
                 $docDate = $docDate ?? date('Y-m-d', strtotime($dl['fecha']));
+                // LÓGICA PARA FECHAS SEGÚN MES CONTABLE
+                 $fechaActual = new DateTime();
+                 $mesContableActual = $fechaActual->format('Y-m');
+
+                 // Usar fecha_documento si existe, de lo contrario usar la fecha normal del documento
+                 $fechaParaComparar = !empty($dl['fecha_documento']) ? new DateTime($dl['fecha_documento']) : new DateTime($dl['fecha']);
+                 error_log("Factura {$noFactura}: Fecha para comparar: " . $fechaParaComparar->format('Y-m-d') . " (fecha_documento: " . ($dl['fecha_documento'] ?? 'No disponible') . ")");
+
+                 // Determinar si es del mismo mes contable o mes anterior
+                 if ($fechaParaComparar->format('Y-m') === $mesContableActual) {
+                     // Mismo mes contable: todas las fechas iguales a la fecha del documento
+                     $docDate = $fechaParaComparar->format('Y-m-d');
+                     $taxDate = $fechaParaComparar->format('Y-m-d');
+                     $docDueDate = $fechaParaComparar->format('Y-m-d');
+                     error_log("Factura {$noFactura}: Mismo mes contable - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
+                 } else {
+                     // Mes anterior: 
+                     // - DocDate = primer día del mes contable actual (fecha de contabilización)
+                     // - TaxDate = primer día del mes contable actual (fecha del documento)
+                     // - DocDueDate = fecha del documento original (fecha de vencimiento)
+    
+                     $primerDiaMesActual = (new DateTime())->modify('first day of this month')->format('Y-m-d');
+                     $docDate = $primerDiaMesActual;
+                     $taxDate = $primerDiaMesActual;
+                     $docDueDate = $fechaParaComparar->format('Y-m-d');
+    
+                     error_log("Factura {$noFactura}: Mes anterior - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
+                 }
+
+                 // Si se proporciona un docDate específico, usarlo (para sobreescritura manual)
+                 if ($docDateParam !== null) {
+                     $docDate = $docDateParam;
+                     $taxDate = $docDateParam;
+                     $docDueDate = $docDateParam;
+                     error_log("Factura {$noFactura}: Usando fecha proporcionada - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
+                 }
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
                 $documentLines = [];
                 $docTotal = floatval($dl['total_factura']);
@@ -3311,15 +3355,14 @@ public function exportar($id, $docDate = null)
                 foreach ($detalles as $detalle) {
                     $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
                     $accountCode = $detalle['id_cuenta_contable'] ?? null;
-
-                     // Preparar el ItemDescription con comentarios si existen
+                
+                    // Preparar el ItemDescription - USAR $detalle NO $dl
                     $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($dl['comentarios'])) ? trim($dl['comentarios']) : '';
-    
-                    // Solo agregar comentarios si no es uno de los casos especiales
+                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : ''; // CAMBIAR $dl por $detalle
+                    
                     $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
                     if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
-                    $itemDescription .= " - " . substr($comments, 0, 100); // Limitar longitud
+                        $itemDescription .= " - " . substr($comments, 0, 100);
                     }
                     
                     if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
@@ -3329,58 +3372,68 @@ public function exportar($id, $docDate = null)
                         $inguat = floatval($detalle['inguat']);
                         $propina = floatval($detalle['propina']);
                         
-                        if ($iva > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => $itemDescription,
-                                "PriceAfterVAT" => $subtotal + $iva,
-                                "TaxCode" => "IVA",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
-                            ];
+                        // DEBUG: Agregar logs para verificar valores
+                        error_log("DEBUG Factura {$noFactura} - Detalle ID {$detalle['id']}: subtotal=$subtotal, iva=$iva, idp=$idp, inguat=$inguat, propina=$propina");
+                        
+                       // LÍNEA PRINCIPAL - Para FACTURA PEQUEÑO CONTRIBUYENTE usar EXE, para otras IVA
+                         if ($subtotal > 0) {
+                             if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+                                 // Para pequeño contribuyente: solo subtotal con EXE
+                                 $documentLines[] = [
+                                     "LineType" => count($documentLines),
+                                     "ItemDescription" => $itemDescription,
+                                     "PriceAfterVAT" => $subtotal,
+                                     "TaxCode" => "EXE",
+                                     "CostingCode" => $costingCode,
+                                     "AccountCode" => $accountCode,
+                                     "U_TipoDoc" => $tipoDocForLines,
+                                     "U_TipoA" => $tipoA
+                                 ];
+                                 error_log("Agregada línea principal PEQUEÑO CONTRIBUYENTE: $itemDescription, PriceAfterVAT: $subtotal, TaxCode: EXE");
+                             } else {
+                                 // Para facturas normales: subtotal + IVA con IVA
+                                 $documentLines[] = [
+                                     "LineType" => count($documentLines),
+                                     "ItemDescription" => $itemDescription,
+                                     "PriceAfterVAT" => ($subtotal + $iva),
+                                     "TaxCode" => "IVA",
+                                     "CostingCode" => $costingCode,
+                                     "AccountCode" => $accountCode,
+                                     "U_TipoDoc" => $tipoDocForLines,
+                                     "U_TipoA" => $tipoA
+                                 ];
+                                 error_log("Agregada línea principal FACTURA NORMAL: $itemDescription, PriceAfterVAT: " . ($subtotal + $iva) . ", TaxCode: IVA");
+                             }
+                            }
+                        
+                        // LÍNEAS ADICIONALES - Siempre incluir si existen
+                        $impuestos = [
+                            ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $detalle['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
+                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+                        ];
+                        
+                        if ($detalle['t_gasto'] === 'Alimentos') {
+                            $impuestos[] = ['valor' => $propina, 'desc' => 'Propina', 'cuenta' => $detalle['id_cuenta_contable_propina'], 'tipoA' => 'E'];
                         }
                         
-                        if ($idp > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "IDP",
-                                "PriceAfterVAT" => $idp,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $detalle['id_cuenta_contable_idp'] ?? $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "P"
-                            ];
+                        foreach ($impuestos as $impuesto) {
+                            if ($impuesto['valor'] > 0) {
+                                $documentLines[] = [
+                                    "LineType" => count($documentLines),
+                                    "ItemDescription" => $impuesto['desc'],
+                                    "PriceAfterVAT" => $impuesto['valor'],
+                                    "TaxCode" => "EXE",
+                                    "CostingCode" => $costingCode,
+                                    "AccountCode" => $impuesto['cuenta'],
+                                    "U_TipoDoc" => $tipoDocForLines,
+                                    "U_TipoA" => $impuesto['tipoA']
+                                ];
+                                error_log("Agregada línea adicional: {$impuesto['desc']}, PriceAfterVAT: {$impuesto['valor']}");
+                            }
                         }
                         
-                        if ($inguat > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "INGUAT",
-                                "PriceAfterVAT" => $inguat,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "H"
-                            ];
-                        }
-                        
-                        if ($detalle['t_gasto'] === 'Alimentos' && $propina > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => "Propina",
-                                "PriceAfterVAT" => $propina,
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $detalle['id_cuenta_contable_propina'],
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => "E"
-                            ];
-                        }
                     } else {
+                        // Otros tipos de documento
                         if (floatval($detalle['total_factura']) > 0) {
                             $documentLines[] = [
                                 "LineType" => count($documentLines),
@@ -3395,7 +3448,6 @@ public function exportar($id, $docDate = null)
                         }
                     }
                 }
-
                 $comments = !empty(trim($dl['comentarios'])) ? substr(trim($dl['comentarios']), 0, 254) : 'Sin comentarios';
                 $nombreProveedor = !empty(trim($dl['nombre_proveedor'])) ? substr(trim($dl['nombre_proveedor']), 0, 254) : '';
                 $nitProveedor = !empty(trim($dl['nit_proveedor'])) ? substr(trim($dl['nit_proveedor']), 0, 20) : '321052';
@@ -3414,8 +3466,8 @@ public function exportar($id, $docDate = null)
                     "CardCode" => $cardCode,
                     "U_CODIGO" => $cardCode,
                     "DocDate" => $docDate,
-                    "DocDueDate"=> $docDate,
-                    "TaxDate"=> $docDate,
+                    "TaxDate"=> $docDueDate,
+                    "DocDueDate"=> $taxDate,
                     "Comments" => $comments,
                     "JournalMemo" => $comments,
                     "U_NIT" => $nitProveedor,
@@ -3469,7 +3521,6 @@ public function exportar($id, $docDate = null)
                     throw new Exception("Error de conexión SAP para factura {$noFactura}: $curlError");
                 }
 
-                // Dentro del bloque donde procesas la respuesta de SAP, después de:
                 // Dentro del bloque donde procesas la respuesta de SAP:
                 $sapResponse = json_decode($response, true);
                 if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
@@ -5029,6 +5080,9 @@ public function manageFacturas($id) {
                 $nit_proveedor = $_POST['nit_proveedor'] ?? null;
                 $dpi = $_POST['dpi'] ?? null;
                 $fecha = $_POST['fecha'] ?? '';
+                $fechaDocumento = $_POST['fecha_documento'] ?? null;
+                $fechaActual = new DateTime();
+                $fechaFactura = new DateTime($fecha);
                 $t_gasto = $_POST['t_gasto'] ?? '';
                 $tipo_combustible = $_POST['tipo_combustible'] ?? null;
                 $subtotal = floatval($_POST['subtotal'] ?? 0);
@@ -5062,6 +5116,14 @@ public function manageFacturas($id) {
                         $index = substr($key, strlen('nombre_cuenta_contable_centro_'));
                         $nombre_cuenta_contable_centro[$index] = $value;
                     }
+                }
+
+                // Si la fecha de la factura NO es del mes actual, guardar en fecha_documento
+                if ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
+                $fechaDocumento = $fechaFactura->format('Y-m-d');
+                error_log("Fecha del documento guardada en fecha_documento: $fechaDocumento (mes diferente al actual)");
+                } else {
+                error_log("Fecha del documento NO guardada en fecha_documento (mes igual al actual)");
                 }
 
                 if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO'])) {
@@ -5215,7 +5277,8 @@ public function manageFacturas($id) {
                         $grupo_id,
                         $id_cuenta_contable_propina,
                         $nombre_cuenta_contable_propina,
-                        $id_cuenta_contable_idp
+                        $id_cuenta_contable_idp,
+                        $fechaDocumento
                     );
 
                     if (!$detalle_id) {
@@ -5224,6 +5287,7 @@ public function manageFacturas($id) {
 
                     $detalle_ids[] = $detalle_id;
                     error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
+                    error_log("Creado detalle ID $detalle_id con fecha_documento: " . ($fechaDocumento ?? 'NULL'));
                 }
                 
 
@@ -5262,6 +5326,10 @@ public function manageFacturas($id) {
                 $nit_proveedor = $_POST['nit_proveedor'] ?? null;
                 $dpi = $_POST['dpi'] ?? null;
                 $fecha = $_POST['fecha'] ?? '';
+                $fechaDocumento = $_POST['fecha_documento'] ?? null;
+                $detalleExistente = $this->detalleModel->getDetalleById($detalle_id);
+                $fechaActual = new DateTime();
+                $fechaFactura = new DateTime($fecha);
                 $t_gasto = $_POST['t_gasto'] ?? '';
                 $tipo_combustible = $_POST['tipo_combustible'] ?? null;
                 $subtotal = floatval($_POST['subtotal'] ?? 0);
@@ -5295,6 +5363,19 @@ public function manageFacturas($id) {
                         $index = substr($key, strlen('nombre_cuenta_contable_centro_'));
                         $nombre_cuenta_contable_centro[$index] = $value;
                     }
+                }
+
+                // Si ya existe una fecha_documento, mantenerla
+                if (!empty($detalleExistente['fecha_documento'])) {
+                $fechaDocumento = $detalleExistente['fecha_documento'];
+                error_log("Manteniendo fecha_documento existente: $fechaDocumento");
+                } 
+                // Si no existe fecha_documento y la fecha de factura NO es del mes actual, guardarla
+                elseif ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
+                $fechaDocumento = $fechaFactura->format('Y-m-d');
+                error_log("Nueva fecha_documento guardada: $fechaDocumento (mes diferente al actual)");
+                } else {
+                error_log("No se guarda fecha_documento (mes igual al actual o ya existe)");
                 }
 
                 if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
@@ -5462,6 +5543,7 @@ public function manageFacturas($id) {
                                 nit_proveedor = :nit_proveedor,
                                 dpi = :dpi,
                                 fecha = :fecha,
+                                fecha_documento = :fecha_documento,
                                 t_gasto = :t_gasto,
                                 p_unitario = :subtotal,
                                 total_factura = :total_factura,
@@ -5493,6 +5575,7 @@ public function manageFacturas($id) {
                             ':nit_proveedor' => $nit_proveedor,
                             ':dpi' => $dpi,
                             ':fecha' => $fecha,
+                            ':fecha_documento' => $fechaDocumento,
                             ':t_gasto' => $t_gasto,
                             ':subtotal' => $subtotal * ($porcentaje / 100),
                             ':total_factura' => $total_factura * ($porcentaje / 100),
@@ -5517,6 +5600,7 @@ public function manageFacturas($id) {
                             ':detalle_id' => $detalle_id,
                         ]);
                         $detalle_ids[] = $detalle_id;
+                        error_log("Actualizado detalle principal ID $detalle_id con fecha_documento: " . ($fechaDocumento ?? 'NULL'));
                         error_log("Actualizado detalle principal ID $detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
                     } elseif ($existing_detalle) {
                         // Actualizar detalle secundario existente
@@ -5539,7 +5623,7 @@ public function manageFacturas($id) {
                                 iva = :iva,
                                 idp = :idp,
                                 inguat = :inguat,
-                                                                propina = :propina,
+                                propina = :propina,
                                 id_cuenta_contable = :id_cuenta_contable,
                                 nombre_cuenta_contable = :nombre_cuenta_contable,
                                 id_cuenta_contable_propina = :id_cuenta_contable_propina,
@@ -5617,12 +5701,14 @@ public function manageFacturas($id) {
                             $new_grupo_id,
                             $id_cuenta_contable_propina,
                             $nombre_cuenta_contable_propina,
-                            $id_cuenta_contable_idp
+                            $id_cuenta_contable_idp,
+                            $fechaDocumento
                         );
                         if (!$new_detalle_id) {
                             throw new Exception('Error al crear nuevo detalle de liquidación.');
                         }
                         $detalle_ids[] = $new_detalle_id;
+                        error_log("Creado detalle secundario ID $new_detalle_id con fecha_documento: " . ($fechaDocumento ?? 'NULL'));
                         error_log("Creado detalle secundario ID $new_detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
                     }
                 }
