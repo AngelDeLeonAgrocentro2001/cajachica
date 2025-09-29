@@ -118,6 +118,9 @@ class DetalleLiquidacionController {
             $nit_proveedor = $_POST['nit_proveedor'] ?? null;
             $dpi = $_POST['dpi'] ?? null;
             $fecha = $_POST['fecha'] ?? '';
+            $fechaDocumento = null;
+            $fechaActual = new DateTime();
+            $fechaFactura = new DateTime($fecha);
             $t_gasto = $_POST['t_gasto'] ?? '';
             $p_unitario = floatval($_POST['subtotal'] ?? 0);
             $total_factura = floatval($_POST['total_factura'] ?? 0);
@@ -138,6 +141,14 @@ class DetalleLiquidacionController {
             $tipo_combustible = $_POST['tipo_combustible'] ?? null;
             $comentarios = $_POST['comentarios'] ?? null;
             $id_usuario = $_SESSION['user_id'];
+
+            // Si la fecha de la factura NO es del mes actual, guardar en fecha_documento
+        if ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
+            $fechaDocumento = $fechaFactura->format('Y-m-d');
+            error_log("Fecha del documento guardada en fecha_documento: $fechaDocumento (mes diferente al actual)");
+        } else {
+            error_log("Fecha del documento NO guardada en fecha_documento (mes igual al actual)");
+        }
     
             // Validaciones de campos obligatorios
             if (empty($id_liquidacion) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || 
@@ -284,7 +295,8 @@ class DetalleLiquidacionController {
             $nombre_cuenta_contable, $es_principal, $grupo_id,
             $id_cuenta_contable_propina, // Nuevo parámetro
             $nombre_cuenta_contable_propina, // Nuevo parámetro
-             $id_cuenta_contable_idp
+             $id_cuenta_contable_idp,
+             $fechaDocumento 
         );
 
         if (!$detalle_id) {
@@ -293,6 +305,7 @@ class DetalleLiquidacionController {
 
         $detalle_ids[] = $detalle_id;
         error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
+        error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id, fecha_documento: " . ($fechaDocumento ?? 'NULL'));
     }
     
             $auditoria = new Auditoria();
@@ -377,6 +390,10 @@ class DetalleLiquidacionController {
                 $nit_proveedor = $_POST['nit_proveedor'] ?? null;
                 $dpi = $_POST['dpi'] ?? null;
                 $fecha = $_POST['fecha'] ?? '';
+                $fechaDocumento = null;
+                $detalleExistente = $detalleModel->getDetalleById($id);
+                $fechaActual = new DateTime();
+                $fechaFactura = new DateTime($fecha);
                 $t_gasto = $_POST['t_gasto'] ?? '';
                 $subtotal = floatval($_POST['subtotal'] ?? 0);
                 $total_factura = floatval($_POST['total_factura'] ?? 0);
@@ -424,6 +441,19 @@ class DetalleLiquidacionController {
                 $totalPorcentaje = array_sum($porcentajes);
                 if ($totalPorcentaje < 99.99 || $totalPorcentaje > 100.01) {
                     throw new Exception('La suma de los porcentajes debe ser entre 99.99% y 100.01%.');
+                }
+
+                 // Si ya existe una fecha_documento, mantenerla
+                if (!empty($detalleExistente['fecha_documento'])) {
+                    $fechaDocumento = $detalleExistente['fecha_documento'];
+                    error_log("Manteniendo fecha_documento existente: $fechaDocumento");
+                    } 
+                    // Si no existe fecha_documento y la fecha de factura NO es del mes actual, guardarla
+                elseif ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
+                    $fechaDocumento = $fechaFactura->format('Y-m-d');
+                    error_log("Nueva fecha_documento guardada: $fechaDocumento (mes diferente al actual)");
+                } else {
+                    error_log("No se guarda fecha_documento (mes igual al actual o ya existe)");
                 }
     
                 // Validar y recalcular IVA para Alimentos
@@ -538,7 +568,8 @@ class DetalleLiquidacionController {
                             $tipo_combustible, $comentarios, $porcentaje, $nombre_cuenta_contable, $estado, $new_grupo_id,
                             $id_cuenta_contable_propina, // Nuevo parámetro
                             $nombre_cuenta_contable_propina, // Nuevo parámetro
-                            $id_cuenta_contable_idp
+                            $id_cuenta_contable_idp,
+                            $fechaDocumento
                         );
                         if (!$result) {
                             throw new Exception('Error al actualizar el detalle principal ID ' . $id);
@@ -552,7 +583,7 @@ class DetalleLiquidacionController {
                             $centro_costo, $cantidad, $serie, $rutas_json, $iva * ($porcentaje / 100), 
                             $idp * ($porcentaje / 100), $inguat * ($porcentaje / 100), $propina * ($porcentaje / 100), 
                             $cuenta_contable_id, $tipo_combustible, $_SESSION['user_id'], $comentarios, $porcentaje, 
-                            $cuenta_contable_nombre, $es_principal, $new_grupo_id
+                            $cuenta_contable_nombre, $es_principal, $new_grupo_id,null, null, null,$fechaDocumento
                         );
                         if (!$detalle_id) {
                             throw new Exception('Error al crear detalle secundario para centro de costo ' . $centro_costo);
