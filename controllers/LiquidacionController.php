@@ -3351,101 +3351,102 @@ public function exportar($id, $docDate = null)
                     $tipoDocForUF = $tipoDocMap[strtoupper($dl['tipo_documento'])] ?? '';
                 }
 
-                foreach ($detalles as $detalle) {
-                    $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
-                    $accountCode = $detalle['id_cuenta_contable'] ?? null;
-                
-                    // Preparar el ItemDescription - USAR $detalle NO $dl
-                    $itemDescription = $detalle['t_gasto'];
-                    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : ''; // CAMBIAR $dl por $detalle
-                    
-                    $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
-                    if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
-                        $itemDescription .= " - " . substr($comments, 0, 100);
-                    }
-                    
-                    if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                        $subtotal = floatval($detalle['p_unitario']);
-                        $iva = floatval($detalle['iva']);
-                        $idp = floatval($detalle['idp']);
-                        $inguat = floatval($detalle['inguat']);
-                        $propina = floatval($detalle['propina']);
-                        
-                        // DEBUG: Agregar logs para verificar valores
-                        error_log("DEBUG Factura {$noFactura} - Detalle ID {$detalle['id']}: subtotal=$subtotal, iva=$iva, idp=$idp, inguat=$inguat, propina=$propina");
-                        
-                       // LÍNEA PRINCIPAL - Para FACTURA PEQUEÑO CONTRIBUYENTE usar EXE, para otras IVA
-                         if ($subtotal > 0) {
-                             if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                                 // Para pequeño contribuyente: solo subtotal con EXE
-                                 $documentLines[] = [
-                                     "LineType" => count($documentLines),
-                                     "ItemDescription" => $itemDescription,
-                                     "PriceAfterVAT" => $subtotal,
-                                     "TaxCode" => "EXE",
-                                     "CostingCode" => $costingCode,
-                                     "AccountCode" => $accountCode,
-                                     "U_TipoDoc" => $tipoDocForLines,
-                                     "U_TipoA" => $tipoA
-                                 ];
-                                 error_log("Agregada línea principal PEQUEÑO CONTRIBUYENTE: $itemDescription, PriceAfterVAT: $subtotal, TaxCode: EXE");
-                             } else {
-                                 // Para facturas normales: subtotal + IVA con IVA
-                                 $documentLines[] = [
-                                     "LineType" => count($documentLines),
-                                     "ItemDescription" => $itemDescription,
-                                     "PriceAfterVAT" => ($subtotal + $iva),
-                                     "TaxCode" => "IVA",
-                                     "CostingCode" => $costingCode,
-                                     "AccountCode" => $accountCode,
-                                     "U_TipoDoc" => $tipoDocForLines,
-                                     "U_TipoA" => $tipoA
-                                 ];
-                                 error_log("Agregada línea principal FACTURA NORMAL: $itemDescription, PriceAfterVAT: " . ($subtotal + $iva) . ", TaxCode: IVA");
-                             }
-                            }
-                        
-                        // LÍNEAS ADICIONALES - Siempre incluir si existen
-                        $impuestos = [
-                            ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $detalle['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
-                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
-                        ];
-                        
-                        if ($detalle['t_gasto'] === 'Alimentos') {
-                            $impuestos[] = ['valor' => $propina, 'desc' => 'Propina', 'cuenta' => $detalle['id_cuenta_contable_propina'], 'tipoA' => 'E'];
-                        }
-                        
-                        foreach ($impuestos as $impuesto) {
-                            if ($impuesto['valor'] > 0) {
-                                $documentLines[] = [
-                                    "LineType" => count($documentLines),
-                                    "ItemDescription" => $impuesto['desc'],
-                                    "PriceAfterVAT" => $impuesto['valor'],
-                                    "TaxCode" => "EXE",
-                                    "CostingCode" => $costingCode,
-                                    "AccountCode" => $impuesto['cuenta'],
-                                    "U_TipoDoc" => $tipoDocForLines,
-                                    "U_TipoA" => $impuesto['tipoA']
-                                ];
-                                error_log("Agregada línea adicional: {$impuesto['desc']}, PriceAfterVAT: {$impuesto['valor']}");
-                            }
-                        }
-                        
-                    } else {
-                        // Otros tipos de documento
-                        if (floatval($detalle['total_factura']) > 0) {
-                            $documentLines[] = [
-                                "LineType" => count($documentLines),
-                                "ItemDescription" => $itemDescription . " ({$tipoDocumento})",
-                                "PriceAfterVAT" => floatval($detalle['total_factura']),
-                                "TaxCode" => "EXE",
-                                "CostingCode" => $costingCode,
-                                "AccountCode" => $accountCode,
-                                "U_TipoDoc" => $tipoDocForLines,
-                                "U_TipoA" => $tipoA
-                            ];
-                        }
-                    }
+                // Busca todas las instancias donde se construyen las líneas del documento
+// y reemplaza "CostingCode" por "CostingCode2" cuando el código comience con "T"
+
+                 foreach ($detalles as $detalle) {
+    $costingCode = trim($centroCostoModel->getCentroCostoById($detalle['id_centro_costo'])['codigo']);
+    $accountCode = $detalle['id_cuenta_contable'] ?? null;
+    
+    // Determinar si usar CostingCode o CostingCode2 basado en el prefijo
+    $costingField = 'CostingCode';
+    if (strtoupper(substr($costingCode, 0, 1)) === 'T') {
+        $costingField = 'CostingCode2';
+    }
+    
+    // Preparar el ItemDescription
+    $itemDescription = $detalle['t_gasto'];
+    $comments = !empty(trim($detalle['comentarios'])) ? trim($detalle['comentarios']) : '';
+    
+    $casosEspeciales = ['INGUAT', 'Propina', 'IDP'];
+    if (!empty($comments) && !in_array($detalle['t_gasto'], $casosEspeciales)) {
+        $itemDescription .= " - " . substr($comments, 0, 100);
+    }
+    
+    if ($tipoDocumento === 'FACTURA' || $tipoDocumento === 'FACTURA ELECTRONICA' || $tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+        $subtotal = floatval($detalle['p_unitario']);
+        $iva = floatval($detalle['iva']);
+        $idp = floatval($detalle['idp']);
+        $inguat = floatval($detalle['inguat']);
+        $propina = floatval($detalle['propina']);
+        
+        // LÍNEA PRINCIPAL
+        if ($subtotal > 0) {
+            if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+                $documentLines[] = [
+                    "LineType" => count($documentLines),
+                    "ItemDescription" => $itemDescription,
+                    "PriceAfterVAT" => $subtotal,
+                    "TaxCode" => "EXE",
+                    $costingField => $costingCode, // Usar el campo dinámico
+                    "AccountCode" => $accountCode,
+                    "U_TipoDoc" => $tipoDocForLines,
+                    "U_TipoA" => $tipoA
+                ];
+            } else {
+                $documentLines[] = [
+                    "LineType" => count($documentLines),
+                    "ItemDescription" => $itemDescription,
+                    "PriceAfterVAT" => ($subtotal + $iva),
+                    "TaxCode" => "IVA",
+                    $costingField => $costingCode, // Usar el campo dinámico
+                    "AccountCode" => $accountCode,
+                    "U_TipoDoc" => $tipoDocForLines,
+                    "U_TipoA" => $tipoA
+                ];
+            }
+        }
+        
+        // LÍNEAS ADICIONALES
+        $impuestos = [
+            ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $detalle['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
+            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+        ];
+        
+        if ($detalle['t_gasto'] === 'Alimentos') {
+            $impuestos[] = ['valor' => $propina, 'desc' => 'Propina', 'cuenta' => $detalle['id_cuenta_contable_propina'], 'tipoA' => 'E'];
+        }
+        
+        foreach ($impuestos as $impuesto) {
+            if ($impuesto['valor'] > 0) {
+                $documentLines[] = [
+                    "LineType" => count($documentLines),
+                    "ItemDescription" => $impuesto['desc'],
+                    "PriceAfterVAT" => $impuesto['valor'],
+                    "TaxCode" => "EXE",
+                    $costingField => $costingCode, // Usar el campo dinámico
+                    "AccountCode" => $impuesto['cuenta'],
+                    "U_TipoDoc" => $tipoDocForLines,
+                    "U_TipoA" => $impuesto['tipoA']
+                ];
+            }
+        }
+        
+    } else {
+        // Otros tipos de documento
+        if (floatval($detalle['total_factura']) > 0) {
+            $documentLines[] = [
+                "LineType" => count($documentLines),
+                "ItemDescription" => $itemDescription . " ({$tipoDocumento})",
+                "PriceAfterVAT" => floatval($detalle['total_factura']),
+                "TaxCode" => "EXE",
+                $costingField => $costingCode, // Usar el campo dinámico
+                "AccountCode" => $accountCode,
+                "U_TipoDoc" => $tipoDocForLines,
+                "U_TipoA" => $tipoA
+            ];
+        }
+    }
                 }
                 $comments = !empty(trim($dl['comentarios'])) ? substr(trim($dl['comentarios']), 0, 254) : 'Sin comentarios';
                 $nombreProveedor = !empty(trim($dl['nombre_proveedor'])) ? substr(trim($dl['nombre_proveedor']), 0, 254) : '';
