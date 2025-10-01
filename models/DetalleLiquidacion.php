@@ -58,14 +58,14 @@ class DetalleLiquidacion {
     }
 
     // En el método createDetalleLiquidacion del modelo:
-    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo = null, $cantidad = null, $serie = null, $rutas_json = null, $iva = 0, $idp = 0, $inguat = 0, $propina = 0, $id_cuenta_contable = null, $tipo_combustible = null, $id_usuario = null, $comentarios = null, $porcentaje = 100.00, $nombre_cuenta_contable = null, $es_principal = 0, $grupo_id = 0, $id_cuenta_contable_propina = null, $nombre_cuenta_contable_propina = null, $id_cuenta_contable_idp = null, $fecha_documento = null) {
+    public function createDetalleLiquidacion($id_liquidacion, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo = null, $cantidad = null, $serie = null, $rutas_json = null, $iva = 0, $idp = 0, $inguat = 0, $propina = 0, $id_cuenta_contable = null, $tipo_combustible = null, $id_usuario = null, $comentarios = null, $porcentaje = 100.00, $nombre_cuenta_contable = null, $es_principal = 0, $grupo_id = 0, $id_cuenta_contable_propina = null, $nombre_cuenta_contable_propina = null, $id_cuenta_contable_idp = null, $fecha_documento = null, $id_cuenta_contable_inguat = null) {
         try {
             $sql = "INSERT INTO detalle_liquidaciones (
                 id_liquidacion, tipo_documento, no_factura, nombre_proveedor, nit_proveedor, dpi, fecha, fecha_documento, t_gasto, 
                 p_unitario, total_factura, estado, id_centro_costo, cantidad, serie, rutas_archivos, iva, idp, 
                 inguat, propina, id_cuenta_contable, nombre_cuenta_contable, id_cuenta_contable_propina, 
-                nombre_cuenta_contable_propina, id_cuenta_contable_idp, tipo_combustible, id_usuario, comentarios, porcentaje, es_principal, grupo_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                nombre_cuenta_contable_propina, id_cuenta_contable_idp, id_cuenta_contable_inguat, tipo_combustible, id_usuario, comentarios, porcentaje, es_principal, grupo_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute([
@@ -73,7 +73,7 @@ class DetalleLiquidacion {
                 $t_gasto, $p_unitario, $total_factura, $estado, $id_centro_costo, $cantidad, $serie, $rutas_json, 
                 $iva, $idp, $inguat, $propina, $id_cuenta_contable, $nombre_cuenta_contable, 
                 $id_cuenta_contable_propina, $nombre_cuenta_contable_propina, $id_cuenta_contable_idp,
-                $tipo_combustible, $id_usuario, $comentarios, $porcentaje, $es_principal, $grupo_id
+                $id_cuenta_contable_inguat, $tipo_combustible, $id_usuario, $comentarios, $porcentaje, $es_principal, $grupo_id
             ]);
             
             if ($result) {
@@ -86,7 +86,7 @@ class DetalleLiquidacion {
         }
     }
 
-    public function updateDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $id_centro_costo, $iva, $idp, $inguat, $propina, $id_cuenta_contable, $cantidad, $serie, $rutas_json, $tipo_combustible, $comentarios, $porcentaje, $nombre_cuenta_contable, $estado = null, $grupo_id = 0, $id_cuenta_contable_propina = null, $nombre_cuenta_contable_propina = null, $id_cuenta_contable_idp = null, $fecha_documento = null) {
+    public function updateDetalleLiquidacion($id, $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $t_gasto, $p_unitario, $total_factura, $id_centro_costo, $iva, $idp, $inguat, $propina, $id_cuenta_contable, $cantidad, $serie, $rutas_json, $tipo_combustible, $comentarios, $porcentaje, $nombre_cuenta_contable, $estado = null, $grupo_id = 0, $id_cuenta_contable_propina = null, $nombre_cuenta_contable_propina = null, $id_cuenta_contable_idp = null, $fecha_documento = null, $id_cuenta_contable_inguat = null) {
         try {
             $sql = "
                 UPDATE detalle_liquidaciones
@@ -94,7 +94,7 @@ class DetalleLiquidacion {
                     fecha = ?, fecha_documento = ?, t_gasto = ?, p_unitario = ?, total_factura = ?, id_centro_costo = ?, 
                     iva = ?, idp = ?, inguat = ?, propina = ?, id_cuenta_contable = ?, 
                     nombre_cuenta_contable = ?, id_cuenta_contable_propina = ?, 
-                    nombre_cuenta_contable_propina = ?, id_cuenta_contable_idp = ?, cantidad = ?, serie = ?, 
+                    nombre_cuenta_contable_propina = ?, id_cuenta_contable_idp = ?, id_cuenta_contable_inguat = ?, cantidad = ?, serie = ?, 
                     rutas_archivos = ?, tipo_combustible = ?, comentarios = ?, porcentaje = ?, 
                     es_principal = 1, grupo_id = ?
             ";
@@ -103,7 +103,7 @@ class DetalleLiquidacion {
                 $tipo_documento, $no_factura, $nombre_proveedor, $nit_proveedor, $dpi, $fecha, $fecha_documento, $t_gasto,
                 $p_unitario, $total_factura, $id_centro_costo, $iva, $idp, $inguat, $propina, 
                 $id_cuenta_contable, $nombre_cuenta_contable, $id_cuenta_contable_propina, 
-                $nombre_cuenta_contable_propina, $id_cuenta_contable_idp, $cantidad, $serie, $rutas_json, $tipo_combustible, 
+                $nombre_cuenta_contable_propina, $id_cuenta_contable_idp, $id_cuenta_contable_inguat, $cantidad, $serie, $rutas_json, $tipo_combustible, 
                 $comentarios, $porcentaje, $grupo_id
             ];
             

@@ -501,7 +501,7 @@
         }
 
         #facturasTable tbody td {
-                display: flex;
+          display: flex;
                 justify-content: right;
                 align-items: center;
                 text-align: right;
@@ -509,8 +509,9 @@
                 font-size: 0.74rem;
                 position: relative;
                 border-bottom: 1px solid var(--border-color);
-            }
-            #facturasTable tbody td span{
+        }
+
+        #facturasTable tbody td span{
                 /* background-color: red; */
                 width: 70%;
             }
@@ -660,15 +661,27 @@
               <td data-label="ID">
                 <?php echo htmlspecialchars($detalle['id']); ?>
               </td>
-              
-              <td data-label="Tipo de Documento">
-                <?php echo htmlspecialchars($detalle['tipo_documento']); ?>
-              </td>
-              <td data-label="No. Factura">
-                <?php echo htmlspecialchars($detalle['no_factura']); ?>
-              </td>
-              <td data-label="Proveedor">
-                <span><?php echo htmlspecialchars($detalle['nombre_proveedor']); ?></span>
+              <td data-label="Archivos">
+                <?php
+                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                  if (is_array($rutas) && !empty($rutas)) {
+                      foreach ($rutas as $index => $ruta) { 
+                        $fileName = basename($ruta); 
+                        echo '
+                        <div>
+                          <a
+                            href="../' . htmlspecialchars($ruta) . '"
+                            class="file-link"
+                            target="_blank"
+                            >Ver Archivo
+                          </a>
+                        </div>
+                        '; 
+                      } 
+                  } else { 
+                    echo 'N/A'; 
+                  } 
+                ?>
               </td>
               <td data-label="Tipo de Documento">
                 <?php echo htmlspecialchars($detalle['tipo_documento']); ?>

@@ -3192,7 +3192,7 @@ public function exportar($id, $docDate = null)
                         // LÍNEAS ADICIONALES - Siempre incluir si existen
                         $impuestos = [
                             ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $dl['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
-                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $detalle['id_cuenta_contable_inguat'] ?? $accountCode, 'tipoA' => 'H'],
                         ];
                         
                         if ($dl['t_gasto'] === 'Alimentos') {
@@ -3410,7 +3410,7 @@ public function exportar($id, $docDate = null)
         // LÍNEAS ADICIONALES
         $impuestos = [
             ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $detalle['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
-            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $detalle['id_cuenta_contable_inguat'] ?? $accountCode, 'tipoA' => 'H'],
         ];
         
         if ($detalle['t_gasto'] === 'Alimentos') {
@@ -3851,9 +3851,14 @@ public function manageFacturas($id) {
                 if ($t_gasto === 'Combustible') {
                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
                     $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                    $id_cuenta_contable_inguat = null;
+                } elseif ($t_gasto === 'Hospedaje') {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
+                    $id_cuenta_contable_inguat = '641001003'; // Cuenta fija para INGUAT
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
+                    $id_cuenta_contable_inguat = null;
                 }
 
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
@@ -3981,7 +3986,8 @@ public function manageFacturas($id) {
                         $id_cuenta_contable_propina,
                         $nombre_cuenta_contable_propina,
                         $id_cuenta_contable_idp,
-                        $fechaDocumento
+                        $fechaDocumento,
+                        $id_cuenta_contable_inguat
                     );
 
                     if (!$detalle_id) {

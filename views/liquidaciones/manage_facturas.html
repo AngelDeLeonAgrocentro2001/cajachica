@@ -1340,7 +1340,11 @@ let isNitInputActive = false;
 let fechaDocumentoEstablecida = false;
 
 function basename(path) {
-  return path.split('/').pop();
+  if (!path || typeof path !== 'string') {
+    console.warn('Path inválido para basename:', path);
+    return 'unknown_file';
+  }
+  return path.split('/').pop() || path;
 }
 
 function openModal(fileUrl, fileName) {
@@ -2566,7 +2570,7 @@ async function updateCuentaContableOptions() {
       const tipoGastoToCuentaContable = {
         'Gasto Operativo': 'Comisiones',
         'Combustible': 'Combustibles y lubricantes',
-        'Hospedaje': 'Impuesto de turismo (INGUAT)',
+        'Hospedaje': 'Viáticos locales',
         'Alimentos': ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'],
         'otros...': null
       };
@@ -2682,7 +2686,12 @@ async function editFactura(id) {
   const inguat = row.cells[18].textContent.trim();
   const propina = row.cells[19].textContent.trim();
   const comentarios = row.cells[22].textContent.trim();
-  const rutasArchivos = Array.from(row.cells[23].querySelectorAll('.file-link')).map(link => link.getAttribute('data-file').replace('../', ''));
+  const rutasArchivos = Array.from(row.cells[23].querySelectorAll('.file-link'))
+      .map(link => {
+        const fileAttr = link.getAttribute('data-file');
+        return fileAttr ? fileAttr.replace('../', '') : null;
+      })
+      .filter(ruta => ruta !== null && ruta !== '');
 
   // Calculate total factura and gather centros de costo
   let centrosCosto = [];
@@ -2748,31 +2757,36 @@ async function editFactura(id) {
   fileInput.value = '';
 
   rutasArchivos.forEach(ruta => {
-    const fileName = basename(ruta);
-    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => ruta.toLowerCase().endsWith(ext));
-    
-    const previewDiv = document.createElement('div');
-    previewDiv.classList.add('photo-preview');
-    if (isImage) {
-      const img = document.createElement('img');
-      img.src = '../' + ruta;
-      previewDiv.appendChild(img);
-    } else {
-      const link = document.createElement('a');
-      link.href = '#';
-      link.textContent = fileName;
-      link.classList.add('file-link');
-      link.setAttribute('data-file', '../' + ruta);
-      link.onclick = () => openModal('../' + ruta, fileName);
-      previewDiv.appendChild(link);
-    }
-    const removeBtn = document.createElement('button');
-    removeBtn.classList.add('remove-photo-btn');
-    removeBtn.textContent = '×';
-    removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
-    previewDiv.appendChild(removeBtn);
-    photoPreviewContainer.appendChild(previewDiv);
-  });
+      if (!ruta) return; // Saltar si la ruta es nula
+      
+      const fileName = basename(ruta);
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+        .some(ext => ruta.toLowerCase().endsWith(ext));
+      
+      const previewDiv = document.createElement('div');
+      previewDiv.classList.add('photo-preview');
+      
+      if (isImage) {
+        const img = document.createElement('img');
+        img.src = '../' + ruta;
+        previewDiv.appendChild(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = fileName || 'Archivo sin nombre';
+        link.classList.add('file-link');
+        link.setAttribute('data-file', '../' + ruta);
+        link.onclick = () => openModal('../' + ruta, fileName || 'Archivo');
+        previewDiv.appendChild(link);
+      }
+      
+      const removeBtn = document.createElement('button');
+      removeBtn.classList.add('remove-photo-btn');
+      removeBtn.textContent = '×';
+      removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
+      previewDiv.appendChild(removeBtn);
+      photoPreviewContainer.appendChild(previewDiv);
+    });
 
   // Populate centros de costo
   const centrosCostoContainer = document.getElementById('centros_costo_container');
@@ -2892,6 +2906,10 @@ async function editFactura(id) {
 
 function removeExistingFile(ruta, previewDiv) {
   let removedFilesInput = document.getElementById('removed_files');
+  if (!ruta) {
+    console.warn('Intento de eliminar archivo con ruta nula');
+    return;
+  }
   if (!removedFilesInput) {
     removedFilesInput = document.createElement('input');
     removedFilesInput.type = 'hidden';

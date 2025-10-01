@@ -169,9 +169,14 @@ class DetalleLiquidacionController {
             if ($t_gasto === 'Combustible') {
                 $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
                 $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
-            } else {
+                $id_cuenta_contable_inguat = null;
+            } elseif ($t_gasto === 'Hospedaje') {
+                $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
+                $id_cuenta_contable_inguat = '641001003'; // Cuenta fija para INGUAT
+            }else {
                 $id_cuenta_contable = $_POST['id_cuenta_contable'];
                 $id_cuenta_contable_idp = null;
+                $id_cuenta_contable_inguat = null;
             }
     
             // Validar liquidación
@@ -296,7 +301,8 @@ class DetalleLiquidacionController {
             $id_cuenta_contable_propina, // Nuevo parámetro
             $nombre_cuenta_contable_propina, // Nuevo parámetro
              $id_cuenta_contable_idp,
-             $fechaDocumento 
+             $fechaDocumento,
+             $id_cuenta_contable_inguat 
         );
 
         if (!$detalle_id) {
