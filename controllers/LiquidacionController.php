@@ -2974,14 +2974,14 @@ public function exportar($id, $docDate = null)
         error_log("Realizando consulta a tabla @NIT_PN para NITs específicos");
         $nitPnData = [];
         try {
-            $conn = $this->CONEXION_HANA("GT_AGROCENTRO_2016");
+            $conn = $this->CONEXION_HANA("T_GT_AGROCENTRO_2016");
             $placeholders = implode(',', array_fill(0, count($nitsToSearch), '?'));
             $sql = 'SELECT "Code","Name","U_Razon","U_NIT","U_Validador" FROM "@NIT_PN" WHERE "U_NIT" IN (' . $placeholders . ')';
             
             $stmt = odbc_prepare($conn, $sql);
             if (!$stmt) {
-                error_log("Primer intento fallido, probando con esquema GT_AGROCENTRO_2016");
-                $sql = 'SELECT "Code","Name","U_Razon","U_NIT","U_Validador" FROM "GT_AGROCENTRO_2016"."@NIT_PN" WHERE "U_NIT" IN (' . $placeholders . ')';
+                error_log("Primer intento fallido, probando con esquema T_GT_AGROCENTRO_2016");
+                $sql = 'SELECT "Code","Name","U_Razon","U_NIT","U_Validador" FROM "T_GT_AGROCENTRO_2016"."@NIT_PN" WHERE "U_NIT" IN (' . $placeholders . ')';
                 $stmt = odbc_prepare($conn, $sql);
                 if (!$stmt) {
                     throw new Exception("Error al preparar la consulta: " . odbc_errormsg($conn));
@@ -3193,7 +3193,7 @@ public function exportar($id, $docDate = null)
                         // LÍNEAS ADICIONALES - Siempre incluir si existen
                         $impuestos = [
                             ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $dl['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
-                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+                            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $detalle['id_cuenta_contable_inguat'] ?? $accountCode, 'tipoA' => 'H'],
                         ];
                         
                         if ($dl['t_gasto'] === 'Alimentos') {
@@ -3264,7 +3264,7 @@ public function exportar($id, $docDate = null)
 
         // SAP Login
         error_log("Intentando login en SAP");
-        $loginResult = $this->login_sap('GT_AGROCENTRO_2016');
+        $loginResult = $this->login_sap('T_GT_AGROCENTRO_2016');
         if (!$loginResult['success']) {
             error_log("Login SAP Failed: {$loginResult['error']}");
             $this->pdo->rollBack();
@@ -3411,7 +3411,7 @@ public function exportar($id, $docDate = null)
         // LÍNEAS ADICIONALES
         $impuestos = [
             ['valor' => $idp, 'desc' => 'IDP', 'cuenta' => $detalle['id_cuenta_contable_idp'] ?? $accountCode, 'tipoA' => 'P'],
-            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $accountCode, 'tipoA' => 'H'],
+            ['valor' => $inguat, 'desc' => 'INGUAT', 'cuenta' => $detalle['id_cuenta_contable_inguat'] ?? $accountCode, 'tipoA' => 'H'],
         ];
         
         if ($detalle['t_gasto'] === 'Alimentos') {
@@ -5149,9 +5149,14 @@ public function manageFacturas($id) {
                 if ($t_gasto === 'Combustible') {
                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
                     $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                    $id_cuenta_contable_inguat = null;
+                } elseif ($t_gasto === 'Hospedaje') {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
+                    $id_cuenta_contable_inguat = '641001003'; // Cuenta fija para INGUAT
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
+                    $id_cuenta_contable_inguat = null;
                 }
 
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
@@ -5279,7 +5284,8 @@ public function manageFacturas($id) {
                         $id_cuenta_contable_propina,
                         $nombre_cuenta_contable_propina,
                         $id_cuenta_contable_idp,
-                        $fechaDocumento
+                        $fechaDocumento,
+                        $id_cuenta_contable_inguat
                     );
 
                     if (!$detalle_id) {
