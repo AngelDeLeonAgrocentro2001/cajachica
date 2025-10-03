@@ -3202,6 +3202,12 @@ public function exportar($id, $docDate = null)
                         
                         foreach ($impuestos as $impuesto) {
                             if ($impuesto['valor'] > 0) {
+                                $cuentaInguat = $impuesto['cuenta'];
+                 // Si es INGUAT y el centro de costo comienza con "T", usar cuenta diferente
+        if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
+            $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
+            error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
+        }
                                 $documentLines[] = [
                                     "LineType" => count($documentLines),
                                     "ItemDescription" => $impuesto['desc'],
@@ -3420,6 +3426,12 @@ public function exportar($id, $docDate = null)
         
         foreach ($impuestos as $impuesto) {
             if ($impuesto['valor'] > 0) {
+                $cuentaInguat = $impuesto['cuenta'];
+                 // Si es INGUAT y el centro de costo comienza con "T", usar cuenta diferente
+        if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
+            $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
+            error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
+        }
                 $documentLines[] = [
                     "LineType" => count($documentLines),
                     "ItemDescription" => $impuesto['desc'],
