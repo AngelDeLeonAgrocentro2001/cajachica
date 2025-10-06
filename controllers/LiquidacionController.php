@@ -5175,9 +5175,9 @@ public function manageFacturas($id) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
 
-                if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                    throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                }
+                // if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
+                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
+                // }
 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
@@ -5427,9 +5427,9 @@ public function manageFacturas($id) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
 
-                if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                    throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                }
+                // if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
+                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
+                // }
 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
@@ -6102,9 +6102,9 @@ public function manageFacturas($id) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
 
-                if (in_array($tipo_documento, ['RECIBO', 'RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                    throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                }
+                // if (in_array($tipo_documento, ['RECIBO', 'RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
+                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
+                // }
 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
