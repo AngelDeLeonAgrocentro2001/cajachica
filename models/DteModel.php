@@ -135,4 +135,37 @@ class DteModel {
             throw $e;
         }
     }
+
+    public function updateDteUsado($serie, $numero_dte) {
+        try {
+            $serie = trim($serie);
+            $numero_dte = trim(str_replace(['-', ' '], '', $numero_dte));
+            
+            $sql = "UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute([$serie, $numero_dte]);
+            
+            if ($stmt->rowCount() > 0) {
+                error_log("DTE actualizado: serie=$serie, numero_dte=$numero_dte, usado=Y");
+                return true;
+            } else {
+                // Verificar si ya estaba en 'Y'
+                $checkSql = "SELECT usado FROM dte WHERE serie = ? AND numero_dte = ?";
+                $checkStmt = $this->pdo->prepare($checkSql);
+                $checkStmt->execute([$serie, $numero_dte]);
+                $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($dte && $dte['usado'] === 'Y') {
+                    error_log("DTE ya estaba en estado 'Y': serie=$serie, numero_dte=$numero_dte");
+                    return true;
+                }
+                
+                error_log("No se encontró DTE para actualizar: serie=$serie, numero_dte=$numero_dte");
+                return false;
+            }
+        } catch (PDOException $e) {
+            error_log("Error al actualizar DTE usado: " . $e->getMessage());
+            return false;
+        }
+    }
 }

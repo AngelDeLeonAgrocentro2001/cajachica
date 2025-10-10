@@ -535,23 +535,69 @@ class DetalleLiquidacion {
 
     public function updateDteUsado($serie, $numero_dte) {
         try {
-            $numero_dte = str_replace('-', '', $numero_dte);
-            $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
-            $stmt->execute([$serie, $numero_dte]);
-            $rowCount = $stmt->rowCount();
-            error_log("UPDATE dte query executed: serie=$serie, numero_dte=$numero_dte, rows affected=$rowCount");
-            if ($rowCount === 0) {
-                error_log("No se actualizó el campo usado para serie=$serie, numero_dte=$numero_dte");
-                $stmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
-                $stmt->execute([$serie, $numero_dte]);
-                $dte = $stmt->fetch(PDO::FETCH_ASSOC);
-                error_log("DTE lookup result: " . print_r($dte, true));
+            // Limpiar y normalizar los datos
+            $serie = trim($serie);
+            $numero_dte = trim(str_replace('-', '', $numero_dte));
+            
+            error_log("Intentando actualizar DTE - Serie: '$serie', Numero DTE: '$numero_dte'");
+            
+            // Verificar que ambos campos tengan valor
+            if (empty($serie) || empty($numero_dte)) {
+                error_log("Error: Serie o numero_dte vacíos - serie: '$serie', numero_dte: '$numero_dte'");
                 return false;
             }
+            
+            // Primero verificar si el DTE existe
+            $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
+            $checkStmt->execute([$serie, $numero_dte]);
+            $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$dte) {
+                error_log("DTE no encontrado - serie: '$serie', numero_dte: '$numero_dte'");
+                
+                // Intentar buscar sin espacios
+                $numero_dte_sin_espacios = str_replace(' ', '', $numero_dte);
+                if ($numero_dte_sin_espacios !== $numero_dte) {
+                    $checkStmt->execute([$serie, $numero_dte_sin_espacios]);
+                    $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($dte) {
+                        error_log("DTE encontrado sin espacios - usando: '$numero_dte_sin_espacios'");
+                        $numero_dte = $numero_dte_sin_espacios;
+                    }
+                }
+                
+                if (!$dte) {
+                    error_log("DTE definitivamente no encontrado después de búsquedas alternativas");
+                    return false;
+                }
+            }
+            
+            error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
+            
+            // Actualizar el campo usado
+            $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
+            $updateStmt->execute([$serie, $numero_dte]);
+            $rowCount = $updateStmt->rowCount();
+            
+            error_log("UPDATE ejecutado - Filas afectadas: $rowCount");
+            
+            if ($rowCount === 0) {
+                error_log("No se pudo actualizar el DTE - posiblemente ya estaba en 'Y'");
+                // Verificar el estado actual
+                $checkStmt->execute([$serie, $numero_dte]);
+                $dte_actual = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                error_log("Estado actual del DTE: '{$dte_actual['usado']}'");
+                
+                // Si ya está en 'Y', considerarlo éxito
+                return $dte_actual['usado'] === 'Y';
+            }
+            
             return true;
+            
         } catch (PDOException $e) {
-            error_log("Error al actualizar usado en dte para serie=$serie, numero_dte=$numero_dte: " . $e->getMessage());
-            throw new Exception("Error al actualizar DTE: " . $e->getMessage());
+            error_log("Error al actualizar usado en dte para serie='$serie', numero_dte='$numero_dte': " . $e->getMessage());
+            return false;
         }
     }
 
