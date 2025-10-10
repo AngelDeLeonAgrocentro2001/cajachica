@@ -9,7 +9,7 @@ require_once '../models/CentroCosto.php';
 require_once '../models/CuentaContable.php';
 require_once '../models/Auditoria.php';
 require_once '../models/Usuario.php';
-
+require_once '../models/DteModel.php';
 class LiquidacionController
 {
     private $pdo;
@@ -21,6 +21,7 @@ class LiquidacionController
     private $centroCostoModel;
     private $cuentaContableModel;
     private $auditoriaModel;
+    private $dteModel;
 
     public function __construct()
     {
@@ -34,6 +35,7 @@ class LiquidacionController
         $this->centroCostoModel = new CentroCosto();
         $this->cuentaContableModel = new CuentaContable();
         $this->auditoriaModel = new Auditoria();
+        $this->dteModel = new DteModel();
     }
 
     public function CONEXION_HANA($db_name)
@@ -5311,10 +5313,16 @@ public function manageFacturas($id) {
                 
 
                 if ($serie && $numero_dte) {
-                    $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
-                    $stmt->execute([$serie, $numero_dte]);
-                    if ($stmt->rowCount() === 0) {
-                        error_log("No se actualizó el campo usado para serie=$serie, numero_dte=$numero_dte");
+                    $serie = trim($serie);
+                    $numero_dte = trim(str_replace('-', '', $numero_dte));
+                    
+                    error_log("Actualizando DTE al crear factura - Serie: '$serie', Numero DTE: '$numero_dte'");
+                    
+                    if ($this->dteModel->updateDteUsado($serie, $numero_dte)) {
+                        error_log("DTE actualizado exitosamente a 'Y'");
+                    } else {
+                        error_log("Error: No se pudo actualizar el DTE a 'Y'");
+                        // No lanzar excepción aquí para no interrumpir el proceso de creación
                     }
                 }
 
@@ -5807,10 +5815,16 @@ public function manageFacturas($id) {
                 }
 
                 if ($serie && $numero_dte) {
-                    $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'N' WHERE serie = ? AND numero_dte = ?");
-                    $stmt->execute([$serie, $numero_dte]);
-                    if ($stmt->rowCount() === 0) {
-                        error_log("No se actualizó el campo usado para serie=$serie, numero_dte=$numero_dte");
+                    $serie = trim($serie);
+                    $numero_dte = trim(str_replace('-', '', $numero_dte));
+                    
+                    error_log("Actualizando DTE al crear factura - Serie: '$serie', Numero DTE: '$numero_dte'");
+                    
+                    if ($this->dteModel->updateDteUsado($serie, $numero_dte)) {
+                        error_log("DTE actualizado exitosamente a 'Y'");
+                    } else {
+                        error_log("Error: No se pudo actualizar el DTE a 'Y'");
+                        // No lanzar excepción aquí para no interrumpir el proceso de creación
                     }
                 }
 
