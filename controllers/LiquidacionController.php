@@ -2478,6 +2478,39 @@ private function logout_sap()
     return ['success' => true];
 }
 
+private function determinarCuentaInguat($id_centro_costo) {
+    // Obtener el código del centro de costo
+    $stmt = $this->pdo->prepare("SELECT codigo FROM centros_costos WHERE id = ?");
+    $stmt->execute([$id_centro_costo]);
+    $centro_costo = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$centro_costo) {
+        error_log("Centro de costo no encontrado para ID: $id_centro_costo, usando cuenta por defecto");
+        return '641001003'; // Cuenta por defecto
+    }
+    
+    $codigo = $centro_costo['codigo'];
+    error_log("Determinando cuenta INGUAT para centro de costo: $codigo");
+    
+    // Verificar si el código empieza con T y tiene 3 o 4 dígitos
+    if (preg_match('/^T(\d{2})$/', $codigo, $matches)) {
+        // T00 (3 dígitos) -> 61
+        $cuenta_inguat = '611001003';
+        error_log("Centro de costo T con 3 dígitos ($codigo), cuenta INGUAT: $cuenta_inguat");
+        return $cuenta_inguat;
+    } elseif (preg_match('/^T(\d{3})$/', $codigo, $matches)) {
+        // T000 (4 dígitos) -> 62  
+        $cuenta_inguat = '621001003';
+        error_log("Centro de costo T con 4 dígitos ($codigo), cuenta INGUAT: $cuenta_inguat");
+        return $cuenta_inguat;
+    } else {
+        // Por defecto
+        $cuenta_inguat = '641001003';
+        error_log("Centro de costo no coincide con patrones T ($codigo), cuenta INGUAT por defecto: $cuenta_inguat");
+        return $cuenta_inguat;
+    }
+}
+
 // Funciones para errores al exportar 
 private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
 {
@@ -3204,19 +3237,19 @@ public function exportar($id, $docDate = null)
                         
                         foreach ($impuestos as $impuesto) {
                             if ($impuesto['valor'] > 0) {
-                                $cuentaInguat = $impuesto['cuenta'];
+                                $cuentaImpuesto = $impuesto['cuenta'];
                  // Si es INGUAT y el centro de costo comienza con "T", usar cuenta diferente
-        if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
-            $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
-            error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
-        }
+        // if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
+        //     $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
+        //     error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
+        // }
                                 $documentLines[] = [
                                     "LineType" => count($documentLines),
                                     "ItemDescription" => $impuesto['desc'],
                                     "PriceAfterVAT" => $impuesto['valor'],
                                     "TaxCode" => "EXE",
                                     "CostingCode" => $costingCode,
-                                    "AccountCode" => $impuesto['cuenta'],
+                                    "AccountCode" => $cuentaImpuesto,
                                     "U_TipoDoc" => $tipoDocForLines,
                                     "U_TipoA" => $impuesto['tipoA']
                                 ];
@@ -3428,19 +3461,19 @@ public function exportar($id, $docDate = null)
         
         foreach ($impuestos as $impuesto) {
             if ($impuesto['valor'] > 0) {
-                $cuentaInguat = $impuesto['cuenta'];
+                $cuentaImpuesto = $impuesto['cuenta'];
                  // Si es INGUAT y el centro de costo comienza con "T", usar cuenta diferente
-        if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
-            $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
-            error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
-        }
+        // if ($impuesto['desc'] === 'INGUAT' && strtoupper(substr($costingCode, 0, 1)) === 'T') {
+        //     $cuentaInguat = '611001003'; // Cuenta para centros de costo que empiezan con T
+        //     error_log("Cambiando cuenta INGUAT a $cuentaInguat para centro de costo T: $costingCode");
+        // }
                 $documentLines[] = [
                     "LineType" => count($documentLines),
                     "ItemDescription" => $impuesto['desc'],
                     "PriceAfterVAT" => $impuesto['valor'],
                     "TaxCode" => "EXE",
                     $costingField => $costingCode, // Usar el campo dinámico
-                    "AccountCode" => $impuesto['cuenta'],
+                    "AccountCode" => $cuentaImpuesto,
                     "U_TipoDoc" => $tipoDocForLines,
                     "U_TipoA" => $impuesto['tipoA']
                 ];
@@ -5166,7 +5199,7 @@ public function manageFacturas($id) {
                     $id_cuenta_contable_inguat = null;
                 } elseif ($t_gasto === 'Hospedaje') {
                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
-                    $id_cuenta_contable_inguat = '641001003'; // Cuenta fija para INGUAT
+                    $id_cuenta_contable_inguat = $this->determinarCuentaInguat($id_centro_costo[0]); // Cuenta fija para INGUAT
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
