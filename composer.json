@@ -4,6 +4,7 @@
         "tecnickcom/tcpdf": "^6.8",
         "phpoffice/phpspreadsheet": "^2.1",
         "mpdf/mpdf": "^8.2",
-        "phpmailer/phpmailer": "^6.9"
+        "phpmailer/phpmailer": "^6.9",
+        "spatie/pdf-to-image": "^1.2"
     }
 }

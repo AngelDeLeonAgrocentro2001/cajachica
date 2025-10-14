@@ -20,6 +20,10 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         array (
             'ZipStream\\' => 10,
         ),
+        'S' => 
+        array (
+            'Spatie\\PdfToImage\\' => 18,
+        ),
         'P' => 
         array (
             'Psr\\SimpleCache\\' => 16,
@@ -60,6 +64,10 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         'ZipStream\\' => 
         array (
             0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
+        ),
+        'Spatie\\PdfToImage\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/spatie/pdf-to-image/src',
         ),
         'Psr\\SimpleCache\\' => 
         array (
