@@ -172,7 +172,7 @@ class DetalleLiquidacionController {
                 $id_cuenta_contable_inguat = null;
             } elseif ($t_gasto === 'Hospedaje') {
                 $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
-                $id_cuenta_contable_inguat = '641001003'; // Cuenta fija para INGUAT
+                $id_cuenta_contable_inguat = $this->determinarCuentaInguat($id_centro_costo[0]); // Cuenta fija para INGUAT
             }else {
                 $id_cuenta_contable = $_POST['id_cuenta_contable'];
                 $id_cuenta_contable_idp = null;
@@ -911,6 +911,39 @@ class DetalleLiquidacionController {
         $stmt = $this->pdo->prepare("SELECT SUM(total_factura) as monto_total FROM detalle_liquidaciones WHERE id_liquidacion = ?");
         $stmt->execute([$id_liquidacion]);
         return $stmt->fetchColumn() ?: 0;
+    }
+
+    private function determinarCuentaInguat($id_centro_costo) {
+        // Obtener el código del centro de costo
+        $stmt = $this->pdo->prepare("SELECT codigo FROM centros_costos WHERE id = ?");
+        $stmt->execute([$id_centro_costo]);
+        $centro_costo = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$centro_costo) {
+            error_log("Centro de costo no encontrado para ID: $id_centro_costo, usando cuenta por defecto");
+            return '641001003'; // Cuenta por defecto
+        }
+        
+        $codigo = $centro_costo['codigo'];
+        error_log("Determinando cuenta INGUAT para centro de costo: $codigo");
+        
+        // Verificar si el código empieza con T y tiene 3 o 4 dígitos
+        if (preg_match('/^T(\d{2})$/', $codigo, $matches)) {
+            // T00 (3 dígitos) -> 61
+            $cuenta_inguat = '611001003';
+            error_log("Centro de costo T con 3 dígitos ($codigo), cuenta INGUAT: $cuenta_inguat");
+            return $cuenta_inguat;
+        } elseif (preg_match('/^T(\d{3})$/', $codigo, $matches)) {
+            // T000 (4 dígitos) -> 62  
+            $cuenta_inguat = '621001003';
+            error_log("Centro de costo T con 4 dígitos ($codigo), cuenta INGUAT: $cuenta_inguat");
+            return $cuenta_inguat;
+        } else {
+            // Por defecto
+            $cuenta_inguat = '641001003';
+            error_log("Centro de costo no coincide con patrones T ($codigo), cuenta INGUAT por defecto: $cuenta_inguat");
+            return $cuenta_inguat;
+        }
     }
 }
 ?>
