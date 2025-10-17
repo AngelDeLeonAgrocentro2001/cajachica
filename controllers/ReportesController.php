@@ -623,6 +623,8 @@ class ReportesController {
     }
 
     public function exportDetallesToPDF($idLiquidacion) {
+        error_log('=== INICIANDO exportDetallesToPDF ===');
+    error_log('ID Liquidación recibido: ' . $idLiquidacion);
         if (ob_get_length()) {
             ob_end_clean();
         }

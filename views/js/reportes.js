@@ -363,23 +363,23 @@ async function exportDetallesToPDF(idLiquidacion) {
             }
         });
 
-        // Clonar la respuesta antes de leerla para verificar errores
-        const responseClone = response.clone();
-
         // Verificar si la respuesta es exitosa
         if (!response.ok) {
             let errorMessage = 'Error al exportar los detalles';
             try {
-                const errorData = await responseClone.json();
-                errorMessage = errorData.error || errorMessage;
-            } catch (jsonError) {
-                // Si JSON parsing falla, intentar como texto
+                // Crear una copia temporal solo para leer el error
+                const errorResponse = response.clone();
+                const errorText = await errorResponse.text();
+                
+                // Intentar parsear como JSON, si falla usar como texto
                 try {
-                    const errorText = await responseClone.text();
-                    errorMessage = errorText || 'Error desconocido del servidor';
-                } catch (textError) {
-                    errorMessage = `Error HTTP: ${response.status} ${response.statusText}`;
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.error || errorMessage;
+                } catch {
+                    errorMessage = errorText || `Error HTTP: ${response.status} ${response.statusText}`;
                 }
+            } catch (e) {
+                errorMessage = `Error HTTP: ${response.status} ${response.statusText}`;
             }
             throw new Error(errorMessage);
         }
@@ -390,7 +390,7 @@ async function exportDetallesToPDF(idLiquidacion) {
             throw new Error('El servidor no devolvió un PDF válido');
         }
 
-        // Obtener el blob de la respuesta original (no clonada)
+        // Obtener el blob directamente de la respuesta original
         const blob = await response.blob();
         
         // Crear y descargar el archivo
