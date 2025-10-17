@@ -1495,6 +1495,123 @@ async function updateCuentaContableOptionsForCentro(centroCostoId, index) {
   }
 }
 
+function resetForm() {
+    const form = document.getElementById('facturaForm');
+    if (!form) return;
+    
+    form.reset();
+    document.getElementById('action').value = 'update';
+    document.getElementById('detalle_id').value = '';
+    document.getElementById('submitBtn').textContent = 'Guardar Cambios';
+    
+    // Reset de campos específicos - solo los que existen en esta vista
+    document.getElementById('nit_dpi_label').textContent = 'NIT:';
+    document.getElementById('comprobante_fields').style.display = 'none';
+    document.getElementById('tax_fields').style.display = 'none';
+    document.getElementById('tipo_combustible_field').style.display = 'none';
+    document.getElementById('cantidad_field').style.display = 'none';
+    document.getElementById('propina_field').style.display = 'none';
+    document.getElementById('cuenta_contable_propina_field').style.display = 'none';
+    
+    // Remover atributos required de campos opcionales
+    const serieInput = document.getElementById('serie');
+    const tipoCombustibleInput = document.getElementById('tipo_combustible');
+    const cantidadInput = document.getElementById('cantidad');
+    
+    if (serieInput) serieInput.removeAttribute('required');
+    if (tipoCombustibleInput) tipoCombustibleInput.removeAttribute('required');
+    if (cantidadInput) cantidadInput.removeAttribute('required');
+    
+    // Reset de valores
+    document.getElementById('propina').value = '0';
+    document.getElementById('iva_field').style.display = 'none';
+    document.getElementById('idp_field').style.display = 'none';
+    document.getElementById('inguat_field').style.display = 'none';
+    document.getElementById('nit_dpi_input').setAttribute('required', 'required');
+    document.getElementById('comentarios').value = '';
+    document.getElementById('correccion_comentario').value = '';
+    
+    // Limpiar archivos
+    capturedFiles = [];
+    const photoPreviewContainer = document.getElementById('photo-preview-container');
+    if (photoPreviewContainer) photoPreviewContainer.innerHTML = '';
+    
+    const fileInput = document.getElementById('archivos');
+    if (fileInput) fileInput.value = '';
+
+    // Reset centros de costo
+    const centrosCostoContainer = document.getElementById('centros_costo_container');
+    if (centrosCostoContainer) {
+        centrosCostoContainer.innerHTML = `
+            <div class="centro_costo_row">
+                <label for="id_centro_costo_0">Centro de Costo:</label>
+                <select name="id_centro_costo[]" id="id_centro_costo_0" class="centro_costo_select" required>
+                    <option value="">Selecciona un centro de costo</option>
+                    <?php echo $select_centros_costos; ?>
+                </select>
+                <label for="porcentaje_0">Porcentaje:</label>
+                <input
+                    type="number"
+                    name="porcentaje[]"
+                    id="porcentaje_0"
+                    step="0.001"
+                    min="0"
+                    max="100"
+                    value="100"
+                    class="porcentaje_input"
+                    required
+                />
+                <!-- Nuevo campo de cuenta contable para centros de costo adicionales -->
+                <div class="cuenta_contable_centro_costo" id="cuenta_contable_centro_0" style="display: none;">
+                    <label for="id_cuenta_contable_centro_0">Cuenta Contable:</label>
+                    <select name="id_cuenta_contable_centro[]" id="id_cuenta_contable_centro_0" class="cuenta_contable_centro_select">
+                        <option value="">Selecciona una cuenta contable</option>
+                    </select>
+                </div>
+                <span class="porcentaje_error" id="porcentaje_error_0" style="color: red; display: none;"></span>
+            </div>
+        `;
+    }
+    
+    const totalErrorSpan = document.getElementById('porcentaje_total_error');
+    if (totalErrorSpan) {
+        totalErrorSpan.style.display = 'none';
+    }
+    
+    centroCostoCounter = 1;
+
+    // Reset cuenta contable
+    const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    if (cuentaContableSelect) {
+        cuentaContableSelect.innerHTML = '<option value="">Selecciona una cuenta contable</option>';
+        cuentaContableSelect.disabled = true;
+    }
+
+    // Reset cuenta contable propina
+    const cuentaContablePropinaSelect = document.getElementById('id_cuenta_contable_propina');
+    if (cuentaContablePropinaSelect) {
+        cuentaContablePropinaSelect.innerHTML = '<option value="">Selecciona una cuenta contable para propina</option>';
+        cuentaContablePropinaSelect.disabled = true;
+    }
+
+    // Reset campos ocultos
+    const nombreCuentaContableInput = document.getElementById('nombre_cuenta_contable_input');
+    const nombreCuentaContablePropinaInput = document.getElementById('nombre_cuenta_contable_propina_input');
+    const idCuentaContableIdpValue = document.getElementById('id_cuenta_contable_idp_value');
+    
+    if (nombreCuentaContableInput) nombreCuentaContableInput.value = '';
+    if (nombreCuentaContablePropinaInput) nombreCuentaContablePropinaInput.value = '';
+    if (idCuentaContableIdpValue) idCuentaContableIdpValue.value = '';
+
+    // Actualizar campos del formulario
+    updateFormFields();
+    updateTipoGastoFields();
+    updateCuentaContableOptions();
+
+    // Ocultar el formulario después de reset
+    form.style.display = 'none';
+}
+
 function addCentroCostoRow() {
     const container = document.getElementById('centros_costo_container');
     const row = document.createElement('div');
