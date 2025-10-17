@@ -1265,26 +1265,27 @@
               </td>
               <td data-label="Archivos">
                 <?php
-                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                  if (is_array($rutas) && !empty($rutas)) {
-                      foreach ($rutas as $index => $ruta) { 
+                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                if (is_array($rutas) && !empty($rutas)) {
+                    foreach ($rutas as $index => $ruta) { 
                         $fileName = basename($ruta); 
                         echo '
                         <div>
-                          <a
-                            href="../' . htmlspecialchars($ruta) . '"
-                            class="file-link"
-                            target="_blank"
-                            >Ver Archivo
-                          </a>
+                            <a
+                                href="#"
+                                class="file-link"
+                                data-file="../' . htmlspecialchars($ruta) . '"
+                                onclick="openModal(\'../' . htmlspecialchars($ruta) . '\', \'' . htmlspecialchars($fileName) . '\')"
+                                >Ver Archivo
+                            </a>
                         </div>
                         '; 
-                      } 
-                  } else { 
+                    } 
+                } else { 
                     echo 'N/A'; 
-                  } 
+                } 
                 ?>
-              </td>
+            </td>
               <td data-label="Acciones">
                 <button
                   class="edit-btn"
@@ -1331,6 +1332,7 @@
         </div>
       </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>  
       const fechaInicio = '<?php echo $data['fecha_inicio']; ?>';
@@ -1559,9 +1561,17 @@ function savePhoto() {
   const photoPreviewContainer = document.getElementById('photo-preview-container');
   const fileInput = document.getElementById('archivos');
 
-  canvas.toBlob(blob => {
-    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-    capturedFiles.push(file);
+  canvas.toBlob(async (blob) => {
+    const originalFile = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    
+    // Comprimir la foto tomada
+    let finalFile = originalFile;
+    if (needsCompression(originalFile)) {
+        finalFile = await compressImage(originalFile, 0.8, 1200);
+        console.log('Foto comprimida:', originalFile.size, '->', finalFile.size);
+    }
+    
+    capturedFiles.push(finalFile);
 
     const dataTransfer = new DataTransfer();
     capturedFiles.forEach(f => dataTransfer.items.add(f));
@@ -1573,31 +1583,40 @@ function savePhoto() {
     const previewDiv = document.createElement('div');
     previewDiv.classList.add('photo-preview');
     const img = document.createElement('img');
-    img.src = URL.createObjectURL(file);
+    img.src = URL.createObjectURL(finalFile);
     const removeBtn = document.createElement('button');
     removeBtn.classList.add('remove-photo-btn');
     removeBtn.textContent = '×';
-    removeBtn.onclick = () => removePhoto(file, previewDiv);
+    removeBtn.onclick = () => removePhoto(finalFile, previewDiv);
     previewDiv.appendChild(img);
     previewDiv.appendChild(removeBtn);
     photoPreviewContainer.appendChild(previewDiv);
 
     closeCameraModal();
-  }, 'image/jpeg', 0.9);
+  }, 'image/jpeg', 0.9); // Calidad inicial del 90%
 }
 
 function removePhoto(fileToRemove, previewDiv) {
+  // Remover de capturedFiles
   capturedFiles = capturedFiles.filter(file => file !== fileToRemove);
+  
   const fileInput = document.getElementById('archivos');
   const dataTransfer = new DataTransfer();
-  capturedFiles.forEach(f => dataTransfer.items.add(f));
+  
+  // Agregar todos los archivos excepto el que se va a remover
   for (let f of fileInput.files) {
     if (f !== fileToRemove) {
       dataTransfer.items.add(f);
     }
   }
+  
+  // Actualizar el file input
   fileInput.files = dataTransfer.files;
+  
+  // Remover el preview
   previewDiv.remove();
+  
+  console.log('Archivo removido:', fileToRemove.name);
 }
 
 function closeCameraModal() {
@@ -1620,34 +1639,57 @@ function closeCameraModal() {
   cameraModal.classList.remove('active');
 }
 
+// Función mejorada para mostrar previews
 function displayFilePreviews(files) {
-  const photoPreviewContainer = document.getElementById('photo-preview-container');
-  for (let file of files) {
-    if (file.type.startsWith('image/')) {
-      const previewDiv = document.createElement('div');
-      previewDiv.classList.add('photo-preview');
-      const img = document.createElement('img');
-      img.src = URL.createObjectURL(file);
-      const removeBtn = document.createElement('button');
-      removeBtn.classList.add('remove-photo-btn');
-      removeBtn.textContent = '×';
-      removeBtn.onclick = () => removePhoto(file, previewDiv);
-      previewDiv.appendChild(img);
-      previewDiv.appendChild(removeBtn);
-      photoPreviewContainer.appendChild(previewDiv);
-    }
-  }
+    const photoPreviewContainer = document.getElementById('photo-preview-container');
+    
+    files.forEach(file => {
+        const previewDiv = document.createElement('div');
+        previewDiv.classList.add('photo-preview');
+        
+        const img = document.createElement('img');
+        
+        if (file.type.startsWith('image/')) {
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+        } else if (file.type === 'application/pdf') {
+            // Mostrar icono de PDF
+            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE0IDJINkMyLjY5IDIgMiA1LjU4IDIgN1YxN0MyIDE4LjQyIDIuNSAxOS41OSAzLjUgMjAuNUM0LjUgMjEuNDEgNS44OSAyMiA3IDIySDE4QzE5LjY1IDIyIDIyIDIxLjY1IDIyIDE5VjlDMjIgMy44IDE5LjY1IDIgMTQgMlpNMTUgMTcuNzVIN0M2LjU5IDE3Ljc1IDYuMjUgMTcuNDEgNi4yNSAxN1YxMkM2LjI1IDExLjU5IDYuNTkgMTEuMjUgNyAxMS4yNUgxNUMxNS40MSAxMS4yNSAxNS43NSAxMS41OSAxNS43NSAxMlYxN0MxNS43NSAxNy40MSAxNS40MSAxNy43NSAxNSAxNy43NVpNMTUuNzUgOUg4LjI1VjcuNzVIMTUuNzVWOVoiIGZpbGw9IiNmZjAwMDAiLz4KPC9zdmc+';
+            img.style.opacity = '0.6';
+            img.alt = 'PDF File';
+        }
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.classList.add('remove-photo-btn');
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => removePhoto(file, previewDiv);
+        
+        const fileName = document.createElement('div');
+        fileName.textContent = file.name;
+        fileName.style.fontSize = '12px';
+        fileName.style.marginTop = '5px';
+        fileName.style.textAlign = 'center';
+        fileName.style.wordBreak = 'break-word';
+        fileName.style.maxWidth = '100px';
+        
+        previewDiv.appendChild(img);
+        previewDiv.appendChild(fileName);
+        previewDiv.appendChild(removeBtn);
+        photoPreviewContainer.appendChild(previewDiv);
+    });
 }
 
 function validateFileTypes(files) {
-  const allowedExtensions = ['jpg', 'jpeg', 'pdf'];
-  for (let file of files) {
-    const extension = file.name.split('.').pop().toLowerCase();
-    if (!allowedExtensions.includes(extension)) {
-      return false;
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    
+    for (let file of files) {
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (!allowedExtensions.includes(extension) || !allowedMimeTypes.includes(file.type)) {
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 function validatePercentages() {
@@ -1838,17 +1880,274 @@ function removeCentroCosto(button, index) {
   updateCuentaContableOptions();
 }
 
-const fileInput = document.getElementById('archivos');
-fileInput.addEventListener('change', (e) => {
-  const files = e.target.files;
-  if (files.length > 0) {
-    if (!validateFileTypes(files)) {
-      alert('Solo se permiten archivos JPG y PDF.');
-      fileInput.value = '';
-      return;
+// Función para convertir PDF a imágenes con compresión
+async function convertPdfToImages(pdfFile) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            const pdfData = new Uint8Array(e.target.result);
+            
+            try {
+                const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                const totalPages = pdf.numPages;
+                const convertedFiles = [];
+                
+                // Mostrar progreso
+                if (totalPages > 1) {
+                    Swal.fire({
+                        title: 'Procesando PDF...',
+                        html: `Convirtiendo y comprimiendo ${totalPages} páginas<br>
+                               <div style="margin: 10px 0;">
+                                 <progress id="pdf-progress" value="0" max="${totalPages}" style="width: 100%"></progress>
+                                 <div id="progress-text" style="text-align: center; margin-top: 5px; font-size: 12px;">0/${totalPages}</div>
+                               </div>`,
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                }
+
+                // Convertir cada página
+                for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                    try {
+                        const page = await pdf.getPage(pageNum);
+                        const viewport = page.getViewport({ scale: 1.2 }); // Escala ligeramente reducida
+                        
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        
+                        await page.render(renderContext).promise;
+                        
+                        // Convertir canvas a Blob con compresión
+                        const blob = await new Promise(resolve => {
+                            canvas.toBlob(resolve, 'image/jpeg', 0.75); // 75% de calidad
+                        });
+                        
+                        const convertedFile = new File(
+                            [blob], 
+                            `${pdfFile.name.replace('.pdf', '')}_pagina_${pageNum}.jpg`, 
+                            { type: 'image/jpeg' }
+                        );
+                        
+                        convertedFiles.push(convertedFile);
+                        
+                        // Actualizar progreso
+                        if (totalPages > 1) {
+                            const progress = document.getElementById('pdf-progress');
+                            const progressText = document.getElementById('progress-text');
+                            if (progress) progress.value = pageNum;
+                            if (progressText) progressText.textContent = `${pageNum}/${totalPages}`;
+                        }
+                        
+                    } catch (pageError) {
+                        console.error(`Error en página ${pageNum}:`, pageError);
+                    }
+                }
+                
+                Swal.close();
+                
+                if (convertedFiles.length === 0) {
+                    reject(new Error('No se pudo convertir ninguna página del PDF'));
+                    return;
+                }
+                
+                // Mostrar resumen de compresión
+                const originalEstSize = pdfFile.size;
+                const convertedSize = convertedFiles.reduce((sum, file) => sum + file.size, 0);
+                
+                if (convertedFiles.length > 1) {
+                    Swal.fire({
+                        title: '¡PDF procesado!',
+                        html: `
+                            <p>Se crearon ${convertedFiles.length} imágenes del PDF</p>
+                            <p style="font-size: 14px; color: #666;">
+                                Tamaño total: ${(convertedSize / (1024*1024)).toFixed(1)}MB
+                            </p>
+                        `,
+                        icon: 'success',
+                        timer: 4000,
+                        showConfirmButton: true
+                    });
+                }
+                
+                resolve(convertedFiles);
+                
+            } catch (error) {
+                Swal.close();
+                reject(new Error('Error al procesar el PDF: ' + error.message));
+            }
+        };
+        
+        reader.onerror = function() {
+            reject(new Error('Error al leer el archivo PDF'));
+        };
+        
+        reader.readAsArrayBuffer(pdfFile);
+    });
+}
+
+
+// Función principal simplificada - solo convierte PDFs a imágenes
+async function processUploadedFiles(files) {
+    const processedFiles = [];
+    
+    for (let file of files) {
+        if (file.type === 'application/pdf') {
+            try {
+                // Convertir PDF a imágenes automáticamente
+                const convertedFiles = await convertPdfToImages(file);
+                
+                if (convertedFiles.length > 0) {
+                    // Comprimir las imágenes convertidas del PDF
+                    for (let convertedFile of convertedFiles) {
+                        if (needsCompression(convertedFile)) {
+                            const compressedFile = await compressImage(convertedFile, 0.8, 1000);
+                            processedFiles.push(compressedFile);
+                            
+                            console.log(`PDF página comprimida: ${convertedFile.size} -> ${compressedFile.size} bytes (${((1 - compressedFile.size/convertedFile.size) * 100).toFixed(1)}% reducción)`);
+                        } else {
+                            processedFiles.push(convertedFile);
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error al procesar PDF:', error);
+                processedFiles.push(file);
+            }
+        } else if (file.type.startsWith('image/')) {
+            // Comprimir imágenes normales
+            if (needsCompression(file)) {
+                try {
+                    const compressedFile = await compressImage(file, 0.8, 1200);
+                    processedFiles.push(compressedFile);
+                    
+                    console.log(`Imagen comprimida: ${file.size} -> ${compressedFile.size} bytes (${((1 - compressedFile.size/file.size) * 100).toFixed(1)}% reducción)`);
+                    
+                    // Mostrar notificación de compresión para imágenes grandes
+                    if (file.size > 2 * 1024 * 1024) { // Mayor a 2MB
+                        Swal.fire({
+                            title: 'Imagen comprimida',
+                            text: `La imagen se redujo de ${(file.size / (1024*1024)).toFixed(1)}MB a ${(compressedFile.size / (1024*1024)).toFixed(1)}MB`,
+                            icon: 'info',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('Error al comprimir imagen:', error);
+                    processedFiles.push(file);
+                }
+            } else {
+                // Imagen ya es pequeña, no comprimir
+                processedFiles.push(file);
+            }
+        } else {
+            // Para otros tipos de archivo, mantener como están
+            processedFiles.push(file);
+        }
     }
-    displayFilePreviews(files);
-  }
+    
+    return processedFiles;
+}
+
+// Función para comprimir imágenes
+async function compressImage(file, quality = 0.7, maxWidth = 1200) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const img = new Image();
+            img.src = e.target.result;
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calcular nuevas dimensiones manteniendo aspect ratio
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Dibujar imagen redimensionada
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convertir a Blob con compresión
+                canvas.toBlob(
+                    (blob) => {
+                        const compressedFile = new File(
+                            [blob],
+                            file.name,
+                            { 
+                                type: 'image/jpeg',
+                                lastModified: new Date().getTime()
+                            }
+                        );
+                        resolve(compressedFile);
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+        };
+        
+        reader.readAsDataURL(file);
+    });
+}
+
+// Función para verificar si una imagen necesita compresión
+function needsCompression(file, maxSizeMB = 1) {
+    return file.size > maxSizeMB * 1024 * 1024;
+}
+
+const fileInput = document.getElementById('archivos');
+fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length > 0) {
+        if (!validateFileTypes(files)) {
+            alert('Solo se permiten archivos JPG y PDF.');
+            e.target.value = '';
+            return;
+        }
+        
+        // Verificar si hay PDFs para convertir
+        const pdfFiles = files.filter(file => file.type === 'application/pdf');
+        if (pdfFiles.length > 0) {
+            // Procesar archivos (convertir PDFs a JPG automáticamente)
+            const processedFiles = await processUploadedFiles(files);
+            
+            // Actualizar el input de archivos con los archivos procesados
+            const dataTransfer = new DataTransfer();
+            processedFiles.forEach(file => dataTransfer.items.add(file));
+            e.target.files = dataTransfer.files;
+            
+            // Limpiar previews anteriores y mostrar los nuevos
+            const photoPreviewContainer = document.getElementById('photo-preview-container');
+            photoPreviewContainer.innerHTML = '';
+            displayFilePreviews(processedFiles);
+        } else {
+            // Si no hay PDFs, solo mostrar previews
+            displayFilePreviews(files);
+        }
+    }
 });
 
 document.getElementById('take-photo-btn').addEventListener('click', openCameraModal);
@@ -2749,44 +3048,75 @@ async function editFactura(id) {
   document.getElementById('propina').value = propina !== 'N/A' ? parseFloat(propina).toFixed(2) : '0';
   document.getElementById('comentarios').value = comentarios !== 'N/A' ? comentarios : '';
 
-  // Clear and populate file previews
+  // Clear and populate file previews - VERSIÓN CORREGIDA
   const photoPreviewContainer = document.getElementById('photo-preview-container');
   photoPreviewContainer.innerHTML = '';
   capturedFiles = [];
   const fileInput = document.getElementById('archivos');
   fileInput.value = '';
 
+  // Mostrar los archivos existentes como enlaces/previews
   rutasArchivos.forEach(ruta => {
-      if (!ruta) return; // Saltar si la ruta es nula
+      if (!ruta) return;
       
       const fileName = basename(ruta);
       const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
         .some(ext => ruta.toLowerCase().endsWith(ext));
+      const isPdf = ruta.toLowerCase().endsWith('.pdf');
       
       const previewDiv = document.createElement('div');
       previewDiv.classList.add('photo-preview');
       
       if (isImage) {
         const img = document.createElement('img');
-        img.src = '../' + ruta;
+        img.src = '../' + ruta + '?t=' + Date.now(); // Agregar timestamp para evitar cache
+        img.alt = fileName;
+        img.style.maxWidth = '100px';
+        img.style.maxHeight = '100px';
+        previewDiv.appendChild(img);
+      } else if (isPdf) {
+        const img = document.createElement('img');
+        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE0IDJINkMyLjY5IDIgMiA1LjU4IDIgN1YxN0MyIDE4LjQyIDIuNSAxOS41OSAzLjUgMjAuNUM0LjUgMjEuNDEgNS44OSAyMiA3IDIySDE4QzE5LjY1IDIyIDIyIDIxLjY1IDIyIDE5VjlDMjIgMy44IDE5LjY1IDIgMTQgMlpNMTUgMTcuNzVIN0M2LjU5IDE3Ljc1IDYuMjUgMTcuNDEgNi4yNSAxN1YxMkM2LjI1IDExLjU5IDYuNTkgMTEuMjUgNyAxMS4yNUgxNUMxNS40MSAxMS4yNSAxNS43NSAxMS41OSAxNS43NSAxMlYxN0MxNS43NSAxNy40MSAxNS40MSAxNy43NSAxNSAxNy43NVpNMTUuNzUgOUg4LjI1VjcuNzVIMTUuNzVWOVoiIGZpbGw9IiNmZjAwMDAiLz4KPC9zdmc+';
+        img.style.opacity = '0.6';
+        img.alt = 'PDF File';
         previewDiv.appendChild(img);
       } else {
-        const link = document.createElement('a');
-        link.href = '#';
-        link.textContent = fileName || 'Archivo sin nombre';
-        link.classList.add('file-link');
-        link.setAttribute('data-file', '../' + ruta);
-        link.onclick = () => openModal('../' + ruta, fileName || 'Archivo');
-        previewDiv.appendChild(link);
+        const fileIcon = document.createElement('div');
+        fileIcon.textContent = '📄';
+        fileIcon.style.fontSize = '48px';
+        previewDiv.appendChild(fileIcon);
       }
+      
+      const fileNameDiv = document.createElement('div');
+      fileNameDiv.textContent = fileName;
+      fileNameDiv.style.fontSize = '12px';
+      fileNameDiv.style.marginTop = '5px';
+      fileNameDiv.style.textAlign = 'center';
+      fileNameDiv.style.wordBreak = 'break-word';
+      fileNameDiv.style.maxWidth = '100px';
+      previewDiv.appendChild(fileNameDiv);
       
       const removeBtn = document.createElement('button');
       removeBtn.classList.add('remove-photo-btn');
       removeBtn.textContent = '×';
       removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
       previewDiv.appendChild(removeBtn);
+      
+      // Agregar enlace para ver el archivo
+      const viewLink = document.createElement('a');
+      viewLink.href = '#';
+      viewLink.textContent = 'Ver';
+      viewLink.style.fontSize = '10px';
+      viewLink.style.marginTop = '5px';
+      viewLink.style.display = 'block';
+      viewLink.onclick = (e) => {
+        e.preventDefault();
+        openModal('../' + ruta, fileName);
+      };
+      previewDiv.appendChild(viewLink);
+      
       photoPreviewContainer.appendChild(previewDiv);
-    });
+  });
 
   // Populate centros de costo
   const centrosCostoContainer = document.getElementById('centros_costo_container');
@@ -2910,6 +3240,7 @@ function removeExistingFile(ruta, previewDiv) {
     console.warn('Intento de eliminar archivo con ruta nula');
     return;
   }
+  
   if (!removedFilesInput) {
     removedFilesInput = document.createElement('input');
     removedFilesInput.type = 'hidden';
@@ -2917,8 +3248,16 @@ function removeExistingFile(ruta, previewDiv) {
     removedFilesInput.id = 'removed_files';
     document.getElementById('facturaForm').appendChild(removedFilesInput);
   }
-  removedFilesInput.value = ruta;
+  
+  // Agregar la ruta a los archivos removidos
+  const currentRemoved = removedFilesInput.value ? removedFilesInput.value.split(',') : [];
+  if (!currentRemoved.includes(ruta)) {
+    currentRemoved.push(ruta);
+    removedFilesInput.value = currentRemoved.join(',');
+  }
+  
   previewDiv.remove();
+  console.log('Archivo marcado para remover:', ruta);
 }
 
 async function deleteFactura(id) {
