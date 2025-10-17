@@ -1,6 +1,9 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
+let allCajasChicas = [];
+let filteredCajasChicas = [];
+
 async function loadCajasChicas() {
     const tbody = document.querySelector('#cajasChicasTable tbody');
     if (!tbody) {
@@ -24,28 +27,20 @@ async function loadCajasChicas() {
             }
         }
         const cajasChicas = await response.json();
-        tbody.innerHTML = '';
-        if (cajasChicas.length > 0) {
-            cajasChicas.forEach(caja => {
-                tbody.innerHTML += `
-                   <tr>
-            <td data-label="ID">${caja.id}</td>
-            <td data-label="Nombre">${caja.nombre}</td>
-            <td data-label="Clientes">${caja.clientes || 'No asignado'}</td>
-            <td data-label="Monto Asignado">${parseFloat(caja.monto_asignado).toFixed(2)}</td>
-            <td data-label="Monto Disponible">${parseFloat(caja.monto_disponible).toFixed(2)}</td>
-            <td data-label="Centro de Costos">${caja.centro_costo || 'No asignado'}</td>
-            <td data-label="Estado">${caja.estado || 'Sin estado'}</td>
-            <td data-label="Acciones">
-                <button class="edit-btn" onclick="showEditForm(${caja.id}); window.history.pushState({}, '', 'index.php?controller=cajachica&action=update&id=${caja.id}')">Editar</button>
-                <button class="delete-btn" onclick="deleteCajaChica(${caja.id})">Eliminar</button>
-            </td>
-        </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="9">No hay cajas chicas registradas.</td></tr>';
+        
+        // Guardar todos los datos
+        allCajasChicas = cajasChicas;
+        filteredCajasChicas = [...allCajasChicas];
+        
+        // Aplicar filtros y ordenamiento inicial
+        applyFiltersAndSort();
+        
+        // Inicializar buscador y ordenamiento si no se ha hecho
+        if (!window.searchInitialized) {
+            initSearchAndSort();
+            window.searchInitialized = true;
         }
+        
     } catch (error) {
         console.error('Error al cargar cajas chicas:', error.message);
         alert('No se pudo cargar la lista de cajas chicas: ' + error.message + '. Por favor, inicia sesión nuevamente.');
@@ -118,6 +113,78 @@ async function deleteCajaChica(id) {
     } catch (error) {
         console.error('Error al eliminar caja chica:', error);
         alert('No se puede eliminar la caja chica porque tiene liquidaciones asociadas');
+    }
+}
+
+function applyFiltersAndSort() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const sortValue = document.getElementById('sortSelect').value;
+    
+    // Filtrar
+    filteredCajasChicas = allCajasChicas.filter(caja => 
+        caja.nombre.toLowerCase().includes(searchTerm)
+    );
+    
+    // Ordenar
+    filteredCajasChicas.sort((a, b) => {
+        switch (sortValue) {
+            case 'nombre-asc':
+                return a.nombre.localeCompare(b.nombre);
+            case 'nombre-desc':
+                return b.nombre.localeCompare(a.nombre);
+            case 'monto-asc':
+                return parseFloat(a.monto_asignado) - parseFloat(b.monto_asignado);
+            case 'monto-desc':
+                return parseFloat(b.monto_asignado) - parseFloat(a.monto_asignado);
+            case 'estado-asc':
+                return (a.estado || '').localeCompare(b.estado || '');
+            default:
+                return 0;
+        }
+    });
+    
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.querySelector('#cajasChicasTable tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (filteredCajasChicas.length > 0) {
+        filteredCajasChicas.forEach(caja => {
+            tbody.innerHTML += `
+                <tr>
+                    <td data-label="ID">${caja.id}</td>
+                    <td data-label="Nombre">${caja.nombre}</td>
+                    <td data-label="Clientes">${caja.clientes || 'No asignado'}</td>
+                    <td data-label="Monto Asignado">${parseFloat(caja.monto_asignado).toFixed(2)}</td>
+                    <td data-label="Monto Disponible">${parseFloat(caja.monto_disponible).toFixed(2)}</td>
+                    <td data-label="Centro de Costos">${caja.centro_costo || 'No asignado'}</td>
+                    <td data-label="Estado">${caja.estado || 'Sin estado'}</td>
+                    <td data-label="Acciones">
+                        <button class="edit-btn" onclick="showEditForm(${caja.id}); window.history.pushState({}, '', 'index.php?controller=cajachica&action=update&id=${caja.id}')">Editar</button>
+                        <button class="delete-btn" onclick="deleteCajaChica(${caja.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No se encontraron cajas chicas que coincidan con la búsqueda.</td></tr>';
+    }
+}
+
+function initSearchAndSort() {
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFiltersAndSort);
+    }
+    
+    if (sortSelect) {
+        sortSelect.addEventListener('change', applyFiltersAndSort);
     }
 }
 

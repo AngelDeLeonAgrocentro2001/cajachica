@@ -235,6 +235,25 @@
     <?php if ($usuarioModel->tienePermiso($usuario, 'create_liquidaciones')): ?>
         <button onclick="showCreateForm()">Crear Caja Chica</button>
     <?php endif; ?>
+  
+<!-- Agregar buscador y controles de ordenamiento -->
+<div style="width: 90%; max-width: 1200px; margin: 0 auto 20px auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <label for="searchInput" style="font-weight: 600; color: #2c3e50;">Buscar por nombre:</label>
+        <input type="text" id="searchInput" placeholder="Escribe para buscar..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem; width: 250px;">
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <label for="sortSelect" style="font-weight: 600; color: #2c3e50;">Ordenar por:</label>
+        <select id="sortSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem;">
+            <option value="nombre-asc">Nombre (A-Z)</option>
+            <option value="nombre-desc">Nombre (Z-A)</option>
+            <option value="monto-asc">Monto Asignado (Menor a Mayor)</option>
+            <option value="monto-desc">Monto Asignado (Mayor a Menor)</option>
+            <option value="estado-asc">Estado (A-Z)</option>
+        </select>
+    </div>
+</div>
     <table id="cajasChicasTable">
         <thead>
             <tr>
