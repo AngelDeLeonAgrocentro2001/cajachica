@@ -3299,8 +3299,25 @@ public function exportar($id, $docDate = null)
                         'valid' => false,
                         'error' => $e->getMessage()
                     ];
-                    $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
-                    $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'ERROR_VALIDACION_EXPORTACION', "Error de validación: {$e->getMessage()} para factura {$noFactura}");
+                    
+                    $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
+                    $documentosParaSAP = [
+                        'FACTURA', 
+                        'FACTURA ELECTRONICA', 
+                        'FACTURA PEQUEÑO CONTRIBUYENTE',
+                        'FACTURA ELECTRONICA TIPO FACE',
+                        'FACTURA DEL EXTERIOR'
+                    ];
+                    
+                    if (in_array($tipoDocumento, $documentosParaSAP)) {
+                        // Solo documentos para SAP van a corrección si falla validación
+                        $detalleLiquidacionModel->updateEstado($dl['id'], 'EN_CORRECCION');
+                        $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'ERROR_VALIDACION_EXPORTACION', "Error de validación: {$e->getMessage()} para factura {$noFactura}");
+                    } else {
+                        // Otros documentos se marcan como finalizados incluso con errores de validación
+                        $detalleLiquidacionModel->updateEstado($dl['id'], 'FINALIZADO');
+                        $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_VALIDACION', "Documento {$tipoDocumento} finalizado sin validación completa: {$noFactura}");
+                    }
                 }
             }
         }
@@ -3689,9 +3706,29 @@ public function exportar($id, $docDate = null)
                     'filePath' => $jsonFilePath ?? null,
                     'detalle_ids' => array_column($detalles, 'id')
                 ];
+                
+                // NUEVA LÓGICA: Determinar el estado final según el tipo de documento
                 foreach ($detalles as $detalle) {
-                    $detalleLiquidacionModel->updateEstado($detalle['id'], 'EN_CORRECCION');
-                    $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'ERROR_EXPORTACION_SAP', "Error al exportar a SAP: {$e->getMessage()} para factura {$noFactura}");
+                    $tipoDocumento = strtoupper($detalle['tipo_documento'] ?? 'FACTURA');
+                    
+                    // Definir qué documentos van a SAP y cuáles no
+                    $documentosParaSAP = [
+                        'FACTURA', 
+                        'FACTURA ELECTRONICA', 
+                        'FACTURA PEQUEÑO CONTRIBUYENTE',
+                        'FACTURA ELECTRONICA TIPO FACE',
+                        'FACTURA DEL EXTERIOR'
+                    ];
+                    
+                    if (in_array($tipoDocumento, $documentosParaSAP)) {
+                        // Documentos que deben ir a SAP - si fallan, van a corrección
+                        $detalleLiquidacionModel->updateEstado($detalle['id'], 'EN_CORRECCION');
+                        $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'ERROR_EXPORTACION_SAP', "Error al exportar a SAP: {$e->getMessage()} para factura {$noFactura}");
+                    } else {
+                        // Otros documentos (recibos, etc.) - se marcan como finalizados aunque no vayan a SAP
+                        $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                        $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_SAP', "Documento {$tipoDocumento} finalizado sin exportar a SAP: {$noFactura}");
+                    }
                 }
             }
         }
