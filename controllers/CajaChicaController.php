@@ -219,7 +219,7 @@ class CajaChicaController {
     
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
-            $selectCentrosCostos .= "<option value='{$centro['id']}'>{$centro['nombre']}</option>";
+            $selectCentrosCostos .= "<option value='{$centro['id']}'>{$centro['nombre']} / {$centro['codigo']}</option>";
         }
     
         ob_start();
@@ -431,7 +431,7 @@ class CajaChicaController {
         $selectCentrosCostos = '';
         foreach ($centrosCostos as $centro) {
             $selected = $data['id_centro_costo'] == $centro['id'] ? 'selected' : '';
-            $selectCentrosCostos .= "<option value='{$centro['id']}' $selected>{$centro['nombre']}</option>";
+            $selectCentrosCostos .= "<option value='{$centro['id']}' $selected>{$centro['nombre']} / {$centro['codigo']}</option>";
         }
     
         ob_start();
