@@ -3392,8 +3392,9 @@ public function exportar($id, $docDate = null)
                     $fecha = new DateTime($dl['fecha']);
                 }
                 $fechaParaDec = clone $fecha;
-                $u_f_dec = $fechaParaDec->modify('first day of this month')->format('Y-m-d');
-                $u_f_dec_d = strtoupper($fecha->format('M-Y'));
+                $docDateObj = new DateTime($docDate);
+                $u_f_dec = $docDateObj->format('Y-m-d');
+                $u_f_dec_d = strtoupper($docDateObj->format('M-Y'));
 
                 $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
                 $tipoA = in_array($dl['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : ($dl['t_gasto'] === 'Combustible' ? 'C' : 'B');
