@@ -1,6 +1,9 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
+let allUsuarios = [];
+let filteredUsuarios = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     loadUsuarios();
 
@@ -26,28 +29,20 @@ async function loadUsuarios() {
             throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
         const usuarios = await response.json();
-        const tbody = document.querySelector('#usuariosTable tbody');
-        tbody.innerHTML = '';
-        if (usuarios.length > 0) {
-            usuarios.forEach(usuario => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td data-label="ID">${usuario.id}</td>
-                        <td data-label="Nombre">${usuario.nombre}</td>
-                        <td data-label="Email">${usuario.email}</td>
-                        <td data-label="Código">${usuario.clientes || 'No asignado'}</td>
-                        <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
-                        <td data-label="Rol">${usuario.rol}</td>
-                        <td data-label="Acciones">
-                            <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
-                            <button class="delete-btn" onclick="deleteUsuario(${usuario.id})">Eliminar</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
+        
+        // Guardar todos los datos
+        allUsuarios = usuarios;
+        filteredUsuarios = [...allUsuarios];
+        
+        // Aplicar filtros y ordenamiento inicial
+        applyFiltersAndSort();
+        
+        // Inicializar buscador y ordenamiento si no se ha hecho
+        if (!window.searchInitialized) {
+            initSearchAndSort();
+            window.searchInitialized = true;
         }
+        
         return usuarios;
     } catch (error) {
         console.error('Error al cargar usuarios:', error);
@@ -85,6 +80,89 @@ async function checkCardCodeExists(cardCode) {
     } catch (error) {
         console.error('Error al verificar CardCode:', error);
         return null;
+    }
+}
+
+// Función para aplicar búsqueda y ordenamiento
+function applyFiltersAndSort() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const sortValue = document.getElementById('sortSelect').value;
+    
+    // Filtrar
+    filteredUsuarios = allUsuarios.filter(usuario => 
+        usuario.nombre.toLowerCase().includes(searchTerm) ||
+        usuario.email.toLowerCase().includes(searchTerm) ||
+        (usuario.clientes && usuario.clientes.toLowerCase().includes(searchTerm)) ||
+        (usuario.rol && usuario.rol.toLowerCase().includes(searchTerm))
+    );
+    
+    // Ordenar
+    filteredUsuarios.sort((a, b) => {
+        switch (sortValue) {
+            case 'nombre-asc':
+                return a.nombre.localeCompare(b.nombre);
+            case 'nombre-desc':
+                return b.nombre.localeCompare(a.nombre);
+            case 'email-asc':
+                return a.email.localeCompare(b.email);
+            case 'email-desc':
+                return b.email.localeCompare(a.email);
+            case 'rol-asc':
+                return (a.rol || '').localeCompare(b.rol || '');
+            case 'rol-desc':
+                return (b.rol || '').localeCompare(a.rol || '');
+            case 'id-asc':
+                return a.id - b.id;
+            case 'id-desc':
+                return b.id - a.id;
+            default:
+                return 0;
+        }
+    });
+    
+    renderTable();
+}
+
+// Función para renderizar la tabla con los datos filtrados y ordenados
+function renderTable() {
+    const tbody = document.querySelector('#usuariosTable tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (filteredUsuarios.length > 0) {
+        filteredUsuarios.forEach(usuario => {
+            tbody.innerHTML += `
+                <tr>
+                    <td data-label="ID">${usuario.id}</td>
+                    <td data-label="Nombre">${usuario.nombre}</td>
+                    <td data-label="Email">${usuario.email}</td>
+                    <td data-label="Código">${usuario.clientes || 'No asignado'}</td>
+                    <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
+                    <td data-label="Rol">${usuario.rol}</td>
+                    <td data-label="Acciones">
+                        <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
+                        <button class="delete-btn" onclick="deleteUsuario(${usuario.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No se encontraron usuarios que coincidan con la búsqueda.</td></tr>';
+    }
+}
+
+// Función para inicializar los event listeners del buscador y ordenamiento
+function initSearchAndSort() {
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFiltersAndSort);
+    }
+    
+    if (sortSelect) {
+        sortSelect.addEventListener('change', applyFiltersAndSort);
     }
 }
 

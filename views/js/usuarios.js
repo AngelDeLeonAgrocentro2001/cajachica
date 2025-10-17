@@ -1,6 +1,9 @@
 const modal = document.querySelector('#modal');
 const modalForm = document.querySelector('#modalForm');
 
+let allUsuarios = [];
+let filteredUsuarios = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     loadUsuarios();
 
@@ -26,32 +29,24 @@ async function loadUsuarios() {
             throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Error desconocido'}`);
         }
         const usuarios = await response.json();
-        const tbody = document.querySelector('#usuariosTable tbody');
-        tbody.innerHTML = '';
-        if (usuarios.length > 0) {
-            usuarios.forEach(usuario => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td data-label="ID">${usuario.id}</td>
-                        <td data-label="Nombre">${usuario.nombre}</td>
-                        <td data-label="Email">${usuario.email}</td>
-                        <td data-label="CÃ³digo">${usuario.clientes || 'No asignado'}</td>
-                        <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
-                        <td data-label="Rol">${usuario.rol}</td>
-                        <td data-label="Acciones">
-                            <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
-                            <button class="delete-btn" onclick="deleteUsuario(${usuario.id})">Eliminar</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
+        
+        // Guardar todos los datos
+        allUsuarios = usuarios;
+        filteredUsuarios = [...allUsuarios];
+        
+        // Aplicar filtros y ordenamiento inicial
+        applyFiltersAndSort();
+        
+        // Inicializar buscador y ordenamiento si no se ha hecho
+        if (!window.searchInitialized) {
+            initSearchAndSort();
+            window.searchInitialized = true;
         }
+        
         return usuarios;
     } catch (error) {
         console.error('Error al cargar usuarios:', error);
-        alert('No se pudo cargar la lista de usuarios. Por favor, inicia sesiÃ³n nuevamente.');
+        alert('No se pudo cargar la lista de usuarios. Por favor, inicia sesión nuevamente.');
         window.location.href = 'index.php?controller=login&action=login';
     }
 }
@@ -69,7 +64,7 @@ async function checkEmailExists(email, excludeId = null) {
 
 async function checkCardCodeExists(cardCode) {
     if (!cardCode) {
-        return { exists: true }; // Si no se proporciona card_code, se considera vÃ¡lido
+        return { exists: true }; // Si no se proporciona card_code, se considera válido
     }
     try {
         const response = await fetch(`index.php?controller=usuario&action=checkCardCode&card_code=${encodeURIComponent(cardCode)}`, {
@@ -78,13 +73,96 @@ async function checkCardCodeExists(cardCode) {
             }
         });
         if (!response.ok) {
-            throw new Error('Error al verificar el cÃ³digo');
+            throw new Error('Error al verificar el código');
         }
         const result = await response.json();
         return result;
     } catch (error) {
         console.error('Error al verificar CardCode:', error);
         return null;
+    }
+}
+
+// Función para aplicar búsqueda y ordenamiento
+function applyFiltersAndSort() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const sortValue = document.getElementById('sortSelect').value;
+    
+    // Filtrar
+    filteredUsuarios = allUsuarios.filter(usuario => 
+        usuario.nombre.toLowerCase().includes(searchTerm) ||
+        usuario.email.toLowerCase().includes(searchTerm) ||
+        (usuario.clientes && usuario.clientes.toLowerCase().includes(searchTerm)) ||
+        (usuario.rol && usuario.rol.toLowerCase().includes(searchTerm))
+    );
+    
+    // Ordenar
+    filteredUsuarios.sort((a, b) => {
+        switch (sortValue) {
+            case 'nombre-asc':
+                return a.nombre.localeCompare(b.nombre);
+            case 'nombre-desc':
+                return b.nombre.localeCompare(a.nombre);
+            case 'email-asc':
+                return a.email.localeCompare(b.email);
+            case 'email-desc':
+                return b.email.localeCompare(a.email);
+            case 'rol-asc':
+                return (a.rol || '').localeCompare(b.rol || '');
+            case 'rol-desc':
+                return (b.rol || '').localeCompare(a.rol || '');
+            case 'id-asc':
+                return a.id - b.id;
+            case 'id-desc':
+                return b.id - a.id;
+            default:
+                return 0;
+        }
+    });
+    
+    renderTable();
+}
+
+// Función para renderizar la tabla con los datos filtrados y ordenados
+function renderTable() {
+    const tbody = document.querySelector('#usuariosTable tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (filteredUsuarios.length > 0) {
+        filteredUsuarios.forEach(usuario => {
+            tbody.innerHTML += `
+                <tr>
+                    <td data-label="ID">${usuario.id}</td>
+                    <td data-label="Nombre">${usuario.nombre}</td>
+                    <td data-label="Email">${usuario.email}</td>
+                    <td data-label="Código">${usuario.clientes || 'No asignado'}</td>
+                    <td data-label="Caja Chica">${usuario.nombre_caja_chica || 'No asignada'}</td>
+                    <td data-label="Rol">${usuario.rol}</td>
+                    <td data-label="Acciones">
+                        <button class="edit-btn" onclick="showEditForm(${usuario.id}); window.history.pushState({}, '', 'index.php?controller=usuario&action=update&id=${usuario.id}')">Editar</button>
+                        <button class="delete-btn" onclick="deleteUsuario(${usuario.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No se encontraron usuarios que coincidan con la búsqueda.</td></tr>';
+    }
+}
+
+// Función para inicializar los event listeners del buscador y ordenamiento
+function initSearchAndSort() {
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFiltersAndSort);
+    }
+    
+    if (sortSelect) {
+        sortSelect.addEventListener('change', applyFiltersAndSort);
     }
 }
 
@@ -102,7 +180,7 @@ async function createUsuario(data) {
             const errorData = JSON.parse(text);
             throw new Error(errorData.error || text);
         } catch (parseError) {
-            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
     }
     return response.json();
@@ -122,14 +200,14 @@ async function updateUsuario(id, data) {
             const errorData = JSON.parse(text);
             throw new Error(errorData.error || text);
         } catch (parseError) {
-            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
     }
     return response.json();
 }
 
 async function deleteUsuario(id) {
-    if (!confirm('Â¿EstÃ¡s seguro de que deseas eliminar este usuario?')) return;
+    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
 
     try {
         const response = await fetch(`index.php?controller=usuario&action=delete&id=${id}`, {
@@ -143,7 +221,7 @@ async function deleteUsuario(id) {
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             console.error('Respuesta del servidor no es JSON:', text);
-            throw new Error(`Respuesta no es JSON vÃ¡lida: ${text}`);
+            throw new Error(`Respuesta no es JSON válida: ${text}`);
         }
 
         const result = await response.json();
@@ -171,7 +249,7 @@ function closeModal() {
 async function showCreateForm() {
     if (!modal || !modalForm) {
         console.error('Modal o modalForm no encontrados en el DOM');
-        alert('Error: No se encontrÃ³ el contenedor del formulario. Intenta de nuevo.');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
@@ -187,7 +265,7 @@ async function showCreateForm() {
         }
         const html = await response.text();
         if (!html.includes('<form')) {
-            throw new Error('El servidor no devolviÃ³ un formulario vÃ¡lido');
+            throw new Error('El servidor no devolvió un formulario válido');
         }
         modalForm.innerHTML = html;
         modal.classList.add('active');
@@ -202,7 +280,7 @@ async function showCreateForm() {
 async function showEditForm(id) {
     if (!modal || !modalForm) {
         console.error('Modal o modalForm no encontrados en el DOM');
-        alert('Error: No se encontrÃ³ el contenedor del formulario. Intenta de nuevo.');
+        alert('Error: No se encontró el contenedor del formulario. Intenta de nuevo.');
         return;
     }
 
@@ -218,7 +296,7 @@ async function showEditForm(id) {
         }
         const html = await response.text();
         if (!html.includes('<form')) {
-            throw new Error('El servidor no devolviÃ³ un formulario vÃ¡lido');
+            throw new Error('El servidor no devolvió un formulario válido');
         }
         modalForm.innerHTML = html;
         modal.classList.add('active');
@@ -233,7 +311,7 @@ async function showEditForm(id) {
 function addValidations(id = null) {
     const form = document.querySelector('#modalForm #usuarioFormInner');
     if (!form) {
-        console.error('No se encontrÃ³ un elemento <form> con id="usuarioFormInner" dentro de #modalForm');
+        console.error('No se encontró un elemento <form> con id="usuarioFormInner" dentro de #modalForm');
         return;
     }
 
@@ -271,7 +349,7 @@ function addValidations(id = null) {
                     e.target.classList.remove('invalid');
                     nombreInput.value = result.CardName || '';
                 } else {
-                    errorElement.textContent = 'CÃ³digo no encontrado en la tabla de cÃ³digos.';
+                    errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     nombreInput.value = '';
@@ -317,14 +395,14 @@ function addValidations(id = null) {
             if (fieldName === 'email') {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(value)) {
-                    errorElement.textContent = 'Por favor, ingresa un email vÃ¡lido.';
+                    errorElement.textContent = 'Por favor, ingresa un email válido.';
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
                 }
                 const emailExists = await checkEmailExists(value, id);
                 if (emailExists) {
-                    errorElement.textContent = `El email "${value}" ya estÃ¡ registrado. Por favor, usa un email diferente.`;
+                    errorElement.textContent = `El email "${value}" ya está registrado. Por favor, usa un email diferente.`;
                     errorElement.style.display = 'block';
                     e.target.classList.add('invalid');
                     return false;
@@ -352,7 +430,7 @@ function addValidations(id = null) {
                 cardCodeInput.parentNode.appendChild(errorElement);
             }
             if (!result || !result.exists) {
-                errorElement.textContent = 'CÃ³digo no encontrado en la tabla de cÃ³digos.';
+                errorElement.textContent = 'Código no encontrado en la tabla de códigos.';
                 errorElement.style.display = 'block';
                 cardCodeInput.classList.add('invalid');
                 isValid = false;
@@ -369,7 +447,7 @@ function addValidations(id = null) {
             try {
                 const action = formId ? updateUsuario(formId, formData) : createUsuario(formData);
                 const result = await action;
-                alert(result.message || 'OperaciÃ³n exitosa');
+                alert(result.message || 'Operación exitosa');
                 closeModal();
                 loadUsuarios();
             } catch (error) {
