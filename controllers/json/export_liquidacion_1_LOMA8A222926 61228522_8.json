@@ -1,0 +1,34 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-12",
+    "DocDueDate": "2025-10-01",
+    "Comments": "fff",
+    "JournalMemo": "fff",
+    "U_NIT": "67069843",
+    "U_NOMBRE": "OIL'S MK, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 257,
+    "TotalDiscount": 0,
+    "Reference1": "1-LOMA8A222926 61228522",
+    "NumAtCard": "LOMA8A222926 61228522",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "otros... - fff",
+            "PriceAfterVAT": 257,
+            "TaxCode": "IVA",
+            "CostingCode": "D28",
+            "AccountCode": "640101010",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

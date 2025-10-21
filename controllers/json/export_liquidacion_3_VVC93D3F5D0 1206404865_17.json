@@ -1,0 +1,34 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-08",
+    "DocDueDate": "2025-10-01",
+    "Comments": "Sin comentarios",
+    "JournalMemo": "Sin comentarios",
+    "U_NIT": "109705157",
+    "U_NOMBRE": "ALIMIENTOS PREMIER, SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 125,
+    "TotalDiscount": 0,
+    "Reference1": "3-VVC93D3F5D0 1206404865",
+    "NumAtCard": "VVC93D3F5D0 1206404865",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "PriceAfterVAT": 125,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

@@ -1,0 +1,44 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-07",
+    "DocDueDate": "2025-10-01",
+    "Comments": "ddd",
+    "JournalMemo": "ddd",
+    "U_NIT": "70610983",
+    "U_NOMBRE": "INVERSIONES SUTILES, S.A.",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 78,
+    "TotalDiscount": 0,
+    "Reference1": "1-LoMA55F00587 1949322507",
+    "NumAtCard": "LoMA55F00587 1949322507",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible - ddd",
+            "PriceAfterVAT": 68.2,
+            "TaxCode": "IVA",
+            "CostingCode2": "T521",
+            "AccountCode": "621101001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "C"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "PriceAfterVAT": 9.8,
+            "TaxCode": "EXE",
+            "CostingCode2": "T521",
+            "AccountCode": "621001001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "P"
+        }
+    ]
+}

@@ -1,0 +1,44 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-07",
+    "DocDueDate": "2025-10-01",
+    "Comments": "comentario",
+    "JournalMemo": "comentario",
+    "U_NIT": "70610983",
+    "U_NOMBRE": "INVERSIONES SUTILES, S.A.",
+    "U_F_Tipo": "FN",
+    "Series": 82,
+    "DocTotal": 54,
+    "TotalDiscount": 0,
+    "Reference1": "1-LOMAA1680F8A 1180585353",
+    "NumAtCard": "LOMAA1680F8A 1180585353",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Hospedaje - comentario",
+            "PriceAfterVAT": 49.57,
+            "TaxCode": "IVA",
+            "CostingCode2": "T40",
+            "AccountCode": "611501001",
+            "U_TipoDoc": "FC",
+            "U_TipoA": "S"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "INGUAT",
+            "PriceAfterVAT": 4.43,
+            "TaxCode": "EXE",
+            "CostingCode2": "T40",
+            "AccountCode": "611001003",
+            "U_TipoDoc": "FC",
+            "U_TipoA": "H"
+        }
+    ]
+}

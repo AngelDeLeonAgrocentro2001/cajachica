@@ -1,0 +1,34 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-27",
+    "DocDueDate": "2025-10-01",
+    "Comments": "Sin comentarios",
+    "JournalMemo": "Sin comentarios",
+    "U_NIT": "59671025",
+    "U_NOMBRE": "JULIO ANTONIO , ORDOÑEZ PAREDES",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 70,
+    "TotalDiscount": 0,
+    "Reference1": "3-XXWEC2CF238F9 4188881150",
+    "NumAtCard": "XXWEC2CF238F9 4188881150",
+    "U_F_DEC": "2025-10-01",
+    "U_F_DEC_D": "OCT-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos",
+            "PriceAfterVAT": 70,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

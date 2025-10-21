@@ -1,0 +1,44 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHA0010",
+    "U_CODIGO": "CCHA0010",
+    "DocDate": "2025-10-01",
+    "TaxDate": "2025-08-06",
+    "DocDueDate": "2025-10-01",
+    "Comments": "ALIMENTOS2qq",
+    "JournalMemo": "ALIMENTOS2qq",
+    "U_NIT": "115270140",
+    "U_NOMBRE": "ANCONA, SOCIEDAD ANÓNIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 200,
+    "TotalDiscount": 0,
+    "Reference1": "1-LomaF9D76922 4147858734",
+    "NumAtCard": "LomaF9D76922 4147858734",
+    "U_F_DEC": "2025-08-01",
+    "U_F_DEC_D": "AUG-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos - ALIMENTOS2qq",
+            "PriceAfterVAT": 190,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "Propina",
+            "PriceAfterVAT": 10,
+            "TaxCode": "EXE",
+            "CostingCode": "D20",
+            "AccountCode": "641401009",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "E"
+        }
+    ]
+}

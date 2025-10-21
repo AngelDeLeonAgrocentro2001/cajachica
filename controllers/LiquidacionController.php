@@ -3393,7 +3393,8 @@ public function exportar($id, $docDate = null)
                 }
                 $fechaParaDec = clone $fecha;
                 $docDateObj = new DateTime($docDate);
-                $u_f_dec = $docDateObj->format('Y-m-d');
+                $primerDiaMesActual = (new DateTime())->modify('first day of this month')->format('Y-m-d');
+                $u_f_dec = $primerDiaMesActual;
                 $u_f_dec_d = strtoupper($docDateObj->format('M-Y'));
 
                 $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
