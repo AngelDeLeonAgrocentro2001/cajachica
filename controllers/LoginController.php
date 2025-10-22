@@ -74,96 +74,27 @@ class LoginController {
     }
 
     public function resetPassword() {
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-            require '../views/login/reset.html';
-        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-            if (!$email) {
-                header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
-                exit;
-            }
-        
-            $user = $this->usuario->getUsuarioByEmail($email);
-            if ($user) {
-                $token = bin2hex(random_bytes(32));
-                
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                
-                $_SESSION['reset_token'][$email] = $token;
-                $_SESSION['reset_token_expiry'][$email] = time() + 3600;
-                
-                error_log("=== INICIO ENVÍO EMAIL ===");
-                error_log("Token generado para $email: $token");
-    
-                $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
-                
-                $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
-                $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
-                $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
-    
-                error_log("Creando instancia PHPMailer");
-                $mail = new PHPMailer(true);
-                
-                // DEBUG mínimo pero suficiente
-                $mail->SMTPDebug = 2; // Nivel 2 para ver conexión básica
-                $mail->Debugoutput = function($str, $level) {
-                    error_log("PHPMailer Debug [Nivel $level]: $str");
-                };
-                
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = $_POST['email'] ?? '';
+            
+            error_log("=== PRUEBA DIRECTA ===");
+            error_log("Email recibido: " . $email);
+            
+            // Simplemente probar si el código llega aquí
+            error_log("Llegó al método resetPassword POST");
+            
+            // Forzar un error de prueba
             try {
-                error_log("Configurando SMTP...");
-                
-                // PRIMERO probemos con Office365 que sabemos funciona
-                $mail->isSMTP();
-                $mail->Host = 'smtp.office365.com';
-                $mail->SMTPAuth = true;
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                $mail->Port = 587;
-                $mail->Username = 'angel.deleon@agrocentro.com';
-                $mail->Password = 'byvdynlmzjlpvncv';
-                $mail->CharSet = 'UTF-8';
-                $mail->Timeout = 30;
-    
-                error_log("Configurando remitente...");
-                $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
-                $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
-    
-                error_log("Agregando destinatario: $email");
-                $mail->addAddress($email, $user['nombre'] ?? '');
-    
-                $mail->isHTML(true);
-                $mail->Subject = $Asunto;
-                $mail->Body = $Mensaje;
-                $mail->AltBody = $MensajeAlterno;
-    
-                error_log("Intentando enviar email...");
-                
-                if ($mail->send()) {
-                    error_log("*** EMAIL ENVIADO EXITOSAMENTE ***");
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } else {
-                    error_log("*** ERROR: send() retornó false ***");
-                    throw new Exception('send() retornó false');
-                }
+                throw new Exception("Esta es una prueba de error");
             } catch (Exception $e) {
-                error_log("*** EXCEPCIÓN CAPTURADA ***");
-                error_log("Mensaje de excepción: " . $e->getMessage());
-                error_log("ErrorInfo de PHPMailer: " . $mail->ErrorInfo);
-                error_log("Archivo: " . $e->getFile());
-                error_log("Línea: " . $e->getLine());
-                error_log("Trace: " . $e->getTraceAsString());
-                
-                header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+                error_log("Prueba de error funcionando: " . $e->getMessage());
             }
-    
-            } else {
-                error_log("Email no encontrado: $email");
-                header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
-            }
+            
+            header('Location: index.php?controller=login&action=resetPassword&error=Prueba de error');
             exit;
         }
+        
+        require '../views/login/reset.html';
     }
 
     public function resetConfirm() {
