@@ -2786,6 +2786,10 @@ async function updateCuentaContableOptions() {
       );
     }
 
+    // ORDENAR ALFABÉTICAMENTE las cuentas filtradas
+    cuentasFiltradas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    cuentasPropinaFiltradas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
     // Llenar el select principal de cuentas contables
     cuentasFiltradas.forEach(cuenta => {
       const option = document.createElement('option');
