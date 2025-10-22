@@ -162,31 +162,28 @@ class LoginController {
         $token = $_GET['token'] ?? '';
         $email = $_GET['email'] ?? '';
     
-        error_log("Validando token para: $email");
-        error_log("Token recibido: $token");
-        error_log("Token en sesión: " . ($_SESSION['reset_token'][$email] ?? 'NO ENCONTRADO'));
-    
-        // SOLUCIÓN TEMPORAL: Validación simplificada sin verificación de tiempo
+        // Validación básica
         if (!$token || !$email) {
-            error_log("Token o email vacíos");
             header('Location: index.php?controller=login&action=resetPassword&error=Token o email inválido');
             exit;
         }
     
         if (!isset($_SESSION['reset_token'][$email]) || $_SESSION['reset_token'][$email] !== $token) {
-            error_log("Token no coincide o no existe");
             header('Location: index.php?controller=login&action=resetPassword&error=Token inválido o expirado');
             exit;
         }
     
-        // TEMPORAL: No validamos expiración hasta que el servidor tenga fecha correcta
-        error_log("ADVERTENCIA: Validación de tiempo desactivada por problema de fecha del servidor");
+        // Validación de expiración (ahora funciona correctamente)
+        $expiryTime = $_SESSION['reset_token_expiry'][$email] ?? 0;
+        if (time() > $expiryTime) {
+            header('Location: index.php?controller=login&action=resetPassword&error=El enlace ha expirado. Por favor solicita uno nuevo.');
+            exit;
+        }
     
+        // Resto del código para el formulario...
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['password'] ?? '';
             $newPassword = trim($newPassword);
-            
-            error_log("Nueva contraseña recibida para $email: " . strlen($newPassword) . " caracteres");
     
             if (strlen($newPassword) < 6) {
                 header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=La contraseña debe tener al menos 6 caracteres');
@@ -196,24 +193,18 @@ class LoginController {
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                error_log("Hash generado para $email");
-                
                 $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
                 
                 if ($result) {
-                    error_log("Contraseña actualizada correctamente para $email");
-                    
                     // Limpiar tokens
                     unset($_SESSION['reset_token'][$email]);
                     unset($_SESSION['reset_token_expiry'][$email]);
                     
                     header('Location: index.php?controller=login&action=login&success=Contraseña restablecida con éxito');
                 } else {
-                    error_log("Error en updateUsuario para $email");
                     header('Location: index.php?controller=login&action=resetPassword&error=Error al actualizar la contraseña');
                 }
             } else {
-                error_log("Usuario no encontrado para email: $email");
                 header('Location: index.php?controller=login&action=resetPassword&error=Usuario no encontrado');
             }
             exit;
