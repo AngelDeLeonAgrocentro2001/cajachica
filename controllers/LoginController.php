@@ -89,9 +89,7 @@ class LoginController {
                 $_SESSION['reset_token'][$email] = $token;
                 $_SESSION['reset_token_expiry'][$email] = time() + 3600;
     
-                // Configuración de correo basada en SendEmail que funciona
-                $cuentaRemitente = 'angel.deleon@agrocentro.com';
-                $PassCuentaRemitente = 'byvdynlmzjlpvncv';
+                // Configuración de correo con Mailtrap
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
                 
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
@@ -101,22 +99,22 @@ class LoginController {
                 $mail = new PHPMailer(true);
                 $mail->SMTPDebug = 0;
                 $mail->Debugoutput = 'error_log';
+                
             try {
+                // Configuración Mailtrap
                 $mail->isSMTP();
-                $mail->Host = 'smtp.office365.com';
+                $mail->Host = 'live.smtp.mailtrap.io';
                 $mail->SMTPAuth = true;
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->Port = 587;
+                $mail->Username = 'smtp@mailtrap.io';
+                $mail->Password = '5c69539451340b69f51743ebd47893bb';
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->CharSet = 'UTF-8';
                 $mail->Timeout = 60;
 
-                // Credenciales correctas (usuario real de Office365)
-                $mail->Username = $cuentaRemitente; // angel.deleon@agrocentro.com
-                $mail->Password = $PassCuentaRemitente;
-
-                // Remitente debe coincidir con la cuenta autenticada
-                $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
-                $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
+                // Configuración del remitente (puedes usar un email de tu dominio verificado en Mailtrap)
+                $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+                $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
 
                 // Destinatario = usuario que pidió reset
                 $mail->addAddress($email, $user['nombre'] ?? '');
