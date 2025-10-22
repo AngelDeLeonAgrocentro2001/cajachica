@@ -82,24 +82,20 @@ class LoginController {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
                 exit;
             }
-    
+        
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $token = bin2hex(random_bytes(32));
                 
-                // CORRECCIÓN: Asegurar que la sesión esté iniciada
                 if (session_status() === PHP_SESSION_NONE) {
                     session_start();
                 }
                 
-                // CORRECCIÓN: Timestamp correcto (1 hora en el futuro)
                 $_SESSION['reset_token'][$email] = $token;
-                $_SESSION['reset_token_expiry'][$email] = time() + 3600; // 1 hora
+                $_SESSION['reset_token_expiry'][$email] = time() + 3600;
                 
                 error_log("Token generado para $email: $token");
-                error_log("Expira en: " . date('Y-m-d H:i:s', $_SESSION['reset_token_expiry'][$email]));
     
-                // Configuración de correo con Mailtrap
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
                 
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
@@ -107,7 +103,9 @@ class LoginController {
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
     
                 $mail = new PHPMailer(true);
-                $mail->SMTPDebug = 0;
+                
+                // HABILITAR DEBUG DETALLADO
+                $mail->SMTPDebug = SMTP::DEBUG_SERVER; // Cambiar a DEBUG_SERVER para ver detalles
                 $mail->Debugoutput = 'error_log';
                 
             try {
@@ -120,9 +118,9 @@ class LoginController {
                 $mail->Password = '5c69539451340b69f51743ebd47893bb';
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->CharSet = 'UTF-8';
-                $mail->Timeout = 60;
+                $mail->Timeout = 30;
     
-                // Configuración del remitente
+                // Configuración del remitente - usar un email verificado en Mailtrap
                 $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
                 $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
     
@@ -134,15 +132,21 @@ class LoginController {
                 $mail->Body = $Mensaje;
                 $mail->AltBody = $MensajeAlterno;
     
+                error_log("Intentando enviar email a: $email");
+                
                 if ($mail->send()) {
                     error_log("Email enviado exitosamente a: $email");
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } else {
-                    throw new Exception('Error al enviar email');
+                    error_log("Error en send() pero sin excepción");
+                    throw new Exception('Error al enviar email - send() retornó false');
                 }
             } catch (Exception $e) {
-                error_log("Error PHPMailer para $email: " . $mail->ErrorInfo);
-                error_log("Exception: " . $e->getMessage());
+                error_log("ERROR CRÍTICO PHPMailer:");
+                error_log("Mensaje: " . $e->getMessage());
+                error_log("ErrorInfo: " . $mail->ErrorInfo);
+                error_log("Host: " . $mail->Host);
+                error_log("Port: " . $mail->Port);
                 header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
             }
     
