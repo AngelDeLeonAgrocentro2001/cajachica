@@ -74,27 +74,96 @@ class LoginController {
     }
 
     public function resetPassword() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = $_POST['email'] ?? '';
-            
-            error_log("=== PRUEBA DIRECTA ===");
-            error_log("Email recibido: " . $email);
-            
-            // Simplemente probar si el código llega aquí
-            error_log("Llegó al método resetPassword POST");
-            
-            // Forzar un error de prueba
-            try {
-                throw new Exception("Esta es una prueba de error");
-            } catch (Exception $e) {
-                error_log("Prueba de error funcionando: " . $e->getMessage());
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            require '../views/login/reset.html';
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+            if (!$email) {
+                header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
+                exit;
             }
-            
-            header('Location: index.php?controller=login&action=resetPassword&error=Prueba de error');
+        
+            $user = $this->usuario->getUsuarioByEmail($email);
+            if ($user) {
+                $token = bin2hex(random_bytes(32));
+                
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                }
+                
+                $_SESSION['reset_token'][$email] = $token;
+                $_SESSION['reset_token_expiry'][$email] = time() + 3600;
+                
+                error_log("=== PRUEBA PHPMailer SIMPLIFICADA ===");
+    
+                $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
+                $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
+                $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
+    
+                try {
+                    error_log("1. Creando PHPMailer...");
+                    $mail = new PHPMailer(true);
+                    error_log("✓ PHPMailer creado");
+    
+                    // CONFIGURACIÓN MÍNIMA
+                    $mail->isSMTP();
+                    $mail->Host = 'smtp.office365.com';
+                    $mail->SMTPAuth = true;
+                    $mail->Username = 'angel.deleon@agrocentro.com';
+                    $mail->Password = 'byvdynlmzjlpvncv';
+                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                    $mail->Port = 587;
+                    
+                    error_log("✓ Configuración básica aplicada");
+    
+                    $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
+                    $mail->addAddress($email);
+                    
+                    error_log("✓ From y To configurados");
+    
+                    $mail->Subject = $Asunto;
+                    $mail->Body = $Mensaje;
+                    $mail->isHTML(true);
+                    
+                    error_log("✓ Contenido configurado");
+                    error_log("2. Intentando enviar...");
+    
+                    if ($mail->send()) {
+                        error_log("*** ✓ EMAIL ENVIADO ***");
+                        header('Location: index.php?controller=login&action=resetPassword&success=1');
+                    } else {
+                        error_log("*** ✗ send() = false ***");
+                        throw new Exception('Send returned false');
+                    }
+                    
+                } catch (Exception $e) {
+                    error_log("*** ✗ ERROR PHPMailer ***");
+                    error_log("Exception: " . $e->getMessage());
+                    if (isset($mail)) {
+                        error_log("ErrorInfo: " . $mail->ErrorInfo);
+                    }
+                    
+                    // FALLBACK: Usar la función mail() nativa de PHP como respaldo
+                    error_log("3. Intentando con mail() nativo...");
+                    $headers = "From: angel.deleon@agrocentro.com\r\n";
+                    $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
+                    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+                    
+                    if (mail($email, $Asunto, $Mensaje, $headers)) {
+                        error_log("*** ✓ EMAIL ENVIADO CON mail() NATIVO ***");
+                        header('Location: index.php?controller=login&action=resetPassword&success=1');
+                    } else {
+                        error_log("*** ✗ mail() también falló ***");
+                        header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+                    }
+                }
+    
+            } else {
+                error_log("Email no encontrado: $email");
+                header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
+            }
             exit;
         }
-        
-        require '../views/login/reset.html';
     }
 
     public function resetConfirm() {
