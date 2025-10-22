@@ -3146,11 +3146,11 @@ public function exportar($id, $docDate = null)
                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
                     if ($result && !empty($result['TipoDoc'])) {
                         $tipoDocForLines = $result['TipoDoc'];
-                        $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? $tipoDocMap[strtoupper($dl['tipo_documento'])] ?? '';
+                        $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? $tipoDocMap[mb_strtoupper($dl['tipo_documento'], 'UTF-8')] ?? '';
                         error_log("TipoDoc encontrado para tipo_documento {$dl['tipo_documento']}: $tipoDocForLines (U_F_Tipo: $tipoDocForUF)");
                     } else {
-                        $tipoDocForLines = strtoupper($dl['tipo_documento']);
-                        $tipoDocForUF = $tipoDocMap[strtoupper($dl['tipo_documento'])] ?? '';
+                        $tipoDocForLines = mb_strtoupper($dl['tipo_documento'], 'UTF-8');
+                        $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? '';
                         error_log("No se encontró TipoDoc para tipo_documento {$dl['tipo_documento']}, usando valor mapeado: U_TipoDoc=$tipoDocForLines, U_F_Tipo=$tipoDocForUF");
                     }
 
@@ -3172,7 +3172,7 @@ public function exportar($id, $docDate = null)
                     $docTotal += floatval($detalle['total_factura']);
                 }
                 error_log("DocTotal calculado para factura {$noFactura}: {$docTotal} (suma de " . count($detalles) . " detalles)");
-                $tipoDocumento = strtoupper($detalles[0]['tipo_documento'] ?? 'FACTURA');
+                $tipoDocumento = mb_strtoupper($detalles[0]['tipo_documento'] ?? 'FACTURA', 'UTF-8');
                 $tipoA = in_array($detalles[0]['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : ($detalles[0]['t_gasto'] === 'Combustible' ? 'C' : 'B');
                 
                 foreach ($detalles as $dl) {
@@ -3198,7 +3198,7 @@ public function exportar($id, $docDate = null)
                         // LÍNEA PRINCIPAL - Para FACTURA PEQUEÑO CONTRIBUYENTE usar EXE, para otras IVA
                          if ($subtotal > 0) {
                              if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
-                                 // Para pequeño contribuyente: solo subtotal con EXE
+                                 $itemDescription .= " (FACTURA PEQUEÑO CONTRIBUYENTE)";
                                  $documentLines[] = [
                                      "LineType" => count($documentLines),
                                      "ItemDescription" => $itemDescription,
@@ -3211,7 +3211,6 @@ public function exportar($id, $docDate = null)
                                  ];
                                  error_log("Agregada línea principal PEQUEÑO CONTRIBUYENTE: $itemDescription, PriceAfterVAT: $subtotal, TaxCode: EXE");
                              } else {
-                                 // Para facturas normales: subtotal + IVA con IVA
                                  $documentLines[] = [
                                      "LineType" => count($documentLines),
                                      "ItemDescription" => $itemDescription,
@@ -3300,7 +3299,7 @@ public function exportar($id, $docDate = null)
                         'error' => $e->getMessage()
                     ];
                     
-                    $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
+                    $tipoDocumento = mb_strtoupper($dl['tipo_documento'] ?? 'FACTURA', 'UTF-8');
                     $documentosParaSAP = [
                         'FACTURA', 
                         'FACTURA ELECTRONICA', 
@@ -3385,7 +3384,10 @@ public function exportar($id, $docDate = null)
                  }
                 $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
                 $documentLines = [];
-                $docTotal = floatval($dl['total_factura']);
+                $docTotal = 0;
+                foreach ($detalles as $detalle) {
+                    $docTotal += floatval($detalle['total_factura']);
+                }
 
                 if (empty($dl['fecha']) || !strtotime($dl['fecha'])) {
                     error_log("Fecha inválida para factura {$noFactura}: {$dl['fecha']}, usando fecha actual");
@@ -3398,7 +3400,7 @@ public function exportar($id, $docDate = null)
                 $u_f_dec = $docDateObj->format('Y-m-d');
                 $u_f_dec_d = strtoupper($docDateObj->format('M-Y'));
 
-                $tipoDocumento = strtoupper($dl['tipo_documento'] ?? 'FACTURA');
+                $tipoDocumento = mb_strtoupper($dl['tipo_documento'] ?? 'FACTURA', 'UTF-8');
                 $tipoA = in_array($dl['t_gasto'], ['Gasto Operativo', 'Hospedaje']) ? 'S' : ($dl['t_gasto'] === 'Combustible' ? 'C' : 'B');
                 $tipoDocForUF = '';
                 $tipoDocForLines = '';
@@ -3407,10 +3409,10 @@ public function exportar($id, $docDate = null)
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($result && !empty($result['TipoDoc'])) {
                     $tipoDocForLines = $result['TipoDoc'];
-                    $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? $tipoDocMap[strtoupper($dl['tipo_documento'])] ?? '';
+                    $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? $tipoDocMap[mb_strtoupper($dl['tipo_documento'], 'UTF-8')] ?? '';
                 } else {
-                    $tipoDocForLines = strtoupper($dl['tipo_documento']);
-                    $tipoDocForUF = $tipoDocMap[strtoupper($dl['tipo_documento'])] ?? '';
+                    $tipoDocForLines = mb_strtoupper($dl['tipo_documento'], 'UTF-8');
+                    $tipoDocForUF = $tipoDocMap[$tipoDocForLines] ?? '';
                 }
 
                 // Busca todas las instancias donde se construyen las líneas del documento
@@ -3445,6 +3447,7 @@ public function exportar($id, $docDate = null)
         // LÍNEA PRINCIPAL
         if ($subtotal > 0) {
             if ($tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+                $itemDescription .= " (FACTURA PEQUEÑO CONTRIBUYENTE)";
                 $documentLines[] = [
                     "LineType" => count($documentLines),
                     "ItemDescription" => $itemDescription,
@@ -3710,7 +3713,7 @@ public function exportar($id, $docDate = null)
                 
                 // NUEVA LÓGICA: Determinar el estado final según el tipo de documento
                 foreach ($detalles as $detalle) {
-                    $tipoDocumento = strtoupper($detalle['tipo_documento'] ?? 'FACTURA');
+                    $tipoDocumento = mb_strtoupper($detalle['tipo_documento'] ?? 'FACTURA', 'UTF-8');
                     
                     // Definir qué documentos van a SAP y cuáles no
                     $documentosParaSAP = [
