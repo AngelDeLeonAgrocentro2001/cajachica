@@ -82,61 +82,116 @@ class LoginController {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
                 exit;
             }
-    
+        
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $token = bin2hex(random_bytes(32));
+                
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                }
+                
                 $_SESSION['reset_token'][$email] = $token;
                 $_SESSION['reset_token_expiry'][$email] = time() + 3600;
-    
-                // Configuración de correo basada en SendEmail que funciona
-                $cuentaRemitente = 'angel.deleon@agrocentro.com';
-                $PassCuentaRemitente = 'byvdynlmzjlpvncv';
+        
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
-                
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
                 $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
-    
+        
                 $mail = new PHPMailer(true);
-                $mail->SMTPDebug = 0;
+                $mail->SMTPDebug = 2; // Habilitar debug para ver qué pasa
                 $mail->Debugoutput = 'error_log';
+                
             try {
+                // CONFIGURACIÓN MAILTRAP EXACTA como la que te dieron
                 $mail->isSMTP();
-                $mail->Host = 'smtp.office365.com';
+                $mail->Host = 'live.smtp.mailtrap.io';
                 $mail->SMTPAuth = true;
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->Port = 587;
+                $mail->Username = 'smtp@mailtrap.io';
+                $mail->Password = '5c69539451340b69f51743ebd47893bb';
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->CharSet = 'UTF-8';
-                $mail->Timeout = 60;
-
-                // Credenciales correctas (usuario real de Office365)
-                $mail->Username = $cuentaRemitente; // angel.deleon@agrocentro.com
-                $mail->Password = $PassCuentaRemitente;
-
-                // Remitente debe coincidir con la cuenta autenticada
-                $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
-                $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
-
-                // Destinatario = usuario que pidió reset
+                $mail->Timeout = 30;
+    
+                // Configuración del remitente para Mailtrap
+                $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+                $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
+    
+                // Destinatario
                 $mail->addAddress($email, $user['nombre'] ?? '');
-
+    
                 $mail->isHTML(true);
                 $mail->Subject = $Asunto;
                 $mail->Body = $Mensaje;
                 $mail->AltBody = $MensajeAlterno;
-
-                $mail->send();
-                header('Location: index.php?controller=login&action=resetPassword&success=1');
+    
+                error_log("Intentando enviar con Mailtrap a: $email");
+                
+                if ($mail->send()) {
+                    error_log("✓ Email enviado exitosamente via Mailtrap");
+                    header('Location: index.php?controller=login&action=resetPassword&success=1');
+                } else {
+                    throw new Exception('Mailtrap send() returned false');
+                }
             } catch (Exception $e) {
-                error_log("Error detallado PHPMailer: " . $mail->ErrorInfo);
-                header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+                error_log("✗ Error Mailtrap: " . $e->getMessage());
+                error_log("ErrorInfo: " . $mail->ErrorInfo);
+                
+                // Fallback a Office365 con configuración mejorada
+                error_log("Intentando fallback con Office365...");
+                $this->sendWithOffice365($email, $Asunto, $Mensaje, $MensajeAlterno);
             }
-
+    
             } else {
+                error_log("Email no encontrado: $email");
                 header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
             }
             exit;
+        }
+    }
+    
+    private function sendWithOffice365($email, $subject, $htmlBody, $textBody) {
+        try {
+            $mail = new PHPMailer(true);
+            $mail->SMTPDebug = 2;
+            $mail->Debugoutput = 'error_log';
+            
+            // Office365 con opciones mejoradas
+            $mail->isSMTP();
+            $mail->Host = 'smtp.office365.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'angel.deleon@agrocentro.com';
+            $mail->Password = 'byvdynlmzjlpvncv';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = 587;
+            $mail->Timeout = 15;
+            
+            // Opciones SSL para problemas de certificado
+            $mail->SMTPOptions = [
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ];
+            
+            $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
+            $mail->addAddress($email);
+            $mail->Subject = $subject;
+            $mail->Body = $htmlBody;
+            $mail->AltBody = $textBody;
+            $mail->isHTML(true);
+            
+            if ($mail->send()) {
+                error_log("✓ Email enviado exitosamente via Office365");
+                header('Location: index.php?controller=login&action=resetPassword&success=1');
+            }
+        } catch (Exception $e) {
+            error_log("✗ Error Office365: " . $e->getMessage());
+            error_log("ErrorInfo: " . $mail->ErrorInfo);
+            header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
         }
     }
 
