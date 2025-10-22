@@ -94,6 +94,7 @@ class LoginController {
                 $_SESSION['reset_token'][$email] = $token;
                 $_SESSION['reset_token_expiry'][$email] = time() + 3600;
                 
+                error_log("=== INICIO ENVÍO EMAIL ===");
                 error_log("Token generado para $email: $token");
     
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
@@ -102,29 +103,34 @@ class LoginController {
                 $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
     
+                error_log("Creando instancia PHPMailer");
                 $mail = new PHPMailer(true);
                 
-                // HABILITAR DEBUG DETALLADO
-                $mail->SMTPDebug = SMTP::DEBUG_SERVER; // Cambiar a DEBUG_SERVER para ver detalles
-                $mail->Debugoutput = 'error_log';
+                // DEBUG mínimo pero suficiente
+                $mail->SMTPDebug = 2; // Nivel 2 para ver conexión básica
+                $mail->Debugoutput = function($str, $level) {
+                    error_log("PHPMailer Debug [Nivel $level]: $str");
+                };
                 
             try {
-                // Configuración Mailtrap
+                error_log("Configurando SMTP...");
+                
+                // PRIMERO probemos con Office365 que sabemos funciona
                 $mail->isSMTP();
-                $mail->Host = 'live.smtp.mailtrap.io';
+                $mail->Host = 'smtp.office365.com';
                 $mail->SMTPAuth = true;
-                $mail->Port = 587;
-                $mail->Username = 'smtp@mailtrap.io';
-                $mail->Password = '5c69539451340b69f51743ebd47893bb';
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port = 587;
+                $mail->Username = 'angel.deleon@agrocentro.com';
+                $mail->Password = 'byvdynlmzjlpvncv';
                 $mail->CharSet = 'UTF-8';
                 $mail->Timeout = 30;
     
-                // Configuración del remitente - usar un email verificado en Mailtrap
-                $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+                error_log("Configurando remitente...");
+                $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
                 $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
     
-                // Destinatario
+                error_log("Agregando destinatario: $email");
                 $mail->addAddress($email, $user['nombre'] ?? '');
     
                 $mail->isHTML(true);
@@ -132,21 +138,23 @@ class LoginController {
                 $mail->Body = $Mensaje;
                 $mail->AltBody = $MensajeAlterno;
     
-                error_log("Intentando enviar email a: $email");
+                error_log("Intentando enviar email...");
                 
                 if ($mail->send()) {
-                    error_log("Email enviado exitosamente a: $email");
+                    error_log("*** EMAIL ENVIADO EXITOSAMENTE ***");
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } else {
-                    error_log("Error en send() pero sin excepción");
-                    throw new Exception('Error al enviar email - send() retornó false');
+                    error_log("*** ERROR: send() retornó false ***");
+                    throw new Exception('send() retornó false');
                 }
             } catch (Exception $e) {
-                error_log("ERROR CRÍTICO PHPMailer:");
-                error_log("Mensaje: " . $e->getMessage());
-                error_log("ErrorInfo: " . $mail->ErrorInfo);
-                error_log("Host: " . $mail->Host);
-                error_log("Port: " . $mail->Port);
+                error_log("*** EXCEPCIÓN CAPTURADA ***");
+                error_log("Mensaje de excepción: " . $e->getMessage());
+                error_log("ErrorInfo de PHPMailer: " . $mail->ErrorInfo);
+                error_log("Archivo: " . $e->getFile());
+                error_log("Línea: " . $e->getLine());
+                error_log("Trace: " . $e->getTraceAsString());
+                
                 header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
             }
     
