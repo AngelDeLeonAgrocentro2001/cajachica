@@ -155,7 +155,6 @@ class LoginController {
     }
 
     public function resetConfirm() {
-        // CORRECCIÓN: Asegurar que la sesión esté iniciada
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -166,10 +165,8 @@ class LoginController {
         error_log("Validando token para: $email");
         error_log("Token recibido: $token");
         error_log("Token en sesión: " . ($_SESSION['reset_token'][$email] ?? 'NO ENCONTRADO'));
-        error_log("Expiración: " . ($_SESSION['reset_token_expiry'][$email] ?? 'NO ENCONTRADO'));
-        error_log("Tiempo actual: " . time());
     
-        // Validar token y expiración
+        // SOLUCIÓN TEMPORAL: Validación simplificada sin verificación de tiempo
         if (!$token || !$email) {
             error_log("Token o email vacíos");
             header('Location: index.php?controller=login&action=resetPassword&error=Token o email inválido');
@@ -182,11 +179,8 @@ class LoginController {
             exit;
         }
     
-        if (!isset($_SESSION['reset_token_expiry'][$email]) || time() > $_SESSION['reset_token_expiry'][$email]) {
-            error_log("Token expirado");
-            header('Location: index.php?controller=login&action=resetPassword&error=El enlace ha expirado. Por favor solicita uno nuevo.');
-            exit;
-        }
+        // TEMPORAL: No validamos expiración hasta que el servidor tenga fecha correcta
+        error_log("ADVERTENCIA: Validación de tiempo desactivada por problema de fecha del servidor");
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['password'] ?? '';
@@ -201,11 +195,9 @@ class LoginController {
     
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
-                // CORRECCIÓN: Pasar la contraseña hasheada
                 $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
                 error_log("Hash generado para $email");
                 
-                // Asumiendo que tu método updateUsuario espera la contraseña hasheada
                 $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
                 
                 if ($result) {
