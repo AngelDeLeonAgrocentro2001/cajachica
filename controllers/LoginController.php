@@ -82,59 +82,58 @@ class LoginController {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
                 exit;
             }
-        
+    
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $token = bin2hex(random_bytes(32));
-                
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                
                 $_SESSION['reset_token'][$email] = $token;
                 $_SESSION['reset_token_expiry'][$email] = time() + 3600;
-                
-                error_log("=== ENVÍO EMAIL CON CONFIGURACIÓN CORRECTA ===");
     
+                // Configuración de correo basada en SendEmail que funciona
+                $cuentaRemitente = 'angel.deleon@agrocentro.com';
+                $PassCuentaRemitente = 'byvdynlmzjlpvncv';
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
+                
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
                 $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
+                $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
     
-                // USAR SOLO mail() nativo que SÍ FUNCIONA
-                error_log("Usando mail() nativo - configuración verificada");
-                
-                $headers = "From: AgroCaja Chica <no-reply@agrocentro.site>\r\n";
-                $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
-                $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-                $headers .= "MIME-Version: 1.0\r\n";
-                $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
-                
-                // También crear versión texto plano para clientes de email simples
-                $texto_plano = "Recuperación de Contraseña - AgroCaja Chica\n\n";
-                $texto_plano .= "Hola,\n\n";
-                $texto_plano .= "Recibimos una solicitud para restablecer tu contraseña.\n\n";
-                $texto_plano .= "Para continuar, copia y pega este enlace en tu navegador:\n";
-                $texto_plano .= $resetLink . "\n\n";
-                $texto_plano .= "Este enlace es válido por 1 hora.\n\n";
-                $texto_plano .= "Si no solicitaste esto, ignora este email.\n\n";
-                $texto_plano .= "Saludos,\n";
-                $texto_plano .= "Equipo AgroCaja Chica";
-                
-                // Intentar enviar con mail() nativo
-                if (mail($email, $Asunto, $Mensaje, $headers)) {
-                    error_log("*** ✓ EMAIL ENVIADO CON ÉXITO via mail() ***");
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } else {
-                    error_log("*** ⚠ mail() falló - pero el token fue generado ***");
-                    
-                    // El token se generó correctamente, podemos mostrar éxito igual
-                    // y el usuario puede usar el enlace manualmente si sabe el token
-                    error_log("Token generado (para uso manual si es necesario): $token");
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                }
-    
+                $mail = new PHPMailer(true);
+                $mail->SMTPDebug = 0;
+                $mail->Debugoutput = 'error_log';
+            try {
+                $mail->isSMTP();
+                $mail->Host = 'smtp.office365.com';
+                $mail->SMTPAuth = true;
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port = 587;
+                $mail->CharSet = 'UTF-8';
+                $mail->Timeout = 60;
+
+                // Credenciales correctas (usuario real de Office365)
+                $mail->Username = $cuentaRemitente; // angel.deleon@agrocentro.com
+                $mail->Password = $PassCuentaRemitente;
+
+                // Remitente debe coincidir con la cuenta autenticada
+                $mail->setFrom($cuentaRemitente, 'AgroCaja Chica');
+                $mail->addReplyTo('no-reply@agrocentro.com', 'AgroCaja Chica');
+
+                // Destinatario = usuario que pidió reset
+                $mail->addAddress($email, $user['nombre'] ?? '');
+
+                $mail->isHTML(true);
+                $mail->Subject = $Asunto;
+                $mail->Body = $Mensaje;
+                $mail->AltBody = $MensajeAlterno;
+
+                $mail->send();
+                header('Location: index.php?controller=login&action=resetPassword&success=1');
+            } catch (Exception $e) {
+                error_log("Error detallado PHPMailer: " . $mail->ErrorInfo);
+                header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+            }
+
             } else {
-                error_log("Email no encontrado: $email");
                 header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
             }
             exit;
@@ -142,35 +141,20 @@ class LoginController {
     }
 
     public function resetConfirm() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-        
         $token = $_GET['token'] ?? '';
         $email = $_GET['email'] ?? '';
     
-        // Validación básica
-        if (!$token || !$email) {
-            header('Location: index.php?controller=login&action=resetPassword&error=Token o email inválido');
+        // Validar token y expiración
+        if (!$token || !$email || !isset($_SESSION['reset_token'][$email]) || $_SESSION['reset_token'][$email] !== $token || time() > $_SESSION['reset_token_expiry'][$email]) {
+            header('Location: index.php?controller=login&action=resetPassword&error=Ingresa Nuevamente tu correo como protocolo de verificacion');
             exit;
         }
     
-        if (!isset($_SESSION['reset_token'][$email]) || $_SESSION['reset_token'][$email] !== $token) {
-            header('Location: index.php?controller=login&action=resetPassword&error=Token inválido o expirado');
-            exit;
-        }
-    
-        // Validación de expiración (ahora funciona correctamente)
-        $expiryTime = $_SESSION['reset_token_expiry'][$email] ?? 0;
-        if (time() > $expiryTime) {
-            header('Location: index.php?controller=login&action=resetPassword&error=El enlace ha expirado. Por favor solicita uno nuevo.');
-            exit;
-        }
-    
-        // Resto del código para el formulario...
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['password'] ?? '';
+            // Sanitizar la contraseña para evitar espacios o caracteres no deseados
             $newPassword = trim($newPassword);
+            error_log("Nueva contraseña recibida: $newPassword");
     
             if (strlen($newPassword) < 6) {
                 header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=La contraseña debe tener al menos 6 caracteres');
@@ -180,18 +164,21 @@ class LoginController {
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
-                
+                error_log("Hash generado en resetConfirm: $hashedPassword");
+                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $newPassword, $user['id_rol']);
                 if ($result) {
-                    // Limpiar tokens
+                    error_log("Contraseña actualizada correctamente para $email");
                     unset($_SESSION['reset_token'][$email]);
                     unset($_SESSION['reset_token_expiry'][$email]);
-                    
+                    session_destroy();
+                    session_start();
                     header('Location: index.php?controller=login&action=login&success=Contraseña restablecida con éxito');
                 } else {
+                    error_log("Error al actualizar la contraseña para $email");
                     header('Location: index.php?controller=login&action=resetPassword&error=Error al actualizar la contraseña');
                 }
             } else {
+                error_log("Usuario no encontrado para email: $email");
                 header('Location: index.php?controller=login&action=resetPassword&error=Usuario no encontrado');
             }
             exit;
