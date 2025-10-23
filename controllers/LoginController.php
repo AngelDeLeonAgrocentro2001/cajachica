@@ -198,24 +198,40 @@ class LoginController {
         }
     }
 
-    private function sendWithNativeMail($email, $subject, $message) {
-        try {
-            $headers = "From: no-reply@agrocentro.site\r\n";
-            $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
-            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    // En la función sendWithNativeMail, podrías mejorar el formato HTML:
+private function sendWithNativeMail($email, $subject, $message) {
+    try {
+        // Para enviar HTML con la función mail() nativa
+        $headers = "From: AgroCaja Chica <no-reply@agrocentro.site>\r\n";
+        $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
+        $headers .= "MIME-Version: 1.0\r\n";
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+        
+        $htmlMessage = "
+            <html>
+            <body style='font-family: Arial, sans-serif;'>
+                <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;'>
+                    <h2 style='color: #4CAF50;'>AgroCaja Chica</h2>
+                    <p>" . nl2br(htmlspecialchars($message)) . "</p>
+                    <hr>
+                    <p style='color: #666; font-size: 12px;'>Este es un email automático, por favor no responda.</p>
+                </div>
+            </body>
+            </html>
+        ";
 
-            if (mail($email, $subject, $message, $headers)) {
-                error_log("✓ Email enviado via función mail() nativa a: $email");
-                return true;
-            } else {
-                error_log("✗ Error enviando email via función mail() nativa a: $email");
-                return false;
-            }
-        } catch (Exception $e) {
-            error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
+        if (mail($email, $subject, $htmlMessage, $headers)) {
+            error_log("✓ Email HTML enviado via función mail() nativa a: $email");
+            return true;
+        } else {
+            error_log("✗ Error enviando email via función mail() nativa a: $email");
             return false;
         }
+    } catch (Exception $e) {
+        error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
+        return false;
     }
+}
 
     public function resetConfirm() {
         if (session_status() === PHP_SESSION_NONE) {
