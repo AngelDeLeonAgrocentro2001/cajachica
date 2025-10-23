@@ -99,12 +99,8 @@ class LoginController {
                 $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
                 $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
         
-                $mail = new PHPMailer(true);
-                $mail->SMTPDebug = 2; // Habilitar debug para ver qué pasa
-                $mail->Debugoutput = 'error_log';
-                
-            try {
-                // CONFIGURACIÓN MAILTRAP EXACTA como la que te dieron
+                // Configuración PHPMailer
+                $mail = new PHPMailer();
                 $mail->isSMTP();
                 $mail->Host = 'live.smtp.mailtrap.io';
                 $mail->SMTPAuth = true;
@@ -112,37 +108,34 @@ class LoginController {
                 $mail->Username = 'smtp@mailtrap.io';
                 $mail->Password = '5c69539451340b69f51743ebd47893bb';
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                
+                // Configuración adicional optimizada
                 $mail->CharSet = 'UTF-8';
                 $mail->Timeout = 30;
-    
-                // Configuración del remitente para Mailtrap
+                $mail->SMTPDebug = 0; 
+                
+                // Configuración del remitente
                 $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
                 $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
-    
-                // Destinatario
                 $mail->addAddress($email, $user['nombre'] ?? '');
-    
+                
                 $mail->isHTML(true);
                 $mail->Subject = $Asunto;
                 $mail->Body = $Mensaje;
                 $mail->AltBody = $MensajeAlterno;
     
-                error_log("Intentando enviar con Mailtrap a: $email");
-                
-                if ($mail->send()) {
-                    error_log("✓ Email enviado exitosamente via Mailtrap");
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } else {
-                    throw new Exception('Mailtrap send() returned false');
+                try {
+                    if ($mail->send()) {
+                        error_log("✓ Email enviado exitosamente via Mailtrap a: $email");
+                        header('Location: index.php?controller=login&action=resetPassword&success=1');
+                    } else {
+                        throw new Exception('Error al enviar email');
+                    }
+                } catch (Exception $e) {
+                    error_log("✗ Error Mailtrap: " . $e->getMessage());
+                    // Fallback a Office365 si Mailtrap falla
+                    $this->sendWithOffice365($email, $Asunto, $Mensaje, $MensajeAlterno);
                 }
-            } catch (Exception $e) {
-                error_log("✗ Error Mailtrap: " . $e->getMessage());
-                error_log("ErrorInfo: " . $mail->ErrorInfo);
-                
-                // Fallback a Office365 con configuración mejorada
-                error_log("Intentando fallback con Office365...");
-                $this->sendWithOffice365($email, $Asunto, $Mensaje, $MensajeAlterno);
-            }
     
             } else {
                 error_log("Email no encontrado: $email");
@@ -155,10 +148,8 @@ class LoginController {
     private function sendWithOffice365($email, $subject, $htmlBody, $textBody) {
         try {
             $mail = new PHPMailer(true);
-            $mail->SMTPDebug = 2;
-            $mail->Debugoutput = 'error_log';
             
-            // Office365 con opciones mejoradas
+            // Configuración Office365 de respaldo
             $mail->isSMTP();
             $mail->Host = 'smtp.office365.com';
             $mail->SMTPAuth = true;
@@ -167,8 +158,9 @@ class LoginController {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
             $mail->Timeout = 15;
+            $mail->SMTPDebug = 0;
             
-            // Opciones SSL para problemas de certificado
+            // Opciones SSL
             $mail->SMTPOptions = [
                 'ssl' => [
                     'verify_peer' => false,
@@ -185,12 +177,11 @@ class LoginController {
             $mail->isHTML(true);
             
             if ($mail->send()) {
-                error_log("✓ Email enviado exitosamente via Office365");
+                error_log("✓ Email enviado exitosamente via Office365 a: $email");
                 header('Location: index.php?controller=login&action=resetPassword&success=1');
             }
         } catch (Exception $e) {
             error_log("✗ Error Office365: " . $e->getMessage());
-            error_log("ErrorInfo: " . $mail->ErrorInfo);
             header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
         }
     }
@@ -207,7 +198,6 @@ class LoginController {
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['password'] ?? '';
-            // Sanitizar la contraseña para evitar espacios o caracteres no deseados
             $newPassword = trim($newPassword);
             error_log("Nueva contraseña recibida: $newPassword");
     
