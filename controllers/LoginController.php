@@ -105,20 +105,16 @@ class LoginController {
                 
                 $MensajeAlterno = "Hola {$user['nombre']},\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
 
-                // Intentar primero con Mailtrap
-                if ($this->sendWithMailtrap($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
+                // Usar EXACTAMENTE la configuración especificada
+                if ($this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } 
-                // Si falla, intentar con Office365
-                else if ($this->sendWithOffice365($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                }
-                // Si ambos fallan, usar función mail() nativa de PHP
-                else if ($this->sendWithNativeMail($email, $Asunto, $MensajeAlterno)) {
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                }
-                else {
-                    header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
+                } else {
+                    // Fallback a función mail nativa
+                    if ($this->sendWithNativeMail($email, $Asunto, $MensajeAlterno)) {
+                        header('Location: index.php?controller=login&action=resetPassword&success=1');
+                    } else {
+                        header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
+                    }
                 }
     
             } else {
@@ -130,19 +126,32 @@ class LoginController {
         }
     }
     
-    private function sendWithMailtrap($email, $nombre, $subject, $htmlBody, $textBody) {
+    private function sendWithExactConfig($email, $nombre, $subject, $htmlBody, $textBody) {
         try {
-            $mail = new PHPMailer(true);
+            // CONFIGURACIÓN EXACTA como la especificaste
+            $mail = new PHPMailer();
             $mail->isSMTP();
             $mail->Host = 'live.smtp.mailtrap.io';
             $mail->SMTPAuth = true;
             $mail->Port = 587;
-            $mail->Username = 'api';
+            $mail->Username = 'smtp@mailtrap.io';
             $mail->Password = '5c69539451340b69f51743ebd47893bb';
+            
+            // Configuración adicional necesaria
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
-            $mail->Timeout = 10;
-            $mail->SMTPDebug = 0;
+            $mail->Timeout = 15;
+            $mail->SMTPDebug = 2; // Para ver detalles de la conexión
+            $mail->Debugoutput = 'error_log';
+            
+            // Opciones para problemas de conexión
+            $mail->SMTPOptions = array(
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                )
+            );
 
             // Configuración del remitente
             $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
@@ -154,84 +163,43 @@ class LoginController {
             $mail->Body = $htmlBody;
             $mail->AltBody = $textBody;
 
+            error_log("🔧 Intentando conectar con Mailtrap usando configuración exacta...");
+            
             if ($mail->send()) {
-                error_log("✓ Email enviado exitosamente via Mailtrap a: $email");
+                error_log("✅ Email enviado exitosamente via Mailtrap a: $email");
                 return true;
+            } else {
+                error_log("❌ Mailtrap send() retornó false");
+                return false;
             }
-            return false;
             
         } catch (Exception $e) {
-            error_log("✗ Error Mailtrap para $email: " . $e->getMessage());
+            error_log("❌ Error Mailtrap para $email: " . $e->getMessage());
+            if (isset($mail)) {
+                error_log("❌ ErrorInfo: " . $mail->ErrorInfo);
+            }
             return false;
         }
     }
-    
-    private function sendWithOffice365($email, $nombre, $subject, $htmlBody, $textBody) {
+
+    private function sendWithNativeMail($email, $subject, $message) {
         try {
-            $mail = new PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = 'smtp.office365.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = 'angel.deleon@agrocentro.com';
-            $mail->Password = 'byvdynlmzjlpvncv';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = 587;
-            $mail->Timeout = 10;
-            $mail->SMTPDebug = 0;
+            $headers = "From: no-reply@agrocentro.site\r\n";
+            $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
 
-            $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
-            $mail->addAddress($email, $nombre);
-            $mail->Subject = $subject;
-            $mail->Body = $htmlBody;
-            $mail->AltBody = $textBody;
-            $mail->isHTML(true);
-
-            if ($mail->send()) {
-                error_log("✓ Email enviado exitosamente via Office365 a: $email");
+            if (mail($email, $subject, $message, $headers)) {
+                error_log("✓ Email enviado via función mail() nativa a: $email");
                 return true;
+            } else {
+                error_log("✗ Error enviando email via función mail() nativa a: $email");
+                return false;
             }
-            return false;
-            
         } catch (Exception $e) {
-            error_log("✗ Error Office365 para $email: " . $e->getMessage());
+            error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
             return false;
         }
     }
-
-    // En la función sendWithNativeMail, podrías mejorar el formato HTML:
-private function sendWithNativeMail($email, $subject, $message) {
-    try {
-        // Para enviar HTML con la función mail() nativa
-        $headers = "From: AgroCaja Chica <no-reply@agrocentro.site>\r\n";
-        $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
-        $headers .= "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-        
-        $htmlMessage = "
-            <html>
-            <body style='font-family: Arial, sans-serif;'>
-                <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;'>
-                    <h2 style='color: #4CAF50;'>AgroCaja Chica</h2>
-                    <p>" . nl2br(htmlspecialchars($message)) . "</p>
-                    <hr>
-                    <p style='color: #666; font-size: 12px;'>Este es un email automático, por favor no responda.</p>
-                </div>
-            </body>
-            </html>
-        ";
-
-        if (mail($email, $subject, $htmlMessage, $headers)) {
-            error_log("✓ Email HTML enviado via función mail() nativa a: $email");
-            return true;
-        } else {
-            error_log("✗ Error enviando email via función mail() nativa a: $email");
-            return false;
-        }
-    } catch (Exception $e) {
-        error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
-        return false;
-    }
-}
 
     public function resetConfirm() {
         if (session_status() === PHP_SESSION_NONE) {
