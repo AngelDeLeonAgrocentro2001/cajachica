@@ -30,28 +30,14 @@ class LoginController {
 
             $user = $this->login->authenticate($email, $password);
             if ($user) {
-                // Inicio de sesión exitoso
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                }
+                
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['rol'] = $user['rol'];
 
-                $redirectUrl = '';
-                switch ($user['rol']) {
-                    case 'ADMIN':
-                        $redirectUrl = 'index.php?controller=dashboard&action=index';
-                        break;
-                    case 'ENCARGADO_CAJA_CHICA':
-                        $redirectUrl = 'index.php?controller=dashboard&action=index';
-                        break;
-                    case 'SUPERVISOR_AUTORIZADOR':
-                        $redirectUrl = 'index.php?controller=dashboard&action=index';
-                        break;
-                    case 'CONTABILIDAD':
-                        $redirectUrl = 'index.php?controller=dashboard&action=index';
-                        break;
-                    default:
-                        $redirectUrl = 'index.php?controller=dashboard&action=index';
-                        break;
-                }
+                $redirectUrl = 'index.php?controller=dashboard&action=index';
 
                 header('Content-Type: application/json');
                 echo json_encode(['message' => 'Inicio de sesión exitoso', 'redirect' => $redirectUrl]);
@@ -67,7 +53,9 @@ class LoginController {
     }
 
     public function logout() {
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         session_destroy();
         header('Location: index.php?controller=login&action=login');
         exit;
@@ -78,7 +66,7 @@ class LoginController {
             require '../views/login/reset.html';
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-            if (!$email) {
+            if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
                 exit;
             }
@@ -96,60 +84,91 @@ class LoginController {
         
                 $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
                 $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
-                $Mensaje = "Hola<br><br>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:<br><a href='{$resetLink}'>Restablecer Contraseña</a><br><br>Este enlace es válido por 1 hora.<br><br>Si no solicitaste esto, ignora este email.";
-                $MensajeAlterno = "Hola,\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador para continuar:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
-        
-                // Configuración PHPMailer
-                $mail = new PHPMailer();
-                $mail->isSMTP();
-                $mail->Host = 'live.smtp.mailtrap.io';
-                $mail->SMTPAuth = true;
-                $mail->Port = 587;
-                $mail->Username = 'smtp@mailtrap.io';
-                $mail->Password = '5c69539451340b69f51743ebd47893bb';
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 
-                // Configuración adicional optimizada
-                $mail->CharSet = 'UTF-8';
-                $mail->Timeout = 30;
-                $mail->SMTPDebug = 0; 
+                $Mensaje = "
+                    <html>
+                    <head>
+                        <title>Recuperación de Contraseña</title>
+                    </head>
+                    <body>
+                        <h2>Recuperación de Contraseña</h2>
+                        <p>Hola {$user['nombre']},</p>
+                        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+                        <p>Haz clic en el siguiente enlace para continuar:</p>
+                        <p><a href='{$resetLink}' style='background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Restablecer Contraseña</a></p>
+                        <p>O copia y pega este enlace en tu navegador:<br>{$resetLink}</p>
+                        <p><strong>Este enlace es válido por 1 hora.</strong></p>
+                        <p>Si no solicitaste esto, ignora este email.</p>
+                    </body>
+                    </html>
+                ";
                 
-                // Configuración del remitente
-                $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
-                $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
-                $mail->addAddress($email, $user['nombre'] ?? '');
-                
-                $mail->isHTML(true);
-                $mail->Subject = $Asunto;
-                $mail->Body = $Mensaje;
-                $mail->AltBody = $MensajeAlterno;
-    
-                try {
-                    if ($mail->send()) {
-                        error_log("✓ Email enviado exitosamente via Mailtrap a: $email");
-                        header('Location: index.php?controller=login&action=resetPassword&success=1');
-                    } else {
-                        throw new Exception('Error al enviar email');
-                    }
-                } catch (Exception $e) {
-                    error_log("✗ Error Mailtrap: " . $e->getMessage());
-                    // Fallback a Office365 si Mailtrap falla
-                    $this->sendWithOffice365($email, $Asunto, $Mensaje, $MensajeAlterno);
+                $MensajeAlterno = "Hola {$user['nombre']},\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
+
+                // Intentar primero con Mailtrap
+                if ($this->sendWithMailtrap($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
+                    header('Location: index.php?controller=login&action=resetPassword&success=1');
+                } 
+                // Si falla, intentar con Office365
+                else if ($this->sendWithOffice365($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
+                    header('Location: index.php?controller=login&action=resetPassword&success=1');
+                }
+                // Si ambos fallan, usar función mail() nativa de PHP
+                else if ($this->sendWithNativeMail($email, $Asunto, $MensajeAlterno)) {
+                    header('Location: index.php?controller=login&action=resetPassword&success=1');
+                }
+                else {
+                    header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
                 }
     
             } else {
                 error_log("Email no encontrado: $email");
-                header('Location: index.php?controller=login&action=resetPassword&error=Email no encontrado');
+                // Por seguridad, mostrar mismo mensaje aunque el email no exista
+                header('Location: index.php?controller=login&action=resetPassword&success=1');
             }
             exit;
         }
     }
     
-    private function sendWithOffice365($email, $subject, $htmlBody, $textBody) {
+    private function sendWithMailtrap($email, $nombre, $subject, $htmlBody, $textBody) {
         try {
             $mail = new PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host = 'live.smtp.mailtrap.io';
+            $mail->SMTPAuth = true;
+            $mail->Port = 587;
+            $mail->Username = 'api';
+            $mail->Password = '5c69539451340b69f51743ebd47893bb';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->CharSet = 'UTF-8';
+            $mail->Timeout = 10;
+            $mail->SMTPDebug = 0;
+
+            // Configuración del remitente
+            $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+            $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
+            $mail->addAddress($email, $nombre);
+
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $htmlBody;
+            $mail->AltBody = $textBody;
+
+            if ($mail->send()) {
+                error_log("✓ Email enviado exitosamente via Mailtrap a: $email");
+                return true;
+            }
+            return false;
             
-            // Configuración Office365 de respaldo
+        } catch (Exception $e) {
+            error_log("✗ Error Mailtrap para $email: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    private function sendWithOffice365($email, $nombre, $subject, $htmlBody, $textBody) {
+        try {
+            $mail = new PHPMailer(true);
             $mail->isSMTP();
             $mail->Host = 'smtp.office365.com';
             $mail->SMTPAuth = true;
@@ -157,70 +176,93 @@ class LoginController {
             $mail->Password = 'byvdynlmzjlpvncv';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
-            $mail->Timeout = 15;
+            $mail->Timeout = 10;
             $mail->SMTPDebug = 0;
-            
-            // Opciones SSL
-            $mail->SMTPOptions = [
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                ]
-            ];
-            
+
             $mail->setFrom('angel.deleon@agrocentro.com', 'AgroCaja Chica');
-            $mail->addAddress($email);
+            $mail->addAddress($email, $nombre);
             $mail->Subject = $subject;
             $mail->Body = $htmlBody;
             $mail->AltBody = $textBody;
             $mail->isHTML(true);
-            
+
             if ($mail->send()) {
                 error_log("✓ Email enviado exitosamente via Office365 a: $email");
-                header('Location: index.php?controller=login&action=resetPassword&success=1');
+                return true;
+            }
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("✗ Error Office365 para $email: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function sendWithNativeMail($email, $subject, $message) {
+        try {
+            $headers = "From: no-reply@agrocentro.site\r\n";
+            $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+            if (mail($email, $subject, $message, $headers)) {
+                error_log("✓ Email enviado via función mail() nativa a: $email");
+                return true;
+            } else {
+                error_log("✗ Error enviando email via función mail() nativa a: $email");
+                return false;
             }
         } catch (Exception $e) {
-            error_log("✗ Error Office365: " . $e->getMessage());
-            header('Location: index.php?controller=login&action=resetPassword&error=Error al enviar el email. Por favor intente más tarde.');
+            error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
+            return false;
         }
     }
 
     public function resetConfirm() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         $token = $_GET['token'] ?? '';
         $email = $_GET['email'] ?? '';
     
         // Validar token y expiración
         if (!$token || !$email || !isset($_SESSION['reset_token'][$email]) || $_SESSION['reset_token'][$email] !== $token || time() > $_SESSION['reset_token_expiry'][$email]) {
-            header('Location: index.php?controller=login&action=resetPassword&error=Ingresa Nuevamente tu correo como protocolo de verificacion');
+            header('Location: index.php?controller=login&action=resetPassword&error=El enlace de recuperación ha expirado o es inválido. Por favor solicita uno nuevo.');
             exit;
         }
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['password'] ?? '';
+            $confirmPassword = $_POST['confirm_password'] ?? '';
+            
             $newPassword = trim($newPassword);
-            error_log("Nueva contraseña recibida: $newPassword");
-    
+            $confirmPassword = trim($confirmPassword);
+
             if (strlen($newPassword) < 6) {
                 header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=La contraseña debe tener al menos 6 caracteres');
                 exit;
             }
-    
+
+            if ($newPassword !== $confirmPassword) {
+                header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=Las contraseñas no coinciden');
+                exit;
+            }
+
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
                 $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                error_log("Hash generado en resetConfirm: $hashedPassword");
-                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $newPassword, $user['id_rol']);
+                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
+                
                 if ($result) {
                     error_log("Contraseña actualizada correctamente para $email");
+                    // Limpiar tokens
                     unset($_SESSION['reset_token'][$email]);
                     unset($_SESSION['reset_token_expiry'][$email]);
-                    session_destroy();
-                    session_start();
-                    header('Location: index.php?controller=login&action=login&success=Contraseña restablecida con éxito');
+                    
+                    header('Location: index.php?controller=login&action=login&success=Contraseña restablecida con éxito. Ahora puedes iniciar sesión.');
                 } else {
                     error_log("Error al actualizar la contraseña para $email");
-                    header('Location: index.php?controller=login&action=resetPassword&error=Error al actualizar la contraseña');
+                    header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=Error al actualizar la contraseña. Por favor intenta nuevamente.');
                 }
             } else {
                 error_log("Usuario no encontrado para email: $email");
