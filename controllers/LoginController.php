@@ -89,32 +89,68 @@ class LoginController {
                     <html>
                     <head>
                         <title>Recuperación de Contraseña</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                            .button { background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; }
+                            .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+                        </style>
                     </head>
                     <body>
-                        <h2>Recuperación de Contraseña</h2>
-                        <p>Hola {$user['nombre']},</p>
-                        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
-                        <p>Haz clic en el siguiente enlace para continuar:</p>
-                        <p><a href='{$resetLink}' style='background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Restablecer Contraseña</a></p>
-                        <p>O copia y pega este enlace en tu navegador:<br>{$resetLink}</p>
-                        <p><strong>Este enlace es válido por 1 hora.</strong></p>
-                        <p>Si no solicitaste esto, ignora este email.</p>
+                        <div class='container'>
+                            <h2>Recuperación de Contraseña - AgroCaja Chica</h2>
+                            <p>Hola <strong>{$user['nombre']}</strong>,</p>
+                            <p>Recibimos una solicitud para restablecer tu contraseña en el sistema AgroCaja Chica.</p>
+                            <p>Haz clic en el siguiente botón para continuar:</p>
+                            <p style='text-align: center; margin: 30px 0;'>
+                                <a href='{$resetLink}' class='button'>Restablecer Contraseña</a>
+                            </p>
+                            <p>O copia y pega este enlace en tu navegador:</p>
+                            <p style='background-color: #f5f5f5; padding: 15px; border-radius: 5px; word-break: break-all;'>
+                                <code>{$resetLink}</code>
+                            </p>
+                            <p><strong>⚠️ Importante: Este enlace expirará en 1 hora.</strong></p>
+                            <p>Si no solicitaste este restablecimiento, ignora este email.</p>
+                            <div class='footer'>
+                                <p>Este es un mensaje automático, por favor no respondas.</p>
+                                <p>AgroCaja Chica &copy; " . date('Y') . "</p>
+                            </div>
+                        </div>
                     </body>
                     </html>
                 ";
                 
-                $MensajeAlterno = "Hola {$user['nombre']},\n\nRecibimos una solicitud para restablecer tu contraseña. Copia y pega este enlace en tu navegador:\n{$resetLink}\n\nEste enlace es válido por 1 hora.\n\nSi no solicitaste esto, ignora este email.";
+                $MensajeAlterno = "RECUPERACIÓN DE CONTRASEÑA - AGROCAJA CHICA\n\n" .
+                    "Hola {$user['nombre']},\n\n" .
+                    "Recibimos una solicitud para restablecer tu contraseña.\n\n" .
+                    "Para continuar, visita el siguiente enlace:\n" .
+                    "{$resetLink}\n\n" .
+                    "Este enlace expirará en 1 hora.\n\n" .
+                    "Si no solicitaste esto, ignora este email.\n\n" .
+                    "Saludos,\nSistema AgroCaja Chica";
 
-                // Usar EXACTAMENTE la configuración especificada
-                if ($this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno)) {
+                // ESTRATEGIA DE ENVÍO MEJORADA
+                $enviado = false;
+                
+                // 1. Intentar con Mailtrap (tu configuración exacta)
+                if (!$enviado) {
+                    $enviado = $this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
+                }
+                
+                // 2. Intentar con función mail() mejorada
+                if (!$enviado) {
+                    $enviado = $this->sendWithNativeMail($email, $Asunto, $MensajeAlterno);
+                }
+                
+                // 3. Intentar con Gmail como respaldo
+                if (!$enviado) {
+                    $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
+                }
+
+                if ($enviado) {
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
                 } else {
-                    // Fallback a función mail nativa
-                    if ($this->sendWithNativeMail($email, $Asunto, $MensajeAlterno)) {
-                        header('Location: index.php?controller=login&action=resetPassword&success=1');
-                    } else {
-                        header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
-                    }
+                    header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
                 }
     
             } else {
@@ -128,7 +164,6 @@ class LoginController {
     
     private function sendWithExactConfig($email, $nombre, $subject, $htmlBody, $textBody) {
         try {
-            // CONFIGURACIÓN EXACTA como la especificaste
             $mail = new PHPMailer();
             $mail->isSMTP();
             $mail->Host = 'live.smtp.mailtrap.io';
@@ -136,24 +171,11 @@ class LoginController {
             $mail->Port = 587;
             $mail->Username = 'smtp@mailtrap.io';
             $mail->Password = '5c69539451340b69f51743ebd47893bb';
-            
-            // Configuración adicional necesaria
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
-            $mail->Timeout = 15;
-            $mail->SMTPDebug = 2; // Para ver detalles de la conexión
-            $mail->Debugoutput = 'error_log';
-            
-            // Opciones para problemas de conexión
-            $mail->SMTPOptions = array(
-                'ssl' => array(
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                )
-            );
+            $mail->Timeout = 10;
+            $mail->SMTPDebug = 0;
 
-            // Configuración del remitente
             $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
             $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
             $mail->addAddress($email, $nombre);
@@ -163,40 +185,78 @@ class LoginController {
             $mail->Body = $htmlBody;
             $mail->AltBody = $textBody;
 
-            error_log("🔧 Intentando conectar con Mailtrap usando configuración exacta...");
-            
             if ($mail->send()) {
                 error_log("✅ Email enviado exitosamente via Mailtrap a: $email");
                 return true;
-            } else {
-                error_log("❌ Mailtrap send() retornó false");
-                return false;
             }
+            return false;
             
         } catch (Exception $e) {
             error_log("❌ Error Mailtrap para $email: " . $e->getMessage());
-            if (isset($mail)) {
-                error_log("❌ ErrorInfo: " . $mail->ErrorInfo);
-            }
             return false;
         }
     }
 
     private function sendWithNativeMail($email, $subject, $message) {
         try {
-            $headers = "From: no-reply@agrocentro.site\r\n";
+            // Headers mejorados para mejor entrega
+            $headers = "From: AgroCaja Chica <no-reply@agrocentro.site>\r\n";
             $headers .= "Reply-To: no-reply@agrocentro.site\r\n";
+            $headers .= "Return-Path: no-reply@agrocentro.site\r\n";
+            $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $headers .= "X-Mailer: PHP/" . phpversion();
+            $headers .= "X-Priority: 1\r\n";
+            $headers .= "Importance: High\r\n";
 
-            if (mail($email, $subject, $message, $headers)) {
-                error_log("✓ Email enviado via función mail() nativa a: $email");
+            // Agregar headers para reducir spam
+            $headers .= "List-Unsubscribe: <mailto:unsubscribe@agrocentro.site?subject=unsubscribe>\r\n";
+
+            // El parámetro -f es importante para el Return-Path
+            if (mail($email, $subject, $message, $headers, "-f no-reply@agrocentro.site")) {
+                error_log("✅ Email enviado via función mail() nativa a: $email");
                 return true;
             } else {
-                error_log("✗ Error enviando email via función mail() nativa a: $email");
+                error_log("❌ Error enviando email via función mail() nativa a: $email");
                 return false;
             }
         } catch (Exception $e) {
-            error_log("✗ Excepción en función mail() nativa: " . $e->getMessage());
+            error_log("❌ Excepción en función mail() nativa: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function sendWithGmail($email, $nombre, $subject, $htmlBody, $textBody) {
+        try {
+            $mail = new PHPMailer(true);
+            $mail->isSMTP();
+            
+            // Configuración Gmail
+            $mail->Host = 'smtp.gmail.com';
+            $mail->SMTPAuth = true;
+            $mail->Port = 587;
+            $mail->Username = 'angel.deleon@agrocentro.com'; // REEMPLAZAR CON UN GMAIL REAL
+            $mail->Password = 'byvdynlmzjlpvncv'; // REEMPLAZAR CON APP PASSWORD
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->CharSet = 'UTF-8';
+            $mail->Timeout = 10;
+            $mail->SMTPDebug = 0;
+
+            $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+            $mail->addAddress($email, $nombre);
+            $mail->Subject = $subject;
+            $mail->Body = $htmlBody;
+            $mail->AltBody = $textBody;
+            $mail->isHTML(true);
+
+            if ($mail->send()) {
+                error_log("✅ Email enviado exitosamente via Gmail a: $email");
+                return true;
+            }
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("❌ Error Gmail para $email: " . $e->getMessage());
             return false;
         }
     }
@@ -238,18 +298,18 @@ class LoginController {
                 $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
                 
                 if ($result) {
-                    error_log("Contraseña actualizada correctamente para $email");
+                    error_log("✅ Contraseña actualizada correctamente para $email");
                     // Limpiar tokens
                     unset($_SESSION['reset_token'][$email]);
                     unset($_SESSION['reset_token_expiry'][$email]);
                     
                     header('Location: index.php?controller=login&action=login&success=Contraseña restablecida con éxito. Ahora puedes iniciar sesión.');
                 } else {
-                    error_log("Error al actualizar la contraseña para $email");
+                    error_log("❌ Error al actualizar la contraseña para $email");
                     header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=Error al actualizar la contraseña. Por favor intenta nuevamente.');
                 }
             } else {
-                error_log("Usuario no encontrado para email: $email");
+                error_log("❌ Usuario no encontrado para email: $email");
                 header('Location: index.php?controller=login&action=resetPassword&error=Usuario no encontrado');
             }
             exit;
