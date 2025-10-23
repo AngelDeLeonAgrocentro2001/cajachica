@@ -232,7 +232,7 @@ class LoginController {
             $mail->isSMTP();
             
             // Configuración Gmail
-            $mail->Host = 'smtp.gmail.com';
+            $mail->Host = 'smtp.office365.com';
             $mail->SMTPAuth = true;
             $mail->Port = 587;
             $mail->Username = 'angel.deleon@agrocentro.com'; // REEMPLAZAR CON UN GMAIL REAL
