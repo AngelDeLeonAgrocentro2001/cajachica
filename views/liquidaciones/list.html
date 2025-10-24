@@ -327,6 +327,7 @@
       #liquidacionesTable th:nth-child(8) { width: 12%; }
       #liquidacionesTable th:nth-child(9) { width: 20%; }
 
+
       #correctedDetallesTable th:nth-child(1) { width: 5%; }
       #correctedDetallesTable th:nth-child(2) { width: 8%; }
       #correctedDetallesTable th:nth-child(3) { width: 8%; }
@@ -610,14 +611,11 @@
                 border-bottom: 1px solid var(--border-color);
         }
 
+
         #liquidacionesTable tbody td:last-child,
         #correctedDetallesTable tbody td:last-child {
           border-bottom: none;
         }
-
-        #liquidacionesTable tbody td[data-label="Total Gastos"]:before {
-        content: "Total Gastos:";
-    }
 
         #liquidacionesTable tbody td:before,
         #correctedDetallesTable tbody td:before {
@@ -627,7 +625,9 @@
           font-weight: 600;
           color: var(--text-color);
         }
-
+        #liquidacionesTable tbody td[data-label="Total Gastos"]:before {
+        content: "Total Gastos:";
+    }
         .modal-content {
           width: 95%;
           padding: 1rem;

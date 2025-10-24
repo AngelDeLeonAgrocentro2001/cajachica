@@ -125,12 +125,12 @@ async function loadLiquidations() {
         window.isEncargadoLike = data.isEncargadoLike || false;
         window.userRole = data.userRole || window.userRole || '';
         
-        console.log('Datos del backend:', {
-            isContabilidadLike: window.isContabilidadLike,
-            isSupervisorLike: window.isSupervisorLike,
-            isEncargadoLike: window.isEncargadoLike,
-            userRole: window.userRole
-        });
+        // console.log('Datos del backend:', {
+        //     isContabilidadLike: window.isContabilidadLike,
+        //     isSupervisorLike: window.isSupervisorLike,
+        //     isEncargadoLike: window.isEncargadoLike,
+        //     userRole: window.userRole
+        // });
 
         // Remove restrictive contabilidad filter
         // if (window.isContabilidadLike) {
@@ -316,16 +316,16 @@ function renderLiquidations() {
                 (window.userPermissions.autorizar_liquidaciones && window.isSupervisorLike) ||
                 (window.userPermissions.revisar_liquidaciones && window.isContabilidadLike);
 
-            console.log('Verificación de permisos:', {
-                liquidacionId: liquidacion.id,
-                estado: liquidacion.estado,
-                tienePermisoAutorizar: tienePermisoAutorizar,
-                isSupervisorLike: window.isSupervisorLike,
-                isContabilidadLike: window.isContabilidadLike,
-                isEncargadoLike: window.isEncargadoLike,
-                isCreator: isCreator,
-                permisos: window.userPermissions
-            });
+            // console.log('Verificación de permisos:', {
+            //     liquidacionId: liquidacion.id,
+            //     estado: liquidacion.estado,
+            //     tienePermisoAutorizar: tienePermisoAutorizar,
+            //     isSupervisorLike: window.isSupervisorLike,
+            //     isContabilidadLike: window.isContabilidadLike,
+            //     isEncargadoLike: window.isEncargadoLike,
+            //     isCreator: isCreator,
+            //     permisos: window.userPermissions
+            // });
 
             // BOTÓN "AUTORIZAR" PARA SUPERVISORES (INCLUYENDO ROLES MIXTOS)
             if (tienePermisoAutorizar) {
@@ -435,7 +435,9 @@ function renderCorrectedDetalles() {
     const correctedDetallesSection = document.querySelector("#correctedDetallesSection");
     const correctedDetallesTbody = document.querySelector("#correctedDetallesTable tbody");
     const mode = new URLSearchParams(window.location.search).get("mode") || "";
-
+  
+    // console.log("renderCorrectedDetalles: userRole=", window.userRole, "mode=", mode, "correctedDetallesData=", correctedDetallesData, "isShowingCorrected=", isShowingCorrected);
+  
     if (
         window.userRole.toUpperCase().includes("SUPERVISOR") &&
         mode === "autorizar" &&
@@ -462,14 +464,14 @@ function renderCorrectedDetalles() {
                 );
             }
             const actionsHtml = actions.join("");
-
+  
             let archivosHtml = "N/A";
             if (detalle.rutas_archivos && detalle.rutas_archivos.length > 0) {
                 try {
                     const rutas = Array.isArray(detalle.rutas_archivos)
                         ? detalle.rutas_archivos
                         : JSON.parse(detalle.rutas_archivos);
-
+  
                     if (Array.isArray(rutas) && rutas.length > 0) {
                         archivosHtml = rutas
                             .map((ruta) => {
@@ -496,7 +498,7 @@ function renderCorrectedDetalles() {
                     }
                 }
             }
-
+  
             correctedDetallesTbody.innerHTML += `
                 <tr>
                     <td data-label="ID">${detalle.id || "N/A"}</td>
@@ -524,12 +526,10 @@ function renderCorrectedDetalles() {
             `;
         });
     } else {
-        // 👇 Esta es la parte de tu commit cambios3
         // console.log("Hiding correctedDetallesSection: Conditions not met");
         correctedDetallesSection.style.display = "none";
     }
-}
-
+  }
 
 function toggleLiquidationView() {
     isShowingCorrected = !isShowingCorrected;
