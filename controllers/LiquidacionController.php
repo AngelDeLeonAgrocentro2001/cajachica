@@ -351,6 +351,15 @@ public function listLiquidaciones()
 
     foreach ($liquidaciones as &$liquidacion) {
         $liquidacion['detalles'] = $this->detalleModel->getDetallesByLiquidacionId($liquidacion['id']);
+        
+        // Calcular total de gastos sumando los total_factura de los detalles
+        $totalGastos = 0;
+        if (!empty($liquidacion['detalles'])) {
+            foreach ($liquidacion['detalles'] as $detalle) {
+                $totalGastos += floatval($detalle['total_factura'] ?? 0);
+            }
+        }
+        $liquidacion['total_gastos'] = number_format($totalGastos, 2);
     }
     unset($liquidacion);
 

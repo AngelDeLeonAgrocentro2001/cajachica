@@ -347,6 +347,14 @@ function renderLiquidations() {
                 }
             }
 
+            // Calcular total de gastos si no viene del servidor
+            let totalGastos = 0;
+            if (liquidacion.detalles && Array.isArray(liquidacion.detalles)) {
+                liquidacion.detalles.forEach(detalle => {
+                    totalGastos += parseFloat(detalle.total_factura || 0);
+                });
+            }
+
             const actionsHtml = actions.join(" ");
             const estado =
                 liquidacion.estado && liquidacion.estado !== "N/A"
@@ -366,6 +374,7 @@ function renderLiquidations() {
                         liquidacion.fecha_inicio || "N/A"
                     }</td>
                     <td data-label="Fecha Fin">${liquidacion.fecha_fin || "N/A"}</td>
+                    <td data-label="Total Gastos">${liquidacion.total_gastos || totalGastos.toFixed(2)}</td>
                     <td data-label="Monto Total">${parseFloat(
                         liquidacion.monto_total || 0
                     ).toFixed(2)}</td>
@@ -380,7 +389,7 @@ function renderLiquidations() {
         });
     } else {
         tbody.innerHTML =
-            '<tr><td colspan="8">No hay liquidaciones disponibles.</td></tr>';
+            '<tr><td colspan="9">No hay liquidaciones disponibles.</td></tr>';
     }
 
     renderPagination();
