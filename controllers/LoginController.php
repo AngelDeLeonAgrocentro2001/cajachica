@@ -167,23 +167,25 @@ class LoginController {
         try {
             $mail = new PHPMailer();
             $mail->isSMTP();
-            $mail->Host = $_ENV['MAILTRAP_HOST'] ?? 'live.smtp.mailtrap.io';
+            
+            // USAR getenv() EN VEZ DE $_ENV
+            $mail->Host = getenv('MAILTRAP_HOST') ?: 'live.smtp.mailtrap.io';
             $mail->SMTPAuth = true;
-            $mail->Port = $_ENV['MAILTRAP_PORT'] ?? 587;
-            $mail->Username = $_ENV['MAILTRAP_USERNAME'] ?? 'smtp@mailtrap.io';
-            $mail->Password = $_ENV['MAILTRAP_PASSWORD'] ?? '';
+            $mail->Port = getenv('MAILTRAP_PORT') ?: 587;
+            $mail->Username = getenv('MAILTRAP_USERNAME') ?: 'smtp@mailtrap.io';
+            $mail->Password = getenv('MAILTRAP_PASSWORD') ?: '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
             $mail->SMTPDebug = 0;
 
             $mail->setFrom(
-                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
-                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+                getenv('MAIL_FROM_EMAIL') ?: 'no-reply@agrocentro.site', 
+                getenv('MAIL_FROM_NAME') ?: 'AgroCaja Chica'
             );
             $mail->addReplyTo(
-                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
-                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+                getenv('MAIL_FROM_EMAIL') ?: 'no-reply@agrocentro.site', 
+                getenv('MAIL_FROM_NAME') ?: 'AgroCaja Chica'
             );
             $mail->addAddress($email, $nombre);
 
@@ -203,6 +205,7 @@ class LoginController {
             return false;
         }
     }
+
 
     private function sendWithNativeMail($email, $subject, $message) {
         try {
@@ -238,20 +241,20 @@ class LoginController {
             $mail = new PHPMailer(true);
             $mail->isSMTP();
             
-            // Configuración Office365 desde variables de entorno
-            $mail->Host = $_ENV['OFFICE365_HOST'] ?? 'smtp.office365.com';
+            // USAR getenv() EN VEZ DE $_ENV
+            $mail->Host = getenv('OFFICE365_HOST') ?: 'smtp.office365.com';
             $mail->SMTPAuth = true;
-            $mail->Port = $_ENV['OFFICE365_PORT'] ?? 587;
-            $mail->Username = $_ENV['OFFICE365_USERNAME'] ?? 'angel.deleon@agrocentro.com';
-            $mail->Password = $_ENV['OFFICE365_PASSWORD'] ?? '';
+            $mail->Port = getenv('OFFICE365_PORT') ?: 587;
+            $mail->Username = getenv('OFFICE365_USERNAME') ?: 'angel.deleon@agrocentro.com';
+            $mail->Password = getenv('OFFICE365_PASSWORD') ?: '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
             $mail->SMTPDebug = 0;
 
             $mail->setFrom(
-                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
-                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+                getenv('MAIL_FROM_EMAIL') ?: 'no-reply@agrocentro.site', 
+                getenv('MAIL_FROM_NAME') ?: 'AgroCaja Chica'
             );
             $mail->addAddress($email, $nombre);
             $mail->Subject = $subject;
