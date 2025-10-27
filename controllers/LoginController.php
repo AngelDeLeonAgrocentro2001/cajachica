@@ -2,6 +2,7 @@
 require_once '../models/Usuario.php';
 require_once '../models/Login.php';
 require_once '../vendor/autoload.php';
+require_once '../config/env.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
