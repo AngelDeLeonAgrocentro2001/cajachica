@@ -1,5 +1,22 @@
-config/database.php
-uploads/*
-vendor/*
+# Archivos de entorno
 .env
-.htaccess
+.env.*
+!.env.example
+
+# Logs
+*.log
+debug.log
+logs/
+
+# Uploads
+Uploads/
+
+# Dependencias
+vendor/
+
+# Configuración sensible
+config/database.php
+
+# Sistema
+.DS_Store
+Thumbs.db
