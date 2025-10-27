@@ -166,18 +166,24 @@ class LoginController {
         try {
             $mail = new PHPMailer();
             $mail->isSMTP();
-            $mail->Host = 'live.smtp.mailtrap.io';
+            $mail->Host = $_ENV['MAILTRAP_HOST'] ?? 'live.smtp.mailtrap.io';
             $mail->SMTPAuth = true;
-            $mail->Port = 587;
-            $mail->Username = 'smtp@mailtrap.io';
-            $mail->Password = '5c69539451340b69f51743ebd47893bb';
+            $mail->Port = $_ENV['MAILTRAP_PORT'] ?? 587;
+            $mail->Username = $_ENV['MAILTRAP_USERNAME'] ?? 'smtp@mailtrap.io';
+            $mail->Password = $_ENV['MAILTRAP_PASSWORD'] ?? '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
             $mail->SMTPDebug = 0;
 
-            $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
-            $mail->addReplyTo('no-reply@agrocentro.site', 'AgroCaja Chica');
+            $mail->setFrom(
+                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
+                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+            );
+            $mail->addReplyTo(
+                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
+                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+            );
             $mail->addAddress($email, $nombre);
 
             $mail->isHTML(true);
@@ -231,18 +237,21 @@ class LoginController {
             $mail = new PHPMailer(true);
             $mail->isSMTP();
             
-            // Configuración Gmail
-            $mail->Host = 'smtp.office365.com';
+            // Configuración Office365 desde variables de entorno
+            $mail->Host = $_ENV['OFFICE365_HOST'] ?? 'smtp.office365.com';
             $mail->SMTPAuth = true;
-            $mail->Port = 587;
-            $mail->Username = 'angel.deleon@agrocentro.com'; // REEMPLAZAR CON UN GMAIL REAL
-            $mail->Password = 'byvdynlmzjlpvncv'; // REEMPLAZAR CON APP PASSWORD
+            $mail->Port = $_ENV['OFFICE365_PORT'] ?? 587;
+            $mail->Username = $_ENV['OFFICE365_USERNAME'] ?? 'angel.deleon@agrocentro.com';
+            $mail->Password = $_ENV['OFFICE365_PASSWORD'] ?? '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
             $mail->SMTPDebug = 0;
 
-            $mail->setFrom('no-reply@agrocentro.site', 'AgroCaja Chica');
+            $mail->setFrom(
+                $_ENV['MAIL_FROM_EMAIL'] ?? 'no-reply@agrocentro.site', 
+                $_ENV['MAIL_FROM_NAME'] ?? 'AgroCaja Chica'
+            );
             $mail->addAddress($email, $nombre);
             $mail->Subject = $subject;
             $mail->Body = $htmlBody;
@@ -250,13 +259,13 @@ class LoginController {
             $mail->isHTML(true);
 
             if ($mail->send()) {
-                error_log("✅ Email enviado exitosamente via Gmail a: $email");
+                error_log("✅ Email enviado exitosamente via Office365 a: $email");
                 return true;
             }
             return false;
             
         } catch (Exception $e) {
-            error_log("❌ Error Gmail para $email: " . $e->getMessage());
+            error_log("❌ Error Office365 para $email: " . $e->getMessage());
             return false;
         }
     }
