@@ -28,7 +28,7 @@ function loadEnv($filePath) {
 
 // Cargar variables de entorno
 try {
-    loadEnv(__DIR__ . '/../.env');
+    loadEnv( '../.env');
 } catch (Exception $e) {
     error_log("Error cargando .env: " . $e->getMessage());
 }
