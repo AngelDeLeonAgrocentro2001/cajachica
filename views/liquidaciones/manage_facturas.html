@@ -949,6 +949,7 @@
         <input type="hidden" name="nombre_cuenta_contable" id="nombre_cuenta_contable_input" />
         <input type="hidden" name="nombre_cuenta_contable_propina" id="nombre_cuenta_contable_propina_input" />
         <input type="hidden" name="id_cuenta_contable_idp" id="id_cuenta_contable_idp_value" />
+        <input type="hidden" name="id_cuenta_contable_inguat" id="id_cuenta_contable_inguat_value" />
         <input type="hidden" name="fecha_documento" id="fecha_documento" />
         <div>
           <label for="tipo_documento">Tipo de Documento:</label>
@@ -1291,7 +1292,7 @@
                   class="edit-btn"
                   onclick="editFactura(<?php echo htmlspecialchars($detalle['id']); ?>)"
                 >
-                  Editar
+                Editar
                 </button>
                 <button
                   class="delete-btn"
@@ -2757,11 +2758,21 @@ async function updateCuentaContableOptions() {
       }
     });
     const cuentas = await response.json();
+    
+    // BUSCAR CUENTAS PARA IDP E INGUAT
     let idpCuentaValue = null;
+    let inguatCuentaValue = null;
+    
     const idpCuenta = cuentas.find(cuenta => cuenta.nombre === 'IDP');
     if (idpCuenta) {
       idpCuentaValue = idpCuenta.id;
       document.getElementById('id_cuenta_contable_idp_value').value = idpCuentaValue;
+    }
+    
+    const inguatCuenta = cuentas.find(cuenta => cuenta.nombre === 'Impuesto de turismo (INGUAT)');
+    if (inguatCuenta) {
+      inguatCuentaValue = inguatCuenta.id;
+      document.getElementById('id_cuenta_contable_inguat_value').value = inguatCuentaValue;
     }
     
     if (!response.ok) {
@@ -2873,7 +2884,7 @@ async function updateCuentaContableOptions() {
       const tipoGastoToCuentaContable = {
         'Gasto Operativo': 'Comisiones',
         'Combustible': 'Combustibles y lubricantes',
-        'Hospedaje': 'Viáticos locales',
+        'Hospedaje': 'Viáticos locales', // Cuenta principal para Hospedaje
         'Alimentos': ['Viáticos locales', 'Atención a empleados', 'Atención a clientes en general'],
         'otros...': null
       };
@@ -3028,6 +3039,13 @@ async function editFactura(id) {
   );
   if (idpOption) {
     document.getElementById('id_cuenta_contable_idp_value').value = idpOption.value;
+  }
+
+  const inguatOption = Array.from(cuentaContableSelect.options).find(
+    option => option.textContent.trim() === 'Impuesto de turismo (INGUAT)'
+  );
+  if (inguatOption) {
+    document.getElementById('id_cuenta_contable_inguat_value').value = inguatOption.value;
   }
 
   // Populate form fields
@@ -3230,6 +3248,7 @@ async function editFactura(id) {
   }
 
   document.getElementById('submitBtn').textContent = 'Actualizar';
+  window.scrollTo({ top: document.getElementById('facturaForm').offsetTop, behavior: 'smooth' });
 
   // Update form fields and validations
   updateFormFields();
@@ -3441,13 +3460,19 @@ document.getElementById('facturaForm').addEventListener('submit', async (e) => {
     formData.delete('nombre_cuenta_contable_propina');
   }
 
-  // Para combustible, establecer ambas cuentas contables
-  if (tipoGasto === 'Combustible') {
-        const idpValue = document.getElementById('id_cuenta_contable_idp_value').value;
-        formData.set('id_cuenta_contable_idp', idpValue);
-    } else {
-        formData.set('id_cuenta_contable_idp', '');
-    }
+  // Determinar cuentas contables según tipo de gasto - VERSIÓN COMPLETA ACTUALIZADA
+if (tipoGasto === 'Combustible') {
+  const idpValue = document.getElementById('id_cuenta_contable_idp_value').value;
+  formData.set('id_cuenta_contable_idp', idpValue);
+  formData.set('id_cuenta_contable_inguat', ''); // Limpiar INGUAT si no aplica
+} else if (tipoGasto === 'Hospedaje') {
+  const inguatValue = document.getElementById('id_cuenta_contable_inguat_value').value;
+  formData.set('id_cuenta_contable_inguat', inguatValue);
+  formData.set('id_cuenta_contable_idp', ''); // Limpiar IDP si no aplica
+} else {
+  formData.set('id_cuenta_contable_idp', '');
+  formData.set('id_cuenta_contable_inguat', '');
+}
 
   capturedFiles.forEach(file => formData.append('archivos[]', file));
 
