@@ -1,0 +1,34 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-03",
+    "DocDueDate": "2025-09-03",
+    "TaxDate": "2025-09-03",
+    "Comments": "viaticos, Jairo salazar",
+    "JournalMemo": "viaticos, Jairo salazar",
+    "U_NIT": "4521587",
+    "U_NOMBRE": "INDUSTRIA DE HAMBURGUESAS SOCIEDAD ANONIMA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 66,
+    "TotalDiscount": 0,
+    "Reference1": "14-98C378A9 3161079957",
+    "NumAtCard": "98C378A9 3161079957",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos - viaticos, Jairo salazar",
+            "PriceAfterVAT": 66,
+            "TaxCode": "IVA",
+            "CostingCode": "D17",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}

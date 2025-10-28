@@ -1,0 +1,44 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-09-03",
+    "DocDueDate": "2025-09-03",
+    "TaxDate": "2025-09-03",
+    "Comments": "viaticos locales, hector regalado",
+    "JournalMemo": "viaticos locales, hector regalado",
+    "U_NIT": "5892015",
+    "U_NOMBRE": "PROMOTORA INTE EL TRIANGULO SA",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 85,
+    "TotalDiscount": 0,
+    "Reference1": "14-67807C98 2222604802",
+    "NumAtCard": "67807C98 2222604802",
+    "U_F_DEC": "2025-09-01",
+    "U_F_DEC_D": "SEP-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Combustible - viaticos locales, hector regalado",
+            "PriceAfterVAT": 71.74,
+            "TaxCode": "IVA",
+            "CostingCode": "D29",
+            "AccountCode": "641101001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "C"
+        },
+        {
+            "LineType": 1,
+            "ItemDescription": "IDP",
+            "PriceAfterVAT": 13.26,
+            "TaxCode": "EXE",
+            "CostingCode": "D29",
+            "AccountCode": "641001001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "P"
+        }
+    ]
+}
