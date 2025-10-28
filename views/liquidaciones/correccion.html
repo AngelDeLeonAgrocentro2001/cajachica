@@ -857,6 +857,7 @@
           <input type="hidden" name="nombre_cuenta_contable" id="nombre_cuenta_contable_input" />
           <input type="hidden" name="nombre_cuenta_contable_propina" id="nombre_cuenta_contable_propina_input" />
           <input type="hidden" name="id_cuenta_contable_idp" id="id_cuenta_contable_idp_value" />
+          <input type="hidden" name="id_cuenta_contable_inguat" id="id_cuenta_contable_inguat_value" />
           <div>
               <label for="tipo_documento">Tipo de Documento:</label>
               <select name="tipo_documento" id="tipo_documento" required>
@@ -1865,7 +1866,6 @@ async function updateCuentaContableOptions() {
         });
     });
 
-
     if (!selectedCentroCosto) {
         cuentaContableSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
         cuentaContablePropinaSelect.innerHTML = '<option value="">Seleccione un centro de costo primero</option>';
@@ -1879,14 +1879,21 @@ async function updateCuentaContableOptions() {
         });
         const cuentas = await response.json();
 
-        // Buscar la cuenta de IDP
+        // BUSCAR CUENTAS PARA IDP E INGUAT
         let idpCuentaValue = null;
+        let inguatCuentaValue = null;
+        
         const idpCuenta = cuentas.find(cuenta => cuenta.nombre === 'IDP');
         if (idpCuenta) {
             idpCuentaValue = idpCuenta.id;
             document.getElementById('id_cuenta_contable_idp_value').value = idpCuentaValue;
         }
-
+        
+        const inguatCuenta = cuentas.find(cuenta => cuenta.nombre === 'Impuesto de turismo (INGUAT)');
+        if (inguatCuenta) {
+            inguatCuentaValue = inguatCuenta.id;
+            document.getElementById('id_cuenta_contable_inguat_value').value = inguatCuentaValue;
+        }
         
         if (!response.ok) throw new Error(cuentas.error || 'Error al obtener cuentas contables');
 
@@ -1945,42 +1952,42 @@ async function updateCuentaContableOptions() {
         }
 
         if (mappedCuenta) {
-    if (Array.isArray(mappedCuenta)) {
-        // Para Alimentos, establecer Viáticos locales como predeterminado
-        const viaticosOption = Array.from(cuentaContableSelect.options).find(opt => 
-            opt.textContent.trim() === 'Viáticos locales'
-        );
-        if (viaticosOption) {
-            cuentaContableSelect.value = viaticosOption.value;
-            nombreCuentaContableInput.value = viaticosOption.getAttribute('data-nombre');
+            if (Array.isArray(mappedCuenta)) {
+                // Para Alimentos, establecer Viáticos locales como predeterminado
+                const viaticosOption = Array.from(cuentaContableSelect.options).find(opt => 
+                    opt.textContent.trim() === 'Viáticos locales'
+                );
+                if (viaticosOption) {
+                    cuentaContableSelect.value = viaticosOption.value;
+                    nombreCuentaContableInput.value = viaticosOption.getAttribute('data-nombre');
+                    cuentaContableSelect.disabled = false;
+                }
+            } else {
+                // Para otros tipos de gasto, establecer la cuenta predeterminada
+                const option = Array.from(cuentaContableSelect.options).find(opt => 
+                    opt.textContent.trim() === mappedCuenta.trim()
+                );
+                if (option) {
+                    cuentaContableSelect.value = option.value;
+                    nombreCuentaContableInput.value = option.getAttribute('data-nombre');
+                    cuentaContableSelect.disabled = true;
+                } else {
+                    cuentaContableSelect.disabled = true;
+                    cuentaContableSelect.value = '';
+                    nombreCuentaContableInput.value = '';
+                    console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
+                }
+            }
+        } else if (tipoGasto === 'Otros') {
+            // Para "Otros", permitir selección manual
             cuentaContableSelect.disabled = false;
-        }
-    } else {
-        // Para otros tipos de gasto, establecer la cuenta predeterminada
-        const option = Array.from(cuentaContableSelect.options).find(opt => 
-            opt.textContent.trim() === mappedCuenta.trim()
-        );
-        if (option) {
-            cuentaContableSelect.value = option.value;
-            nombreCuentaContableInput.value = option.getAttribute('data-nombre');
-            cuentaContableSelect.disabled = true;
-        } else {
-            cuentaContableSelect.disabled = true;
             cuentaContableSelect.value = '';
             nombreCuentaContableInput.value = '';
-            console.warn(`Cuenta contable "${mappedCuenta}" no encontrada.`);
+        } else {
+            //cuentaContableSelect.disabled = true;
+            cuentaContableSelect.value = '';
+            nombreCuentaContableInput.value = '';
         }
-    }
-} else if (tipoGasto === 'Otros') {
-    // Para "Otros", permitir selección manual
-    cuentaContableSelect.disabled = false;
-    cuentaContableSelect.value = '';
-    nombreCuentaContableInput.value = '';
-} else {
-    //cuentaContableSelect.disabled = true;
-    cuentaContableSelect.value = '';
-    nombreCuentaContableInput.value = '';
-}
 
     } catch (error) {
         console.error('Error al cargar cuentas contables:', error);
@@ -2188,7 +2195,18 @@ async function editFactura(facturaId) {
 
     // Actualizar la cuenta contable principal
     await updateCuentaContableOptions();
+
     const cuentaContableSelect = document.getElementById('id_cuenta_contable');
+    
+    // SET INGUAT ACCOUNT IF APPLICABLE - NUEVO
+    const inguatOption = Array.from(cuentaContableSelect.options).find(
+        option => option.textContent.trim() === 'Impuesto de turismo (INGUAT)'
+    );
+    if (inguatOption) {
+        document.getElementById('id_cuenta_contable_inguat_value').value = inguatOption.value;
+    }
+    
+    
     const cuentaOption = Array.from(cuentaContableSelect.options).find((option) => option.text.trim() === detalle.cuenta_contable_nombre.trim());
     if (cuentaOption) {
         cuentaContableSelect.value = cuentaOption.value;
@@ -2750,8 +2768,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tipoGasto === 'Combustible') {
         const idpValue = document.getElementById('id_cuenta_contable_idp_value').value;
         formData.set('id_cuenta_contable_idp', idpValue);
+        formData.set('id_cuenta_contable_inguat', ''); // Limpiar INGUAT si no aplica
+    } else if (tipoGasto === 'Hospedaje') {
+        const inguatValue = document.getElementById('id_cuenta_contable_inguat_value').value;
+        formData.set('id_cuenta_contable_inguat', inguatValue);
+        formData.set('id_cuenta_contable_idp', ''); // Limpiar IDP si no aplica
     } else {
         formData.set('id_cuenta_contable_idp', '');
+        formData.set('id_cuenta_contable_inguat', '');
     }
 
     // Validate files

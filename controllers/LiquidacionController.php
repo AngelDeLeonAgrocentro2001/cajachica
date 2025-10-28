@@ -3955,7 +3955,7 @@ public function manageFacturas($id) {
                     $id_cuenta_contable_inguat = null;
                 } elseif ($t_gasto === 'Hospedaje') {
                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
-                    $id_cuenta_contable_inguat = $this->determinarCuentaInguat($id_centro_costo[0]); // Cuenta fija para INGUAT
+                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // Cuenta fija para INGUAT
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
@@ -4215,9 +4215,15 @@ public function manageFacturas($id) {
                 if ($t_gasto === 'Combustible') {
                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
                     $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                    $id_cuenta_contable_inguat = null;
+                } elseif ($t_gasto === 'Hospedaje') {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
+                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // INGUAT
+                    $id_cuenta_contable_idp = null;
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
+                    $id_cuenta_contable_inguat = null;
                 }
 
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
@@ -4376,6 +4382,7 @@ public function manageFacturas($id) {
                                 id_cuenta_contable_propina = :id_cuenta_contable_propina,
                                 nombre_cuenta_contable_propina = :nombre_cuenta_contable_propina,
                                 id_cuenta_contable_idp = :id_cuenta_contable_idp,
+                                id_cuenta_contable_inguat = :id_cuenta_contable_inguat,
                                 tipo_combustible = :tipo_combustible,
                                 comentarios = :comentarios,
                                 porcentaje = :porcentaje,
@@ -4408,6 +4415,7 @@ public function manageFacturas($id) {
                             ':id_cuenta_contable_propina' => $id_cuenta_contable_propina,
                             ':nombre_cuenta_contable_propina' => $nombre_cuenta_contable_propina,
                             ':id_cuenta_contable_idp' => $id_cuenta_contable_idp,
+                            ':id_cuenta_contable_inguat' => $id_cuenta_contable_inguat,
                             ':tipo_combustible' => $tipo_combustible,
                             ':comentarios' => $comentarios,
                             ':porcentaje' => $porcentaje,
@@ -4445,6 +4453,7 @@ public function manageFacturas($id) {
                                 id_cuenta_contable_propina = :id_cuenta_contable_propina,
                                 nombre_cuenta_contable_propina = :nombre_cuenta_contable_propina,
                                 id_cuenta_contable_idp = :id_cuenta_contable_idp,
+                                id_cuenta_contable_inguat = :id_cuenta_contable_inguat,
                                 tipo_combustible = :tipo_combustible,
                                 comentarios = :comentarios,
                                 porcentaje = :porcentaje,
@@ -4476,6 +4485,7 @@ public function manageFacturas($id) {
                             ':id_cuenta_contable_propina' => $id_cuenta_contable_propina,
                             ':nombre_cuenta_contable_propina' => $nombre_cuenta_contable_propina,
                             ':id_cuenta_contable_idp' => $id_cuenta_contable_idp,
+                            ':id_cuenta_contable_inguat' => $id_cuenta_contable_inguat,
                             ':tipo_combustible' => $tipo_combustible,
                             ':comentarios' => $comentarios,
                             ':porcentaje' => $porcentaje,
@@ -4518,14 +4528,15 @@ public function manageFacturas($id) {
                             $id_cuenta_contable_propina,
                             $nombre_cuenta_contable_propina,
                             $id_cuenta_contable_idp,
-                            $fechaDocumento
+                            $fechaDocumento,
+                            $id_cuenta_contable_inguat
                         );
                         if (!$new_detalle_id) {
                             throw new Exception('Error al crear nuevo detalle de liquidación.');
                         }
                         $detalle_ids[] = $new_detalle_id;
                         error_log("Creado detalle secundario ID $new_detalle_id con fecha_documento: " . ($fechaDocumento ?? 'NULL'));
-                        error_log("Creado detalle secundario ID $new_detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
+                        error_log("Creado detalle secundario ID $new_detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre, INGUAT: $id_cuenta_contable_inguat");
                     }
                 }
 
@@ -4922,11 +4933,20 @@ public function manageFacturas($id) {
                     }
                 }
 
-                if ($t_gasto === 'Gasto Operativo') {
-                    $tipo_combustible = 'Gasolina';
-                } elseif ($t_gasto !== 'Combustible') {
-                    $tipo_combustible = null;
-                }
+                // Determinar cuentas contables según tipo de gasto
+                 if ($t_gasto === 'Combustible') {
+                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
+                     $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                     $id_cuenta_contable_inguat = null;
+                 } elseif ($t_gasto === 'Hospedaje') {
+                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales (cuenta principal)
+                     $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // Cuenta INGUAT desde el hidden field
+                     $id_cuenta_contable_idp = null;
+                 } else {
+                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                     $id_cuenta_contable_idp = null;
+                     $id_cuenta_contable_inguat = null;
+                 }
 
                 // Validate date range
                 $fechaFactura = new DateTime($fecha);
@@ -5040,6 +5060,7 @@ public function manageFacturas($id) {
                                 id_cuenta_contable = :id_cuenta_contable,
                                 nombre_cuenta_contable = :nombre_cuenta_contable,
                                 id_cuenta_contable_idp = :id_cuenta_contable_idp,
+                                id_cuenta_contable_inguat = :id_cuenta_contable_inguat,
                                 tipo_combustible = :tipo_combustible,
                                 correccion_comentario = :correccion_comentario,
                                 comentarios = :comentarios,
@@ -5073,6 +5094,7 @@ public function manageFacturas($id) {
                             ':id_cuenta_contable_propina' => $id_cuenta_contable_propina,
                             ':nombre_cuenta_contable_propina' => $nombre_cuenta_contable_propina,
                             ':id_cuenta_contable_idp' => $id_cuenta_contable_idp,
+                            ':id_cuenta_contable_inguat' => $id_cuenta_contable_inguat,
                             ':id_cuenta_contable' => $id_cuenta_contable,
                             ':nombre_cuenta_contable' => $nombre_cuenta_contable,
                             ':tipo_combustible' => $tipo_combustible,
