@@ -254,7 +254,7 @@ class LoginController {
             // USAR getenv() EN VEZ DE $_ENV
             $mail->Host = getenv('OFFICE365_HOST') ?: 'smtp.office365.com';
             $mail->SMTPAuth = true;
-            $mail->Port = getenv('OFFICE365_PORT') ?: 2525;
+            $mail->Port = getenv('OFFICE365_PORT') ?: 587;
             $mail->Username = getenv('OFFICE365_USERNAME') ?: 'angel.deleon@agrocentro.com';
             $mail->Password = getenv('OFFICE365_PASSWORD') ?: '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
