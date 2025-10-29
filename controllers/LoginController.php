@@ -133,15 +133,16 @@ class LoginController {
                 // ESTRATEGIA DE ENVÍO MEJORADA
                 $enviado = false;
 
-                // 1. Intentar con Gmail como respaldo
-                if (!$enviado) {
-                    $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
-                }
-                
-                // 2. Intentar con Mailtrap (tu configuración exacta)
+                // 1. Intentar con Mailtrap (tu configuración exacta)
                 if (!$enviado) {
                     $enviado = $this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
                 }
+
+                // 2. Intentar con Gmail como respaldo
+                // if (!$enviado) {
+                //     $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
+                // }
+                
                 
                 // 3. Intentar con función mail() mejorada
                 if (!$enviado) {
@@ -255,7 +256,7 @@ class LoginController {
             // USAR getenv() EN VEZ DE $_ENV
             $mail->Host = getenv('OFFICE365_HOST') ?: 'smtp-mail.outlook.com';
             $mail->SMTPAuth = true;
-            $mail->Port = getenv('OFFICE365_PORT') ?: 465;
+            $mail->Port = getenv('OFFICE365_PORT') ?: 587;
             $mail->Username = getenv('OFFICE365_USERNAME') ?: 'angel.deleon@agrocentro.com';
             $mail->Password = getenv('OFFICE365_PASSWORD') ?: '';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
