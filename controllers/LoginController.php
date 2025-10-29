@@ -167,6 +167,11 @@ class LoginController {
         try {
             $mail = new PHPMailer();
             $mail->isSMTP();
+
+            $mail->SMTPDebug = SMTP::DEBUG_CONNECTION;
+            $mail->Debugoutput = function($str, $level) {
+            error_log("DEBUG Mailtrap: $str");
+            };
             
             // USAR getenv() EN VEZ DE $_ENV
             $mail->Host = getenv('MAILTRAP_HOST') ?: 'live.smtp.mailtrap.io';
@@ -177,7 +182,7 @@ class LoginController {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
-            $mail->SMTPDebug = 0;
+            $mail->SMTPDebug = 2;
 
             $mail->setFrom(
                 getenv('MAIL_FROM_EMAIL') ?: 'no-reply@agrocentro.site', 
@@ -240,6 +245,11 @@ class LoginController {
         try {
             $mail = new PHPMailer(true);
             $mail->isSMTP();
+
+            $mail->SMTPDebug = SMTP::DEBUG_CONNECTION;
+            $mail->Debugoutput = function($str, $level) {
+            error_log("DEBUG Office365: $str");
+            };
             
             // USAR getenv() EN VEZ DE $_ENV
             $mail->Host = getenv('OFFICE365_HOST') ?: 'smtp.office365.com';
@@ -250,7 +260,7 @@ class LoginController {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->CharSet = 'UTF-8';
             $mail->Timeout = 10;
-            $mail->SMTPDebug = 0;
+            $mail->SMTPDebug = 2;
 
             $mail->setFrom(
                 getenv('MAIL_FROM_EMAIL') ?: 'no-reply@agrocentro.site', 
