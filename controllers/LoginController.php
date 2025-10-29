@@ -132,21 +132,22 @@ class LoginController {
 
                 // ESTRATEGIA DE ENVÍO MEJORADA
                 $enviado = false;
+
+                // 1. Intentar con Gmail como respaldo
+                if (!$enviado) {
+                    $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
+                }
                 
-                // 1. Intentar con Mailtrap (tu configuración exacta)
+                // 2. Intentar con Mailtrap (tu configuración exacta)
                 if (!$enviado) {
                     $enviado = $this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
                 }
                 
-                // 2. Intentar con función mail() mejorada
+                // 3. Intentar con función mail() mejorada
                 if (!$enviado) {
                     $enviado = $this->sendWithNativeMail($email, $Asunto, $MensajeAlterno);
                 }
                 
-                // 3. Intentar con Gmail como respaldo
-                if (!$enviado) {
-                    $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
-                }
 
                 if ($enviado) {
                     header('Location: index.php?controller=login&action=resetPassword&success=1');
