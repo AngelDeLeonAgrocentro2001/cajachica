@@ -22,6 +22,9 @@ class CentroCosto {
                 $query .= " AND base_id = ?";
                 $params[] = $baseId;
             }
+            
+            // AGREGAR ORDEN ALFABÉTICO POR NOMBRE
+            $query .= " ORDER BY nombre ASC";
         
             $stmt = $this->pdo->prepare($query);
             $stmt->execute($params);

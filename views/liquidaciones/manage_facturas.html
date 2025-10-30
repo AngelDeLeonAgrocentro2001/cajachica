@@ -1269,27 +1269,26 @@
               </td>
               <td data-label="Archivos">
                 <?php
-                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                if (is_array($rutas) && !empty($rutas)) {
-                    foreach ($rutas as $index => $ruta) { 
-                        $fileName = basename($ruta); 
-                        echo '
-                        <div>
-                            <a
-                                href="#"
-                                class="file-link"
-                                data-file="../' . htmlspecialchars($ruta) . '"
-                                onclick="openModal(\'../' . htmlspecialchars($ruta) . '\', \'' . htmlspecialchars($fileName) . '\')"
-                                >Ver Archivo
-                            </a>
-                        </div>
-                        '; 
-                    } 
-                } else { 
-                    echo 'N/A'; 
-                } 
+                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                  if (is_array($rutas) && !empty($rutas)) {
+                      foreach ($rutas as $index => $ruta) { 
+                          $fileName = basename($ruta); 
+                          echo '
+                          <div>
+                              <a
+                                  href="../' . htmlspecialchars($ruta) . '"
+                                  class="file-link"
+                                  target="_blank"
+                                  >Ver Archivo
+                              </a>
+                          </div>
+                          '; 
+                      } 
+                  } else { 
+                      echo 'N/A'; 
+                  } 
                 ?>
-            </td>
+              </td>
               <td data-label="Acciones">
                 <button
                   class="edit-btn"

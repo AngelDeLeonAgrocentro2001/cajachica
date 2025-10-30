@@ -37,7 +37,7 @@ $id_centro_costo = isset($_GET['id_centro_costo']) ? $_GET['id_centro_costo'] : 
 $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 
 // Session validation
-if (!isset($_SESSION['user_id']) && $controller !== 'login' && $action !== 'resetPassword' && $action !== 'resetConfirm') {
+if (!isset($_SESSION['user_id']) && $controller !== 'login' && $action !== 'resetPassword' && $action !== 'resetConfirm' && $action !== 'changePassword') {
     if ($isAjax) {
         header('Content-Type: application/json');
         http_response_code(401);
@@ -78,6 +78,9 @@ switch ($controller) {
             case 'resetConfirm':
                 $loginController->resetConfirm();
                 break;
+            case 'changePassword': // ← AGREGAR ESTA LÍNEA
+                $loginController->changePassword(); // ← AGREGAR ESTA LÍNEA
+                break;    
             default:
                 header('HTTP/1.1 404 Not Found');
                 echo json_encode(['error' => 'Acción no encontrada para login']);
