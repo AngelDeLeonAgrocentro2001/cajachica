@@ -56,18 +56,18 @@
             color: #999;
         }
 
-        #resetForm .error {
+        .error {
             color: #e74c3c;
             font-size: 0.9rem;
             margin: 10px 0;
-            display: <?php echo isset($_GET['error']) ? 'block' : 'none'; ?>;
+            display: none;
         }
 
-        #resetForm .success {
+        .success {
             color: #2ecc71;
             font-size: 0.9rem;
             margin: 10px 0;
-            display: <?php echo isset($_GET['success']) ? 'block' : 'none'; ?>;
+            display: none;
         }
 
         #resetForm button {
@@ -91,8 +91,69 @@
             transform: scale(0.98);
         }
 
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .modal h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+
         @media (max-width: 480px) {
-            #resetForm {
+            #resetForm, .modal-content {
                 padding: 20px;
                 max-width: 90%;
             }
@@ -112,14 +173,181 @@
 <body>
     <form id="resetForm" method="POST">
         <h2>Recuperar Contraseña</h2>
-        <div class="error">
-            <?php echo isset($_GET['error']) ? htmlspecialchars($_GET['error']) : ''; ?>
+        <div class="error" id="errorMessage"></div>
+        <div class="success" id="successMessage"></div>
+        <input type="email" name="email" id="email" placeholder="Ingresa tu email" required>
+        <button type="submit">Verificar Email</button>
+        <div style="margin-top: 20px;">
+            <a href="index.php?controller=login&action=login" style="color: #3498db; text-decoration: none;">← Volver al login</a>
         </div>
-        <div class="success">
-            <?php echo isset($_GET['success']) ? 'Se ha enviado un enlace a tu email.' : ''; ?>
-        </div>
-        <input type="email" name="email" placeholder="Email" required>
-        <button type="submit">Enviar Enlace</button>
     </form>
+
+    <!-- Modal para nueva contraseña -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3>Nueva Contraseña</h3>
+            <div class="error" id="modalError"></div>
+            <div class="success" id="modalSuccess"></div>
+            <input type="hidden" id="userEmail">
+            <input type="password" id="newPassword" placeholder="Nueva contraseña" required>
+            <input type="password" id="confirmPassword" placeholder="Confirmar contraseña" required>
+            <div class="modal-buttons">
+                <button type="button" id="savePassword" class="btn-primary">Guardar</button>
+                <button type="button" id="cancelModal" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+    const resetForm = document.getElementById('resetForm');
+    const passwordModal = document.getElementById('passwordModal');
+    const userEmail = document.getElementById('userEmail');
+    const newPassword = document.getElementById('newPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
+    const savePassword = document.getElementById('savePassword');
+    const cancelModal = document.getElementById('cancelModal');
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+    const modalError = document.getElementById('modalError');
+    const modalSuccess = document.getElementById('modalSuccess');
+
+    resetForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value.trim();
+        
+        if (!email) {
+            showError('Por favor ingresa tu email');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('email', email);
+
+            const response = await fetch('index.php?controller=login&action=resetPassword', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                userEmail.value = email;
+                showSuccess('Email verificado correctamente');
+                setTimeout(() => {
+                    passwordModal.style.display = 'block';
+                }, 1000);
+            } else {
+                showError(result.error || 'Error al verificar el email');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Error de conexión. Intenta de nuevo.');
+        }
+    });
+
+    savePassword.addEventListener('click', async function() {
+        const email = userEmail.value;
+        const password = newPassword.value;
+        const confirm = confirmPassword.value;
+
+        console.log("🔧 Datos del modal:", { email, password, confirm });
+
+        if (!password || !confirm) {
+            showModalError('Por favor completa ambos campos');
+            return;
+        }
+
+        if (password.length < 6) {
+            showModalError('La contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+
+        if (password !== confirm) {
+            showModalError('Las contraseñas no coinciden');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('email', email);
+            formData.append('new_password', password);
+
+            console.log("🔧 Enviando datos a changePassword...");
+
+            const response = await fetch('index.php?controller=login&action=changePassword', {
+                method: 'POST',
+                body: formData
+            });
+
+            console.log("🔧 Respuesta recibida:", response.status);
+
+            const result = await response.json();
+            console.log("🔧 Resultado:", result);
+
+            if (result.success) {
+                showModalSuccess('✅ Contraseña actualizada exitosamente. Se ha enviado un correo de confirmación.');
+                setTimeout(() => {
+                    passwordModal.style.display = 'none';
+                    clearModalFields();
+                    // Redirigir al login con mensaje de éxito
+                    window.location.href = 'index.php?controller=login&action=login&success=Contraseña actualizada correctamente. Se ha enviado un correo de confirmación. Ahora puedes iniciar sesión con tu nueva contraseña.';
+                }, 3000);
+            } else {
+                showModalError(result.error || 'Error al actualizar la contraseña');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showModalError('Error de conexión. Intenta de nuevo.');
+        }
+    });
+
+    cancelModal.addEventListener('click', function() {
+        passwordModal.style.display = 'none';
+        clearModalFields();
+    });
+
+    // Cerrar modal al hacer click fuera
+    window.addEventListener('click', function(e) {
+        if (e.target === passwordModal) {
+            passwordModal.style.display = 'none';
+            clearModalFields();
+        }
+    });
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        successMessage.textContent = message;
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+    }
+
+    function showModalError(message) {
+        modalError.textContent = message;
+        modalError.style.display = 'block';
+        modalSuccess.style.display = 'none';
+    }
+
+    function showModalSuccess(message) {
+        modalSuccess.textContent = message;
+        modalSuccess.style.display = 'block';
+        modalError.style.display = 'none';
+    }
+
+    function clearModalFields() {
+        newPassword.value = '';
+        confirmPassword.value = '';
+        modalError.style.display = 'none';
+        modalSuccess.style.display = 'none';
+    }
+});
+    </script>
 </body>
 </html>

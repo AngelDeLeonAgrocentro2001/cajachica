@@ -68,100 +68,140 @@ class LoginController {
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
             if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                header('Location: index.php?controller=login&action=resetPassword&error=Email inválido');
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Email inválido']);
                 exit;
             }
         
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
-                $token = bin2hex(random_bytes(32));
-                
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                
-                $_SESSION['reset_token'][$email] = $token;
-                $_SESSION['reset_token_expiry'][$email] = time() + 3600;
-        
-                $Asunto = 'Recuperación de Contraseña - AgroCaja Chica';
-                $resetLink = "https://caja-chica.agrocentro.site/index.php?controller=login&action=resetConfirm&token={$token}&email=" . urlencode($email);
-                
-                $Mensaje = "
-                    <html>
-                    <head>
-                        <title>Recuperación de Contraseña</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                            .button { background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; }
-                            .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class='container'>
-                            <h2>Recuperación de Contraseña - AgroCaja Chica</h2>
-                            <p>Hola <strong>{$user['nombre']}</strong>,</p>
-                            <p>Recibimos una solicitud para restablecer tu contraseña en el sistema AgroCaja Chica.</p>
-                            <p>Haz clic en el siguiente botón para continuar:</p>
-                            <p style='text-align: center; margin: 30px 0;'>
-                                <a href='{$resetLink}' class='button'>Restablecer Contraseña</a>
-                            </p>
-                            <p>O copia y pega este enlace en tu navegador:</p>
-                            <p style='background-color: #f5f5f5; padding: 15px; border-radius: 5px; word-break: break-all;'>
-                                <code>{$resetLink}</code>
-                            </p>
-                            <p><strong>⚠️ Importante: Este enlace expirará en 1 hora.</strong></p>
-                            <p>Si no solicitaste este restablecimiento, ignora este email.</p>
-                            <div class='footer'>
-                                <p>Este es un mensaje automático, por favor no respondas.</p>
-                                <p>AgroCaja Chica &copy; " . date('Y') . "</p>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                ";
-                
-                $MensajeAlterno = "RECUPERACIÓN DE CONTRASEÑA - AGROCAJA CHICA\n\n" .
-                    "Hola {$user['nombre']},\n\n" .
-                    "Recibimos una solicitud para restablecer tu contraseña.\n\n" .
-                    "Para continuar, visita el siguiente enlace:\n" .
-                    "{$resetLink}\n\n" .
-                    "Este enlace expirará en 1 hora.\n\n" .
-                    "Si no solicitaste esto, ignora este email.\n\n" .
-                    "Saludos,\nSistema AgroCaja Chica";
-
-                // ESTRATEGIA DE ENVÍO MEJORADA
-                $enviado = false;
-
-                // 1. Intentar con Mailtrap (tu configuración exacta)
-                if (!$enviado) {
-                    $enviado = $this->sendWithExactConfig($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
-                }
-
-                // 2. Intentar con Gmail como respaldo
-                // if (!$enviado) {
-                //     $enviado = $this->sendWithGmail($email, $user['nombre'], $Asunto, $Mensaje, $MensajeAlterno);
-                // }
-                
-                
-                // 3. Intentar con función mail() mejorada
-                if (!$enviado) {
-                    $enviado = $this->sendWithNativeMail($email, $Asunto, $MensajeAlterno);
-                }
-                
-
-                if ($enviado) {
-                    header('Location: index.php?controller=login&action=resetPassword&success=1');
-                } else {
-                    header('Location: index.php?controller=login&action=resetPassword&error=No se pudo enviar el email. Por favor contacte al administrador.');
-                }
-    
+                // Email válido y registrado
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Email verificado correctamente',
+                    'email' => $email
+                ]);
             } else {
-                error_log("Email no encontrado: $email");
-                // Por seguridad, mostrar mismo mensaje aunque el email no exista
-                header('Location: index.php?controller=login&action=resetPassword&success=1');
+                // Email no registrado
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'El email no está registrado en el sistema. Por favor, verifica tu dirección de correo.'
+                ]);
             }
             exit;
+        }
+    }
+
+    public function changePassword() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = $_POST['email'] ?? '';
+            $newPassword = $_POST['new_password'] ?? '';
+            
+            error_log("🔧 changePassword llamado - Email: $email, Nueva contraseña: " . (strlen($newPassword) > 0 ? '***' : 'vacía'));
+            
+            if (empty($email) || empty($newPassword)) {
+                error_log("❌ Error: Email o contraseña vacíos");
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Email y contraseña son obligatorios']);
+                exit;
+            }
+    
+            if (strlen($newPassword) < 6) {
+                error_log("❌ Error: Contraseña demasiado corta");
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'La contraseña debe tener al menos 6 caracteres']);
+                exit;
+            }
+    
+            $user = $this->usuario->getUsuarioByEmail($email);
+            if ($user) {
+                error_log("✅ Usuario encontrado: " . $user['id'] . " - " . $user['nombre']);
+                
+                // ENVIAR CONTRASEÑA EN TEXTO PLANO - EL MODELO SE ENCARGARÁ DEL HASHING
+                $result = $this->usuario->updateUsuario(
+                    $user['id'], 
+                    $user['nombre'], 
+                    $email, 
+                    $newPassword,  // ← TEXTO PLANO, NO HASH
+                    $user['id_rol']
+                );
+                
+                error_log("🔧 Resultado de updateUsuario: " . ($result ? 'ÉXITO' : 'FALLO'));
+                
+                if ($result) {
+                    // Enviar correo de notificación
+                    $emailResult = $this->sendPasswordChangeNotification($email, $user['nombre']);
+                    error_log("🔧 Resultado del envío de correo: " . ($emailResult ? 'ÉXITO' : 'FALLO'));
+                    
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => 'Contraseña actualizada exitosamente. Se ha enviado un correo de confirmación.'
+                    ]);
+                } else {
+                    error_log("❌ Error al actualizar en la base de datos");
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false, 
+                        'error' => 'Error al actualizar la contraseña en la base de datos'
+                    ]);
+                }
+            } else {
+                error_log("❌ Usuario no encontrado para email: $email");
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'Usuario no encontrado'
+                ]);
+            }
+            exit;
+        }
+    }
+    
+    private function sendPasswordChangeNotification($email, $nombre) {
+        try {
+            $Asunto = 'Contraseña Actualizada - AgroCaja Chica';
+            
+            $Mensaje = "
+                <html>
+                <head>
+                    <title>Contraseña Actualizada</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <h2>Contraseña Actualizada - AgroCaja Chica</h2>
+                        <p>Hola <strong>{$nombre}</strong>,</p>
+                        <p>Tu contraseña en el sistema AgroCaja Chica ha sido actualizada exitosamente.</p>
+                        <p><strong>✅ Cambio realizado con éxito</strong></p>
+                        <p>Si no realizaste este cambio, por favor contacta inmediatamente al administrador del sistema.</p>
+                        <div class='footer'>
+                            <p>Este es un mensaje automático, por favor no respondas.</p>
+                            <p>AgroCaja Chica &copy; " . date('Y') . "</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            ";
+            
+            $MensajeAlterno = "CONTRASEÑA ACTUALIZADA - AGROCAJA CHICA\n\n" .
+                "Hola {$nombre},\n\n" .
+                "Tu contraseña en el sistema AgroCaja Chica ha sido actualizada exitosamente.\n\n" .
+                "Si no realizaste este cambio, por favor contacta inmediatamente al administrador.\n\n" .
+                "Saludos,\nSistema AgroCaja Chica";
+    
+            // Usar la misma estrategia de envío que en resetPassword
+            return $this->sendWithExactConfig($email, $nombre, $Asunto, $Mensaje, $MensajeAlterno);
+            
+        } catch (Exception $e) {
+            error_log("❌ Error enviando notificación de cambio de contraseña: " . $e->getMessage());
+            return false;
         }
     }
     
@@ -290,7 +330,7 @@ class LoginController {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-
+    
         $token = $_GET['token'] ?? '';
         $email = $_GET['email'] ?? '';
     
@@ -306,21 +346,21 @@ class LoginController {
             
             $newPassword = trim($newPassword);
             $confirmPassword = trim($confirmPassword);
-
+    
             if (strlen($newPassword) < 6) {
                 header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=La contraseña debe tener al menos 6 caracteres');
                 exit;
             }
-
+    
             if ($newPassword !== $confirmPassword) {
                 header('Location: index.php?controller=login&action=resetConfirm&token=' . urlencode($token) . '&email=' . urlencode($email) . '&error=Las contraseñas no coinciden');
                 exit;
             }
-
+    
             $user = $this->usuario->getUsuarioByEmail($email);
             if ($user) {
-                $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $hashedPassword, $user['id_rol']);
+                // ENVIAR CONTRASEÑA EN TEXTO PLANO - EL MODELO SE ENCARGARÁ DEL HASHING
+                $result = $this->usuario->updateUsuario($user['id'], $user['nombre'], $email, $newPassword, $user['id_rol']);
                 
                 if ($result) {
                     error_log("✅ Contraseña actualizada correctamente para $email");

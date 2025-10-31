@@ -93,19 +93,30 @@ class Usuario {
 
     public function updateUsuario($id, $nombre, $email, $password, $id_rol, $card_code = null, $id_caja_chica = null) {
         try {
+            error_log("🔧 updateUsuario llamado - ID: $id, Email: $email, ¿Tiene password?: " . (!empty($password) ? 'SÍ' : 'NO'));
+            
             if (!empty($password)) {
+                // HASHEAR LA CONTRASEÑA ANTES DE GUARDARLA (SOLO UNA VEZ)
+                $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+                error_log("🔧 Contraseña hasheada: " . $hashedPassword);
+                
                 $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
-                $result = $stmt->execute([$nombre, $email, password_hash($password, PASSWORD_BCRYPT), $id_rol, $card_code, $id_caja_chica, $id]);
+                $result = $stmt->execute([$nombre, $email, $hashedPassword, $id_rol, $card_code, $id_caja_chica, $id]);
+                error_log("🔧 UPDATE con password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
             } else {
                 $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
                 $result = $stmt->execute([$nombre, $email, $id_rol, $card_code, $id_caja_chica, $id]);
+                error_log("🔧 UPDATE sin password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
             }
+            
             if ($result === false) {
-                error_log("Error al ejecutar UPDATE en updateUsuario: " . implode(', ', $stmt->errorInfo()));
+                $errorInfo = $stmt->errorInfo();
+                error_log("❌ Error en updateUsuario: " . implode(', ', $errorInfo));
             }
+            
             return $result;
         } catch (PDOException $e) {
-            error_log("Error PDO en updateUsuario: " . $e->getMessage());
+            error_log("❌ Error PDO en updateUsuario: " . $e->getMessage());
             return false;
         }
     }
