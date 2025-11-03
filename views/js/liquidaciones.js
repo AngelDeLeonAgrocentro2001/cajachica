@@ -1073,8 +1073,9 @@ async function finalizarLiquidacion(id) {
     currentLiquidationId = id;
 
     try {
+        // PRIMERA LLAMADA: Solo para obtener información del supervisor
         const response = await fetch(
-            `index.php?controller=liquidacion&action=finalizar&id=${id}`,
+            `index.php?controller=liquidacion&action=getSupervisorInfo&id=${id}`,
             {
                 method: "POST",
                 headers: {
@@ -1105,6 +1106,7 @@ async function finalizarLiquidacion(id) {
         }).then(async (swalResult) => {
             if (swalResult.isConfirmed) {
                 try {
+                    // SEGUNDA LLAMADA: Solo para finalizar (esta sí ejecutará el envío de correo)
                     const finalizeResponse = await fetch(
                         `index.php?controller=liquidacion&action=finalizar&id=${id}`,
                         {
