@@ -95,70 +95,79 @@ class LoginController {
     }
 
     public function changePassword() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = $_POST['email'] ?? '';
-            $newPassword = $_POST['new_password'] ?? '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $email = $_POST['email'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        
+        error_log("🔧 changePassword llamado - Email: $email, Nueva contraseña: " . (strlen($newPassword) > 0 ? '***' : 'vacía'));
+        
+        if (empty($email) || empty($newPassword)) {
+            error_log("❌ Error: Email o contraseña vacíos");
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Email y contraseña son obligatorios']);
+            exit;
+        }
+
+        if (strlen($newPassword) < 6) {
+            error_log("❌ Error: Contraseña demasiado corta");
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'La contraseña debe tener al menos 6 caracteres']);
+            exit;
+        }
+
+        $user = $this->usuario->getUsuarioByEmail($email);
+        if ($user) {
+            error_log("✅ Usuario encontrado: " . $user['id'] . " - " . $user['nombre']);
+            error_log("🔧 Datos actuales - Código: '" . $user['clientes'] . "', Caja Chica: " . $user['id_caja_chica']);
             
-            error_log("🔧 changePassword llamado - Email: $email, Nueva contraseña: " . (strlen($newPassword) > 0 ? '***' : 'vacía'));
+            // PRESERVAR los datos existentes del usuario
+            $nombre = $user['nombre'];
+            $id_rol = $user['id_rol'];
+            $card_code = $user['clientes']; // Preservar código existente
+            $id_caja_chica = $user['id_caja_chica']; // Preservar caja chica existente
             
-            if (empty($email) || empty($newPassword)) {
-                error_log("❌ Error: Email o contraseña vacíos");
+            // Actualizar usuario preservando todos los datos existentes
+            $result = $this->usuario->updateUsuario(
+                $user['id'], 
+                $nombre, 
+                $email, 
+                $newPassword,  // ← Nueva contraseña
+                $id_rol,
+                $card_code,    // ← Preservar código
+                $id_caja_chica // ← Preservar caja chica
+            );
+            
+            error_log("🔧 Resultado de updateUsuario: " . ($result ? 'ÉXITO' : 'FALLO'));
+            
+            if ($result) {
+                // Enviar correo de notificación
+                $emailResult = $this->sendPasswordChangeNotification($email, $user['nombre']);
+                error_log("🔧 Resultado del envío de correo: " . ($emailResult ? 'ÉXITO' : 'FALLO'));
+                
                 header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Email y contraseña son obligatorios']);
-                exit;
-            }
-    
-            if (strlen($newPassword) < 6) {
-                error_log("❌ Error: Contraseña demasiado corta");
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'La contraseña debe tener al menos 6 caracteres']);
-                exit;
-            }
-    
-            $user = $this->usuario->getUsuarioByEmail($email);
-            if ($user) {
-                error_log("✅ Usuario encontrado: " . $user['id'] . " - " . $user['nombre']);
-                
-                // ENVIAR CONTRASEÑA EN TEXTO PLANO - EL MODELO SE ENCARGARÁ DEL HASHING
-                $result = $this->usuario->updateUsuario(
-                    $user['id'], 
-                    $user['nombre'], 
-                    $email, 
-                    $newPassword,  // ← TEXTO PLANO, NO HASH
-                    $user['id_rol']
-                );
-                
-                error_log("🔧 Resultado de updateUsuario: " . ($result ? 'ÉXITO' : 'FALLO'));
-                
-                if ($result) {
-                    // Enviar correo de notificación
-                    $emailResult = $this->sendPasswordChangeNotification($email, $user['nombre']);
-                    error_log("🔧 Resultado del envío de correo: " . ($emailResult ? 'ÉXITO' : 'FALLO'));
-                    
-                    header('Content-Type: application/json');
-                    echo json_encode([
-                        'success' => true, 
-                        'message' => 'Contraseña actualizada exitosamente. Se ha enviado un correo de confirmación.'
-                    ]);
-                } else {
-                    error_log("❌ Error al actualizar en la base de datos");
-                    header('Content-Type: application/json');
-                    echo json_encode([
-                        'success' => false, 
-                        'error' => 'Error al actualizar la contraseña en la base de datos'
-                    ]);
-                }
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Contraseña actualizada exitosamente. Se ha enviado un correo de confirmación.'
+                ]);
             } else {
-                error_log("❌ Usuario no encontrado para email: $email");
+                error_log("❌ Error al actualizar en la base de datos");
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false, 
-                    'error' => 'Usuario no encontrado'
+                    'error' => 'Error al actualizar la contraseña en la base de datos'
                 ]);
             }
-            exit;
+        } else {
+            error_log("❌ Usuario no encontrado para email: $email");
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Usuario no encontrado'
+            ]);
         }
+        exit;
     }
+}
     
     private function sendPasswordChangeNotification($email, $nombre) {
         try {

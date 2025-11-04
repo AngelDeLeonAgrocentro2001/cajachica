@@ -92,34 +92,49 @@ class Usuario {
     }
 
     public function updateUsuario($id, $nombre, $email, $password, $id_rol, $card_code = null, $id_caja_chica = null) {
-        try {
-            error_log("🔧 updateUsuario llamado - ID: $id, Email: $email, ¿Tiene password?: " . (!empty($password) ? 'SÍ' : 'NO'));
-            
-            if (!empty($password)) {
-                // HASHEAR LA CONTRASEÑA ANTES DE GUARDARLA (SOLO UNA VEZ)
-                $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-                error_log("🔧 Contraseña hasheada: " . $hashedPassword);
-                
-                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
-                $result = $stmt->execute([$nombre, $email, $hashedPassword, $id_rol, $card_code, $id_caja_chica, $id]);
-                error_log("🔧 UPDATE con password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
-            } else {
-                $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
-                $result = $stmt->execute([$nombre, $email, $id_rol, $card_code, $id_caja_chica, $id]);
-                error_log("🔧 UPDATE sin password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
-            }
-            
-            if ($result === false) {
-                $errorInfo = $stmt->errorInfo();
-                error_log("❌ Error en updateUsuario: " . implode(', ', $errorInfo));
-            }
-            
-            return $result;
-        } catch (PDOException $e) {
-            error_log("❌ Error PDO en updateUsuario: " . $e->getMessage());
+    try {
+        error_log("🔧 updateUsuario llamado - ID: $id, Email: $email, ¿Tiene password?: " . (!empty($password) ? 'SÍ' : 'NO'));
+        
+        // PRIMERO: Obtener los datos actuales del usuario para preservar caja chica y código
+        $usuarioActual = $this->getUsuarioById($id);
+        if (!$usuarioActual) {
+            error_log("❌ Usuario no encontrado con ID: $id");
             return false;
         }
+        
+        // PRESERVAR los valores existentes si no se proporcionan nuevos
+        $card_code_final = ($card_code !== null) ? $card_code : $usuarioActual['clientes'];
+        $id_caja_chica_final = ($id_caja_chica !== null) ? $id_caja_chica : $usuarioActual['id_caja_chica'];
+        
+        error_log("🔧 Valores preservados - Código: '$card_code_final', Caja Chica: '$id_caja_chica_final'");
+        
+        if (!empty($password)) {
+            // HASHEAR LA CONTRASEÑA ANTES DE GUARDARLA (SOLO UNA VEZ)
+            $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+            error_log("🔧 Contraseña hasheada: " . $hashedPassword);
+            
+            $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
+            $result = $stmt->execute([$nombre, $email, $hashedPassword, $id_rol, $card_code_final, $id_caja_chica_final, $id]);
+            error_log("🔧 UPDATE con password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
+        } else {
+            $stmt = $this->pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, id_rol = ?, clientes = ?, id_caja_chica = ? WHERE id = ?");
+            $result = $stmt->execute([$nombre, $email, $id_rol, $card_code_final, $id_caja_chica_final, $id]);
+            error_log("🔧 UPDATE sin password ejecutado: " . ($result ? 'ÉXITO' : 'FALLO'));
+        }
+        
+        if ($result === false) {
+            $errorInfo = $stmt->errorInfo();
+            error_log("❌ Error en updateUsuario: " . implode(', ', $errorInfo));
+        } else {
+            error_log("✅ Usuario actualizado correctamente - Código preservado: '$card_code_final', Caja Chica preservada: '$id_caja_chica_final'");
+        }
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("❌ Error PDO en updateUsuario: " . $e->getMessage());
+        return false;
     }
+}
 
     public function deleteUsuario($id) {
         $stmt = $this->pdo->prepare("DELETE FROM usuarios WHERE id = ?");
