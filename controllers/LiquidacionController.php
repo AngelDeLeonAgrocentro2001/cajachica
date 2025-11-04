@@ -1592,6 +1592,7 @@ public function autorizar($id)
         $cajaChicaModel = new CajaChica();
         $cajaChica = $cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+        $nombre_clientes = $cajaChica['clientes'] ?? 'N/A';
 
         $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
         $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
@@ -1914,6 +1915,7 @@ public function autorizar($id)
             'id' => htmlspecialchars($liquidacion['id'], ENT_QUOTES, 'UTF-8'),
             'id_caja_chica' => htmlspecialchars($liquidacion['id_caja_chica'], ENT_QUOTES, 'UTF-8'),
             'nombre_caja_chica' => htmlspecialchars($nombre_caja_chica, ENT_QUOTES, 'UTF-8'),
+            'nombre_clientes' => htmlspecialchars($nombre_clientes, ENT_QUOTES, 'UTF-8'),
             'centro_costo_caja_chica_id' => htmlspecialchars($cajaChica['id_centro_costo'] ?? '', ENT_QUOTES, 'UTF-8'),
             'centro_costo_caja_chica_nombre' => htmlspecialchars($centro_costo_caja_chica_nombre, ENT_QUOTES, 'UTF-8'),
             'fecha_creacion' => htmlspecialchars($liquidacion['fecha_creacion'], ENT_QUOTES, 'UTF-8'),
@@ -2086,6 +2088,8 @@ public function revisar($id)
         $cajaChicaModel = new CajaChica();
         $cajaChica = $cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+        $nombre_clientes = $cajaChica['clientes'] ?? 'N/A';
+
 
         $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
         $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
@@ -2392,6 +2396,7 @@ public function revisar($id)
             'id' => htmlspecialchars($liquidacion['id'], ENT_QUOTES, 'UTF-8'),
             'id_caja_chica' => htmlspecialchars($liquidacion['id_caja_chica'], ENT_QUOTES, 'UTF-8'),
             'nombre_caja_chica' => htmlspecialchars($nombre_caja_chica, ENT_QUOTES, 'UTF-8'),
+            'nombre_clientes' => htmlspecialchars($nombre_clientes, ENT_QUOTES, 'UTF-8'),
             'centro_costo_caja_chica_id' => htmlspecialchars($cajaChica['id_centro_costo'] ?? '', ENT_QUOTES, 'UTF-8'),
             'centro_costo_caja_chica_nombre' => htmlspecialchars($centro_costo_caja_chica_nombre, ENT_QUOTES, 'UTF-8'),
             'fecha_creacion' => htmlspecialchars($liquidacion['fecha_creacion'], ENT_QUOTES, 'UTF-8'),
