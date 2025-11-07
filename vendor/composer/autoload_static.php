@@ -8,12 +8,14 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
 {
     public static $files = array (
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
+        '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'b067bc7112e384b61c701452d53a14a8' => __DIR__ . '/..' . '/mtdowling/jmespath.php/src/JmesPath.php',
         '8a9dc1de0ca7e01f3e08231539562f61' => __DIR__ . '/..' . '/aws/aws-sdk-php/src/functions.php',
         '6124b4c8570aa390c21fafd04a26c69f' => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy/deep_copy.php',
+        '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
+        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
         'db356362850385d08a5381de2638b5fd' => __DIR__ . '/..' . '/mpdf/mpdf/src/functions.php',
     );
 
@@ -28,7 +30,9 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         ),
         'S' => 
         array (
+            'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
+            'Symfony\\Polyfill\\Ctype\\' => 23,
             'Spatie\\PdfToImage\\' => 18,
         ),
         'P' => 
@@ -37,6 +41,7 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
             'Psr\\Log\\' => 8,
             'Psr\\Http\\Message\\' => 17,
             'Psr\\Http\\Client\\' => 16,
+            'PhpOption\\' => 10,
             'PhpOffice\\PhpSpreadsheet\\' => 25,
             'PHPMailer\\PHPMailer\\' => 20,
         ),
@@ -64,6 +69,7 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
+            'GrahamCampbell\\ResultType\\' => 26,
         ),
         'F' => 
         array (
@@ -71,6 +77,7 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         ),
         'D' => 
         array (
+            'Dotenv\\' => 7,
             'DeepCopy\\' => 9,
         ),
         'C' => 
@@ -93,9 +100,17 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         array (
             0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
         ),
+        'Symfony\\Polyfill\\Php80\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
+        ),
         'Symfony\\Polyfill\\Mbstring\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
+        ),
+        'Symfony\\Polyfill\\Ctype\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
         'Spatie\\PdfToImage\\' => 
         array (
@@ -117,6 +132,10 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         'Psr\\Http\\Client\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/http-client/src',
+        ),
+        'PhpOption\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
         'PhpOffice\\PhpSpreadsheet\\' => 
         array (
@@ -178,9 +197,17 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
+        'GrahamCampbell\\ResultType\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
+        ),
         'Firebase\\JWT\\' => 
         array (
             0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
+        ),
+        'Dotenv\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),
         'DeepCopy\\' => 
         array (
@@ -224,11 +251,13 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         'AWS\\CRT\\NativeResource' => __DIR__ . '/..' . '/aws/aws-crt-php/src/AWS/CRT/NativeResource.php',
         'AWS\\CRT\\OptionValue' => __DIR__ . '/..' . '/aws/aws-crt-php/src/AWS/CRT/Options.php',
         'AWS\\CRT\\Options' => __DIR__ . '/..' . '/aws/aws-crt-php/src/AWS/CRT/Options.php',
+        'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Datamatrix' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/datamatrix.php',
         'PDF417' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/pdf417.php',
+        'PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/PhpToken.php',
         'QRcode' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/qrcode.php',
-        'Stringable' => __DIR__ . '/..' . '/myclabs/php-enum/stubs/Stringable.php',
+        'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
         'TCPDF' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf.php',
         'TCPDF2DBarcode' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf_barcodes_2d.php',
         'TCPDFBarcode' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf_barcodes_1d.php',
@@ -238,6 +267,8 @@ class ComposerStaticInit20fad51902f91e7fd3039e016a6556b5
         'TCPDF_FONT_DATA' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/tcpdf_font_data.php',
         'TCPDF_IMAGES' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/tcpdf_images.php',
         'TCPDF_STATIC' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/tcpdf_static.php',
+        'UnhandledMatchError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php',
+        'ValueError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
