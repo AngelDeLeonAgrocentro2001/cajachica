@@ -666,27 +666,22 @@
                 <?php echo htmlspecialchars($detalle['id']); ?>
               </td>
               <td data-label="Archivos">
-                <?php
-                  $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                  if (is_array($rutas) && !empty($rutas)) {
-                      foreach ($rutas as $index => $ruta) { 
-                        $fileName = basename($ruta); 
-                        echo '
-                        <div>
-                          <a
-                            href="../' . htmlspecialchars($ruta) . '"
-                            class="file-link"
-                            target="_blank"
-                            >Ver Archivo
-                          </a>
-                        </div>
-                        '; 
-                      } 
-                  } else { 
-                    echo 'N/A'; 
-                  } 
-                ?>
-              </td>
+                        <?php
+                        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                        if (is_array($rutas) && !empty($rutas)) {
+                            foreach ($rutas as $index => $ruta) {
+                                $fileName = basename($ruta);
+                                echo '
+                                <div class="file-item" data-ruta="' . htmlspecialchars($ruta) . '">
+                                    <a href="' . htmlspecialchars($ruta) . '" class="file-link" target="_blank" title="Ver ' . htmlspecialchars($fileName) . '">Ver archivo</a>
+                                    <!-- <button class="remove-file-btn" onclick="removeFile(\'' . htmlspecialchars($ruta) . '\')">Eliminar</button> -->
+                                </div>';
+                            }
+                        } else {
+                            echo 'N/A';
+                        }
+                        ?>
+                    </td>
               <td data-label="Tipo de Documento">
                 <?php echo htmlspecialchars($detalle['tipo_documento']); ?>
               </td>

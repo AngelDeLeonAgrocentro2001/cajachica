@@ -5172,7 +5172,8 @@ public function exportar($id, $docDate = null)
 
 // FINALIZACION 
     
-public function manageFacturas($id) {
+public function manageFacturas($id)
+{
     if (!isset($_SESSION['user_id'])) {
         header('Location: index.php?controller=auth&action=login');
         exit;
@@ -5206,11 +5207,11 @@ public function manageFacturas($id) {
         try {
             $this->pdo->beginTransaction();
 
+            // Configurar Flysystem
+            require_once '../config/spaces.php';
+            $filesystem = getSpacesFilesystem();
+
             $rutas_archivos = [];
-            $uploadDir = '../Uploads/';
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
             $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
             $maxFileSize = 5 * 1024 * 1024;
 
@@ -5228,13 +5229,20 @@ public function manageFacturas($id) {
                             throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
                         }
 
-                        $fileName = basename($name);
-                        $filePath = $uploadDir . uniqid() . '_' . $fileName;
-                        if (move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
-                            $rutas_archivos[] = 'Uploads/' . basename($filePath);
-                        } else {
-                            throw new Exception('Error al subir el archivo: ' . $name);
-                        }
+                        // Generar nombre único para el archivo en Spaces
+                        $fileName = uniqid() . '_' . basename($name);
+                        $spacesPath = 'CAJA_CHICA/Uploads/' . $fileName;
+
+                        // Subir archivo a Spaces
+                        $stream = fopen($_FILES['archivos']['tmp_name'][$key], 'r+');
+                        $filesystem->writeStream($spacesPath, $stream, [
+                            'visibility' => 'public',
+                            'ContentType' => $fileType,
+                        ]);
+                        fclose($stream);
+
+                        // Guardar la URL pública
+                        $rutas_archivos[] = getPublicUrl($spacesPath);
                     } elseif ($_FILES['archivos']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
                         throw new Exception('Error al subir el archivo: ' . $name);
                     }
@@ -5301,10 +5309,10 @@ public function manageFacturas($id) {
 
                 // Si la fecha de la factura NO es del mes actual, guardar en fecha_documento
                 if ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
-                $fechaDocumento = $fechaFactura->format('Y-m-d');
-                error_log("Fecha del documento guardada en fecha_documento: $fechaDocumento (mes diferente al actual)");
+                    $fechaDocumento = $fechaFactura->format('Y-m-d');
+                    error_log("Fecha del documento guardada en fecha_documento: $fechaDocumento (mes diferente al actual)");
                 } else {
-                error_log("Fecha del documento NO guardada en fecha_documento (mes igual al actual)");
+                    error_log("Fecha del documento NO guardada en fecha_documento (mes igual al actual)");
                 }
 
                 if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO'])) {
@@ -5327,12 +5335,13 @@ public function manageFacturas($id) {
                 }
 
                 if ($t_gasto === 'Combustible') {
-                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
-                    $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp'];
                     $id_cuenta_contable_inguat = null;
                 } elseif ($t_gasto === 'Hospedaje') {
-                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
-                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // Cuenta fija para INGUAT
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat'];
+                    $id_cuenta_contable_idp = null;
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
                     $id_cuenta_contable_idp = null;
@@ -5342,10 +5351,6 @@ public function manageFacturas($id) {
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
-
-                // if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                // }
 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
@@ -5392,12 +5397,11 @@ public function manageFacturas($id) {
                 $propina = $propina ?? 0;
 
                 if ($t_gasto === 'Alimentos' && in_array($tipo_documento, ['FACTURA', 'FACTURA ELECTRONICA'])) {
-                    $ivaRate = 0.12; // Suponiendo IVA del 12% para Alimentos
+                    $ivaRate = 0.12;
                     $subtotalSinImpuestos = $total_factura - $idp - $inguat - $propina;
                     $expectedSubtotal = $subtotalSinImpuestos / (1 + $ivaRate);
                     $expectedIva = $expectedSubtotal * $ivaRate;
 
-                    // Verificar si el IVA recibido coincide con el esperado (con tolerancia para redondeo)
                     if (abs($iva - $expectedIva) > 0.01) {
                         error_log("IVA recibido ($iva) no coincide con el esperado ($expectedIva). Recalculando IVA.");
                         $iva = $expectedIva;
@@ -5415,7 +5419,7 @@ public function manageFacturas($id) {
 
                 // Crear detalles por cada centro de costo
                 $detalle_ids = [];
-                
+
                 foreach ($id_centro_costo as $index => $centro_costo) {
                     $porcentaje = floatval($porcentajes[$index]);
                     $es_principal = ($index === 0) ? 1 : 0;
@@ -5424,38 +5428,36 @@ public function manageFacturas($id) {
 
                     // USAR CUENTA CONTABLE ESPECÍFICA PARA CADA CENTRO DE COSTO
                     if ($index === 0) {
-                        // Para el primer centro de costo, usar la cuenta contable principal
                         $cuenta_contable_id = $id_cuenta_contable;
                         $cuenta_contable_nombre = $nombre_cuenta_contable;
                     } else {
-                        // Para centros de costo adicionales, usar la cuenta específica
                         $cuenta_contable_id = $id_cuenta_contable_centro[$index] ?? $id_cuenta_contable;
                         $cuenta_contable_nombre = $nombre_cuenta_contable_centro[$index] ?? $nombre_cuenta_contable;
                     }
 
                     $detalle_id = $detalleModel->createDetalleLiquidacion(
-                        $id_liquidacion, 
-                        $tipo_documento, 
-                        $no_factura, 
-                        $nombre_proveedor, 
-                        $nit_proveedor, 
-                        $dpi, 
-                        $fecha, 
-                        $t_gasto, 
-                        $subtotal * ($porcentaje / 100), 
-                        $total_factura * ($porcentaje / 100), 
-                        $estado, 
-                        $centro_costo, 
-                        $cantidad, 
-                        $serie, 
-                        $rutas_json, 
-                        $iva * ($porcentaje / 100), 
-                        $idp * ($porcentaje / 100), 
-                        $inguat * ($porcentaje / 100), 
-                        $propina * ($porcentaje / 100), 
-                        $cuenta_contable_id, 
-                        $tipo_combustible, 
-                        $id_usuario, 
+                        $id_liquidacion,
+                        $tipo_documento,
+                        $no_factura,
+                        $nombre_proveedor,
+                        $nit_proveedor,
+                        $dpi,
+                        $fecha,
+                        $t_gasto,
+                        $subtotal * ($porcentaje / 100),
+                        $total_factura * ($porcentaje / 100),
+                        $estado,
+                        $centro_costo,
+                        $cantidad,
+                        $serie,
+                        $rutas_json,
+                        $iva * ($porcentaje / 100),
+                        $idp * ($porcentaje / 100),
+                        $inguat * ($porcentaje / 100),
+                        $propina * ($porcentaje / 100),
+                        $cuenta_contable_id,
+                        $tipo_combustible,
+                        $id_usuario,
                         $comentarios,
                         $porcentaje,
                         $cuenta_contable_nombre,
@@ -5476,19 +5478,17 @@ public function manageFacturas($id) {
                     error_log("Creado detalle ID $detalle_id con grupo_id $grupo_id para centro de costo $centro_costo con porcentaje $porcentaje, cuenta contable: $cuenta_contable_nombre");
                     error_log("Creado detalle ID $detalle_id con fecha_documento: " . ($fechaDocumento ?? 'NULL'));
                 }
-                
 
                 if ($serie && $numero_dte) {
                     $serie = trim($serie);
                     $numero_dte = trim(str_replace('-', '', $numero_dte));
-                    
+
                     error_log("Actualizando DTE al crear factura - Serie: '$serie', Numero DTE: '$numero_dte'");
-                    
+
                     if ($this->dteModel->updateDteUsado($serie, $numero_dte)) {
                         error_log("DTE actualizado exitosamente a 'Y'");
                     } else {
                         error_log("Error: No se pudo actualizar el DTE a 'Y'");
-                        // No lanzar excepción aquí para no interrumpir el proceso de creación
                     }
                 }
 
@@ -5505,10 +5505,15 @@ public function manageFacturas($id) {
                     'rutas_archivos' => $rutas_archivos,
                     'monto_total' => $monto_total,
                     'cuenta_contable_nombre' => $nombre_cuenta_contable,
-                    'centros_costo' => array_map(function($cc, $p) {
+                    'centros_costo' => array_map(function ($cc, $p) {
                         return ['id_centro_costo' => $cc, 'porcentaje' => floatval($p)];
                     }, $id_centro_costo, $porcentajes)
                 ];
+
+                $this->pdo->commit();
+                header('Content-Type: application/json');
+                echo json_encode($response);
+                exit;
             } elseif ($action === 'update') {
                 $detalle_id = $_POST['detalle_id'] ?? '';
                 $tipo_documento = $_POST['tipo_documento'] ?? '';
@@ -5560,15 +5565,13 @@ public function manageFacturas($id) {
 
                 // Si ya existe una fecha_documento, mantenerla
                 if (!empty($detalleExistente['fecha_documento'])) {
-                $fechaDocumento = $detalleExistente['fecha_documento'];
-                error_log("Manteniendo fecha_documento existente: $fechaDocumento");
-                } 
-                // Si no existe fecha_documento y la fecha de factura NO es del mes actual, guardarla
-                elseif ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
-                $fechaDocumento = $fechaFactura->format('Y-m-d');
-                error_log("Nueva fecha_documento guardada: $fechaDocumento (mes diferente al actual)");
+                    $fechaDocumento = $detalleExistente['fecha_documento'];
+                    error_log("Manteniendo fecha_documento existente: $fechaDocumento");
+                } elseif ($fechaFactura->format('Y-m') !== $fechaActual->format('Y-m')) {
+                    $fechaDocumento = $fechaFactura->format('Y-m-d');
+                    error_log("Nueva fecha_documento guardada: $fechaDocumento (mes diferente al actual)");
                 } else {
-                error_log("No se guarda fecha_documento (mes igual al actual o ya existe)");
+                    error_log("No se guarda fecha_documento (mes igual al actual o ya existe)");
                 }
 
                 if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
@@ -5590,12 +5593,12 @@ public function manageFacturas($id) {
                 }
 
                 if ($t_gasto === 'Combustible') {
-                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
-                    $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp'];
                     $id_cuenta_contable_inguat = null;
                 } elseif ($t_gasto === 'Hospedaje') {
-                    $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales
-                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // INGUAT
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat'];
                     $id_cuenta_contable_idp = null;
                 } else {
                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
@@ -5606,10 +5609,6 @@ public function manageFacturas($id) {
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
-
-                // if (in_array($tipo_documento, ['RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                // }
 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
@@ -5656,12 +5655,11 @@ public function manageFacturas($id) {
                 $propina = $propina ?? 0;
 
                 if ($t_gasto === 'Alimentos' && in_array($tipo_documento, ['FACTURA', 'FACTURA ELECTRONICA'])) {
-                    $ivaRate = 0.12; // Suponiendo IVA del 12% para Alimentos
+                    $ivaRate = 0.12;
                     $subtotalSinImpuestos = $total_factura - $idp - $inguat - $propina;
                     $expectedSubtotal = $subtotalSinImpuestos / (1 + $ivaRate);
                     $expectedIva = $expectedSubtotal * $ivaRate;
 
-                    // Verificar si el IVA recibido coincide con el esperado (con tolerancia para redondeo)
                     if (abs($iva - $expectedIva) > 0.01) {
                         error_log("IVA recibido ($iva) no coincide con el esperado ($expectedIva). Recalculando IVA.");
                         $iva = $expectedIva;
@@ -5674,26 +5672,15 @@ public function manageFacturas($id) {
                     throw new Exception('Detalle no encontrado.');
                 }
 
-                // Obtener grupo_id
-                $grupo_id = $detalle['grupo_id'];
-                // Si grupo_id > 0, obtener detalles del grupo; si grupo_id = 0, solo usar el detalle actual
-                $detalles_grupo = [];
-                if ($grupo_id > 0) {
-                    $stmt = $this->pdo->prepare("SELECT id, id_centro_costo, porcentaje FROM detalle_liquidaciones WHERE grupo_id = ? AND id_liquidacion = ?");
-                    $stmt->execute([$grupo_id, $id]);
-                    $detalles_grupo = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                } else {
-                    $detalles_grupo = [['id' => $detalle_id, 'id_centro_costo' => $detalle['id_centro_costo'], 'porcentaje' => $detalle['porcentaje']]];
-                }
-
                 // Manejo de archivos
                 $existingRutas = json_decode($detalle['rutas_archivos'], true) ?? [];
                 foreach ($removed_files as $file_to_remove) {
                     if (($key = array_search($file_to_remove, $existingRutas)) !== false) {
                         unset($existingRutas[$key]);
-                        $filePath = '../' . $file_to_remove;
-                        if (file_exists($filePath)) {
-                            unlink($filePath);
+                        // Extraer la clave de Spaces (quitar el prefijo de la URL)
+                        $spacesKey = str_replace('https://acstorage.sfo3.digitaloceanspaces.com/', '', $file_to_remove);
+                        if ($filesystem->has($spacesKey)) {
+                            $filesystem->delete($spacesKey);
                         }
                     }
                 }
@@ -5701,28 +5688,35 @@ public function manageFacturas($id) {
                 $rutas_json = json_encode($rutas_archivo);
 
                 // Determinar nuevo grupo_id si cambió el número de centros de costo
-                $new_grupo_id = (count($id_centro_costo) == 1) ? 0 : ($grupo_id > 0 ? $grupo_id : $this->pdo->query("SELECT COALESCE(MAX(grupo_id), 0) + 1 FROM detalle_liquidaciones")->fetchColumn());
-                error_log("Grupo_id para actualización: $new_grupo_id (original grupo_id: $grupo_id, centros de costo: " . count($id_centro_costo) . ")");
+                $new_grupo_id = (count($id_centro_costo) == 1) ? 0 : ($detalle['grupo_id'] > 0 ? $detalle['grupo_id'] : $this->pdo->query("SELECT COALESCE(MAX(grupo_id), 0) + 1 FROM detalle_liquidaciones")->fetchColumn());
+                error_log("Grupo_id para actualización: $new_grupo_id (original grupo_id: {$detalle['grupo_id']}, centros de costo: " . count($id_centro_costo) . ")");
 
                 // Actualizar o crear detalles según los centros de costo
                 $detalleModel = new DetalleLiquidacion();
                 $detalle_ids = [];
+                $detalles_grupo = [];
+                if ($detalle['grupo_id'] > 0) {
+                    $stmt = $this->pdo->prepare("SELECT id, id_centro_costo, porcentaje FROM detalle_liquidaciones WHERE grupo_id = ? AND id_liquidacion = ?");
+                    $stmt->execute([$detalle['grupo_id'], $id]);
+                    $detalles_grupo = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } else {
+                    $detalles_grupo = [['id' => $detalle_id, 'id_centro_costo' => $detalle['id_centro_costo'], 'porcentaje' => $detalle['porcentaje']]];
+                }
+
                 foreach ($id_centro_costo as $index => $centro_costo) {
                     $porcentaje = floatval($porcentajes[$index]);
                     $es_principal = ($index === 0) ? 1 : 0;
 
                     // USAR CUENTA CONTABLE ESPECÍFICA PARA CADA CENTRO DE COSTO
                     if ($index === 0) {
-                        // Para el primer centro de costo, usar la cuenta contable principal
                         $cuenta_contable_id = $id_cuenta_contable;
                         $cuenta_contable_nombre = $nombre_cuenta_contable;
                     } else {
-                        // Para centros de costo adicionales, usar la cuenta específica
                         $cuenta_contable_id = $id_cuenta_contable_centro[$index] ?? $id_cuenta_contable;
                         $cuenta_contable_nombre = $nombre_cuenta_contable_centro[$index] ?? $nombre_cuenta_contable;
                     }
 
-                    // Buscar si se puede encontrar un existing no usado
+                    // Buscar detalle existente
                     $existing_detalle = null;
                     foreach ($detalles_grupo as $d) {
                         if ($d['id_centro_costo'] == $centro_costo && !in_array($d['id'], $detalle_ids)) {
@@ -5732,7 +5726,7 @@ public function manageFacturas($id) {
                     }
 
                     if ($index === 0) {
-                        // Siempre actualizar el detalle principal para el primer centro de costo
+                        // Actualizar el detalle principal
                         $stmt = $this->pdo->prepare("
                             UPDATE detalle_liquidaciones
                             SET
@@ -5875,28 +5869,28 @@ public function manageFacturas($id) {
                     } else {
                         // Crear nuevo detalle
                         $new_detalle_id = $detalleModel->createDetalleLiquidacion(
-                            $id, 
-                            $tipo_documento, 
-                            $no_factura, 
-                            $nombre_proveedor, 
-                            $nit_proveedor, 
-                            $dpi, 
-                            $fecha, 
-                            $t_gasto, 
-                            $subtotal * ($porcentaje / 100), 
-                            $total_factura * ($porcentaje / 100), 
-                            'EN_PROCESO', 
-                            $centro_costo, 
-                            $cantidad, 
-                            $serie, 
-                            $rutas_json, 
-                            $iva * ($porcentaje / 100), 
-                            $idp * ($porcentaje / 100), 
+                            $id,
+                            $tipo_documento,
+                            $no_factura,
+                            $nombre_proveedor,
+                            $nit_proveedor,
+                            $dpi,
+                            $fecha,
+                            $t_gasto,
+                            $subtotal * ($porcentaje / 100),
+                            $total_factura * ($porcentaje / 100),
+                            'EN_PROCESO',
+                            $centro_costo,
+                            $cantidad,
+                            $serie,
+                            $rutas_json,
+                            $iva * ($porcentaje / 100),
+                            $idp * ($porcentaje / 100),
                             $inguat * ($porcentaje / 100),
-                            $propina * ($porcentaje / 100), 
-                            $cuenta_contable_id, 
-                            $tipo_combustible, 
-                            $detalle['id_usuario'], 
+                            $propina * ($porcentaje / 100),
+                            $cuenta_contable_id,
+                            $tipo_combustible,
+                            $detalle['id_usuario'],
                             $comentarios,
                             $porcentaje,
                             $cuenta_contable_nombre,
@@ -5917,7 +5911,7 @@ public function manageFacturas($id) {
                     }
                 }
 
-                // Eliminar detalles que ya no están en la lista (basado en IDs no usados)
+                // Eliminar detalles que ya no están en la lista
                 foreach ($detalles_grupo as $old_detalle) {
                     if (!in_array($old_detalle['id'], $detalle_ids)) {
                         $detalleModel->deleteDetalleLiquidacion($old_detalle['id']);
@@ -5947,10 +5941,15 @@ public function manageFacturas($id) {
                     'rutas_archivos' => $rutas_archivo,
                     'monto_total' => $monto_total,
                     'cuenta_contable_nombre' => $nombre_cuenta_contable,
-                    'centros_costo' => array_map(function($cc, $p) {
+                    'centros_costo' => array_map(function ($cc, $p) {
                         return ['id_centro_costo' => $cc, 'porcentaje' => floatval($p)];
                     }, $id_centro_costo, $porcentajes)
                 ];
+
+                $this->pdo->commit();
+                header('Content-Type: application/json');
+                echo json_encode($response);
+                exit;
             } elseif ($action === 'delete') {
                 $detalle_id = $_POST['detalle_id'] ?? '';
                 $serie = $_POST['serie'] ?? '';
@@ -5966,18 +5965,25 @@ public function manageFacturas($id) {
                     throw new Exception('Detalle no encontrado.');
                 }
 
+                // Eliminar archivos en Spaces
+                $existingRutas = json_decode($detalle['rutas_archivos'], true) ?? [];
+                foreach ($existingRutas as $file_to_remove) {
+                    $spacesKey = str_replace('https://acstorage.sfo3.digitaloceanspaces.com/', '', $file_to_remove);
+                    if ($filesystem->has($spacesKey)) {
+                        $filesystem->delete($spacesKey);
+                    }
+                }
+
                 // Obtener grupo_id y eliminar detalles según corresponda
                 $grupo_id = $detalle['grupo_id'];
                 $detalleModel = new DetalleLiquidacion();
                 if ($grupo_id == 0) {
-                    // Eliminar solo el detalle actual
                     if ($detalleModel->deleteDetalleLiquidacion($detalle_id)) {
                         $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ELIMINAR_DETALLE', "Factura eliminada: {$detalle['no_factura']}, detalle ID: $detalle_id");
                     } else {
                         throw new Exception('Error al eliminar detalle de liquidación ID: ' . $detalle_id);
                     }
                 } else {
-                    // Eliminar todos los detalles del grupo
                     $stmt = $this->pdo->prepare("SELECT id FROM detalle_liquidaciones WHERE grupo_id = ? AND id_liquidacion = ?");
                     $stmt->execute([$grupo_id, $id]);
                     $detalles_grupo = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -5994,15 +6000,8 @@ public function manageFacturas($id) {
                 if ($serie && $numero_dte) {
                     $serie = trim($serie);
                     $numero_dte = trim(str_replace('-', '', $numero_dte));
-                    
-                    error_log("Actualizando DTE al crear factura - Serie: '$serie', Numero DTE: '$numero_dte'");
-                    
-                    if ($this->dteModel->updateDteUsado($serie, $numero_dte)) {
-                        error_log("DTE actualizado exitosamente a 'Y'");
-                    } else {
-                        error_log("Error: No se pudo actualizar el DTE a 'Y'");
-                        // No lanzar excepción aquí para no interrumpir el proceso de creación
-                    }
+                    $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'N' WHERE serie = ? AND numero_dte = ?");
+                    $stmt->execute([$serie, $numero_dte]);
                 }
 
                 $detallesActualizados = $detalleModel->getDetallesByLiquidacionId($id);
@@ -6013,22 +6012,20 @@ public function manageFacturas($id) {
                     'message' => 'Grupo de facturas eliminado correctamente',
                     'monto_total' => $monto_total
                 ];
+
+                $this->pdo->commit();
+                header('Content-Type: application/json');
+                echo json_encode($response);
+                exit;
             } else {
                 throw new Exception('Acción no válida.');
             }
-
-            $this->pdo->commit();
-            header('Content-Type: application/json');
-            echo json_encode($response);
-            exit;
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            if (!empty($rutas_archivos)) {
-                foreach ($rutas_archivos as $ruta) {
-                    $filePath = '../' . $ruta;
-                    if (file_exists($filePath)) {
-                        unlink($filePath);
-                    }
+            foreach ($rutas_archivos as $ruta) {
+                $spacesKey = str_replace('https://acstorage.sfo3.digitaloceanspaces.com/', '', $ruta);
+                if ($filesystem->has($spacesKey)) {
+                    $filesystem->delete($spacesKey);
                 }
             }
             error_log('Error in manageFacturas: ' . $e->getMessage() . '. POST data: ' . print_r($_POST, true));
@@ -6151,7 +6148,7 @@ public function manageFacturas($id) {
         echo json_encode(['error' => 'No autorizado']);
         exit;
     }
-
+ 
     $usuarioModel = new Usuario();
     $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
     if (!$usuario || !$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
@@ -6161,7 +6158,7 @@ public function manageFacturas($id) {
         echo json_encode(['error' => 'No tienes permiso para actualizar correcciones']);
         exit;
     }
-
+ 
     $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
     if (!$liquidacion) {
         header('Content-Type: application/json');
@@ -6169,58 +6166,74 @@ public function manageFacturas($id) {
         echo json_encode(['error' => 'Liquidación no encontrada']);
         exit;
     }
-
+ 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
         $action = $_POST['action'] ?? '';
         try {
             $this->pdo->beginTransaction();
-
+ 
             // Handle file uploads
+            require_once '../config/spaces.php';
+            $filesystem = getSpacesFilesystem();
             $rutas_archivos = [];
-            $uploadDir = '../Uploads/';
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
             $allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
             $maxFileSize = 5 * 1024 * 1024;
-
+ 
             // Procesar archivos existentes y eliminados
             $existingFiles = isset($_POST['existing_files']) ? (is_array($_POST['existing_files']) ? $_POST['existing_files'] : json_decode($_POST['existing_files'], true)) : [];
             $removedFiles = isset($_POST['removed_files']) ? (is_array($_POST['removed_files']) ? $_POST['removed_files'] : json_decode($_POST['removed_files'], true)) : [];
-
+ 
+            // Eliminar archivos removidos de Spaces
+            foreach ($removedFiles as $file_to_remove) {
+                if (in_array($file_to_remove, $existingFiles)) {
+                    $spacesKey = str_replace('https://acstorage.sfo3.digitaloceanspaces.com/', '', $file_to_remove);
+                    if ($filesystem->has($spacesKey)) {
+                        $filesystem->delete($spacesKey);
+                    }
+                }
+            }
+ 
             // Procesar nuevos archivos subidos
             if (isset($_FILES['archivos']) && !empty($_FILES['archivos']['name'][0])) {
                 foreach ($_FILES['archivos']['name'] as $key => $name) {
                     if ($_FILES['archivos']['error'][$key] === UPLOAD_ERR_OK) {
                         $fileType = $_FILES['archivos']['type'][$key];
                         $fileSize = $_FILES['archivos']['size'][$key];
-
+ 
                         if (!in_array($fileType, $allowedTypes)) {
                             throw new Exception('Tipo de archivo no permitido: ' . $name . '. Solo se permiten PDF, PNG, JPG y JPEG.');
                         }
-
+ 
                         if ($fileSize > $maxFileSize) {
                             throw new Exception('El archivo ' . $name . ' excede el tamaño máximo permitido de 5 MB.');
                         }
-
-                        $fileName = basename($name);
-                        $filePath = $uploadDir . uniqid() . '_' . $fileName;
-                        if (!move_uploaded_file($_FILES['archivos']['tmp_name'][$key], $filePath)) {
-                            throw new Exception('Error al subir el archivo: ' . $name);
-                        }
-                        $rutas_archivos[] = 'Uploads/' . basename($filePath);
+ 
+                        // Generar nombre único para el archivo en Spaces
+                        $fileName = uniqid() . '_' . basename($name);
+                        $spacesPath = getBasePath() . $fileName;
+ 
+                        // Subir archivo a Spaces
+                        $stream = fopen($_FILES['archivos']['tmp_name'][$key], 'r+');
+                        $filesystem->writeStream($spacesPath, $stream, [
+                            'visibility' => 'public',
+                            'ContentType' => $fileType,
+                        ]);
+                        fclose($stream);
+ 
+                        // Guardar la URL pública
+                        $rutas_archivos[] = getPublicUrl($spacesPath);
                     } elseif ($_FILES['archivos']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
                         throw new Exception('Error al subir el archivo: ' . $name);
                     }
                 }
             }
-
+ 
             if ($action === 'update') {
                 // Extract and validate form data
                 $detalle_id = $_POST['detalle_id'] ?? '';
                 $tipo_documento = $_POST['tipo_documento'] ?? '';
-                $no_factura = (string)($_POST['no_factura'] ?? '');
-                $serie = (string)($_POST['serie'] ?? '');
+                $no_factura = (string) ($_POST['no_factura'] ?? '');
+                $serie = (string) ($_POST['serie'] ?? '');
                 $numero_dte = $serie && strpos($no_factura, $serie) === 0 ? substr($no_factura, strlen($serie)) : $no_factura;
                 $nombre_proveedor = $_POST['nombre_proveedor'] ?? '';
                 $nit_proveedor = $_POST['nit_proveedor'] ?? null;
@@ -6244,11 +6257,10 @@ public function manageFacturas($id) {
                 $propina = isset($_POST['propina']) && $_POST['propina'] !== '' ? floatval($_POST['propina']) : null;
                 $id_cuenta_contable_propina = $_POST['id_cuenta_contable_propina'] ?? null;
                 $nombre_cuenta_contable_propina = $_POST['nombre_cuenta_contable_propina'] ?? '';
-
+ 
                 // PROCESAR CUENTAS CONTABLES POR CENTRO DE COSTO
                 $id_cuenta_contable_centro = [];
                 $nombre_cuenta_contable_centro = [];
-
                 foreach ($_POST as $key => $value) {
                     if (strpos($key, 'id_cuenta_contable_centro_') === 0) {
                         $index = substr($key, strlen('id_cuenta_contable_centro_'));
@@ -6259,20 +6271,20 @@ public function manageFacturas($id) {
                         $nombre_cuenta_contable_centro[$index] = $value;
                     }
                 }
-
+ 
                 // Validate required fields
                 if (empty($detalle_id) || empty($tipo_documento) || empty($no_factura) || empty($nombre_proveedor) || empty($fecha) || empty($t_gasto) || !is_numeric($subtotal) || !is_numeric($total_factura)) {
                     throw new Exception('Los campos obligatorios deben ser válidos.');
                 }
-
+ 
                 if (empty($id_centro_costo)) {
                     throw new Exception('El Centro de Costo es obligatorio.');
                 }
-
+ 
                 if (empty($id_cuenta_contable)) {
                     throw new Exception('La Cuenta Contable es obligatoria.');
                 }
-
+ 
                 // Validate centros de costo and porcentajes
                 if (count($id_centro_costo) !== count($porcentajes)) {
                     throw new Exception('Los centros de costo y porcentajes no coinciden.');
@@ -6281,26 +6293,22 @@ public function manageFacturas($id) {
                 if (abs($totalPorcentaje - 100) > 0.01) {
                     throw new Exception('La suma de los porcentajes debe ser exactamente 100%.');
                 }
-
+ 
                 // Document-specific validations
                 if (in_array($tipo_documento, ['RECIBO', 'RECIBO FISCAL', 'RECIBO INFORMATIVO'])) {
                     $nit_proveedor = null;
                 } else {
                     $dpi = null;
                 }
-
+ 
                 if ($tipo_documento === 'COMPROBANTE' && (empty($cantidad) || empty($serie))) {
                     throw new Exception('Cantidad y Serie son obligatorios para el tipo de documento Comprobante.');
                 }
-
-                // if (in_array($tipo_documento, ['RECIBO', 'RECIBO FISCAL', 'RECIBO INFORMATIVO']) && empty($dpi)) {
-                //     throw new Exception('DPI es obligatorio para el tipo de documento ' . $tipo_documento . '.');
-                // }
-
+ 
                 if (in_array($tipo_documento, ['FACTURA', 'COMPROBANTE', 'DUCA']) && empty($nit_proveedor)) {
                     throw new Exception('NIT es obligatorio para el tipo de documento ' . $tipo_documento . '.');
                 }
-
+ 
                 if (in_array($tipo_documento, ['FACTURA', 'DUCA'])) {
                     if ($t_gasto === 'Combustible' && empty($tipo_combustible)) {
                         throw new Exception('El tipo de combustible es obligatorio para el tipo de gasto Combustible.');
@@ -6309,22 +6317,22 @@ public function manageFacturas($id) {
                         throw new Exception('La cantidad de galones es obligatoria y debe ser mayor a 0 para el tipo de gasto ' . $t_gasto . '.');
                     }
                 }
-
+ 
                 // Determinar cuentas contables según tipo de gasto
-                 if ($t_gasto === 'Combustible') {
-                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Combustibles y lubricantes
-                     $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp']; // IDP
-                     $id_cuenta_contable_inguat = null;
-                 } elseif ($t_gasto === 'Hospedaje') {
-                     $id_cuenta_contable = $_POST['id_cuenta_contable']; // Viáticos locales (cuenta principal)
-                     $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat']; // Cuenta INGUAT desde el hidden field
-                     $id_cuenta_contable_idp = null;
-                 } else {
-                     $id_cuenta_contable = $_POST['id_cuenta_contable'];
-                     $id_cuenta_contable_idp = null;
-                     $id_cuenta_contable_inguat = null;
-                 }
-
+                if ($t_gasto === 'Combustible') {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_idp = $_POST['id_cuenta_contable_idp'];
+                    $id_cuenta_contable_inguat = null;
+                } elseif ($t_gasto === 'Hospedaje') {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_inguat = $_POST['id_cuenta_contable_inguat'];
+                    $id_cuenta_contable_idp = null;
+                } else {
+                    $id_cuenta_contable = $_POST['id_cuenta_contable'];
+                    $id_cuenta_contable_idp = null;
+                    $id_cuenta_contable_inguat = null;
+                }
+ 
                 // Validate date range
                 $fechaFactura = new DateTime($fecha);
                 $fechaInicio = new DateTime($liquidacion['fecha_inicio']);
@@ -6332,13 +6340,13 @@ public function manageFacturas($id) {
                 if ($fechaFactura < $fechaInicio || $fechaFactura > $fechaFin) {
                     throw new Exception("La fecha de la factura debe estar entre {$liquidacion['fecha_inicio']} y {$liquidacion['fecha_fin']}.");
                 }
-
+ 
                 // Validate detalle
                 $detalle = $this->detalleModel->getDetalleById($detalle_id);
                 if (!$detalle || $detalle['estado'] !== 'EN_CORRECCION') {
                     throw new Exception('El detalle no está en estado EN_CORRECCION o no existe.');
                 }
-
+ 
                 // Obtener grupo_id
                 $grupo_id = $detalle['grupo_id'];
                 $detalles_grupo = [];
@@ -6349,21 +6357,12 @@ public function manageFacturas($id) {
                 } else {
                     $detalles_grupo = [['id' => $detalle_id, 'id_centro_costo' => $detalle['id_centro_costo'], 'porcentaje' => $detalle['porcentaje']]];
                 }
-
-                // Validar DTE si serie y numero_dte están presentes
-                // if ($serie && $numero_dte) {
-                //     $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM dte WHERE serie = ? AND numero_dte = ?");
-                //     $stmt->execute([$serie, $numero_dte]);
-                //     if ($stmt->fetchColumn() == 0) {
-                //         throw new Exception("El DTE con serie '$serie' y número '$numero_dte' no existe en la base de datos.");
-                //     }
-                // }
-
+ 
                 // Verificar duplicados de no_factura
                 if ($no_factura) {
                     $stmt = $this->pdo->prepare("
-                        SELECT COUNT(*) 
-                        FROM detalle_liquidaciones 
+                        SELECT COUNT(*)
+                        FROM detalle_liquidaciones
                         WHERE no_factura = ? AND id_liquidacion != ? AND id != ?
                     ");
                     $stmt->execute([$no_factura, $id, $detalle_id]);
@@ -6371,50 +6370,43 @@ public function manageFacturas($id) {
                         throw new Exception("La factura con número '$no_factura' ya está asociada a otra liquidación.");
                     }
                 }
-
+ 
                 // Merge existing files with new files, excluding removed files
                 $rutas_archivos = array_unique(array_merge($existingFiles, $rutas_archivos));
                 $rutas_archivos = array_filter($rutas_archivos, function ($ruta) use ($removedFiles) {
                     return !in_array($ruta, $removedFiles);
                 });
                 $rutas_json = json_encode(array_values($rutas_archivos));
-
+ 
                 // Determinar nuevo grupo_id
                 $new_grupo_id = (count($id_centro_costo) == 1) ? 0 : ($grupo_id > 0 ? $grupo_id : $this->pdo->query("SELECT COALESCE(MAX(grupo_id), 0) + 1 FROM detalle_liquidaciones")->fetchColumn());
                 error_log("Grupo_id para actualización: $new_grupo_id (original grupo_id: $grupo_id, centros de costo: " . count($id_centro_costo) . ")");
-
+ 
                 // Actualizar o crear detalles
                 $detalleModel = new DetalleLiquidacion();
                 $detalle_ids = [];
-                $used_detalle_ids = []; // Para rastrear los IDs de detalles usados
-
-                // Mapear detalles existentes a los nuevos centros de costo por índice
+                $used_detalle_ids = [];
+ 
                 foreach ($id_centro_costo as $index => $centro_costo) {
                     $porcentaje = floatval($porcentajes[$index]);
                     $es_principal = ($index === 0) ? 1 : 0;
-
-                // USAR CUENTA CONTABLE ESPECÍFICA PARA CADA CENTRO DE COSTO
-                if ($index === 0) {
-                // Para el primer centro de costo, usar la cuenta contable principal
-                $cuenta_contable_id = $id_cuenta_contable;
-                $cuenta_contable_nombre = $nombre_cuenta_contable;
-                } else {
-                // Para centros de costo adicionales, usar la cuenta específica
-                $cuenta_contable_id = $id_cuenta_contable_centro[$index] ?? $id_cuenta_contable;
-                $cuenta_contable_nombre = $nombre_cuenta_contable_centro[$index] ?? $nombre_cuenta_contable;
-                }
-
-                    // Determinar el ID del detalle a usar
+ 
+                    if ($index === 0) {
+                        $cuenta_contable_id = $id_cuenta_contable;
+                        $cuenta_contable_nombre = $nombre_cuenta_contable;
+                    } else {
+                        $cuenta_contable_id = $id_cuenta_contable_centro[$index] ?? $id_cuenta_contable;
+                        $cuenta_contable_nombre = $nombre_cuenta_contable_centro[$index] ?? $nombre_cuenta_contable;
+                    }
+ 
                     $current_detalle_id = null;
                     if ($index === 0) {
-                        $current_detalle_id = $detalle_id; // Primer detalle siempre usa el detalle_id principal
+                        $current_detalle_id = $detalle_id;
                     } elseif ($index < count($detalles_grupo)) {
-                        // Asignar un detalle existente basado en el índice, si está disponible
                         $current_detalle_id = $detalles_grupo[$index]['id'];
                     }
-
+ 
                     if ($current_detalle_id) {
-                        // Actualizar detalle existente
                         $stmt = $this->pdo->prepare("
                             UPDATE detalle_liquidaciones
                             SET
@@ -6472,8 +6464,8 @@ public function manageFacturas($id) {
                             ':nombre_cuenta_contable_propina' => $nombre_cuenta_contable_propina,
                             ':id_cuenta_contable_idp' => $id_cuenta_contable_idp,
                             ':id_cuenta_contable_inguat' => $id_cuenta_contable_inguat,
-                            ':id_cuenta_contable' => $id_cuenta_contable,
-                            ':nombre_cuenta_contable' => $nombre_cuenta_contable,
+                            ':id_cuenta_contable' => $cuenta_contable_id,
+                            ':nombre_cuenta_contable' => $cuenta_contable_nombre,
                             ':tipo_combustible' => $tipo_combustible,
                             ':correccion_comentario' => $correccion_comentario,
                             ':comentarios' => $comentarios,
@@ -6486,7 +6478,6 @@ public function manageFacturas($id) {
                         $used_detalle_ids[] = $current_detalle_id;
                         error_log("Actualizado detalle ID $current_detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje");
                     } else {
-                        // Crear nuevo detalle
                         $new_detalle_id = $detalleModel->createDetalleLiquidacion(
                             $id,
                             $tipo_documento,
@@ -6506,12 +6497,12 @@ public function manageFacturas($id) {
                             $iva ? ($iva * ($porcentaje / 100)) : null,
                             $idp ? ($idp * ($porcentaje / 100)) : null,
                             $inguat ? ($inguat * ($porcentaje / 100)) : null,
-                            $id_cuenta_contable,
+                            $cuenta_contable_id,
                             $tipo_combustible,
                             $detalle['id_usuario'],
                             $correccion_comentario,
                             $porcentaje,
-                            $nombre_cuenta_contable,
+                            $cuenta_contable_nombre,
                             $es_principal,
                             $new_grupo_id,
                             $comentarios
@@ -6523,8 +6514,8 @@ public function manageFacturas($id) {
                         error_log("Creado detalle secundario ID $new_detalle_id con grupo_id $new_grupo_id para centro de costo $centro_costo con porcentaje $porcentaje");
                     }
                 }
-
-                // Eliminar detalles sobrantes solo si hay menos centros de costo que antes
+ 
+                // Eliminar detalles sobrantes
                 if ($grupo_id > 0 && count($id_centro_costo) < count($detalles_grupo)) {
                     foreach ($detalles_grupo as $old_detalle) {
                         if (!in_array($old_detalle['id'], $used_detalle_ids)) {
@@ -6534,7 +6525,7 @@ public function manageFacturas($id) {
                         }
                     }
                 }
-
+ 
                 // Actualizar usado en la tabla dte
                 if ($serie && $numero_dte && ($serie != $detalle['serie'] || $numero_dte != $detalle['no_factura'])) {
                     if ($detalle['serie'] && $detalle['no_factura']) {
@@ -6544,28 +6535,28 @@ public function manageFacturas($id) {
                     $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
                     $stmt->execute([$serie, $numero_dte]);
                 }
-
+ 
                 $this->auditoriaModel->createAuditoria($id, $detalle_id, $_SESSION['user_id'], 'ACTUALIZAR_DETALLE_EN_CORRECCION', "Factura actualizada en corrección: $no_factura");
-
+ 
                 // Update total amount for liquidation
                 $detallesActualizados = $detalleModel->getDetallesByLiquidacionId($id);
                 $monto_total = array_sum(array_column($detallesActualizados, 'total_factura'));
                 $this->liquidacionModel->updateMontoTotal($id, $monto_total);
-
+ 
                 $response = [
                     'message' => 'Factura actualizada correctamente.',
                     'detalle_id' => $detalle_id,
-                    'detalle_ids' => $detalle_ids, // Incluir todos los IDs de detalles
+                    'detalle_ids' => $detalle_ids,
                     'grupo_id' => $new_grupo_id,
                     'rutas_archivos' => $rutas_archivos,
                     'monto_total' => $monto_total,
                     'cuenta_contable_nombre' => $nombre_cuenta_contable,
-                    'centros_costo' => array_map(function($cc, $p) {
+                    'centros_costo' => array_map(function ($cc, $p) {
                         return ['id_centro_costo' => $cc, 'porcentaje' => floatval($p)];
                     }, $id_centro_costo, $porcentajes),
                     'comentarios' => $comentarios
                 ];
-
+ 
                 $this->pdo->commit();
                 header('Content-Type: application/json');
                 echo json_encode($response);
@@ -6577,9 +6568,9 @@ public function manageFacturas($id) {
             $this->pdo->rollBack();
             if (!empty($rutas_archivos)) {
                 foreach ($rutas_archivos as $ruta) {
-                    $filePath = '../' . str_replace('\\', '/', $ruta);
-                    if (file_exists($filePath)) {
-                        unlink($filePath);
+                    $spacesKey = str_replace('https://acstorage.sfo3.digitaloceanspaces.com/', '', $ruta);
+                    if ($filesystem->has($spacesKey)) {
+                        $filesystem->delete($spacesKey);
                     }
                 }
             }
@@ -6590,14 +6581,16 @@ public function manageFacturas($id) {
             exit;
         }
     }
-
+ 
     // Load correction view
     $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
-    if (empty($detalles)) {
-        header('Location: index.php?controller=liquidacion&action=list&mode=correccion');
-        exit;
-    }
-
+    $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
+if (empty($detalles)) {
+    error_log("No se encontraron detalles en estado EN_CORRECCION para liquidación ID: $id");
+    header('Location: index.php?controller=liquidacion&action=list&mode=correccion');
+    exit;
+}
+ 
     $originating_roles = [];
     foreach ($detalles as $detalle) {
         $role = $detalle['original_role'] ?? 'CONTABILIDAD';
@@ -6605,7 +6598,7 @@ public function manageFacturas($id) {
             $originating_roles[] = $role;
         }
     }
-
+ 
     $centroCostoModel = new CentroCosto();
     $cuentaContableModel = new CuentaContable();
     foreach ($detalles as &$detalle) {
@@ -6631,7 +6624,7 @@ public function manageFacturas($id) {
         $detalle['correccion_comentario'] = $detalle['correccion_comentario'] ?? 'Sin comentario';
     }
     unset($detalle);
-
+ 
     $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
     if (!$cajaChica) {
         error_log("Caja chica no encontrada para ID: " . $liquidacion['id_caja_chica']);
@@ -6640,33 +6633,34 @@ public function manageFacturas($id) {
         echo json_encode(['error' => 'Caja chica no encontrada']);
         exit;
     }
-
+ 
     $tipoDocumentoModel = new TipoDocumento();
     $tiposDocumentos = $tipoDocumentoModel->getAllTiposDocumentos();
     $select_tipos_documentos = '';
     foreach ($tiposDocumentos as $tipo) {
         $select_tipos_documentos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
     }
-
+ 
     $tipoGastoModel = new TipoGasto();
     $tiposGastos = $tipoGastoModel->getAllTiposGastos();
     $select_tipos_gastos = '';
     foreach ($tiposGastos as $tipo) {
         $select_tipos_gastos .= "<option value='{$tipo['name']}'>{$tipo['name']}</option>";
     }
-
+ 
     $centroCostoModel = new CentroCosto();
     $centrosCostos = $centroCostoModel->getAllCentrosCostos();
     $select_centros_costos = '';
     foreach ($centrosCostos as $centro) {
-        $select_centros_costos .= "<option value='{$centro['id']}' $selected>{$centro['nombre']} / {$centro['codigo']}</option>";
+        $select_centros_costos .= "<option value='{$centro['id']}'>{$centro['nombre']} / {$centro['codigo']}</option>";
     }
-
+ 
     $data = $liquidacion;
     $data['nombre_caja_chica'] = $cajaChica['nombre'];
     $data['clientes'] = $cajaChica['clientes'] ?? null;
     $data['originating_roles'] = $originating_roles;
-
+    $data['suggested_centro_costo_id'] = !empty($detalles) && isset($detalles[0]['id_centro_costo']) ? $detalles[0]['id_centro_costo'] : 0;
+ 
     require '../views/liquidaciones/correccion.html';
     exit;
 }
