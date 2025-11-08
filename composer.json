@@ -6,6 +6,7 @@
         "mpdf/mpdf": "^8.2",
         "phpmailer/phpmailer": "^6.9",
         "league/flysystem-aws-s3-v3": "*",
-        "vlucas/phpdotenv": "*"
+        "vlucas/phpdotenv": "*",
+        "ralouphie/getallheaders": "^3.0"
     }
 }
