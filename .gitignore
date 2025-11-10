@@ -20,3 +20,7 @@ config/database.php
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Archivos de exportación temporales
+controllers/json/export_liquidacion_*.json
+controllers/json/
