@@ -1166,22 +1166,29 @@
                     <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
                     <td data-label="Comentarios"><?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?></td>
                     <td data-label="Archivos">
-                        <?php
-                        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                        if (is_array($rutas) && !empty($rutas)) {
-                            foreach ($rutas as $index => $ruta) {
-                                $fileName = basename($ruta);
-                                echo '
-                                <div class="file-item" data-ruta="' . htmlspecialchars($ruta) . '">
-                                    <a href="' . htmlspecialchars($ruta) . '" class="file-link" target="_blank" title="Ver ' . htmlspecialchars($fileName) . '">Ver archivo</a>
-                                    <!-- <button class="remove-file-btn" onclick="removeFile(\'' . htmlspecialchars($ruta) . '\')">Eliminar</button> -->
-                                </div>';
-                            }
-                        } else {
-                            echo 'N/A';
-                        }
-                        ?>
-                    </td>
+    <?php
+    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+    if (is_array($rutas) && !empty($rutas)) {
+        foreach ($rutas as $index => $ruta) {
+            // Asegurar que la ruta esté correctamente formateada
+            $rutaLimpia = str_replace('\\', '/', $ruta);
+            $fileName = basename($rutaLimpia);
+            echo '
+            <div class="file-item">
+                <a href="' . htmlspecialchars($rutaLimpia) . '" 
+                   class="file-link" 
+                   data-file="' . htmlspecialchars($rutaLimpia) . '" 
+                   target="_blank" 
+                   title="Ver ' . htmlspecialchars($fileName) . '">
+                   Ver archivo
+                </a>
+            </div>';
+        }
+    } else {
+        echo 'N/A';
+    }
+    ?>
+</td>
                     <td data-label="Acciones">
                         <button class="edit-btn" onclick="editFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Editar</button>
                         <button class="delete-btn" onclick="deleteFactura(<?php echo htmlspecialchars($detalle['id']); ?>)">Eliminar</button>
@@ -1223,8 +1230,10 @@
       const fechaInicio = '<?php echo $data['fecha_inicio']; ?>';
 const fechaFin = '<?php echo $data['fecha_fin']; ?>';
 let cachedDtes = [];
+let capturedFiles = [];
 let isNitInputActive = false;
 let fechaDocumentoEstablecida = false;
+let existingFiles = [];
 
 function basename(path) {
   if (!path || typeof path !== 'string') {
@@ -1322,7 +1331,7 @@ const fechaInicioLiquidacion = '<?php echo htmlspecialchars($data['fecha_inicio'
 const fechaFinLiquidacion = '<?php echo htmlspecialchars($data['fecha_fin']); ?>';
 
 let stream = null;
-let capturedFiles = [];
+
 let centroCostoCount = 1;
 
 function initializeCameraSupport() {
@@ -2071,9 +2080,17 @@ function resetForm() {
   document.getElementById('id_cuenta_contable').disabled = true;
   document.getElementById('comentarios').value = '';
   capturedFiles = [];
-  const photoPreviewContainer = document.getElementById('photo-preview-container');
-  photoPreviewContainer.innerHTML = '';
-  fileInput.value = '';
+existingFiles = [];
+const photoPreviewContainer = document.getElementById('photo-preview-container');
+if (photoPreviewContainer) photoPreviewContainer.innerHTML = '';
+
+const fileInput = document.getElementById('archivos');
+if (fileInput) fileInput.value = '';
+
+// Limpiar inputs de archivos existentes y removidos
+updateExistingFilesInput();
+const removedFilesInput = document.getElementById('removed_files');
+if (removedFilesInput) removedFilesInput.value = '[]';
 
   const centrosCostoContainer = document.getElementById('centros_costo_container');
   centrosCostoContainer.innerHTML = `
@@ -2956,73 +2973,64 @@ async function editFactura(id) {
 
   // Clear and populate file previews - VERSIÓN CORREGIDA
   const photoPreviewContainer = document.getElementById('photo-preview-container');
-  photoPreviewContainer.innerHTML = '';
-  capturedFiles = [];
-  const fileInput = document.getElementById('archivos');
-  fileInput.value = '';
+photoPreviewContainer.innerHTML = '';
+capturedFiles = [];
+existingFiles = [...rutasArchivos]; // Usar rutasArchivos en lugar de detalle.rutas_archivos
 
-  // Mostrar los archivos existentes como enlaces/previews
-  rutasArchivos.forEach(ruta => {
-      if (!ruta) return;
-      
-      const fileName = basename(ruta);
-      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
-        .some(ext => ruta.toLowerCase().endsWith(ext));
-      const isPdf = ruta.toLowerCase().endsWith('.pdf');
-      
-      const previewDiv = document.createElement('div');
-      previewDiv.classList.add('photo-preview');
-      
-      if (isImage) {
+rutasArchivos.forEach(ruta => {
+    const fileName = basename(ruta);
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => ruta.toLowerCase().endsWith(ext));
+    const previewDiv = document.createElement('div');
+    previewDiv.classList.add('photo-preview');
+    
+    if (isImage) {
         const img = document.createElement('img');
-        img.src = '../' + ruta + '?t=' + Date.now(); // Agregar timestamp para evitar cache
+        img.src = ruta;
         img.alt = fileName;
         img.style.maxWidth = '100px';
         img.style.maxHeight = '100px';
         previewDiv.appendChild(img);
-      } else if (isPdf) {
+    } else {
+        // Para PDFs y otros archivos, mostrar icono
         const img = document.createElement('img');
         img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE0IDJINkMyLjY5IDIgMiA1LjU4IDIgN1YxN0MyIDE4LjQyIDIuNSAxOS41OSAzLjUgMjAuNUM0LjUgMjEuNDEgNS44OSAyMiA3IDIySDE4QzE5LjY1IDIyIDIyIDIxLjY1IDIyIDE5VjlDMjIgMy44IDE5LjY1IDIgMTQgMlpNMTUgMTcuNzVIN0M2LjU5IDE3Ljc1IDYuMjUgMTcuNDEgNi4yNSAxN1YxMkM2LjI1IDExLjU5IDYuNTkgMTEuMjUgNyAxMS4yNUgxNUMxNS40MSAxMS4yNSAxNS43NSAxMS41OSAxNS43NSAxMlYxN0MxNS43NSAxNy40MSAxNS40MSAxNy43NSAxNSAxNy43NVpNMTUuNzUgOUg4LjI1VjcuNzVIMTUuNzVWOVoiIGZpbGw9IiNmZjAwMDAiLz4KPC9zdmc+';
         img.style.opacity = '0.6';
         img.alt = 'PDF File';
         previewDiv.appendChild(img);
-      } else {
-        const fileIcon = document.createElement('div');
-        fileIcon.textContent = '📄';
-        fileIcon.style.fontSize = '48px';
-        previewDiv.appendChild(fileIcon);
-      }
-      
-      const fileNameDiv = document.createElement('div');
-      fileNameDiv.textContent = fileName;
-      fileNameDiv.style.fontSize = '12px';
-      fileNameDiv.style.marginTop = '5px';
-      fileNameDiv.style.textAlign = 'center';
-      fileNameDiv.style.wordBreak = 'break-word';
-      fileNameDiv.style.maxWidth = '100px';
-      previewDiv.appendChild(fileNameDiv);
-      
-      const removeBtn = document.createElement('button');
-      removeBtn.classList.add('remove-photo-btn');
-      removeBtn.textContent = '×';
-      removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
-      previewDiv.appendChild(removeBtn);
-      
-      // Agregar enlace para ver el archivo
-      const viewLink = document.createElement('a');
-      viewLink.href = '#';
-      viewLink.textContent = 'Ver';
-      viewLink.style.fontSize = '10px';
-      viewLink.style.marginTop = '5px';
-      viewLink.style.display = 'block';
-      viewLink.onclick = (e) => {
+    }
+    
+    const fileNameDiv = document.createElement('div');
+    fileNameDiv.textContent = fileName;
+    fileNameDiv.style.fontSize = '12px';
+    fileNameDiv.style.marginTop = '5px';
+    fileNameDiv.style.textAlign = 'center';
+    fileNameDiv.style.wordBreak = 'break-word';
+    fileNameDiv.style.maxWidth = '100px';
+    previewDiv.appendChild(fileNameDiv);
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.classList.add('remove-photo-btn');
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => removeExistingFile(ruta, previewDiv);
+    previewDiv.appendChild(removeBtn);
+    
+    // Agregar enlace para ver el archivo
+    const viewLink = document.createElement('a');
+    viewLink.href = '#';
+    viewLink.textContent = 'Ver';
+    viewLink.style.fontSize = '10px';
+    viewLink.style.marginTop = '5px';
+    viewLink.style.display = 'block';
+    viewLink.onclick = (e) => {
         e.preventDefault();
-        openModal('../' + ruta, fileName);
-      };
-      previewDiv.appendChild(viewLink);
-      
-      photoPreviewContainer.appendChild(previewDiv);
-  });
+        openModal(ruta, fileName);
+    };
+    previewDiv.appendChild(viewLink);
+    
+    photoPreviewContainer.appendChild(previewDiv);
+});
+
+updateExistingFilesInput();
 
   // Populate centros de costo
   const centrosCostoContainer = document.getElementById('centros_costo_container');
@@ -3142,12 +3150,10 @@ async function editFactura(id) {
 }
 
 function removeExistingFile(ruta, previewDiv) {
-  let removedFilesInput = document.getElementById('removed_files');
-  if (!ruta) {
-    console.warn('Intento de eliminar archivo con ruta nula');
-    return;
-  }
+  existingFiles = existingFiles.filter(file => file !== ruta);
+  updateExistingFilesInput();
   
+  let removedFilesInput = document.getElementById('removed_files');
   if (!removedFilesInput) {
     removedFilesInput = document.createElement('input');
     removedFilesInput.type = 'hidden';
@@ -3155,16 +3161,21 @@ function removeExistingFile(ruta, previewDiv) {
     removedFilesInput.id = 'removed_files';
     document.getElementById('facturaForm').appendChild(removedFilesInput);
   }
-  
-  // Agregar la ruta a los archivos removidos
-  const currentRemoved = removedFilesInput.value ? removedFilesInput.value.split(',') : [];
-  if (!currentRemoved.includes(ruta)) {
-    currentRemoved.push(ruta);
-    removedFilesInput.value = currentRemoved.join(',');
-  }
-  
+  removedFilesInput.value = ruta;
   previewDiv.remove();
-  console.log('Archivo marcado para remover:', ruta);
+}
+
+function updateExistingFilesInput() {
+  const existingInputs = document.querySelectorAll('input[name="existing_files[]"]');
+  existingInputs.forEach(input => input.remove());
+  
+  existingFiles.forEach(ruta => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'existing_files[]';
+    input.value = ruta;
+    document.getElementById('facturaForm').appendChild(input);
+  });
 }
 
 async function deleteFactura(id) {
@@ -3360,9 +3371,11 @@ if (tipoGasto === 'Combustible') {
 
   capturedFiles.forEach(file => formData.append('archivos[]', file));
 
+  existingFiles.forEach(file => formData.append('existing_files[]', file));
+
   const removedFiles = Array.from(document.querySelectorAll('input[name="removed_files[]"]')).map(input => input.value).filter(val => val);
-  formData.delete('removed_files[]');
-  removedFiles.forEach(file => formData.append('removed_files[]', file));
+formData.delete('removed_files[]');
+removedFiles.forEach(file => formData.append('removed_files[]', file));
 
   try {
     const response = await fetch(
