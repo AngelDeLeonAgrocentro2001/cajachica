@@ -38,43 +38,72 @@ class DashboardController {
             'EN_CORRECCION' => ['cantidad' => 0, 'monto' => 0],
         ];
 
-        // Fetch liquidations for all users (including admin) based on creator, supervisor, or accountant
         $liquidaciones = [];
         $liquidacionesEnCorreccion = [];
 
-        // Fetch liquidations created by the user
-        $userLiquidaciones = $liquidacionModel->getLiquidacionesByUsuario($userId);
-        $liquidaciones = array_merge($liquidaciones, $userLiquidaciones);
+        // 🔥 NUEVO: Si el usuario es contador, ver TODAS las liquidaciones
+        $esContador = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') || 
+                     strpos(strtoupper($rol), 'CONTADOR') !== false || 
+                     strpos(strtoupper($rol), 'CONTABILIDAD') !== false;
 
-        // Fetch liquidations where the user is supervisor
-        if ($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
-            $supervisorLiquidaciones = $liquidacionModel->getAllLiquidaciones(null, $userId);
-            $liquidaciones = array_merge($liquidaciones, $supervisorLiquidaciones);
+        if ($esContador) {
+            error_log("🔍 Usuario contador detectado - Mostrando TODAS las liquidaciones");
+            
+            // Obtener todas las liquidaciones sin filtros
+            $todasLiquidaciones = $liquidacionModel->getAllLiquidaciones();
+            $liquidaciones = array_merge($liquidaciones, $todasLiquidaciones);
+            
+            // También obtener todas las liquidaciones en corrección
+            $correccionQuery = "
+                SELECT DISTINCT l.*, cc.nombre AS nombre_caja_chica
+                FROM liquidaciones l
+                JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+                JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
+                WHERE dl.estado = 'EN_CORRECCION'
+                ORDER BY l.fecha_creacion DESC
+            ";
+            $stmt = $this->pdo->prepare($correccionQuery);
+            $stmt->execute();
+            $liquidacionesEnCorreccion = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } else {
+            // 🔥 COMPORTAMIENTO ORIGINAL para otros roles
+            error_log("👤 Usuario NO contador - Aplicando filtros normales");
+
+            // Fetch liquidations created by the user
+            $userLiquidaciones = $liquidacionModel->getLiquidacionesByUsuario($userId);
+            $liquidaciones = array_merge($liquidaciones, $userLiquidaciones);
+
+            // Fetch liquidations where the user is supervisor
+            if ($usuarioModel->tienePermiso($usuario, 'autorizar_liquidaciones')) {
+                $supervisorLiquidaciones = $liquidacionModel->getAllLiquidaciones(null, $userId);
+                $liquidaciones = array_merge($liquidaciones, $supervisorLiquidaciones);
+            }
+
+            // Fetch liquidations where the user is accountant
+            if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
+                $contadorLiquidaciones = $liquidacionModel->getAllLiquidaciones(null, null, null, $userId);
+                $liquidaciones = array_merge($liquidaciones, $contadorLiquidaciones);
+            }
+
+            // Fetch liquidations in EN_CORRECCION state where user is creator, supervisor, or accountant
+            $correccionQuery = "
+                SELECT DISTINCT l.*, cc.nombre AS nombre_caja_chica
+                FROM liquidaciones l
+                JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+                JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
+                WHERE dl.estado = 'EN_CORRECCION'
+                AND (
+                    l.id_usuario = :userId
+                    OR l.id_supervisor = :userId
+                    OR l.id_contador = :userId
+                )
+                ORDER BY l.fecha_creacion DESC
+            ";
+            $stmt = $this->pdo->prepare($correccionQuery);
+            $stmt->execute(['userId' => $userId]);
+            $liquidacionesEnCorreccion = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
-
-        // Fetch liquidations where the user is accountant
-        if ($usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones')) {
-            $contadorLiquidaciones = $liquidacionModel->getAllLiquidaciones(null, null, null, $userId);
-            $liquidaciones = array_merge($liquidaciones, $contadorLiquidaciones);
-        }
-
-        // Fetch liquidations in EN_CORRECCION state where user is creator, supervisor, or accountant
-        $correccionQuery = "
-            SELECT DISTINCT l.*, cc.nombre AS nombre_caja_chica
-            FROM liquidaciones l
-            JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
-            JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
-            WHERE dl.estado = 'EN_CORRECCION'
-            AND (
-                l.id_usuario = :userId
-                OR l.id_supervisor = :userId
-                OR l.id_contador = :userId
-            )
-            ORDER BY l.fecha_creacion DESC
-        ";
-        $stmt = $this->pdo->prepare($correccionQuery);
-        $stmt->execute(['userId' => $userId]);
-        $liquidacionesEnCorreccion = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Remove duplicates by ID
         $uniqueLiquidaciones = [];
@@ -99,6 +128,9 @@ class DashboardController {
             $resumen['EN_CORRECCION']['cantidad']++;
             $resumen['EN_CORRECCION']['monto'] += (float) $liquidacion['monto_total'];
         }
+
+        // 🔥 NUEVO: Pasar información del rol al frontend para mostrar indicador
+        $esUsuarioContador = $esContador;
 
         require '../views/dashboard.html';
         exit;
