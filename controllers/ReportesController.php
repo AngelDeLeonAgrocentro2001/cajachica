@@ -593,15 +593,27 @@ class ReportesController {
                                 <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
                                 <td data-label="Archivos">
                                     <?php
-                                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                                    if (is_array($rutas) && !empty($rutas)) {
-                                        foreach ($rutas as $ruta) {
-                                            echo '<div><a href="../' . htmlspecialchars($ruta) . '" target="_blank">Ver Archivo</a></div>';
-                                        }
-                                    } else {
-                                        echo 'N/A';
-                                    }
-                                    ?>
+                         $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                         if (is_array($rutas) && !empty($rutas)) {
+                             foreach ($rutas as $index => $ruta) {
+                                 // Asegurar que la ruta esté correctamente formateada
+                                 $rutaLimpia = str_replace('\\', '/', $ruta);
+                                 $fileName = basename($rutaLimpia);
+                                  echo '
+                                 <div class="file-item">
+                                     <a href="' . htmlspecialchars($rutaLimpia) . '" 
+                                        class="file-link" 
+                                        data-file="' . htmlspecialchars($rutaLimpia) . '" 
+                                        target="_blank" 
+                                        title="Ver ' . htmlspecialchars($fileName) . '">
+                                        Ver archivo
+                                     </a>
+                                 </div>';
+                             }
+                         } else {
+                             echo 'N/A';
+                         }
+                         ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -949,21 +961,28 @@ class ReportesController {
             $hasFiles = false;
     
             foreach ($detalles as $detalle) {
-                $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                if (is_array($rutas) && !empty($rutas)) {
-                    foreach ($rutas as $ruta) {
-                        // Construct absolute URL
-                        $fileUrl = rtrim($this->baseUrl, '/') . '/' . ltrim($ruta, '/');
-                        $fileName = basename($ruta);
-                        $hasFiles = true;
-                        $html .= '<div>';
-                        $html .= '<p>Archivo de Factura #' . htmlspecialchars($detalle['no_factura']) . ':</p>';
-                        // $html .= '<a href="' . htmlspecialchars($fileUrl) . '" target="_blank">' . htmlspecialchars($fileName) . '</a>';
-                        $html .= '<img src="' . htmlspecialchars($fileUrl) . '" alt="" srcset="">';
+            $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+            if (is_array($rutas) && !empty($rutas)) {
+                foreach ($rutas as $ruta) {
+                    $hasFiles = true;
+                    
+                    // Obtener la imagen como base64
+                    $imageContent = $this->getImageForPDF($ruta);
+                    
+                    if ($imageContent) {
+                        $html .= '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
+                        $html .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
+                        $html .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
+                        $html .= '<img src="' . $imageContent . '" style="max-width: 500px; max-height: 300px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
+                        $html .= '</div>';
+                    } else {
+                        $html .= '<div style="margin-bottom: 10px;">';
+                        $html .= '<p>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . ' - Archivo no disponible: ' . htmlspecialchars(basename($ruta)) . '</p>';
                         $html .= '</div>';
                     }
                 }
             }
+        }
             if (!$hasFiles) {
                 $html .= '<p style="text-align: center;">No hay archivos disponibles.</p>';
             }
@@ -994,4 +1013,116 @@ class ReportesController {
             exit;
         }
     }
+
+    private function getImageForPDF($ruta) {
+    try {
+        // Primero intenta con Digital Ocean Spaces
+        $spacesImage = $this->getImageFromSpaces($ruta);
+        if ($spacesImage) {
+            return $spacesImage;
+        }
+        
+        // Si no funciona, intenta con el sistema de archivos local
+        return $this->getImageFromLocal($ruta);
+        
+    } catch (Exception $e) {
+        error_log('Error getting image for PDF: ' . $e->getMessage());
+        return null;
+    }
 }
+
+private function getImageFromSpaces($ruta) {
+    try {
+        require_once __DIR__ . '/../config/spaces.php';
+        
+        $filesystem = getSpacesFilesystem();
+        
+        // Extraer la clave del archivo de la ruta
+        $key = $this->extractKeyFromPath($ruta);
+        
+        if (!$key) {
+            return null;
+        }
+        
+        // Verificar si el archivo existe
+        if (!$filesystem->fileExists($key)) {
+            error_log("File does not exist in Spaces: " . $key);
+            return null;
+        }
+        
+        // Obtener el contenido del archivo
+        $fileContent = $filesystem->read($key);
+        
+        // Obtener el MIME type
+        $mimeType = $filesystem->mimeType($key);
+        
+        // Convertir a base64
+        $base64 = base64_encode($fileContent);
+        
+        return 'data:' . $mimeType . ';base64,' . $base64;
+        
+    } catch (Exception $e) {
+        error_log('Error getting image from Spaces: ' . $e->getMessage());
+        return null;
+    }
+}
+
+private function getImageFromLocal($ruta) {
+    try {
+        // Limpiar la ruta
+        $cleanPath = str_replace('\\', '/', $ruta);
+        
+        // Si es una ruta relativa, construir la ruta absoluta
+        if (strpos($cleanPath, '/') !== 0) {
+            $basePath = $_SERVER['DOCUMENT_ROOT'] ?? __DIR__ . '/../../public';
+            $absolutePath = rtrim($basePath, '/') . '/' . ltrim($cleanPath, '/');
+        } else {
+            $absolutePath = $cleanPath;
+        }
+        
+        // Verificar si el archivo existe
+        if (!file_exists($absolutePath)) {
+            error_log("File does not exist locally: " . $absolutePath);
+            return null;
+        }
+        
+        // Obtener el contenido y MIME type
+        $fileContent = file_get_contents($absolutePath);
+        $mimeType = mime_content_type($absolutePath);
+        
+        // Verificar que sea una imagen
+        if (strpos($mimeType, 'image/') !== 0) {
+            error_log("File is not an image: " . $mimeType);
+            return null;
+        }
+        
+        $base64 = base64_encode($fileContent);
+        return 'data:' . $mimeType . ';base64,' . $base64;
+        
+    } catch (Exception $e) {
+        error_log('Error getting image from local: ' . $e->getMessage());
+        return null;
+    }
+}
+
+private function extractKeyFromPath($ruta) {
+    // Si la ruta ya es una URL completa de Spaces
+    if (strpos($ruta, 'digitaloceanspaces.com') !== false) {
+        $parsedUrl = parse_url($ruta);
+        return ltrim($parsedUrl['path'] ?? '', '/');
+    }
+    
+    // Si es una ruta relativa que apunta a Spaces
+    $cleanPath = str_replace('\\', '/', $ruta);
+    
+    // Buscar patrones comunes en rutas de Spaces
+    if (strpos($cleanPath, 'CAJA_CHICA/Uploads/') !== false) {
+        return $cleanPath;
+    }
+    
+    // Si no se reconoce el patrón, devolver la ruta limpia
+    return $cleanPath;
+}
+
+}
+
