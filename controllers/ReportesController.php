@@ -973,7 +973,7 @@ class ReportesController {
                         $html .= '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
                         $html .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
                         $html .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
-                        $html .= '<img src="' . $imageContent . '" style="max-width: 500px; max-height: 300px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
+                        $html .= '<img src="' . $imageContent . '" style="max-width: 750px; max-height: 500px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
                         $html .= '</div>';
                     } else {
                         $html .= '<div style="margin-bottom: 10px;">';
