@@ -6,89 +6,159 @@
     <title>Recuperar Contraseña - AgroCaja Chica</title>
     <link rel="stylesheet" href="../views/css/style.css">
     <style>
-        body {
-            background: linear-gradient(135deg, #3498db, #2ecc71);
-            font-family: 'Arial', sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a4d3e 0%, #2d6a4f 50%, #1a4d3e 100%);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            overflow: auto;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Elementos decorativos de fondo */
+        body::before,
+        body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        body::before {
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -100px;
+        }
+
+        body::after {
+            width: 300px;
+            height: 300px;
+            bottom: -80px;
+            right: -80px;
         }
 
         #resetForm {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 50px 40px;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
             text-align: center;
+            position: relative;
+            z-index: 1;
         }
 
         h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 2rem;
+            color: #2d6a4f;
+            margin-bottom: 15px;
+            font-size: 32px;
             font-weight: 600;
         }
 
-        #resetForm input {
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 35px;
+            line-height: 1.5;
+        }
+
+        #resetForm input[type="email"] {
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            padding: 14px 16px;
+            margin: 10px 0 20px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
         }
 
-        #resetForm input:focus {
+        #resetForm input[type="email"]:focus {
             outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+            border-color: #2d6a4f;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
         }
 
-        #resetForm input::placeholder {
+        #resetForm input[type="email"]::placeholder {
             color: #999;
         }
 
         .error {
+            background: rgba(231, 76, 60, 0.1);
             color: #e74c3c;
-            font-size: 0.9rem;
-            margin: 10px 0;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 14px;
             display: none;
+            border-left: 4px solid #e74c3c;
         }
 
         .success {
-            color: #2ecc71;
-            font-size: 0.9rem;
-            margin: 10px 0;
-            display: none;
-        }
-
-        #resetForm button {
-            width: 100%;
+            background: rgba(46, 204, 113, 0.1);
+            color: #27ae60;
             padding: 12px;
-            background-color: #3498db;
-            color: #fff;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 14px;
+            display: none;
+            border-left: 4px solid #27ae60;
+        }
+
+        #resetForm button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #2d6a4f 0%, #1a4d3e 100%);
+            color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 1rem;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(45, 106, 79, 0.3);
+            margin-top: 10px;
         }
 
-        #resetForm button:hover {
-            background-color: #2980b9;
-            transform: scale(1.02);
+        #resetForm button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 106, 79, 0.4);
         }
 
-        #resetForm button:active {
-            transform: scale(0.98);
+        #resetForm button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        .back-link {
+            margin-top: 25px;
+        }
+
+        .back-link a {
+            color: #2d6a4f;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .back-link a:hover {
+            color: #1a4d3e;
+            text-decoration: underline;
         }
 
         /* Modal Styles */
@@ -100,72 +170,138 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 30px;
-            border-radius: 10px;
+            background-color: white;
+            margin: 10% auto;
+            padding: 40px;
+            border-radius: 20px;
             width: 90%;
-            max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal h3 {
-            color: #2c3e50;
-            margin-bottom: 20px;
+            color: #2d6a4f;
+            margin-bottom: 25px;
+            font-size: 28px;
+            font-weight: 600;
         }
 
         .modal input {
             width: 100%;
-            padding: 12px;
+            padding: 14px 16px;
             margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
             box-sizing: border-box;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: #2d6a4f;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+        }
+
+        .modal input::placeholder {
+            color: #999;
         }
 
         .modal-buttons {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 25px;
         }
 
         .modal-buttons button {
             flex: 1;
-            padding: 10px;
+            padding: 14px;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
         .btn-primary {
-            background-color: #3498db;
+            background: linear-gradient(135deg, #2d6a4f 0%, #1a4d3e 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(45, 106, 79, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 106, 79, 0.4);
         }
 
         .btn-secondary {
-            background-color: #95a5a6;
-            color: white;
+            background: #e0e0e0;
+            color: #666;
         }
 
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .modal .error {
+            margin: 15px 0;
+        }
+
+        .modal .success {
+            margin: 15px 0;
+        }
+
+        /* Responsive */
         @media (max-width: 480px) {
             #resetForm, .modal-content {
-                padding: 20px;
+                padding: 30px 25px;
                 max-width: 90%;
             }
 
-            h2 {
-                font-size: 1.5rem;
+            h2, .modal h3 {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                font-size: 13px;
             }
 
             #resetForm input,
-            #resetForm button {
-                font-size: 0.95rem;
-                padding: 10px;
+            #resetForm button,
+            .modal input,
+            .modal-buttons button {
+                font-size: 14px;
+                padding: 12px;
+            }
+
+            .modal-buttons {
+                flex-direction: column;
             }
         }
     </style>
@@ -173,12 +309,17 @@
 <body>
     <form id="resetForm" method="POST">
         <h2>Recuperar Contraseña</h2>
+        <p class="subtitle">Ingresa tu correo electrónico y te ayudaremos a recuperar tu cuenta</p>
+        
         <div class="error" id="errorMessage"></div>
         <div class="success" id="successMessage"></div>
+        
         <input type="email" name="email" id="email" placeholder="Ingresa tu email" required>
+        
         <button type="submit">Verificar Email</button>
-        <div style="margin-top: 20px;">
-            <a href="index.php?controller=login&action=login" style="color: #3498db; text-decoration: none;">← Volver al login</a>
+        
+        <div class="back-link">
+            <a href="index.php?controller=login&action=login">← Volver al login</a>
         </div>
     </form>
 
@@ -189,7 +330,7 @@
             <div class="error" id="modalError"></div>
             <div class="success" id="modalSuccess"></div>
             <input type="hidden" id="userEmail">
-            <input type="password" id="newPassword" placeholder="Nueva contraseña" required>
+            <input type="password" id="newPassword" placeholder="Nueva contraseña (mínimo 6 caracteres)" required>
             <input type="password" id="confirmPassword" placeholder="Confirmar contraseña" required>
             <div class="modal-buttons">
                 <button type="button" id="savePassword" class="btn-primary">Guardar</button>
