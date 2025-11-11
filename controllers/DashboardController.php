@@ -38,22 +38,16 @@ class DashboardController {
             'EN_CORRECCION' => ['cantidad' => 0, 'monto' => 0],
         ];
 
+        // Fetch liquidations based on user role
         $liquidaciones = [];
         $liquidacionesEnCorreccion = [];
 
-        // 🔥 NUEVO: Si el usuario es contador, ver TODAS las liquidaciones
-        $esContador = $usuarioModel->tienePermiso($usuario, 'revisar_liquidaciones') || 
-                     strpos(strtoupper($rol), 'CONTADOR') !== false || 
-                     strpos(strtoupper($rol), 'CONTABILIDAD') !== false;
-
-        if ($esContador) {
-            error_log("🔍 Usuario contador detectado - Mostrando TODAS las liquidaciones");
+        // ✅ NUEVO: Si el usuario es CONTADOR, obtener TODAS las liquidaciones
+        if ($this->esContador($usuario)) {
+            error_log("🔍 Usuario CONTADOR detectado - Obteniendo TODAS las liquidaciones");
+            $liquidaciones = $liquidacionModel->getAllLiquidaciones();
             
-            // Obtener todas las liquidaciones sin filtros
-            $todasLiquidaciones = $liquidacionModel->getAllLiquidaciones();
-            $liquidaciones = array_merge($liquidaciones, $todasLiquidaciones);
-            
-            // También obtener todas las liquidaciones en corrección
+            // Para contadores, también obtener todas las liquidaciones en corrección
             $correccionQuery = "
                 SELECT DISTINCT l.*, cc.nombre AS nombre_caja_chica
                 FROM liquidaciones l
@@ -67,8 +61,8 @@ class DashboardController {
             $liquidacionesEnCorreccion = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
         } else {
-            // 🔥 COMPORTAMIENTO ORIGINAL para otros roles
-            error_log("👤 Usuario NO contador - Aplicando filtros normales");
+            // ✅ COMPORTAMIENTO ORIGINAL para otros roles
+            error_log("🔍 Usuario NO contador - Aplicando lógica original");
 
             // Fetch liquidations created by the user
             $userLiquidaciones = $liquidacionModel->getLiquidacionesByUsuario($userId);
@@ -105,12 +99,14 @@ class DashboardController {
             $liquidacionesEnCorreccion = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        // Remove duplicates by ID
-        $uniqueLiquidaciones = [];
-        foreach ($liquidaciones as $liquidacion) {
-            $uniqueLiquidaciones[$liquidacion['id']] = $liquidacion;
+        // Remove duplicates by ID (solo para usuarios no contadores)
+        if (!$this->esContador($usuario)) {
+            $uniqueLiquidaciones = [];
+            foreach ($liquidaciones as $liquidacion) {
+                $uniqueLiquidaciones[$liquidacion['id']] = $liquidacion;
+            }
+            $liquidaciones = array_values($uniqueLiquidaciones);
         }
-        $liquidaciones = array_values($uniqueLiquidaciones);
 
         // Calculate summary for visible liquidations
         foreach ($liquidaciones as $liquidacion) {
@@ -129,11 +125,23 @@ class DashboardController {
             $resumen['EN_CORRECCION']['monto'] += (float) $liquidacion['monto_total'];
         }
 
-        // 🔥 NUEVO: Pasar información del rol al frontend para mostrar indicador
-        $esUsuarioContador = $esContador;
+        // ✅ Pasar información del rol al frontend para lógica adicional si es necesario
+        echo "<script>const usuarioRol = '" . $rol . "'; const esContador = " . ($this->esContador($usuario) ? 'true' : 'false') . ";</script>";
 
         require '../views/dashboard.html';
         exit;
+    }
+
+    /**
+     * Método auxiliar para verificar si el usuario es contador
+     */
+    private function esContador($usuario) {
+        $rol = strtoupper($usuario['rol'] ?? '');
+        $esContador = (strpos($rol, 'CONTADOR') !== false || 
+                      strpos($rol, 'CONTABILIDAD') !== false);
+        
+        error_log("🔍 Verificando rol contador - Rol: $rol, Es contador: " . ($esContador ? 'SÍ' : 'NO'));
+        return $esContador;
     }
 }
 ?>
