@@ -20,220 +20,220 @@ if (empty($filteredLiquidaciones)) {
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrección de Liquidaciones</title>
-    <link rel="stylesheet" href="../assets/css/styles.css"> <!-- Ensure this path is correct -->
-    <style>
-        :root {
-            --primary-color: #2563eb;
-            --secondary-color: #1e3a8a;
-            --danger-color: #dc2626;
-            --success-color: #16a34a;
-            --background-color: #f8fafc;
-            --card-background: #ffffff;
-            --text-color: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corrección de Liquidaciones</title>
+  <style>
+    :root {
+      --primary-color: #2d6a4f;
+      --primary-dark: #1b4332;
+      --primary-light: #95d5b2;
+      --secondary-color: #40916c;
+      --danger-color: #c0392b;
+      --success-color: #16a34a;
+      --background-color: #f5f7fa;
+      --card-background: #ffffff;
+      --text-color: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 2px 8px rgba(45, 106, 79, 0.08);
+      --shadow-md: 0 4px 16px rgba(45, 106, 79, 0.12);
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            background-color: var(--background-color);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: var(--text-color);
-            line-height: 1.5;
-            margin: 0;
-            padding: 1rem;
-        }
+    body {
+      background: linear-gradient(135deg, #f5f7fa, #e8f5e9);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 1rem;
+    }
 
-        h1 {
-            text-align: center;
-            color: var(--text-color);
-            margin: 2rem 0;
-            font-size: 1.875rem;
-            font-weight: 700;
-            letter-spacing: -0.025em;
-        }
+    h1 {
+      text-align: center;
+      color: var(--primary-dark);
+      margin: 2rem 0;
+      font-size: 2rem;
+      font-weight: 700;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1.5rem;
-            background-color: var(--card-background);
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-md);
-        }
+    h1::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      border-radius: 2px;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1.5rem;
-        }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      background: var(--card-background);
+      border-radius: 1rem;
+      box-shadow: var(--shadow-md);
+    }
 
-        th, td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-size: 0.875rem;
-            border-bottom: 1px solid var(--border-color);
-        }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+      overflow-x: auto;
+    }
 
-        th {
-            background-color: var(--secondary-color);
-            color: white;
-            font-weight: 600;
-        }
+    th, td {
+      padding: 0.875rem 1rem;
+      text-align: left;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border-color);
+    }
 
-        tr {
-            transition: background-color 0.2s ease;
-        }
+    th {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+      color: white;
+      font-weight: 600;
+    }
 
-        tr:hover {
-            background-color: #f1f5f9;
-        }
+    tr {
+      transition: background-color 0.2s ease;
+    }
 
-        .btn {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            text-decoration: none;
-            color: white;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
+    tr:hover {
+      background-color: rgba(45, 106, 79, 0.05);
+    }
 
-        .btn-editar {
-            background-color: var(--primary-color);
-        }
+    .btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: white;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm);
+    }
 
-        .btn-editar:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-1px);
-        }
+    .btn-editar {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    }
 
-        p {
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 1rem;
-            margin: 1rem 0;
-        }
+    .btn-editar:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 0.5rem;
-            }
+    p {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 1rem;
+      margin: 1rem 0;
+    }
 
-            .container {
-                padding: 1rem;
-            }
+    /* Responsive */
+    @media (max-width: 768px) {
+      body { padding: 0.5rem; }
 
-            table, thead, tbody, th, td, tr {
-                display: block;
-            }
+      .container { padding: 1rem; }
 
-            thead tr {
-                position: absolute;
-                top: -9999px;
-                left: -9999px;
-            }
+      table, thead, tbody, th, td, tr { display: block; }
 
-            tr {
-                margin-bottom: 1rem;
-                border: 1px solid var(--border-color);
-                border-radius: 0.5rem;
-                background-color: var(--card-background);
-                box-shadow: var(--shadow-sm);
-            }
+      thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
 
-            td {
-                border: none;
-                position: relative;
-                padding: 0.5rem 0.75rem;
-                padding-left: 50%;
-                text-align: right;
-                font-size: 0.875rem;
-                
-            }
+      tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        background: var(--card-background);
+        box-shadow: var(--shadow-sm);
+        padding: 0.5rem 0;
+      }
 
-            td:before {
-                content: attr(data-label);
-                position: absolute;
-                left: 0.75rem;
-                width: 45%;
-                padding-right: 0.5rem;
-                font-weight: 600;
-                color: var(--text-color);
-                text-align: left;
-            }
+      td {
+        border: none;
+        position: relative;
+        padding: 0.75rem 1rem;
+        padding-left: 50%;
+        text-align: right;
+        font-size: 0.875rem;
+      }
 
-            h1 {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
-    <script>
-        // Define user permissions and role for JavaScript
-        const userPermissions = {
-            manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
-        };
-        const userRole = <?php echo json_encode($usuario['rol'] ?? ''); ?>;
-    </script>
+      td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        width: 45%;
+        font-weight: 600;
+        color: var(--primary-color);
+        text-align: left;
+      }
+
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+
+  <script>
+    // Define user permissions and role for JavaScript
+    const userPermissions = {
+      manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
+    };
+    const userRole = <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+  </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Corrección de Liquidaciones</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID Liquidación</th>
-                    <th>Caja Chica</th>
-                    <th>Fecha Creación</th>
-                    <th>Monto Total</th>
-                    <!-- <th>Estado</th> -->
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($filteredLiquidaciones as $liquidacion): ?>
-                    <tr>
-                        <td data-label="ID Liquidación"><?php echo htmlspecialchars($liquidacion['id']); ?></td>
-                        <td data-label="Caja Chica"><?php echo htmlspecialchars($liquidacion['nombre_caja_chica'] ?? 'N/A'); ?></td>
-                        <td data-label="Fecha Creación"><?php echo htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A'); ?></td>
-                        <td data-label="Monto Total"><?php echo htmlspecialchars(number_format($liquidacion['monto_total'] ?? 0, 2)); ?></td>
-                        <!-- <td data-label="Estado"><?php echo htmlspecialchars($liquidacion['estado'] ?? 'EN_PROCESO'); ?></td> -->
-                        <td data-label="Acciones">
-                            <?php if ($usuarioModel->tienePermiso($usuario, 'manage_correcciones')): ?>
-                                <a href="index.php?controller=liquidacion&action=updateCorreccion&id=<?php echo $liquidacion['id']; ?>" class="btn btn-editar">Editar</a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+  <div class="container">
+    <h1>Corrección de Liquidaciones</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>ID Liquidación</th>
+          <th>Caja Chica</th>
+          <th>Fecha Creación</th>
+          <th>Monto Total</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($filteredLiquidaciones as $liquidacion): ?>
+          <tr>
+            <td data-label="ID Liquidación"><?= htmlspecialchars($liquidacion['id']); ?></td>
+            <td data-label="Caja Chica"><?= htmlspecialchars($liquidacion['nombre_caja_chica'] ?? 'N/A'); ?></td>
+            <td data-label="Fecha Creación"><?= htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A'); ?></td>
+            <td data-label="Monto Total"><?= htmlspecialchars(number_format($liquidacion['monto_total'] ?? 0, 2)); ?></td>
+            <td data-label="Acciones">
+              <?php if ($usuarioModel->tienePermiso($usuario, 'manage_correcciones')): ?>
+                <a href="index.php?controller=liquidacion&action=updateCorreccion&id=<?= $liquidacion['id']; ?>" class="btn btn-editar">Editar</a>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 
-    <script>
-        // Ensure userPermissions and userRole are available globally
-        window.userPermissions = window.userPermissions || {
-            manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
-        };
-        window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
+  <script>
+    window.userPermissions = window.userPermissions || {
+      manage_correcciones: <?php echo json_encode($usuarioModel->tienePermiso($usuario, 'manage_correcciones')); ?>
+    };
+    window.userRole = window.userRole || <?php echo json_encode($usuario['rol'] ?? ''); ?>;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Página de corrección de liquidaciones cargada');
-        });
-    </script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Página de corrección de liquidaciones cargada');
+    });
+  </script>
 </body>
 </html>
