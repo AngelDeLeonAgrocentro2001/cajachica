@@ -635,8 +635,10 @@ class ReportesController {
     }
 
     public function exportDetallesToPDF($idLiquidacion) {
-        ini_set('memory_limit', '512M');
-    ini_set('max_execution_time', 120); 
+        ini_set('memory_limit', '1024M');
+    ini_set('max_execution_time', 300);
+    ini_set('pcre.backtrack_limit', '10000000');
+    ini_set('pcre.recursion_limit', '10000000');
         if (ob_get_length()) {
             ob_end_clean();
         }
