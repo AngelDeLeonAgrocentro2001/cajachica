@@ -796,6 +796,24 @@
           padding: 1.25rem 0.75rem;
         }
       }
+
+      #searchForm select {
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    width: 100%;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    cursor: pointer;
+}
+
+#searchForm select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+    background: white;
+}
     </style>
     <script>
       const userPermissions = {
@@ -843,29 +861,40 @@
 
     <div id="liquidacionesSection">
       <div id="searchForm">
-        <div>
-          <label for="searchId">ID:</label>
-          <input type="number" id="searchId" placeholder="Buscar por ID" />
-        </div>
-        <div>
-          <label for="searchCajaChica">Caja Chica:</label>
-          <input
-            type="text"
-            id="searchCajaChica"
-            placeholder="Buscar por Caja Chica"
-          />
-        </div>
-        <div>
-          <label for="searchFechaInicio">Fecha Inicio:</label>
-          <input type="date" id="searchFechaInicio" />
-        </div>
-        <div>
-          <label for="searchFechaFin">Fecha Fin:</label>
-          <input type="date" id="searchFechaFin" />
-        </div>
-        <button type="submit" onclick="applySearch()">🔍 Buscar</button>
-        <button type="button" onclick="resetSearch()">🗑️ Limpiar</button>
-      </div>
+  <div>
+    <label for="searchId">ID:</label>
+    <input type="number" id="searchId" placeholder="Buscar por ID" />
+  </div>
+  <div>
+    <label for="searchCajaChica">Caja Chica:</label>
+    <input
+      type="text"
+      id="searchCajaChica"
+      placeholder="Buscar por Caja Chica"
+    />
+  </div>
+  <div>
+    <label for="searchFechaInicio">Fecha Inicio:</label>
+    <input type="date" id="searchFechaInicio" />
+  </div>
+  <div>
+    <label for="searchFechaFin">Fecha Fin:</label>
+    <input type="date" id="searchFechaFin" />
+  </div>
+  <!-- NUEVO CAMPO ESTADO -->
+  <div>
+    <label for="searchEstado">Estado:</label>
+    <select id="searchEstado">
+      <option value="">Todos los estados</option>
+      <option value="EN_PROCESO">En Proceso</option>
+      <option value="PENDIENTE_REVISION_CONTABILIDAD">Pendiente Revisión Contabilidad</option>
+      <option value="PENDIENTE_AUTORIZACION">Pendiente Autorización</option>
+      <option value="FINALIZADO">Finalizado</option>
+    </select>
+  </div>
+  <button type="submit" onclick="applySearch()">🔍 Buscar</button>
+  <button type="button" onclick="resetSearch()">🗑️ Limpiar</button>
+</div>
 
       <div class="table-container">
         <table id="liquidacionesTable">

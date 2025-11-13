@@ -156,6 +156,7 @@ function filterLiquidations() {
     const searchCajaChica = document.getElementById("searchCajaChica").value.trim().toLowerCase();
     const searchFechaInicio = document.getElementById("searchFechaInicio").value;
     const searchFechaFin = document.getElementById("searchFechaFin").value;
+    const searchEstado = document.getElementById("searchEstado").value; // NUEVO
 
     let filtered = liquidacionesData;
 
@@ -201,6 +202,11 @@ function filterLiquidations() {
             matches = matches && nombreCajaChica.includes(searchCajaChica);
         }
 
+        // Filter by Estado - NUEVO FILTRO
+        if (searchEstado) {
+            matches = matches && liquidacion.estado === searchEstado;
+        }
+
         // Filter by Fecha Inicio
         if (searchFechaInicio) {
             const fechaInicio = liquidacion.fecha_inicio
@@ -244,6 +250,7 @@ function resetSearch() {
     document.getElementById("searchCajaChica").value = "";
     document.getElementById("searchFechaInicio").value = "";
     document.getElementById("searchFechaFin").value = "";
+    document.getElementById("searchEstado").value = ""; // NUEVO
     filteredLiquidacionesData = [...liquidacionesData];
     currentPage = 1;
     renderLiquidations();
