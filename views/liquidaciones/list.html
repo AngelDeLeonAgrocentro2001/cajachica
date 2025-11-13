@@ -708,21 +708,40 @@
 
     <div id="liquidacionesSection">
       <div id="searchForm">
-        <label for="searchId">ID:</label>
-        <input type="number" id="searchId" placeholder="Buscar por ID" />
-        <label for="searchCajaChica">Caja Chica:</label>
-        <input
-          type="text"
-          id="searchCajaChica"
-          placeholder="Buscar por Caja Chica"
-        />
-        <label for="searchFechaInicio">Fecha Inicio:</label>
-        <input type="date" id="searchFechaInicio" />
-        <label for="searchFechaFin">Fecha Fin:</label>
-        <input type="date" id="searchFechaFin" />
-        <button type="submit" onclick="applySearch()">Buscar</button>
-        <button type="button" onclick="resetSearch()">Limpiar</button>
-      </div>
+  <div>
+    <label for="searchId">ID:</label>
+    <input type="number" id="searchId" placeholder="Buscar por ID" />
+  </div>
+  <div>
+    <label for="searchCajaChica">Caja Chica:</label>
+    <input
+      type="text"
+      id="searchCajaChica"
+      placeholder="Buscar por Caja Chica"
+    />
+  </div>
+  <div>
+    <label for="searchFechaInicio">Fecha Inicio:</label>
+    <input type="date" id="searchFechaInicio" />
+  </div>
+  <div>
+    <label for="searchFechaFin">Fecha Fin:</label>
+    <input type="date" id="searchFechaFin" />
+  </div>
+  <!-- NUEVO CAMPO ESTADO -->
+  <div>
+    <label for="searchEstado">Estado:</label>
+    <select id="searchEstado">
+      <option value="">Todos los estados</option>
+      <option value="EN_PROCESO">En Proceso</option>
+      <option value="PENDIENTE_REVISION_CONTABILIDAD">Pendiente Revisión Contabilidad</option>
+      <option value="PENDIENTE_AUTORIZACION">Pendiente Autorización</option>
+      <option value="FINALIZADO">Finalizado</option>
+    </select>
+  </div>
+  <button type="submit" onclick="applySearch()">🔍 Buscar</button>
+  <button type="button" onclick="resetSearch()">🗑️ Limpiar</button>
+</div>
 
       <table id="liquidacionesTable">
         <thead>
