@@ -125,21 +125,12 @@ async function loadLiquidations() {
         window.isEncargadoLike = data.isEncargadoLike || false;
         window.userRole = data.userRole || window.userRole || '';
         
-        // console.log('Datos del backend:', {
-        //     isContabilidadLike: window.isContabilidadLike,
-        //     isSupervisorLike: window.isSupervisorLike,
-        //     isEncargadoLike: window.isEncargadoLike,
-        //     userRole: window.userRole
-        // });
-
-        // Remove restrictive contabilidad filter
-        // if (window.isContabilidadLike) {
-        //     liquidacionesData = liquidacionesData.filter(
-        //         (liquidacion) =>
-        //             !liquidacion.id_contador ||
-        //             liquidacion.id_contador == window.currentUserId
-        //     );
-        // }
+        // Mostrar información sobre el modo actual
+        if (mode === "revisar") {
+            console.log('Modo REVISAR activado: Mostrando todas las liquidaciones, usa el filtro de estado para buscar específicas');
+        } else if (mode === "autorizar") {
+            console.log('Modo AUTORIZAR activado: Mostrando todas las liquidaciones, usa el filtro de estado para buscar específicas');
+        }
 
         filteredLiquidacionesData = [...liquidacionesData];
         currentPage = 1;
@@ -156,7 +147,7 @@ function filterLiquidations() {
     const searchCajaChica = document.getElementById("searchCajaChica").value.trim().toLowerCase();
     const searchFechaInicio = document.getElementById("searchFechaInicio").value;
     const searchFechaFin = document.getElementById("searchFechaFin").value;
-    const searchEstado = document.getElementById("searchEstado").value; // NUEVO
+    const searchEstado = document.getElementById("searchEstado").value;
 
     let filtered = liquidacionesData;
 
@@ -164,25 +155,28 @@ function filterLiquidations() {
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get("mode");
     
-    if (mode === "autorizar" && window.isSupervisorLike) {
-        if (isShowingCorrected) {
-            filtered = liquidacionesData.filter((liquidacion) => {
-                return (
-                    liquidacion.detalles &&
-                    liquidacion.detalles.some(
-                        (detalle) => detalle.estado === "EN_CORRECTION"
-                    )
+    // SOLO aplicar filtros automáticos si NO se ha seleccionado un estado específico en la búsqueda
+    if (!searchEstado) {
+        if (mode === "autorizar" && window.isSupervisorLike) {
+            if (isShowingCorrected) {
+                filtered = liquidacionesData.filter((liquidacion) => {
+                    return (
+                        liquidacion.detalles &&
+                        liquidacion.detalles.some(
+                            (detalle) => detalle.estado === "EN_CORRECTION"
+                        )
+                    );
+                });
+            } else {
+                filtered = liquidacionesData.filter(
+                    (liquidacion) => liquidacion.estado === "PENDIENTE_AUTORIZACION"
                 );
-            });
-        } else {
+            }
+        } else if (mode === "revisar" && window.isContabilidadLike) {
             filtered = liquidacionesData.filter(
-                (liquidacion) => liquidacion.estado === "PENDIENTE_AUTORIZACION"
+                (liquidacion) => liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD"
             );
         }
-    } else if (mode === "revisar" && window.isContabilidadLike) {
-        filtered = liquidacionesData.filter(
-            (liquidacion) => liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD"
-        );
     }
 
     // Apply search filters
@@ -202,7 +196,7 @@ function filterLiquidations() {
             matches = matches && nombreCajaChica.includes(searchCajaChica);
         }
 
-        // Filter by Estado - NUEVO FILTRO
+        // Filter by Estado - NUEVO FILTRO (funciona en todos los modos)
         if (searchEstado) {
             matches = matches && liquidacion.estado === searchEstado;
         }
@@ -250,8 +244,23 @@ function resetSearch() {
     document.getElementById("searchCajaChica").value = "";
     document.getElementById("searchFechaInicio").value = "";
     document.getElementById("searchFechaFin").value = "";
-    document.getElementById("searchEstado").value = ""; // NUEVO
+    document.getElementById("searchEstado").value = "";
     filteredLiquidacionesData = [...liquidacionesData];
+    
+    // Si estamos en un modo específico, aplicar el filtro automático después del reset
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get("mode");
+    
+    if (mode === "revisar" && window.isContabilidadLike) {
+        filteredLiquidacionesData = liquidacionesData.filter(
+            (liquidacion) => liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD"
+        );
+    } else if (mode === "autorizar" && window.isSupervisorLike && !isShowingCorrected) {
+        filteredLiquidacionesData = liquidacionesData.filter(
+            (liquidacion) => liquidacion.estado === "PENDIENTE_AUTORIZACION"
+        );
+    }
+    
     currentPage = 1;
     renderLiquidations();
 }
