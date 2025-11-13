@@ -656,6 +656,11 @@ class ReportesController {
             throw new Exception('Error al obtener detalles de la liquidación');
         }
 
+        // FILTRAR SOLO LOS DETALLES CON ESTADO "FINALIZADO"
+        $detalles = array_filter($detalles, function($detalle) {
+            return isset($detalle['estado']) && strtoupper($detalle['estado']) === 'FINALIZADO';
+        });
+
         $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
         if ($liquidacion === false) {
             throw new Exception('Error al obtener liquidación');
@@ -663,6 +668,18 @@ class ReportesController {
 
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+
+        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
+        $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+        $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
+
+        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
+        if ($codigo_cliente === 'N/A' && !empty($detalles)) {
+            $primerDetalle = reset($detalles);
+            if (isset($primerDetalle['codigo_cliente'])) {
+                $codigo_cliente = $primerDetalle['codigo_cliente'];
+            }
+        }
 
         $cuentaContableModel = new CuentaContable();
         $totalGeneral = 0;
@@ -736,6 +753,9 @@ class ReportesController {
                 margin-bottom: 20px;
                 color: #4a5568;
                 font-size: 11px;
+            }
+            .info p {
+                margin: 2px 0;
             }
             .table {
                 width: 100%;
@@ -837,7 +857,7 @@ class ReportesController {
         $mpdf->WriteHTML($stylesheet, 1);
 
         // Generar y escribir el HTML en chunks
-        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
 
         error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
@@ -862,7 +882,7 @@ class ReportesController {
     }
 }
 
-private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo) {
+private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
     // Chunk 1: Encabezado e información general
     $htmlChunk1 = '<div class="content-container">';
     $htmlChunk1 .= '<div class="logo-container">';
@@ -875,12 +895,14 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     $htmlChunk1 .= '<div class="info">';
     $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
+    $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
+    $htmlChunk1 .= '<p><strong>Filtro:</strong> Solo registros con estado FINALIZADO</p>';
     $htmlChunk1 .= '</div>';
 
     $mpdf->WriteHTML($htmlChunk1, 2);
-    unset($htmlChunk1); // Liberar memoria
+    unset($htmlChunk1);
 
     // Chunk 2: Tabla de detalles (cabecera)
     $htmlChunk2 = '<table class="table">';
