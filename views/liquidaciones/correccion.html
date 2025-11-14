@@ -6,18 +6,22 @@
     <title>Corrección de Facturas</title>
     <style>
       :root {
-        --primary-color: #2563eb;
-        --secondary-color: #1e3a8a;
-        --accent-color: #f59e0b;
+        --primary-color: #2d6a4f;
+        --primary-dark: #1a4d3e;
+        --primary-light: #52b788;
+        --secondary-color: #40916c;
+        --accent-color: #f39c12;
         --danger-color: #dc2626;
         --success-color: #16a34a;
-        --background-color: #f8fafc;
+        --background-color: #f5f7fa;
+        --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
         --card-background: #ffffff;
         --text-color: #1e293b;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
-        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+        --shadow-sm: 0 2px 8px rgba(45, 106, 79, 0.08);
+        --shadow-md: 0 4px 16px rgba(45, 106, 79, 0.12);
+        --shadow-lg: 0 8px 24px rgba(45, 106, 79, 0.15);
       }
 
       * {
@@ -27,139 +31,231 @@
       }
 
       body {
-        background-color: var(--background-color);
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--background-gradient);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: var(--text-color);
-        line-height: 1.5;
+        line-height: 1.6;
         margin: 0;
         padding: 1rem;
         width: 100vw;
         overflow-x: hidden;
+        min-height: 100vh;
       }
 
       .container {
         width: 100%;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 0 1rem;
       }
 
+      /* Page Header */
+      .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
+      }
+
       h2 {
         text-align: center;
-        color: var(--text-color);
-        margin: 2rem 0;
-        font-size: 1.875rem;
+        color: white;
+        margin: 0 0 1.5rem 0;
+        font-size: 2rem;
         font-weight: 700;
         letter-spacing: -0.025em;
       }
 
+      /* Información Section */
+      .informacion {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+      }
+
+      .informacion p {
+        text-align: left;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 0.95rem;
+        margin: 0;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+      }
+
+      .informacion p strong {
+        color: white;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .informacion p span {
+        display: block;
+        margin-top: 0.25rem;
+      }
+
       h3 {
-        color: var(--text-color);
-        margin: 1.5rem 0 0.75rem;
+        color: var(--primary-color);
+        margin: 2rem 0 1rem;
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         text-align: center;
+        position: relative;
+        padding-bottom: 0.75rem;
       }
 
-      p {
-        text-align: center;
-        color: var(--text-muted);
-        font-size: 1rem;
-        margin: 0.5rem 0;
+      h3::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+        border-radius: 2px;
       }
 
-      p strong {
-        color: var(--text-color);
-        font-weight: 600;
-      }
-
+      /* Table Wrapper */
       .table-wrapper {
         width: 100%;
         overflow-x: auto;
         margin: 1.5rem 0;
         -webkit-overflow-scrolling: touch;
+        background: var(--card-background);
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        border-top: 4px solid var(--primary-color);
       }
 
       #facturasTable {
         width: 100%;
         min-width: 1200px;
         border-collapse: collapse;
-        background-color: var(--card-background);
-        box-shadow: var(--shadow-md);
-        border-radius: 0.75rem;
-        overflow: hidden;
       }
 
       #facturasTable thead {
-        background-color: var(--secondary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
 
       #facturasTable th,
       #facturasTable td {
-        padding: 0.75rem 1rem;
+        padding: 1rem 1.25rem;
         text-align: left;
         font-size: 0.875rem;
         min-width: 100px;
       }
 
       #facturasTable th {
-        font-weight: 600;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
       }
 
       #facturasTable tbody tr {
         border-bottom: 1px solid var(--border-color);
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
       }
 
       #facturasTable tbody tr:hover {
-        background-color: #f1f5f9;
+        background: rgba(45, 106, 79, 0.05);
       }
 
       #facturasTable td {
         color: var(--text-color);
       }
 
+      /* Action Buttons in Table */
       #facturasTable button {
         padding: 0.5rem 1rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 0.875rem;
-        margin-right: 0.25rem;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        font-size: 0.813rem;
+        font-weight: 600;
+        margin: 0.25rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       #facturasTable button.edit-btn {
-        background-color: var(--primary-color);
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
         color: white;
       }
 
       #facturasTable button.edit-btn:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
       }
 
       #facturasTable button.delete-btn {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
       }
 
       #facturasTable button.delete-btn:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
       }
 
+      /* Footer Table */
+      #facturasTable tfoot {
+        background: rgba(45, 106, 79, 0.1);
+      }
+
+      #facturasTable tfoot td {
+        font-weight: 700;
+        color: var(--primary-color);
+        padding: 1rem 1.25rem;
+      }
+
+      /* File Links */
+      .file-item {
+        margin: 0.25rem 0;
+      }
+
+      .file-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        background: rgba(45, 106, 79, 0.1);
+        display: inline-block;
+        transition: all 0.3s ease;
+        font-size: 0.813rem;
+      }
+
+      .file-link:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateX(3px);
+      }
+
+      /* Facturas Form */
       #facturaForm {
         width: 100%;
-        background-color: var(--card-background);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
+        background: var(--card-background);
+        padding: 2rem;
+        border-radius: 16px;
         box-shadow: var(--shadow-md);
         display: none;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 1.25rem;
         margin: 1.5rem 0;
+        border-top: 4px solid var(--primary-color);
       }
 
       #facturaForm div {
@@ -168,98 +264,113 @@
 
       #facturaForm label {
         display: block;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
         color: var(--text-color);
         font-weight: 600;
         font-size: 0.875rem;
-        margin-top: 0.25rem;
       }
 
       #facturaForm input,
-      #facturaForm select {
+      #facturaForm select,
+      #facturaForm textarea {
         width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 0.375rem;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
         font-size: 0.875rem;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        font-family: inherit;
       }
 
       #facturaForm input:focus,
-      #facturaForm select:focus {
+      #facturaForm select:focus,
+      #facturaForm textarea:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+        background: white;
+      }
+
+      #facturaForm input:read-only {
+        background: #e5e7eb;
+        cursor: not-allowed;
       }
 
       #facturaForm button {
-        padding: 0.75rem 1.25rem;
+        padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       #facturaForm button[type="submit"] {
-        background-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
 
       #facturaForm button[type="submit"]:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #facturaForm button[type="button"] {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
         color: white;
       }
 
       #facturaForm button[type="button"]:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
+      /* Photo Button */
       #take-photo-btn {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, var(--accent-color) 0%, #d97706 100%);
         color: white;
-        padding: 0.75rem;
+        padding: 0.875rem 1rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-        margin-top: 0.25rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-top: 0.5rem;
+        box-shadow: var(--shadow-sm);
       }
 
       #take-photo-btn:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #take-photo-btn:disabled {
-        background-color: #94a3b8;
+        background: #94a3b8;
         cursor: not-allowed;
         transform: none;
+        opacity: 0.6;
       }
 
+      /* Photo Preview */
       #photo-preview-container {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
+        gap: 0.75rem;
+        margin-top: 1rem;
       }
 
       .photo-preview {
         position: relative;
         width: 100px;
         height: 100px;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         overflow: hidden;
         box-shadow: var(--shadow-sm);
+        border: 2px solid var(--border-color);
       }
 
       .photo-preview img {
@@ -272,24 +383,146 @@
         position: absolute;
         top: 0.25rem;
         right: 0.25rem;
-        background-color: var(--danger-color);
+        background: var(--danger-color);
         color: white;
         border: none;
         border-radius: 50%;
-        width: 1.25rem;
-        height: 1.25rem;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 0.75rem;
-        transition: background-color 0.2s ease;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       .remove-photo-btn:hover {
-        background-color: #b91c1c;
+        background: #b91c1c;
+        transform: scale(1.1);
       }
 
+      /* Centro Costo Additional Fields */
+      .cuenta_contable_centro_costo {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(45, 106, 79, 0.05);
+        border-radius: 10px;
+        border: 2px solid var(--border-color);
+      }
+
+      .cuenta_contable_centro_select {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        background: #f8f9fa;
+      }
+
+      .cuenta_contable_centro_select:disabled {
+        background: #e5e7eb;
+        color: #666;
+        cursor: not-allowed;
+      }
+
+      /* Add Button */
+      #add_centro_costo {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #add_centro_costo:hover {
+        transform: scale(1.1) rotate(90deg);
+        box-shadow: var(--shadow-md);
+      }
+
+      /* DTE Suggestions */
+      #dte-suggestions {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 2px solid var(--primary-color);
+        max-height: 320px;
+        overflow-y: auto;
+        width: 100%;
+        display: none;
+        box-shadow: var(--shadow-lg);
+        border-radius: 10px;
+        margin-top: 0.5rem;
+      }
+
+      #dte-search-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-bottom: 2px solid var(--border-color);
+        font-size: 0.875rem;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+      }
+
+      #dte-search-input:focus {
+        outline: none;
+        border-bottom-color: var(--primary-color);
+      }
+
+      /* Action Buttons */
+      .buttons {
+        width: 100%;
+        margin: 2rem 0;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .buttons button {
+        padding: 0.875rem 2rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .buttons button.submit-corrections-btn {
+        background: linear-gradient(135deg, var(--success-color) 0%, #15803d 100%);
+        color: white;
+      }
+
+      .buttons button.submit-corrections-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .buttons button.cancel-btn {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+      }
+
+      .buttons button.cancel-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+      }
+
+      /* Camera Modal */
       .camera-modal,
       .modal {
         display: none;
@@ -302,35 +535,38 @@
         z-index: 1002;
         justify-content: center;
         align-items: center;
-        backdrop-filter: blur(2px);
+        backdrop-filter: blur(4px);
       }
 
-      .camera-modal.active {
+      .camera-modal.active,
+      .modal.active {
         display: flex;
       }
 
       .camera-modal-content,
       .modal > div {
-        background-color: var(--card-background);
-        border-radius: 0.75rem;
-        padding: 1.5rem;
+        background: var(--card-background);
+        border-radius: 16px;
+        padding: 2rem;
         width: 90%;
-        max-width: 750px;
+        max-width: 800px;
         max-height: 90vh;
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-lg);
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 1rem;
         position: relative;
         text-align: center;
+        border-top: 4px solid var(--primary-color);
       }
 
       .camera-modal-content video {
         width: 100%;
-        max-height: 400px;
-        border-radius: 0.375rem;
+        max-height: 450px;
+        border-radius: 12px;
         background: #000;
+        box-shadow: var(--shadow-md);
       }
 
       .camera-modal-content canvas {
@@ -339,177 +575,71 @@
 
       .camera-modal-content .camera-buttons {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: center;
       }
 
       .camera-modal-content button,
       .modal button {
-        padding: 0.75rem 1.25rem;
+        padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       #capture-photo-btn {
-        background-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
 
       #capture-photo-btn:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #retake-photo-btn {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
       }
 
       #retake-photo-btn:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #save-photo-btn {
-        background-color: var(--success-color);
+        background: linear-gradient(135deg, var(--success-color) 0%, #15803d 100%);
         color: white;
       }
 
       #save-photo-btn:hover {
-        background-color: #15803d;
-        transform: translateY(-1px);
-      }
-
-      .modal button.modal-option {
-        background-color: var(--primary-color);
-        color: white;
-        width: 100%;
-        font-size: 1rem;
-      }
-
-      .modal button.modal-option:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
-      }
-
-      .modal button[style*="background: #e74c3c"],
-      .modal button[style*="background: #ccc"] {
-        background-color: var(--danger-color) !important;
-        color: white;
-        width: 100%;
-      }
-
-      .modal button[style*="background: #e74c3c"]:hover,
-      .modal button[style*="background: #ccc"]:hover {
-        background-color: #b91c1c !important;
-        transform: translateY(-1px);
-      }
-
-      .modal #finalizedOptions,
-      .modal #liquidationOptions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        max-height: 300px;
-        overflow-y: auto;
-        width: 100%;
-      }
-
-      .close-modal {
-        position: absolute;
-        top: 0.75rem;
-        right: 1rem;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: var(--text-muted);
-        transition: color 0.2s ease, transform 0.2s ease;
-      }
-
-      .close-modal:hover {
-        color: var(--danger-color);
-        transform: rotate(90deg);
-      }
-
-      .buttons {
-        width: 100%;
-        margin: 1.5rem 0;
-        text-align: right;
-      }
-
-      .buttons button {
-        padding: 0.75rem 1.25rem;
-        border: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-left: 0.5rem;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-      }
-
-      .buttons button.submit-corrections-btn {
-        background-color: var(--success-color);
-        color: white;
-      }
-
-      .buttons button.submit-corrections-btn:hover {
-        background-color: #15803d;
-        transform: translateY(-1px);
-      }
-
-      .buttons button.cancel-btn {
-        background-color: var(--danger-color);
-        color: white;
-      }
-
-      .buttons button.cancel-btn:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
-      }
-
-      #facturasTable tfoot {
-        background-color: #f1f5f9;
-      }
-
-      #facturasTable tfoot td {
-        font-weight: 600;
-        color: var(--text-color);
-        padding: 0.75rem 1rem;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       /* Modal Styles */
-      .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        justify-content: center;
-        align-items: center;
-      }
-
       .modal-content {
-        background-color: var(--card-background);
+        background: var(--card-background);
         width: 90%;
-        max-width: 800px;
+        max-width: 850px;
         height: 80%;
-        border-radius: 0.75rem;
-        box-shadow: var(--shadow-md);
+        border-radius: 16px;
+        box-shadow: var(--shadow-lg);
         position: relative;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        border-top: 4px solid var(--primary-color);
       }
 
       .modal-header {
-        padding: 1rem;
-        background-color: var(--secondary-color);
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
         display: flex;
         justify-content: space-between;
@@ -524,21 +654,30 @@
       }
 
       .modal-close {
-        background: none;
+        background: rgba(255, 255, 255, 0.1);
         border: none;
         color: white;
         font-size: 1.5rem;
         cursor: pointer;
         line-height: 1;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
       }
 
       .modal-close:hover {
+        background: rgba(220, 38, 38, 0.2);
         color: var(--danger-color);
+        transform: rotate(90deg);
       }
 
       .modal-body {
         flex: 1;
-        padding: 1rem;
+        padding: 1.5rem;
         overflow: auto;
         display: flex;
         justify-content: center;
@@ -550,6 +689,7 @@
         height: 100%;
         border: none;
         display: none;
+        border-radius: 8px;
       }
 
       .modal-body img {
@@ -557,6 +697,7 @@
         max-height: 100%;
         object-fit: contain;
         display: none;
+        border-radius: 8px;
       }
 
       .modal-body iframe.active,
@@ -565,41 +706,104 @@
       }
 
       .modal-footer {
-        padding: 1rem;
+        padding: 1.25rem 1.5rem;
         display: flex;
         justify-content: center;
         border-top: 1px solid var(--border-color);
+        background: #f8f9fa;
       }
 
       .modal-footer button {
-        padding: 0.75rem 1.5rem;
-        background-color: var(--danger-color);
+        padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       .modal-footer button:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
+      /* Modal Options */
+      .modal button.modal-option {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        width: 100%;
+        font-size: 1rem;
+      }
+
+      .modal button.modal-option:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .modal #finalizedOptions,
+      .modal #liquidationOptions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-height: 350px;
+        overflow-y: auto;
+        width: 100%;
+        padding: 0.5rem;
+      }
+
+      .close-modal {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 1.75rem;
+        cursor: pointer;
+        color: var(--text-muted);
+        transition: all 0.3s ease;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .close-modal:hover {
+        color: var(--danger-color);
+        background: rgba(220, 38, 38, 0.1);
+        transform: rotate(90deg);
+      }
+
+      /* Responsive Styles */
       @media (max-width: 768px) {
         .modal-content {
           width: 95%;
           height: 90%;
         }
+
         .container {
           padding: 0 0.5rem;
         }
 
+        .page-header {
+          padding: 1.5rem 1rem;
+        }
+
+        h2 {
+          font-size: 1.5rem;
+        }
+
+        .informacion {
+          grid-template-columns: 1fr;
+        }
+
         .table-wrapper {
           margin: 1rem 0;
-          overflow-x: auto;
+          border-radius: 12px;
         }
 
         #facturasTable {
@@ -614,20 +818,27 @@
         #facturasTable tfoot tr {
           display: block;
           margin-bottom: 1rem;
-          border: 1px solid var(--border-color);
-          border-radius: 0.5rem;
-          background-color: var(--card-background);
+          border: 2px solid var(--border-color);
+          border-radius: 12px;
+          background: var(--card-background);
           box-shadow: var(--shadow-sm);
+          padding: 0.75rem;
+        }
+
+        #facturasTable tbody tr:hover,
+        #facturasTable tfoot tr:hover {
+          box-shadow: var(--shadow-md);
         }
 
         #facturasTable tbody td,
         #facturasTable tfoot td {
           display: block;
           text-align: right;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
+          padding: 0.75rem 0.5rem;
+          font-size: 0.813rem;
           position: relative;
           border-bottom: 1px solid var(--border-color);
+          min-width: auto;
         }
 
         #facturasTable tbody td:last-child,
@@ -638,16 +849,18 @@
         #facturasTable tbody td:before,
         #facturasTable tfoot td:before {
           content: attr(data-label);
-          position: absolute;
-          left: 0.75rem;
-          font-weight: 600;
-          color: var(--text-color);
+          font-weight: 700;
+          color: var(--primary-color);
+          position: static;
+          display: block;
+          margin-bottom: 0.25rem;
+          text-align: left;
         }
 
         #facturaForm {
           flex-direction: column;
           margin: 1rem 0;
-          padding: 1rem;
+          padding: 1.5rem;
         }
 
         #facturaForm div {
@@ -655,17 +868,17 @@
         }
 
         .buttons {
-          text-align: center;
+          flex-direction: column;
         }
 
         .buttons button {
           width: 100%;
-          margin: 0.25rem 0;
+          margin: 0;
         }
 
         #take-photo-btn {
-          display: none;
-          /* width: 100%; */
+          display: block;
+          width: 100%;
         }
 
         .photo-preview {
@@ -676,7 +889,7 @@
         .camera-modal-content,
         .modal > div {
           width: 95%;
-          padding: 1rem;
+          padding: 1.5rem;
         }
 
         .camera-modal-content video {
@@ -685,7 +898,7 @@
 
         .camera-modal-content .camera-buttons {
           flex-direction: column;
-          gap: 0.5rem;
+          width: 100%;
         }
 
         .camera-modal-content button {
@@ -694,62 +907,49 @@
       }
 
       @media (max-width: 480px) {
-        .modal-content {
-          width: 100%;
-          height: 95%;
-          border-radius: 0;
+        .page-header {
+          padding: 1.25rem 0.75rem;
         }
+
         h2 {
-          font-size: 1.5rem;
+          font-size: 1.25rem;
         }
 
         h3 {
           font-size: 1.25rem;
         }
 
+        .modal-content {
+          width: 100%;
+          height: 95%;
+          border-radius: 0;
+        }
+
         .buttons button,
         #facturaForm button,
         #take-photo-btn {
-          font-size: 0.75rem;
+          font-size: 0.813rem;
         }
       }
-
-      .cuenta_contable_centro_costo {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  border: 1px solid #ddd;
-}
-
-.cuenta_contable_centro_select {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.cuenta_contable_centro_select:disabled {
-  background-color: #f5f5f5;
-  color: #666;
-}
     </style>
   </head>
   <body>
     <div class="container">
       <?php include '../views/partials/menu.php'; ?>
-      <h2>
-          Corrección de Facturas - Liquidación ID:
+     <div class="page-header">
+        <h2>
+          ✏️ Corrección de Facturas - Liquidación ID:
           <?php echo htmlspecialchars($data['id']); ?>
-      </h2>
-      <div class="informacion">
-          <p><strong>Nombre de Caja Chica:</strong> <span><?php echo htmlspecialchars($data['nombre_caja_chica']); ?></span></p>
-          <p><strong>Código:</strong> <span><?php echo htmlspecialchars($data['clientes']); ?></span></p>
-          <p><strong>Fecha de Modificación:</strong> <span><?php echo htmlspecialchars($data['updated_at']); ?></span></p>
-          <p><strong>Fecha Inicio:</strong> <span><?php echo htmlspecialchars($data['fecha_inicio']); ?></span></p>
-          <p><strong>Fecha Fin:</strong> <span><?php echo htmlspecialchars($data['fecha_fin']); ?></span></p>
-          <p><strong>Monto Total:</strong> <span><?php echo number_format($data['monto_total'] ?? 0, 2); ?></span></p>
-          <p><strong>Estado:</strong> <span><?php echo htmlspecialchars($data['estado']); ?></span></p>
+        </h2>
+        <div class="informacion">
+          <p><strong>💰 Caja Chica</strong> <span><?php echo htmlspecialchars($data['nombre_caja_chica']); ?></span></p>
+          <p><strong>📋 Código</strong> <span><?php echo htmlspecialchars($data['clientes']); ?></span></p>
+          <p><strong>🔄 Fecha Modificación</strong> <span><?php echo htmlspecialchars($data['updated_at']); ?></span></p>
+          <p><strong>📅 Fecha Inicio</strong> <span><?php echo htmlspecialchars($data['fecha_inicio']); ?></span></p>
+          <p><strong>📅 Fecha Fin</strong> <span><?php echo htmlspecialchars($data['fecha_fin']); ?></span></p>
+          <p><strong>💵 Monto Total</strong> <span>Q<?php echo number_format($data['monto_total'] ?? 0, 2); ?></span></p>
+          <p><strong>📊 Estado</strong> <span><?php echo htmlspecialchars($data['estado']); ?></span></p>
+        </div>
       </div>
   
       <h3>Facturas Pendientes de Corrección</h3>
