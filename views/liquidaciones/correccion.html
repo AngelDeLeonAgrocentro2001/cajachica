@@ -3080,13 +3080,21 @@ function updateTaxFieldsVisibility(tipoDocumento = null, tipoGasto = null) {
   }
 
   taxFields.style.display = 'block';
-  const impuestos = currentTipoDocumento.toUpperCase() === 'FACTURA PEQUEÑO CONTRIBUYENTE'
-    ? impuestosPequeñoContribuyente[currentTipoGasto] || { iva: 5, idp: 0, inguat: 0 }
-    : impuestosPorTipoGasto[currentTipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
-
-  ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
-  idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
-  inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
+  
+  // PARA PEQUEÑO CONTRIBUYENTE - NO MOSTRAR IVA EN NINGÚN TIPO DE GASTO
+  if (currentTipoDocumento.toUpperCase() === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+    ivaField.style.display = 'none'; // Siempre ocultar IVA para pequeño contribuyente
+    
+    const impuestos = impuestosPequeñoContribuyente[currentTipoGasto] || { iva: 0, idp: 0, inguat: 0 };
+    idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
+    inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
+  } else {
+    // Para otros tipos de factura
+    const impuestos = impuestosPorTipoGasto[currentTipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+    ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
+    idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
+    inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
+  }
 }
 
 function updateTipoGastoFields(tipoGasto = null) {
@@ -3140,9 +3148,14 @@ function updateTaxesAndTotal() {
 
     const tipoGasto = tipoGastoSelect.value;
     const tipoCombustible = tipoCombustibleSelect.value;
-    const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
-        ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 5, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }
-        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+    
+    // PARA PEQUEÑO CONTRIBUYENTE - IVA SIEMPRE ES 0
+    let impuestos;
+    if (tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
+        impuestos = impuestosPequeñoContribuyente[tipoGasto] || { iva: 0, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+    } else {
+        impuestos = impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+    }
 
     let totalBruto = parseFloat(totalFacturaInput.value) || 0;
     let cantidadGalones = parseFloat(cantidadInput.value) || 0;
@@ -3167,8 +3180,8 @@ function updateTaxesAndTotal() {
         idp = cantidadGalones * impuestos.idp;
     }
 
-    // Cálculo correcto considerando propina
-    const ivaRate = impuestos.iva / 100;
+    // PARA PEQUEÑO CONTRIBUYENTE - IVA SIEMPRE ES 0
+    const ivaRate = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE' ? 0 : (impuestos.iva / 100);
     const inguatRate = impuestos.inguat / 100;
     
     // Restar IDP y propina del total bruto
