@@ -2079,18 +2079,23 @@ function resetForm() {
   document.getElementById('nit_dpi_input').setAttribute('required', 'required');
   document.getElementById('id_cuenta_contable').disabled = true;
   document.getElementById('comentarios').value = '';
+  
+  // Resetear el estado readonly del campo no_factura
+  document.getElementById('no_factura').readOnly = false;
+  document.getElementById('no_factura').title = "";
+  
   capturedFiles = [];
-existingFiles = [];
-const photoPreviewContainer = document.getElementById('photo-preview-container');
-if (photoPreviewContainer) photoPreviewContainer.innerHTML = '';
+  existingFiles = [];
+  const photoPreviewContainer = document.getElementById('photo-preview-container');
+  if (photoPreviewContainer) photoPreviewContainer.innerHTML = '';
 
-const fileInput = document.getElementById('archivos');
-if (fileInput) fileInput.value = '';
+  const fileInput = document.getElementById('archivos');
+  if (fileInput) fileInput.value = '';
 
-// Limpiar inputs de archivos existentes y removidos
-updateExistingFilesInput();
-const removedFilesInput = document.getElementById('removed_files');
-if (removedFilesInput) removedFilesInput.value = '[]';
+  // Limpiar inputs de archivos existentes y removidos
+  updateExistingFilesInput();
+  const removedFilesInput = document.getElementById('removed_files');
+  if (removedFilesInput) removedFilesInput.value = '[]';
 
   const centrosCostoContainer = document.getElementById('centros_costo_container');
   centrosCostoContainer.innerHTML = `
@@ -2380,13 +2385,23 @@ function updateFormFields() {
   const comprobanteFields = document.getElementById('comprobante_fields');
   const taxFields = document.getElementById('tax_fields');
   const serieInput = document.getElementById('serie');
+  const noFacturaInput = document.getElementById('no_factura'); // Agregar esta línea
 
-  if (!tipoDocumentoSelect || !nitDpiLabel || !nitDpiInput || !nitInput || !dpiInput || !comprobanteFields || !taxFields || !serieInput) {
+  if (!tipoDocumentoSelect || !nitDpiLabel || !nitDpiInput || !nitInput || !dpiInput || !comprobanteFields || !taxFields || !serieInput || !noFacturaInput) {
     console.error('Error: No se encontraron todos los elementos necesarios en el DOM');
     return;
   }
 
   const tipoDocumento = tipoDocumentoSelect.value.toUpperCase();
+
+  // Hacer el campo No. Factura readonly solo para FACTURA, FACTURA ELECTRONICA y FACTURA PEQUEÑO CONTRIBUYENTE
+  if (['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
+    noFacturaInput.readOnly = true;
+    noFacturaInput.title = "Este campo se llena automáticamente desde el DTE";
+  } else {
+    noFacturaInput.readOnly = false;
+    noFacturaInput.title = "";
+  }
 
   if (tipoDocumento === 'RECIBO FISCAL' || tipoDocumento === 'RECIBO INFORMATIVO') {
     nitDpiLabel.textContent = 'DPI:';
