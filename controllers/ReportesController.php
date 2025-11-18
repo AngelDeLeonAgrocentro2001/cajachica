@@ -1055,46 +1055,32 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     // Procesar imágenes una por una
     foreach ($detalles as $detalle) {
-    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-    
-    // Validar que $rutas sea un array
-    if (!is_array($rutas)) {
-        error_log('Invalid rutas_archivos format for detail: ' . ($detalle['id'] ?? 'unknown'));
-        continue;
-    }
-    
-    if (!empty($rutas)) {
-        foreach ($rutas as $index => $ruta) {
-            // Validar que $ruta no esté vacía
-            if (empty($ruta)) {
-                error_log('Empty file path at index ' . $index . ' for detail: ' . ($detalle['id'] ?? 'unknown'));
-                continue;
-            }
-            
-            $hasFiles = true;
-            
-            $imageContent = $this->getImageForPDF($ruta);
-            
-            if ($imageContent) {
-                $htmlImage = '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
-                $htmlImage .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
-                $htmlImage .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
-                $htmlImage .= '<img src="' . $imageContent . '" style="max-width: 750px; max-height: 500px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
-                $htmlImage .= '</div>';
+        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+        if (is_array($rutas) && !empty($rutas)) {
+            foreach ($rutas as $ruta) {
+                $hasFiles = true;
                 
-                $mpdf->WriteHTML($htmlImage, 2);
-                unset($htmlImage);
-                unset($imageContent);
+                $imageContent = $this->getImageForPDF($ruta);
                 
-                if (function_exists('gc_collect_cycles')) {
-                    gc_collect_cycles();
+                if ($imageContent) {
+                    $htmlImage = '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
+                    $htmlImage .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
+                    $htmlImage .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
+                    $htmlImage .= '<img src="' . $imageContent . '" style="max-width: 750px; max-height: 500px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
+                    $htmlImage .= '</div>';
+                    
+                    $mpdf->WriteHTML($htmlImage, 2);
+                    unset($htmlImage);
+                    unset($imageContent); // Liberar memoria de la imagen
+                    
+                    // Pequeña pausa entre imágenes
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
+                    }
                 }
-            } else {
-                error_log('Could not load image: ' . $ruta);
             }
         }
     }
-}
 
     // Chunk final: Cierre y mensaje si no hay archivos
     if (!$hasFiles) {
@@ -1108,12 +1094,6 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 }
     private function getImageForPDF($ruta) {
     try {
-        // Validar que la ruta no esté vacía
-        if (empty($ruta) {
-            error_log('Empty file path provided');
-            return null;
-        }
-
         // Primero intenta con Digital Ocean Spaces
         $spacesImage = $this->getImageFromSpaces($ruta);
         if ($spacesImage) {
@@ -1139,7 +1119,6 @@ private function getImageFromSpaces($ruta) {
         $key = $this->extractKeyFromPath($ruta);
         
         if (!$key) {
-            error_log("Could not extract key from path: " . $ruta);
             return null;
         }
         
@@ -1155,12 +1134,6 @@ private function getImageFromSpaces($ruta) {
         // Obtener el MIME type
         $mimeType = $filesystem->mimeType($key);
         
-        // Validar que sea una imagen
-        if (strpos($mimeType, 'image/') !== 0) {
-            error_log("File is not an image: " . $mimeType);
-            return null;
-        }
-        
         // Convertir a base64
         $base64 = base64_encode($fileContent);
         
@@ -1174,12 +1147,6 @@ private function getImageFromSpaces($ruta) {
 
 private function getImageFromLocal($ruta) {
     try {
-        // Validar que la ruta no esté vacía
-        if (empty($ruta)) {
-            error_log('Empty file path provided to local method');
-            return null;
-        }
-
         // Limpiar la ruta
         $cleanPath = str_replace('\\', '/', $ruta);
         
@@ -1197,26 +1164,13 @@ private function getImageFromLocal($ruta) {
             return null;
         }
         
-        // Verificar que sea un archivo válido
-        if (!is_file($absolutePath)) {
-            error_log("Path is not a file: " . $absolutePath);
-            return null;
-        }
-        
-        // Obtener el MIME type primero
+        // Obtener el contenido y MIME type
+        $fileContent = file_get_contents($absolutePath);
         $mimeType = mime_content_type($absolutePath);
         
         // Verificar que sea una imagen
         if (strpos($mimeType, 'image/') !== 0) {
-            error_log("File is not an image: " . $mimeType . " - " . $absolutePath);
-            return null;
-        }
-        
-        // Obtener el contenido
-        $fileContent = file_get_contents($absolutePath);
-        
-        if ($fileContent === false) {
-            error_log("Could not read file content: " . $absolutePath);
+            error_log("File is not an image: " . $mimeType);
             return null;
         }
         
@@ -1230,15 +1184,10 @@ private function getImageFromLocal($ruta) {
 }
 
 private function extractKeyFromPath($ruta) {
-    // Validar entrada
-    if (empty($ruta)) {
-        return null;
-    }
-
     // Si la ruta ya es una URL completa de Spaces
     if (strpos($ruta, 'digitaloceanspaces.com') !== false) {
         $parsedUrl = parse_url($ruta);
-        return isset($parsedUrl['path']) ? ltrim($parsedUrl['path'], '/') : null;
+        return ltrim($parsedUrl['path'] ?? '', '/');
     }
     
     // Si es una ruta relativa que apunta a Spaces
