@@ -1085,7 +1085,7 @@
           </div>
           <div>
               <label for="no_factura">No. Factura:</label>
-              <input type="text" name="no_factura" id="no_factura" required />
+              <input type="text" name="no_factura" id="no_factura" required readonly/>
           </div>
           <div>
               <label for="nombre_proveedor">Nombre Proveedor:</label>
@@ -1789,10 +1789,13 @@ function resetForm() {
     const serieInput = document.getElementById('serie');
     const tipoCombustibleInput = document.getElementById('tipo_combustible');
     const cantidadInput = document.getElementById('cantidad');
+    const noFacturaInput = document.getElementById('no_factura');
     
     if (serieInput) serieInput.removeAttribute('required');
     if (tipoCombustibleInput) tipoCombustibleInput.removeAttribute('required');
     if (cantidadInput) cantidadInput.removeAttribute('required');
+
+    noFacturaInput.removeAttribute('readonly');
     
     // Reset de valores
     document.getElementById('propina').value = '0';
@@ -2032,6 +2035,7 @@ function fillFormFromDte(suggestion) {
   document.getElementById('inguat').value = parseFloat(suggestion.inguat || 0).toFixed(2);
   document.getElementById('subtotal').value = parseFloat(suggestion.subtotal || 0).toFixed(2);
 
+  // Asegurar que el estado readonly se actualice
   updateFormFields(suggestion.tipo_documento);
   updateTipoCombustibleField(suggestion.tipo_documento, suggestion.t_gasto);
   updateCantidadField(suggestion.tipo_documento, suggestion.t_gasto);
@@ -3204,8 +3208,18 @@ function updateFormFields(tipoDocumento = null) {
   const cantidadField = document.getElementById('cantidad_field');
   const tipoCombustibleField = document.getElementById('tipo_combustible_field');
   const taxFields = document.getElementById('tax_fields');
+  const noFacturaInput = document.getElementById('no_factura'); // Nuevo
 
   const currentTipoDocumento = tipoDocumento || tipoDocumentoSelect.value || '';
+  
+  // Controlar el atributo readonly para No. Factura
+  const tiposDocumentoReadonly = ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'];
+  if (tiposDocumentoReadonly.includes(currentTipoDocumento.toUpperCase())) {
+    noFacturaInput.setAttribute('readonly', 'readonly');
+  } else {
+    noFacturaInput.removeAttribute('readonly');
+  }
+
   if (currentTipoDocumento.toUpperCase() === 'RECIBO') {
     nitDpiLabel.textContent = 'DPI:';
     nitInput.value = '';
