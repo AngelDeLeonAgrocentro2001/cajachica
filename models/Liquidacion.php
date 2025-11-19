@@ -187,26 +187,31 @@ class Liquidacion {
     }
 
     public function getLiquidacionesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
-        $query = "
-            SELECT l.*, cc.nombre as caja_chica, SUM(dl.total_factura) as total_gastos
-            FROM liquidaciones l
-            LEFT JOIN detalle_liquidaciones dl ON l.id = dl.id_liquidacion
-            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
-            WHERE l.fecha_inicio >= ? AND l.fecha_fin <= ?
-        ";
-        $params = [$fechaInicio, $fechaFin];
+    $query = "
+        SELECT l.*, 
+               cc.nombre as caja_chica, 
+               SUM(dl.total_factura) as total_gastos
+        FROM liquidaciones l
+        LEFT JOIN detalle_liquidaciones dl ON l.id = dl.id_liquidacion
+        LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+        WHERE l.fecha_inicio >= ? 
+          AND l.fecha_fin <= ?
+          AND l.estado = 'FINALIZADO'        -- ← AQUÍ ESTÁ EL FILTRO CLAVE
+          AND dl.estado = 'FINALIZADO'       -- ← Solo facturas finalizadas cuentan en el total
+    ";
+    $params = [$fechaInicio, $fechaFin];
 
-        if (!empty($idCajaChica)) {
-            $query .= " AND l.id_caja_chica = ?";
-            $params[] = $idCajaChica;
-        }
-
-        $query .= " GROUP BY l.id";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($idCajaChica)) {
+        $query .= " AND l.id_caja_chica = ?";
+        $params[] = $idCajaChica;
     }
+
+    $query .= " GROUP BY l.id ORDER BY l.id DESC";
+
+    $stmt = $this->pdo->prepare($query);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
     public function updateMontoTotal($id, $montoTotal) {
         $stmt = $this->pdo->prepare("UPDATE liquidaciones SET monto_total = ? WHERE id = ?");
