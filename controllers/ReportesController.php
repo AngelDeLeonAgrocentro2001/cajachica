@@ -688,6 +688,18 @@ class ReportesController {
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
 
+        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
+        $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+        $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
+
+        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
+        if ($codigo_cliente === 'N/A' && !empty($detalles)) {
+            $primerDetalle = reset($detalles);
+            if (isset($primerDetalle['codigo_cliente'])) {
+                $codigo_cliente = $primerDetalle['codigo_cliente'];
+            }
+        }
+
         $cuentaContableModel = new CuentaContable();
         $totalGeneral = 0;
         $gastosPorTipo = [];
@@ -861,7 +873,7 @@ class ReportesController {
         $mpdf->WriteHTML($stylesheet, 1);
 
         // Generar y escribir el HTML en chunks
-        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
 
         error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
@@ -886,7 +898,7 @@ class ReportesController {
     }
 }
 
-private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo) {
+private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
     // Chunk 1: Encabezado e información general
     $htmlChunk1 = '<div class="content-container">';
     $htmlChunk1 .= '<div class="logo-container">';
@@ -899,6 +911,7 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     $htmlChunk1 .= '<div class="info">';
     $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
+    $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
     $htmlChunk1 .= '</div>';
