@@ -1057,7 +1057,7 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     // Procesar imágenes una por una
     foreach ($detalles as $detalle) {
-        $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+        $rutas = $detalle['rutas_archivos'] ?? [];
         if (is_array($rutas) && !empty($rutas)) {
             foreach ($rutas as $ruta) {
                 $hasFiles = true;
