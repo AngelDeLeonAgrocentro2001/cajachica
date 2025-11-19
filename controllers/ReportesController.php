@@ -675,14 +675,7 @@ class ReportesController {
 
         error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
 
-        $todosDetalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
-
-        $detalles = array_filter($todosDetalles, function($d) {
-            return isset($d['estado']) && 
-                   strtoupper(trim($d['estado'])) === 'FINALIZADO';
-        });
-
-        $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
+        $detalles = $this->detalleLiquidacionModel->getDetallesFinalizadosByLiquidacionId($idLiquidacion);
         if ($detalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
         }

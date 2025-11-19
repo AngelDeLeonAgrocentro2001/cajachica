@@ -7,7 +7,12 @@ class DetalleLiquidacion {
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
     }
-
+public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
+    $todos = $this->getDetallesByLiquidacionId($id_liquidacion);
+    return array_filter($todos, function($d) {
+        return isset($d['estado']) && strtoupper(trim($d['estado'])) === 'FINALIZADO';
+    });
+}
     public function getAllDetallesLiquidacion() {
         $query = "
             SELECT d.*, l.id_caja_chica, l.fecha_creacion, cc.nombre as nombre_caja_chica, 
@@ -654,4 +659,5 @@ class DetalleLiquidacion {
         }
     }
 }
+
 ?>
