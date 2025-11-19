@@ -196,8 +196,8 @@ class Liquidacion {
         LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
         WHERE l.fecha_inicio >= ? 
           AND l.fecha_fin <= ?
-          AND l.estado = 'FINALIZADO'        -- ← AQUÍ ESTÁ EL FILTRO CLAVE
-          AND dl.estado = 'FINALIZADO'       -- ← Solo facturas finalizadas cuentan en el total
+          AND l.estado = 'FINALIZADO'        
+          AND dl.estado = 'FINALIZADO'
     ";
     $params = [$fechaInicio, $fechaFin];
 

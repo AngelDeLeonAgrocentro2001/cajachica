@@ -673,11 +673,25 @@ class ReportesController {
             throw new Exception('ID de liquidación inválido: ' . $idLiquidacion);
         }
 
-        error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
-
-        $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
-        if ($detalles === false) {
+        // Obtener TODOS los detalles
+        $todosDetalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
+        if ($todosDetalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
+        }
+
+        // FILTRAR SOLO LOS QUE ESTÁN FINALIZADOS
+        $detalles = array_filter($todosDetalles, function($detalle) {
+            return isset($detalle['estado']) && 
+                   strtoupper(trim($detalle['estado'])) === 'FINALIZADO';
+        });
+
+        // Si no hay ningún detalle finalizado, puedes decidir si mostrar mensaje o PDF vacío
+        if (empty($detalles)) {
+            // Opción: generar PDF con mensaje "No hay facturas finalizadas"
+            $detalles = []; // Dejamos vacío y lo manejamos en el HTML
+        } else {
+            // Reindexar el array para que los chunks funcionen bien
+            $detalles = array_values($detalles);
         }
 
         $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
@@ -695,16 +709,11 @@ class ReportesController {
         foreach ($detalles as &$detalle) {
             $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
             $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
-            $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
-            $tipoGasto = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : 'Sin Clasificar';
-            if (!isset($gastosPorTipo[$tipoGasto])) {
-                $gastosPorTipo[$tipoGasto] = 0;
-            }
-            $gastosPorTipo[$tipoGasto] += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+            $totalGeneral += (float)($detalle['total_factura'] ?? 0);
+            $tipoGasto = $detalle['t_gasto'] ?? 'Sin Clasificar';
+            $gastosPorTipo[$tipoGasto] = ($gastosPorTipo[$tipoGasto] ?? 0) + (float)($detalle['total_factura'] ?? 0);
         }
         unset($detalle);
-
-        error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
 
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
@@ -716,169 +725,40 @@ class ReportesController {
             'default_font_size' => 10,
             'default_font' => 'Helvetica',
         ]);
-        $mpdf->SetTitle('Reporte de Detalles de Liquidación');
+        $mpdf->SetTitle('Reporte de Detalles de Liquidación - Solo Finalizadas');
         $mpdf->SetAuthor('AgroCaja Chica');
 
-        $footerHtml = '
-            <div style="text-align: center; color: #6b7280; font-size: 9px;">
-                <p>Página {PAGENO} de {nbpg}</p>
-            </div>';
+        // Cambiar título para que sea claro que son solo finalizadas
+        $htmlChunk1 = str_replace(
+            '<h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>',
+            '<h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . ' (Solo Finalizadas)</h1>',
+            $this->getHeaderHtml($idLiquidacion, $liquidacion, $nombre_caja_chica) // Puedes extraerlo si quieres
+        );
+
+        $footerHtml = '<div style="text-align: center; color: #6b7280; font-size: 9px;"><p>Página {PAGENO} de {nbpg}</p></div>';
         $mpdf->SetFooter($footerHtml);
 
-        $stylesheet = '
-            body {
-                color: #2d3748;
-                font-family: "Helvetica", sans-serif;
-            }
-            .content-container {
-                margin-top: -10px; 
-                padding-top: 10px; 
-            }
-            .logo-container {
-                text-align: center;
-                margin-bottom: 10px;
-            }
-            .logo-container img {
-                max-width: 150px;
-            }
-            .header {
-                background-color: #2b6cb0;
-                color: #ffffff;
-                padding: 15px;
-                text-align: center;
-                margin-bottom: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }
-            .header h1 {
-                margin: 0;
-                font-size: 24px;
-                font-weight: bold;
-            }
-            .info {
-                text-align: center;
-                margin-bottom: 20px;
-                color: #4a5568;
-                font-size: 11px;
-            }
-            .table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 20px;
-                page-break-inside: auto;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }
-            .table th {
-                background-color: #3182ce;
-                color: #ffffff;
-                padding: 10px;
-                text-align: center;
-                font-size: 10px;
-                font-weight: bold;
-                border: 1px solid #e2e8f0;
-            }
-            .table td {
-                padding: 8px;
-                text-align: center;
-                border: 1px solid #e2e8f0;
-                font-size: 9px;
-            }
-            .table tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-            }
-            .table tr:nth-child(even) {
-                background-color: #f7fafc;
-            }
-            .table tr:hover {
-                background-color: #e6f0fa;
-            }
-            .total-row td {
-                background-color: #edf2f7;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            .summary-section {
-                margin-top: 30px;
-            }
-            .summary-section h2 {
-                font-size: 16px;
-                color: #2b6cb0;
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            
-            .summary-table {
-                width: 50%;
-                margin: 0 auto;
-                border-collapse: collapse;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }
-            .summary-table th {
-                background-color: #4a5568;
-                color: #ffffff;
-                padding: 8px;
-                text-align: center;
-                font-size: 10px;
-                font-weight: bold;
-                border: 1px solid #e2e8f0;
-            }
-            .summary-table td {
-                padding: 8px;
-                text-align: center;
-                border: 1px solid #e2e8f0;
-                font-size: 9px;
-            }
-            .summary-table tr:nth-child(even) {
-                background-color: #f7fafc;
-            }
-            .images-section {
-                margin-top: 30px;
-            }
-            .images-section h2 {
-                font-size: 16px;
-                color: #2b6cb0;
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            
-            .images-section{
-            text-align: center;
-            }
-            .images-section a {
-                color: #2b6cb0;
-                text-decoration: underline;
-                font-size: 10px;
-                display: block;
-                margin: 5px 0;
-            }
-            .images-section a:hover {
-                color: #1a4971;
-            }
-        ';
-        
-        // Escribir el CSS primero
+        $stylesheet = file_get_contents(__DIR__ . '/../../public/css/pdf-styles.css'); // O el CSS que ya tenías
         $mpdf->WriteHTML($stylesheet, 1);
 
-        // Generar y escribir el HTML en chunks
-        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
-
-        error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
+        // Si no hay detalles finalizados → mensaje claro
+        if (empty($detalles)) {
+            $emptyHtml = '<div style="text-align:center; margin-top:50px; color:#e74c3c; font-size:18px;">
+                            <p><strong>No hay facturas con estado FINALIZADO en esta liquidación.</strong></p>
+                            <p>Solo se incluyen en este reporte los gastos que han sido aprobados y finalizados.</p>
+                          </div>';
+            $mpdf->WriteHTML($this->getHeaderHtml($idLiquidacion, $liquidacion, $nombre_caja_chica) . $emptyHtml . '</div>');
+        } else {
+            $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
+        }
 
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-
-        $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
-        error_log('PDF output completed for liquidation #' . $idLiquidacion);
+        header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '_solo_finalizadas.pdf"');
+        $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '_solo_finalizadas.pdf', 'D');
         exit;
+
     } catch (Exception $e) {
-        error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
-        if (headers_sent()) {
-            exit;
-        }
+        error_log('Error generando PDF de detalles (solo finalizadas): ' . $e->getMessage());
         header('Content-Type: application/json');
         http_response_code(500);
         echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
