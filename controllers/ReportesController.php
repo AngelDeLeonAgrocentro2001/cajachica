@@ -682,7 +682,7 @@ class ReportesController {
                    strtoupper(trim($d['estado'])) === 'FINALIZADO';
         });
 
-        // $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
+        $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
         if ($detalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
         }
