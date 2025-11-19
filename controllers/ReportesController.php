@@ -224,107 +224,131 @@ class ReportesController {
     }
 
     private function exportResumenToPDF($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
-        while (ob_get_level()) {
-            ob_end_clean();
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    try {
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L',
+            'margin_top' => 20,
+            'margin_bottom' => 20,
+            'margin_left' => 15,
+            'margin_right' => 15,
+        ]);
+
+        $mpdf->SetTitle('Reporte de Resumen - Solo Finalizadas');
+        $mpdf->SetAuthor('AgroCaja Chica');
+
+        $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Resumen de Liquidaciones (Solo Finalizadas)</h1>';
+        $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
+
+        if ($idCajaChica) {
+            $caja = $this->cajaChicaModel->getCajaChicaById($idCajaChica);
+            $cajaNombre = $caja ? $caja['nombre'] : 'Desconocida';
+            $html .= "<p style='text-align: center; color: #555;'>Caja Chica: " . htmlspecialchars($cajaNombre) . "</p>";
         }
 
-        try {
-            $mpdf = new Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4-L',
-                'margin_top' => 20,
-                'margin_bottom' => 20,
-                'margin_left' => 15,
-                'margin_right' => 15,
-            ]);
-            $mpdf->SetTitle('Reporte de Resumen');
-            $mpdf->SetAuthor('AgroCaja Chica');
+        $html .= '<table border="1" style="width:100%; border-collapse:collapse; font-size: 12px;">';
+        $html .= '<thead>';
+        $html .= '<tr style="background-color:#2c3e50; color:white;">';
+        $html .= '<th style="padding: 8px;">ID</th>';
+        $html .= '<th style="padding: 8px;">Caja Chica</th>';
+        $html .= '<th style="padding: 8px;">Fecha Creación</th>';
+        $html .= '<th style="padding: 8px;">Monto Total</th>';
+        $html .= '<th style="padding: 8px;">Total Gastos</th>';
+        $html .= '<th style="padding: 8px;">Estado</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
 
-            $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Resumen de Liquidaciones</h1>';
-            $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
-            if ($idCajaChica) {
-                $caja = $this->cajaChicaModel->getCajaChicaById($idCajaChica);
-                $cajaNombre = $caja ? $caja['nombre'] : 'Desconocida';
-                $html .= "<p style='text-align: center; color: #555;'>Caja Chica: " . htmlspecialchars($cajaNombre) . "</p>";
+        $hayDatos = false;
+
+        foreach ($liquidaciones as $liquidacion) {
+            // 1. FILTRAR SOLO LAS LIQUIDACIONES FINALIZADAS
+            if (!isset($liquidacion['estado']) || strtoupper(trim($liquidacion['estado'])) !== 'FINALIZADO') {
+                continue; // Saltar esta liquidación
             }
 
-            $html .= '<table border="1" style="width:100%; border-collapse:collapse; font-size: 12px;">';
-            $html .= '<thead>';
-            $html .= '<tr style="background-color:#2c3e50; color:white;">';
-            $html .= '<th style="padding: 8px;">ID</th>';
-            $html .= '<th style="padding: 8px;">Caja Chica</th>';
-            $html .= '<th style="padding: 8px;">Fecha Creación</th>';
-            $html .= '<th style="padding: 8px;">Monto Total</th>';
-            $html .= '<th style="padding: 8px;">Total Gastos</th>';
-            $html .= '<th style="padding: 8px;">Estado</th>';
+            $hayDatos = true;
+
+            $id            = $liquidacion['id'] ?? '';
+            $cajaChica     = $liquidacion['caja_chica'] ?? '';
+            $fechaCreacion = $liquidacion['fecha_creacion'] ?? '';
+            $montoTotal    = $liquidacion['monto_total'] ?? '';
+            $totalGastos   = $liquidacion['total_gastos'] ?? '0.00';
+            $estado        = $liquidacion['estado'] ?? '';
+
+            // Fila principal de la liquidación
+            $html .= '<tr>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($id) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($cajaChica) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fechaCreacion) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($montoTotal) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalGastos) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">' . htmlspecialchars($estado) . '</td>';
             $html .= '</tr>';
-            $html .= '</thead>';
-            $html .= '<tbody>';
 
-            foreach ($liquidaciones as $liquidacion) {
-                $id = isset($liquidacion['id']) ? (string)$liquidacion['id'] : '';
-                $cajaChica = isset($liquidacion['caja_chica']) ? (string)$liquidacion['caja_chica'] : '';
-                $fechaCreacion = isset($liquidacion['fecha_creacion']) ? (string)$liquidacion['fecha_creacion'] : '';
-                $montoTotal = isset($liquidacion['monto_total']) ? (string)$liquidacion['monto_total'] : '';
-                $totalGastos = isset($liquidacion['total_gastos']) ? (string)$liquidacion['total_gastos'] : '0.00';
-                $estado = isset($liquidacion['estado']) ? (string)$liquidacion['estado'] : '';
+            // 2. OBTENER DETALLES Y FILTRAR SOLO LOS FINALIZADOS
+            $todosDetalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
+            $detallesFinalizados = array_filter($todosDetalles, function($d) {
+                return isset($d['estado']) && strtoupper(trim($d['estado'])) === 'FINALIZADO';
+            });
 
+            if (!empty($detallesFinalizados)) {
+                // Cabecera de detalles
                 $html .= '<tr>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($id) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($cajaChica) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fechaCreacion) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($montoTotal) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalGastos) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($estado) . '</td>';
+                $html .= '<td colspan="6" style="padding: 8px; background-color: #e9ecef; font-weight: bold;">Detalles de Liquidación #' . htmlspecialchars($id) . '</td>';
                 $html .= '</tr>';
 
-                $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
-                if (!empty($detalles)) {
+                $html .= '<tr style="background-color:#4a6a8a; color:white;">';
+                $html .= '<th style="padding: 8px;">ID Detalle</th>';
+                $html .= '<th style="padding: 8px;">No. Factura</th>';
+                $html .= '<th style="padding: 8px;">Proveedor</th>';
+                $html .= '<th style="padding: 8px;">Fecha</th>';
+                $html .= '<th style="padding: 8px;">Total Factura</th>';
+                $html .= '<th style="padding: 8px;">Estado</th>';
+                $html .= '</tr>';
+
+                foreach ($detallesFinalizados as $detalle) {
                     $html .= '<tr>';
-                    $html .= '<td colspan="6" style="padding: 8px; background-color: #f0f0f0; font-weight: bold;">Detalles de Liquidación #' . htmlspecialchars($id) . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['id'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['no_factura'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['fecha'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['total_factura'] ?? '0.00') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">Finalizado</td>';
                     $html .= '</tr>';
-                    $html .= '<tr style="background-color:#4a6a8a; color:white;">';
-                    $html .= '<th style="padding: 8px;">ID Detalle</th>';
-                    $html .= '<th style="padding: 8px;">No. Factura</th>';
-                    $html .= '<th style="padding: 8px;">Nombre Proveedor</th>';
-                    $html .= '<th style="padding: 8px;">Fecha</th>';
-                    $html .= '<th style="padding: 8px;">Total Factura</th>';
-                    $html .= '<th style="padding: 8px;">Estado</th>';
-                    $html .= '</tr>';
-
-                    foreach ($detalles as $detalle) {
-                        $detalleId = isset($detalle['id']) ? (string)$detalle['id'] : '';
-                        $noFactura = isset($detalle['no_factura']) ? (string)$detalle['no_factura'] : '';
-                        $nombreProveedor = isset($detalle['nombre_proveedor']) ? (string)$detalle['nombre_proveedor'] : 'N/A';
-                        $fecha = isset($detalle['fecha']) ? (string)$detalle['fecha'] : '';
-                        $totalFactura = isset($detalle['total_factura']) ? (string)$detalle['total_factura'] : '';
-                        $estadoDetalle = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
-
-                        $html .= '<tr>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalleId) . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($noFactura) . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($nombreProveedor) . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fecha) . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalFactura) . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($estadoDetalle) . '</td>';
-                        $html .= '</tr>';
-                    }
                 }
             }
-
-            $html .= '</tbody>';
-            $html .= '</table>';
-
-            $mpdf->WriteHTML($html);
-            $mpdf->Output('reporte_resumen.pdf', 'D');
-            exit;
-        } catch (Exception $e) {
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al generar el PDF con mPDF: ' . $e->getMessage()]);
-            exit;
+            // Si no hay detalles finalizados, puedes omitir la sección o poner un mensaje
+            else {
+                $html .= '<tr>';
+                $html .= '<td colspan="6" style="padding: 8px; text-align: center; color:#888; font-style:italic;">No hay facturas finalizadas en esta liquidación.</td>';
+                $html .= '</tr>';
+            }
         }
+
+        if (!$hayDatos) {
+            $html .= '<tr>';
+            $html .= '<td colspan="6" style="padding: 20px; text-align: center; color:#888;">No se encontraron liquidaciones con estado "Finalizado" en el rango seleccionado.</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+
+        $mpdf->WriteHTML($html);
+        $mpdf->Output('reporte_resumen_solo_finalizadas.pdf', 'D');
+        exit;
+
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
+        exit;
     }
+}
 
     private function exportResumenToExcel($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
         if (ob_get_length()) {
@@ -651,22 +675,10 @@ class ReportesController {
 
         error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
 
-        // OBTENER TODOS LOS DETALLES
         $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
         if ($detalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
         }
-
-        // FILTRAR SOLO LOS DETALLES CON ESTADO "FINALIZADO"
-        $detallesFinalizados = array_filter($detalles, function($detalle) {
-            return isset($detalle['estado']) && strtoupper($detalle['estado']) === 'FINALIZADO';
-        });
-
-        // Si no hay detalles finalizados, generar PDF vacío
-        // if (empty($detallesFinalizados)) {
-        //     $this->generateEmptyPDF($idLiquidacion);
-        //     return;
-        // }
 
         $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
         if ($liquidacion === false) {
@@ -676,24 +688,11 @@ class ReportesController {
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
 
-        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
-        $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
-        $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
-
-        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
-        if ($codigo_cliente === 'N/A' && !empty($detallesFinalizados)) {
-            $primerDetalle = reset($detallesFinalizados);
-            if (isset($primerDetalle['codigo_cliente'])) {
-                $codigo_cliente = $primerDetalle['codigo_cliente'];
-            }
-        }
-
         $cuentaContableModel = new CuentaContable();
         $totalGeneral = 0;
         $gastosPorTipo = [];
 
-        // Usar solo los detalles finalizados para los cálculos
-        foreach ($detallesFinalizados as &$detalle) {
+        foreach ($detalles as &$detalle) {
             $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
             $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
             $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
@@ -705,7 +704,7 @@ class ReportesController {
         }
         unset($detalle);
 
-        error_log('Data fetched successfully for liquidation #' . $idLiquidacion . '. Total FINALIZADOS: ' . count($detallesFinalizados));
+        error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
 
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
@@ -861,8 +860,8 @@ class ReportesController {
         // Escribir el CSS primero
         $mpdf->WriteHTML($stylesheet, 1);
 
-        // Generar y escribir el HTML en chunks usando SOLO los detalles finalizados
-        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detallesFinalizados, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
+        // Generar y escribir el HTML en chunks
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
 
         error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
@@ -887,7 +886,7 @@ class ReportesController {
     }
 }
 
-private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
+private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo) {
     // Chunk 1: Encabezado e información general
     $htmlChunk1 = '<div class="content-container">';
     $htmlChunk1 .= '<div class="logo-container">';
@@ -900,14 +899,12 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     $htmlChunk1 .= '<div class="info">';
     $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
-    $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
-    $htmlChunk1 .= '<p><strong>Filtro:</strong> Solo registros con estado FINALIZADO</p>';
     $htmlChunk1 .= '</div>';
 
     $mpdf->WriteHTML($htmlChunk1, 2);
-    unset($htmlChunk1);
+    unset($htmlChunk1); // Liberar memoria
 
     // Chunk 2: Tabla de detalles (cabecera)
     $htmlChunk2 = '<table class="table">';
@@ -1058,7 +1055,7 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
     $mpdf->WriteHTML($htmlChunk6, 2);
     unset($htmlChunk6);
 
-    // Procesar imágenes una por una (solo de detalles finalizados)
+    // Procesar imágenes una por una
     foreach ($detalles as $detalle) {
         $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
         if (is_array($rutas) && !empty($rutas)) {
@@ -1206,34 +1203,5 @@ private function extractKeyFromPath($ruta) {
     // Si no se reconoce el patrón, devolver la ruta limpia
     return $cleanPath;
 }
-
-// private function generateEmptyPDF($idLiquidacion) {
-//     $mpdf = new Mpdf([
-//         'mode' => 'utf-8',
-//         'format' => 'A4',
-//         'margin_top' => 50,
-//         'margin_bottom' => 20,
-//         'margin_left' => 20,
-//         'margin_right' => 20,
-//     ]);
-
-//     $html = '
-//     <div style="text-align: center; padding: 50px;">
-//         <h1>Reporte de Detalles de Liquidación #' . $idLiquidacion . '</h1>
-//         <p style="font-size: 16px; color: #666; margin-top: 30px;">
-//             No hay detalles disponibles con estado FINALIZADO para esta liquidación.
-//         </p>
-//         <p style="font-size: 14px; color: #999;">
-//             Solo se muestran registros con estado FINALIZADO.
-//         </p>
-//     </div>';
-
-//     $mpdf->WriteHTML($html);
-    
-//     header('Content-Type: application/pdf');
-//     header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
-//     $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
-//     exit;
-// }
 
 }
