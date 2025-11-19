@@ -663,10 +663,10 @@ class ReportesController {
         });
 
         // Si no hay detalles finalizados, generar PDF vacío
-        if (empty($detallesFinalizados)) {
-            $this->generateEmptyPDF($idLiquidacion);
-            return;
-        }
+        // if (empty($detallesFinalizados)) {
+        //     $this->generateEmptyPDF($idLiquidacion);
+        //     return;
+        // }
 
         $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
         if ($liquidacion === false) {
@@ -1207,33 +1207,33 @@ private function extractKeyFromPath($ruta) {
     return $cleanPath;
 }
 
-private function generateEmptyPDF($idLiquidacion) {
-    $mpdf = new Mpdf([
-        'mode' => 'utf-8',
-        'format' => 'A4',
-        'margin_top' => 50,
-        'margin_bottom' => 20,
-        'margin_left' => 20,
-        'margin_right' => 20,
-    ]);
+// private function generateEmptyPDF($idLiquidacion) {
+//     $mpdf = new Mpdf([
+//         'mode' => 'utf-8',
+//         'format' => 'A4',
+//         'margin_top' => 50,
+//         'margin_bottom' => 20,
+//         'margin_left' => 20,
+//         'margin_right' => 20,
+//     ]);
 
-    $html = '
-    <div style="text-align: center; padding: 50px;">
-        <h1>Reporte de Detalles de Liquidación #' . $idLiquidacion . '</h1>
-        <p style="font-size: 16px; color: #666; margin-top: 30px;">
-            No hay detalles disponibles con estado FINALIZADO para esta liquidación.
-        </p>
-        <p style="font-size: 14px; color: #999;">
-            Solo se muestran registros con estado FINALIZADO.
-        </p>
-    </div>';
+//     $html = '
+//     <div style="text-align: center; padding: 50px;">
+//         <h1>Reporte de Detalles de Liquidación #' . $idLiquidacion . '</h1>
+//         <p style="font-size: 16px; color: #666; margin-top: 30px;">
+//             No hay detalles disponibles con estado FINALIZADO para esta liquidación.
+//         </p>
+//         <p style="font-size: 14px; color: #999;">
+//             Solo se muestran registros con estado FINALIZADO.
+//         </p>
+//     </div>';
 
-    $mpdf->WriteHTML($html);
+//     $mpdf->WriteHTML($html);
     
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
-    $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
-    exit;
-}
+//     header('Content-Type: application/pdf');
+//     header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
+//     $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
+//     exit;
+// }
 
 }
