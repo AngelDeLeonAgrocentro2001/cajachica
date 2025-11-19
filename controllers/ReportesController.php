@@ -651,9 +651,21 @@ class ReportesController {
 
         error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
 
+        // OBTENER TODOS LOS DETALLES
         $detalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($idLiquidacion);
         if ($detalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
+        }
+
+        // FILTRAR SOLO LOS DETALLES CON ESTADO "FINALIZADO"
+        $detallesFinalizados = array_filter($detalles, function($detalle) {
+            return isset($detalle['estado']) && strtoupper($detalle['estado']) === 'FINALIZADO';
+        });
+
+        // Si no hay detalles finalizados, generar PDF vacío
+        if (empty($detallesFinalizados)) {
+            $this->generateEmptyPDF($idLiquidacion);
+            return;
         }
 
         $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
@@ -664,11 +676,24 @@ class ReportesController {
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
 
+        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
+        $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+        $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
+
+        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
+        if ($codigo_cliente === 'N/A' && !empty($detallesFinalizados)) {
+            $primerDetalle = reset($detallesFinalizados);
+            if (isset($primerDetalle['codigo_cliente'])) {
+                $codigo_cliente = $primerDetalle['codigo_cliente'];
+            }
+        }
+
         $cuentaContableModel = new CuentaContable();
         $totalGeneral = 0;
         $gastosPorTipo = [];
 
-        foreach ($detalles as &$detalle) {
+        // Usar solo los detalles finalizados para los cálculos
+        foreach ($detallesFinalizados as &$detalle) {
             $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
             $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
             $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
@@ -680,7 +705,7 @@ class ReportesController {
         }
         unset($detalle);
 
-        error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
+        error_log('Data fetched successfully for liquidation #' . $idLiquidacion . '. Total FINALIZADOS: ' . count($detallesFinalizados));
 
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
@@ -836,8 +861,8 @@ class ReportesController {
         // Escribir el CSS primero
         $mpdf->WriteHTML($stylesheet, 1);
 
-        // Generar y escribir el HTML en chunks
-        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo);
+        // Generar y escribir el HTML en chunks usando SOLO los detalles finalizados
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detallesFinalizados, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
 
         error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
@@ -862,7 +887,7 @@ class ReportesController {
     }
 }
 
-private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $totalGeneral, $gastosPorTipo) {
+private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
     // Chunk 1: Encabezado e información general
     $htmlChunk1 = '<div class="content-container">';
     $htmlChunk1 .= '<div class="logo-container">';
@@ -875,12 +900,14 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
 
     $htmlChunk1 .= '<div class="info">';
     $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
+    $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
     $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
+    $htmlChunk1 .= '<p><strong>Filtro:</strong> Solo registros con estado FINALIZADO</p>';
     $htmlChunk1 .= '</div>';
 
     $mpdf->WriteHTML($htmlChunk1, 2);
-    unset($htmlChunk1); // Liberar memoria
+    unset($htmlChunk1);
 
     // Chunk 2: Tabla de detalles (cabecera)
     $htmlChunk2 = '<table class="table">';
@@ -1031,7 +1058,7 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
     $mpdf->WriteHTML($htmlChunk6, 2);
     unset($htmlChunk6);
 
-    // Procesar imágenes una por una
+    // Procesar imágenes una por una (solo de detalles finalizados)
     foreach ($detalles as $detalle) {
         $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
         if (is_array($rutas) && !empty($rutas)) {
@@ -1178,6 +1205,35 @@ private function extractKeyFromPath($ruta) {
     
     // Si no se reconoce el patrón, devolver la ruta limpia
     return $cleanPath;
+}
+
+private function generateEmptyPDF($idLiquidacion) {
+    $mpdf = new Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4',
+        'margin_top' => 50,
+        'margin_bottom' => 20,
+        'margin_left' => 20,
+        'margin_right' => 20,
+    ]);
+
+    $html = '
+    <div style="text-align: center; padding: 50px;">
+        <h1>Reporte de Detalles de Liquidación #' . $idLiquidacion . '</h1>
+        <p style="font-size: 16px; color: #666; margin-top: 30px;">
+            No hay detalles disponibles con estado FINALIZADO para esta liquidación.
+        </p>
+        <p style="font-size: 14px; color: #999;">
+            Solo se muestran registros con estado FINALIZADO.
+        </p>
+    </div>';
+
+    $mpdf->WriteHTML($html);
+    
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
+    $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
+    exit;
 }
 
 }
