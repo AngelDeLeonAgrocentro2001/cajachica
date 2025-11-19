@@ -2352,39 +2352,39 @@ class LiquidacionController
                 }
 
                 // ENVIAR CORREO AL ENCARGADO CUANDO SE FINALIZA LA LIQUIDACIÓN - SOLO UNA VEZ
-                if ($nuevoEstado === 'FINALIZADO') {
-                    error_log("🔧 Estado FINALIZADO detectado, preparando envío de correo al encargado");
+                if ($accion === 'APROBADO' && $nuevoEstado === 'FINALIZADO') {
+                error_log("🔧 Estado FINALIZADO detectado después de aprobación, preparando envío de correo al encargado");
 
-                    try {
-                        // Obtener información del encargado que creó la liquidación
-                        $encargado = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
-                        error_log("🔧 Encargado encontrado: " . ($encargado ? $encargado['nombre'] . " (" . $encargado['email'] . ")" : "NO ENCONTRADO"));
+                try {
+                    // Obtener información del encargado que creó la liquidación
+                    $encargado = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+                    error_log("🔧 Encargado encontrado: " . ($encargado ? $encargado['nombre'] . " (" . $encargado['email'] . ")" : "NO ENCONTRADO"));
 
-                        if ($encargado && !empty($encargado['email'])) {
-                            $loginController = new LoginController();
-                            $emailSent = $loginController->sendEncargadoNotification(
-                                $encargado['email'],
-                                $encargado['nombre'],
-                                $id,
-                                "Liquidación exportada a SAP y finalizada",
-                                $usuario['nombre'] // Nombre del contador que autorizó
-                            );
+                    if ($encargado && !empty($encargado['email'])) {
+                        $loginController = new LoginController();
+                        $emailSent = $loginController->sendEncargadoNotification(
+                            $encargado['email'],
+                            $encargado['nombre'],
+                            $id,
+                            "Liquidación exportada a SAP y finalizada",
+                            $usuario['nombre'] // Nombre del contador que autorizó
+                        );
 
-                            if ($emailSent) {
-                                error_log("✅ Correo de notificación enviado al encargado: " . $encargado['email']);
-                                // Agregar mensaje adicional
-                                $message .= " Se notificó al encargado por correo.";
-                            } else {
-                                error_log("⚠️ No se pudo enviar el correo de notificación al encargado: " . $encargado['email']);
-                            }
+                        if ($emailSent) {
+                            error_log("✅ Correo de notificación enviado al encargado: " . $encargado['email']);
+                            // Agregar mensaje adicional
+                            $message .= " Se notificó al encargado por correo.";
                         } else {
-                            error_log("⚠️ No se encontró información del encargado para enviar notificación");
+                            error_log("⚠️ No se pudo enviar el correo de notificación al encargado: " . $encargado['email']);
                         }
-                    } catch (Exception $e) {
-                        error_log("❌ Error al enviar correo al encargado: " . $e->getMessage());
-                        // No detener el proceso principal si falla el correo
+                    } else {
+                        error_log("⚠️ No se encontró información del encargado para enviar notificación");
                     }
+                } catch (Exception $e) {
+                    error_log("❌ Error al enviar correo al encargado: " . $e->getMessage());
+                    // No detener el proceso principal si falla el correo
                 }
+            }
 
                 $this->pdo->commit();
                 header('Content-Type: application/json; charset=UTF-8');
@@ -3862,6 +3862,42 @@ class LiquidacionController
                 $liquidacionModel->updateEstado($id, 'FINALIZADO');
                 $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Exportación completada: $successCount facturas exportadas");
                 $this->pdo->commit();
+
+                // NUEVA LÓGICA: ENVIAR CORREO AL ENCARGADO CUANDO LA EXPORTACIÓN A SAP ES EXITOSA
+            error_log("🔧 Exportación a SAP exitosa, preparando envío de correo al encargado");
+            
+            try {
+                // Obtener información del encargado que creó la liquidación
+                $encargado = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+                error_log("🔧 Encargado encontrado: " . ($encargado ? $encargado['nombre'] . " (" . $encargado['email'] . ")" : "NO ENCONTRADO"));
+
+                if ($encargado && !empty($encargado['email'])) {
+                    $loginController = new LoginController();
+                    $emailSent = $loginController->sendEncargadoNotification(
+                        $encargado['email'],
+                        $encargado['nombre'],
+                        $id,
+                        "Liquidación exportada a SAP y finalizada",
+                        $usuario['nombre'] // Nombre del contador que exportó
+                    );
+
+                    if ($emailSent) {
+                        error_log("✅ Correo de notificación enviado al encargado: " . $encargado['email']);
+                        // Agregar mensaje adicional a la respuesta
+                        $response['message'] .= " Se notificó al encargado por correo.";
+                    } else {
+                        error_log("⚠️ No se pudo enviar el correo de notificación al encargado: " . $encargado['email']);
+                        $response['email_sent'] = false;
+                    }
+                } else {
+                    error_log("⚠️ No se encontró información del encargado para enviar notificación");
+                    $response['email_sent'] = false;
+                }
+            } catch (Exception $e) {
+                error_log("❌ Error al enviar correo al encargado: " . $e->getMessage());
+                $response['email_sent'] = false;
+                // No detener el proceso principal si falla el correo
+            }
             } else {
                 $this->pdo->rollBack();
             }
