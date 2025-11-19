@@ -7,7 +7,40 @@ class DetalleLiquidacion {
     public function __construct() {
         $this->pdo = Database::getInstance()->getPdo();
     }
+public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
+    $stmt = $this->pdo->prepare("
+        SELECT dl.*, 
+               cc.nombre AS nombre_centro_costo, 
+               cc.codigo AS codigo_centro_costo, 
+               tg.name AS tipo_gasto, 
+               cc2.nombre AS cuenta_contable,
+               s.nombre AS nombre_supervisor_correccion, 
+               c.nombre AS nombre_contador_correccion, 
+               u.nombre AS nombre_usuario
+        FROM detalle_liquidaciones dl
+        LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
+        LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+        LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
+        LEFT JOIN usuarios s ON dl.id_supervisor_correccion = s.id
+        LEFT JOIN usuarios c ON dl.id_contador_correccion = c.id
+        LEFT JOIN usuarios u ON dl.id_usuario = u.id
+        WHERE dl.id_liquidacion = ?
+          AND UPPER(TRIM(dl.estado)) = 'FINALIZADO'
+        ORDER BY dl.id ASC
+    ");
+    $stmt->execute([$id_liquidacion]);
+    $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    foreach ($detalles as &$detalle) {
+        $detalle['subtotal'] = floatval($detalle['p_unitario'] ?? $detalle['total_factura']);
+        $detalle['centros_costo'] = $this->getCentrosCostoByDetalle($detalle['id']);
+        $detalle['nombre_centro_costo'] = ($detalle['nombre_centro_costo'] ?? '') . ' / ' . ($detalle['codigo_centro_costo'] ?? 'N/A');
+        $detalle['rutas_archivos'] = json_decode($detalle['rutas_archivos'] ?? '[]', true) ?: [];
+    }
+    unset($detalle);
+
+    return $detalles;
+}
     public function getAllDetallesLiquidacion() {
         $query = "
             SELECT d.*, l.id_caja_chica, l.fecha_creacion, cc.nombre as nombre_caja_chica, 
@@ -654,4 +687,5 @@ class DetalleLiquidacion {
         }
     }
 }
+
 ?>
