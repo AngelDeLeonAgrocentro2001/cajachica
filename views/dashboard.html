@@ -104,6 +104,11 @@
             border-left: 5px solid #e67e22; /* Naranja para En Corrección */
         }
 
+        .dashboard-card.expirado {
+            border-left: 5px solid #95a5a6; /* Gris azulado para Expirado */
+            background-color: #f8f9fa; /* Fondo ligeramente diferente */
+        }
+
         /* Estilo responsivo */
         @media (max-width: 768px) {
             .dashboard-container {
@@ -169,6 +174,11 @@
             <h3>Finalizado</h3>
             <p>Cantidad: <?php echo $resumen['FINALIZADO']['cantidad']; ?></p>
             <p>Monto: Q<?php echo number_format($resumen['FINALIZADO']['monto'], 2); ?></p>
+        </div>
+        <div class="dashboard-card expirado">
+            <h3>Expirado</h3>
+            <p>Cantidad: <?php echo $resumen['EXPIRADO']['cantidad']; ?></p>
+            <p>Monto: Q<?php echo number_format($resumen['EXPIRADO']['monto'], 2); ?></p>
         </div>
         <div class="dashboard-card descartado">
             <h3>Descartado</h3>
