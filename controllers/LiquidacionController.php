@@ -1598,6 +1598,7 @@ class LiquidacionController
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
         $nombre_clientes = $cajaChica['clientes'] ?? 'N/A';
 
+
         $centroCostoCajaChica = $centroCostoModel->getCentroCostoById($cajaChica['id_centro_costo'] ?? null);
         $centro_costo_caja_chica_nombre = $centroCostoCajaChica['nombre'] ?? 'N/A';
 
@@ -1625,6 +1626,7 @@ class LiquidacionController
                     $numCorrections = 0;
                     $skipReasons = [];
                     $processedGrupoIds = [];
+                    $detallesEnviadosACorreccion = []; // Para recolectar información de los detalles enviados a corrección
 
                     foreach ($detalleIds as $detalleId) {
                         $detalleId = intval($detalleId);
@@ -1683,6 +1685,14 @@ class LiquidacionController
                                 $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
                                 $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
                                 $numCorrections++;
+
+                                // Guardar información del detalle para la notificación
+                                $detallesEnviadosACorreccion[] = [
+                                    'id' => $grupoDetalleId,
+                                    'no_factura' => $grupoDetalle['no_factura'],
+                                    'comentario' => $comment,
+                                    't_gasto' => $grupoDetalle['t_gasto']
+                                ];
                             }
                         }
                         // Para detalles individuales, procesar solo este detalle
@@ -1697,6 +1707,14 @@ class LiquidacionController
                             $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, $isSupervisorRole ? $_SESSION['user_id'] : null);
                             $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por " . ($isSupervisorRole ? "supervisor ID {$_SESSION['user_id']}" : "contador"));
                             $numCorrections++;
+
+                            // Guardar información del detalle para la notificación
+                            $detallesEnviadosACorreccion[] = [
+                                'id' => $detalleId,
+                                'no_factura' => $detalle['no_factura'],
+                                'comentario' => $comment,
+                                't_gasto' => $detalle['t_gasto']
+                            ];
                         }
                     }
 
@@ -1720,10 +1738,47 @@ class LiquidacionController
                         $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                     }
 
+                    // NUEVA LÓGICA: ENVIAR CORREO AL ENCARGADO CUANDO EL SUPERVISOR ENVÍA DETALLES A CORRECCIÓN
+                    if ($numCorrections > 0 && !empty($detallesEnviadosACorreccion) && $isSupervisorRole) {
+                        error_log("🔧 Enviando correo de notificación de corrección al encargado desde supervisor");
+
+                        try {
+                            // Obtener información del encargado que creó la liquidación
+                            $encargado = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+                            error_log("🔧 Encargado encontrado: " . ($encargado ? $encargado['nombre'] . " (" . $encargado['email'] . ")" : "NO ENCONTRADO"));
+
+                            if ($encargado && !empty($encargado['email'])) {
+                                $loginController = new LoginController();
+                                $emailSent = $loginController->sendCorreccionNotification(
+                                    $encargado['email'],
+                                    $encargado['nombre'],
+                                    $id,
+                                    $detallesEnviadosACorreccion,
+                                    $usuario['nombre'] // Nombre del supervisor que envió a corrección
+                                );
+
+                                if ($emailSent) {
+                                    error_log("✅ Correo de notificación de corrección enviado al encargado: " . $encargado['email']);
+                                } else {
+                                    error_log("⚠️ No se pudo enviar el correo de notificación de corrección al encargado: " . $encargado['email']);
+                                }
+                            } else {
+                                error_log("⚠️ No se encontró información del encargado para enviar notificación de corrección");
+                            }
+                        } catch (Exception $e) {
+                            error_log("❌ Error al enviar correo de corrección al encargado: " . $e->getMessage());
+                            // No detener el proceso principal si falla el correo
+                        }
+                    }
+
                     $this->pdo->commit();
                     error_log("Corrección completada: $numCorrections detalle(s) enviados a corrección");
                     header('Content-Type: application/json; charset=UTF-8');
-                    echo json_encode(['message' => "$numCorrections detalle(s) enviado(s) a corrección correctamente", 'num_corrections' => $numCorrections], JSON_UNESCAPED_UNICODE);
+                    echo json_encode([
+                        'message' => "$numCorrections detalle(s) enviado(s) a corrección correctamente",
+                        'num_corrections' => $numCorrections,
+                        'email_sent' => isset($emailSent) ? $emailSent : false
+                    ], JSON_UNESCAPED_UNICODE);
                 } catch (Exception $e) {
                     $this->pdo->rollBack();
                     error_log('Error al enviar detalle a corrección: ' . $e->getMessage());
@@ -1769,8 +1824,8 @@ class LiquidacionController
 
                         // ENVIAR CORREO AL CONTADOR
                         try {
-                            $contadorEmail = "cajachica@agrocentro.com";
-                            $contadorNombre = "Equipo de contabilidad";
+                            $contadorEmail = "angel.deleon@agrocentro.com";
+                            $contadorNombre = "Angel De Leon";
 
                             $loginController = new LoginController();
                             $emailSent = $loginController->sendContadorNotification(
@@ -2121,6 +2176,7 @@ class LiquidacionController
                     $numCorrections = 0;
                     $skipReasons = [];
                     $processedGrupoIds = [];
+                    $detallesEnviadosACorreccion = []; // Para recolectar información de los detalles enviados a corrección
 
                     foreach ($detalleIds as $detalleId) {
                         $detalleId = intval($detalleId);
@@ -2179,6 +2235,14 @@ class LiquidacionController
                                 $this->detalleModel->updateEstadoWithComment($grupoDetalleId, 'EN_CORRECCION', $rol, $comment, null);
                                 $this->auditoriaModel->createAuditoria($id, $grupoDetalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por contador");
                                 $numCorrections++;
+
+                                // Guardar información del detalle para la notificación
+                                $detallesEnviadosACorreccion[] = [
+                                    'id' => $grupoDetalleId,
+                                    'no_factura' => $grupoDetalle['no_factura'],
+                                    'comentario' => $comment,
+                                    't_gasto' => $grupoDetalle['t_gasto']
+                                ];
                             }
                         }
                         // Para detalles individuales, procesar solo este detalle
@@ -2193,6 +2257,14 @@ class LiquidacionController
                             $this->detalleModel->updateEstadoWithComment($detalleId, 'EN_CORRECCION', $rol, $comment, null);
                             $this->auditoriaModel->createAuditoria($id, $detalleId, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', "Detalle enviado a corrección con comentario: $comment por contador");
                             $numCorrections++;
+
+                            // Guardar información del detalle para la notificación
+                            $detallesEnviadosACorreccion[] = [
+                                'id' => $detalleId,
+                                'no_factura' => $detalle['no_factura'],
+                                'comentario' => $comment,
+                                't_gasto' => $detalle['t_gasto']
+                            ];
                         }
                     }
 
@@ -2216,10 +2288,47 @@ class LiquidacionController
                         $this->auditoriaModel->createAuditoria($id, null, $_SESSION['user_id'], 'ENVIADO_A_CORRECCION', 'Liquidación enviada a corrección');
                     }
 
+                    // NUEVA LÓGICA: ENVIAR CORREO AL ENCARGADO CUANDO SE ENVÍAN DETALLES A CORRECCIÓN
+                    if ($numCorrections > 0 && !empty($detallesEnviadosACorreccion)) {
+                        error_log("🔧 Enviando correo de notificación de corrección al encargado");
+
+                        try {
+                            // Obtener información del encargado que creó la liquidación
+                            $encargado = $usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+                            error_log("🔧 Encargado encontrado: " . ($encargado ? $encargado['nombre'] . " (" . $encargado['email'] . ")" : "NO ENCONTRADO"));
+
+                            if ($encargado && !empty($encargado['email'])) {
+                                $loginController = new LoginController();
+                                $emailSent = $loginController->sendCorreccionNotification(
+                                    $encargado['email'],
+                                    $encargado['nombre'],
+                                    $id,
+                                    $detallesEnviadosACorreccion,
+                                    $usuario['nombre'] // Nombre del contador que envió a corrección
+                                );
+
+                                if ($emailSent) {
+                                    error_log("✅ Correo de notificación de corrección enviado al encargado: " . $encargado['email']);
+                                } else {
+                                    error_log("⚠️ No se pudo enviar el correo de notificación de corrección al encargado: " . $encargado['email']);
+                                }
+                            } else {
+                                error_log("⚠️ No se encontró información del encargado para enviar notificación de corrección");
+                            }
+                        } catch (Exception $e) {
+                            error_log("❌ Error al enviar correo de corrección al encargado: " . $e->getMessage());
+                            // No detener el proceso principal si falla el correo
+                        }
+                    }
+
                     $this->pdo->commit();
                     error_log("Corrección completada: $numCorrections detalle(s) enviados a corrección");
                     header('Content-Type: application/json; charset=UTF-8');
-                    echo json_encode(['message' => "$numCorrections detalle(s) enviado(s) a corrección correctamente", 'num_corrections' => $numCorrections], JSON_UNESCAPED_UNICODE);
+                    echo json_encode([
+                        'message' => "$numCorrections detalle(s) enviado(s) a corrección correctamente",
+                        'num_corrections' => $numCorrections,
+                        'email_sent' => isset($emailSent) ? $emailSent : false
+                    ], JSON_UNESCAPED_UNICODE);
                 } catch (Exception $e) {
                     $this->pdo->rollBack();
                     error_log('Error al enviar detalle a corrección: ' . $e->getMessage());
@@ -6708,146 +6817,241 @@ class LiquidacionController
     }
 
     public function submitCorreccion($id)
-    {
-        if (!isset($_SESSION['user_id'])) {
-            error_log('submitCorreccion: No hay session user_id');
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuario) {
-            error_log("submitCorreccion: Usuario no encontrado para ID: {$_SESSION['user_id']}");
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(401);
-            echo json_encode(['error' => 'Usuario no encontrado'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        if (!$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
-            error_log("submitCorreccion: Usuario ID {$_SESSION['user_id']} no tiene permiso manage_correcciones. Rol: {$usuario['rol']}");
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para enviar correcciones'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            error_log('submitCorreccion: Método no permitido');
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(405);
-            echo json_encode(['error' => 'Método no permitido'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
-        if (!$liquidacion) {
-            error_log("submitCorreccion: Liquidación no encontrada para ID: $id");
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(404);
-            echo json_encode(['error' => 'Liquidación no encontrada'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        $input = json_decode(file_get_contents('php://input'), true);
-        $submitted_role = $input['originating_role'] ?? null;
-        error_log("submitCorreccion: Liquidación ID $id, usuario ID {$_SESSION['user_id']} ({$usuario['rol']}), submitted_role: " . ($submitted_role ?? 'N/A'));
-
-        // Validar y normalizar el rol
-        $normalized_role = null;
-        if ($submitted_role === null || $submitted_role === '') {
-            error_log("submitCorreccion: No se proporcionó originating_role");
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(400);
-            echo json_encode(['error' => 'No se proporcionó un rol de origen'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        $submitted_role_upper = strtoupper($submitted_role);
-        if ($submitted_role_upper === 'CONTABILIDAD') {
-            $normalized_role = 'CONTABILIDAD';
-        } elseif (stripos($submitted_role_upper, 'SUPERVISOR') !== false) {
-            $normalized_role = 'SUPERVISOR';
-        } else {
-            error_log("submitCorreccion: Rol de origen no válido: " . ($submitted_role ?? 'N/A'));
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(400);
-            echo json_encode(['error' => 'Rol de origen no válido. Debe ser CONTABILIDAD o SUPERVISOR'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        try {
-            $this->pdo->beginTransaction();
-
-            $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
-            if (empty($detalles)) {
-                error_log("submitCorreccion: No hay detalles EN_CORRECCION para liquidación ID $id");
-                throw new Exception('No hay detalles en estado EN_CORRECCION para procesar.');
-            }
-
-            $updatedCount = 0;
-            foreach ($detalles as $detalle) {
-                $original_role = $detalle['original_role'] ?? 'CONTABILIDAD';
-                $normalized_original_role = strtoupper($original_role);
-                $normalized_original_role = stripos($normalized_original_role, 'SUPERVISOR') !== false ? 'SUPERVISOR' : $normalized_original_role;
-
-                if ($normalized_original_role !== $normalized_role) {
-                    error_log("submitCorreccion: Saltando detalle ID {$detalle['id']} (original_role: $original_role, normalized: $normalized_original_role) no coincide con $normalized_role");
-                    continue;
-                }
-
-                $nuevoEstado = $normalized_role === 'SUPERVISOR' ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
-                error_log("submitCorreccion: Actualizando detalle ID {$detalle['id']} a $nuevoEstado (original_role: $original_role)");
-                $this->detalleModel->updateEstado($detalle['id'], $nuevoEstado);
-                if ($normalized_role === 'SUPERVISOR') {
-                    $this->auditoriaModel->createAuditoria(
-                        $id,
-                        $detalle['id'],
-                        $_SESSION['user_id'],
-                        'CORRECTION_ENVIADA',
-                        "Detalle corregido y enviado a $nuevoEstado para supervisor ID {$detalle['id_supervisor_correccion']}"
-                    );
-                } else {
-                    $this->auditoriaModel->createAuditoria(
-                        $id,
-                        $detalle['id'],
-                        $_SESSION['user_id'],
-                        'CORRECTION_ENVIADA',
-                        "Detalle corregido y enviado a $nuevoEstado para contador ID {$detalle['id_contador_correccion']}"
-                    );
-                }
-                $updatedCount++;
-            }
-
-            if ($updatedCount === 0) {
-                error_log("submitCorreccion: No se actualizaron detalles para rol $normalized_role en liquidación ID $id");
-                throw new Exception('No se procesaron detalles para el rol especificado.');
-            }
-
-            $this->auditoriaModel->createAuditoria(
-                $id,
-                null,
-                $_SESSION['user_id'],
-                'CORRECCIONES_ENVIADAS',
-                "Correcciones enviadas a $normalized_role, liquidación sin cambio de estado"
-            );
-
-            $this->pdo->commit();
-            error_log("submitCorreccion: $updatedCount detalle(s) actualizados para liquidación ID $id a rol $normalized_role");
-            header('Content-Type: application/json; charset=UTF-8');
-            echo json_encode(['message' => "Correcciones enviadas correctamente a $normalized_role"], JSON_UNESCAPED_UNICODE);
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            error_log('submitCorreccion: Error al enviar correcciones para liquidación ID $id: ' . $e->getMessage());
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al enviar correcciones: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
-        }
+{
+    if (!isset($_SESSION['user_id'])) {
+        error_log('submitCorreccion: No hay session user_id');
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
         exit;
     }
+
+    $usuarioModel = new Usuario();
+    $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+    if (!$usuario) {
+        error_log("submitCorreccion: Usuario no encontrado para ID: {$_SESSION['user_id']}");
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(401);
+        echo json_encode(['error' => 'Usuario no encontrado'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if (!$usuarioModel->tienePermiso($usuario, 'manage_correcciones')) {
+        error_log("submitCorreccion: Usuario ID {$_SESSION['user_id']} no tiene permiso manage_correcciones. Rol: {$usuario['rol']}");
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(403);
+        echo json_encode(['error' => 'No tienes permiso para enviar correcciones'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        error_log('submitCorreccion: Método no permitido');
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(405);
+        echo json_encode(['error' => 'Método no permitido'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $liquidacion = $this->liquidacionModel->getLiquidacionById($id);
+    if (!$liquidacion) {
+        error_log("submitCorreccion: Liquidación no encontrada para ID: $id");
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(404);
+        echo json_encode(['error' => 'Liquidación no encontrada'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $submitted_role = $input['originating_role'] ?? null;
+    error_log("submitCorreccion: Liquidación ID $id, usuario ID {$_SESSION['user_id']} ({$usuario['rol']}), submitted_role: " . ($submitted_role ?? 'N/A'));
+
+    // Validar y normalizar el rol
+    $normalized_role = null;
+    if ($submitted_role === null || $submitted_role === '') {
+        error_log("submitCorreccion: No se proporcionó originating_role");
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(400);
+        echo json_encode(['error' => 'No se proporcionó un rol de origen'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $submitted_role_upper = strtoupper($submitted_role);
+    if ($submitted_role_upper === 'CONTABILIDAD') {
+        $normalized_role = 'CONTABILIDAD';
+    } elseif (stripos($submitted_role_upper, 'SUPERVISOR') !== false) {
+        $normalized_role = 'SUPERVISOR';
+    } else {
+        error_log("submitCorreccion: Rol de origen no válido: " . ($submitted_role ?? 'N/A'));
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(400);
+        echo json_encode(['error' => 'Rol de origen no válido. Debe ser CONTABILIDAD o SUPERVISOR'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    try {
+        $this->pdo->beginTransaction();
+
+        $detalles = $this->detalleModel->getDetallesByLiquidacionIdAndEstado($id, 'EN_CORRECCION');
+        if (empty($detalles)) {
+            error_log("submitCorreccion: No hay detalles EN_CORRECCION para liquidación ID $id");
+            throw new Exception('No hay detalles en estado EN_CORRECCION para procesar.');
+        }
+
+        $updatedCount = 0;
+        $usuariosANotificar = []; // Para recolectar información de usuarios a notificar
+        
+        foreach ($detalles as $detalle) {
+            $original_role = $detalle['original_role'] ?? 'CONTABILIDAD';
+            $normalized_original_role = strtoupper($original_role);
+            $normalized_original_role = stripos($normalized_original_role, 'SUPERVISOR') !== false ? 'SUPERVISOR' : $normalized_original_role;
+
+            if ($normalized_original_role !== $normalized_role) {
+                error_log("submitCorreccion: Saltando detalle ID {$detalle['id']} (original_role: $original_role, normalized: $normalized_original_role) no coincide con $normalized_role");
+                continue;
+            }
+
+            $nuevoEstado = $normalized_role === 'SUPERVISOR' ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
+            error_log("submitCorreccion: Actualizando detalle ID {$detalle['id']} a $nuevoEstado (original_role: $original_role)");
+            $this->detalleModel->updateEstado($detalle['id'], $nuevoEstado);
+            
+            // DEBUG: Verificar qué campos están disponibles en el detalle
+            error_log("submitCorreccion: Detalle ID {$detalle['id']} - Campos disponibles: " . implode(', ', array_keys($detalle)));
+            error_log("submitCorreccion: Detalle ID {$detalle['id']} - id_supervisor_correccion: " . ($detalle['id_supervisor_correccion'] ?? 'NO EXISTE'));
+            error_log("submitCorreccion: Detalle ID {$detalle['id']} - id_contador_correccion: " . ($detalle['id_contador_correccion'] ?? 'NO EXISTE'));
+            
+            // Recolectar información para notificación - CORREGIDO
+            if ($normalized_role === 'SUPERVISOR') {
+                if (!empty($detalle['id_supervisor_correccion'])) {
+                    $usuariosANotificar[$detalle['id_supervisor_correccion']] = [
+                        'tipo' => 'SUPERVISOR',
+                        'detalle_id' => $detalle['id'],
+                        'no_factura' => $detalle['no_factura'] ?? 'N/A'
+                    ];
+                    error_log("submitCorreccion: Agregado supervisor ID {$detalle['id_supervisor_correccion']} para notificación");
+                } else {
+                    error_log("submitCorreccion: WARNING - Detalle ID {$detalle['id']} no tiene id_supervisor_correccion");
+                }
+            } else {
+                // Para CONTABILIDAD
+                if (!empty($detalle['id_contador_correccion'])) {
+                    $usuariosANotificar[$detalle['id_contador_correccion']] = [
+                        'tipo' => 'CONTADOR',
+                        'detalle_id' => $detalle['id'],
+                        'no_factura' => $detalle['no_factura'] ?? 'N/A'
+                    ];
+                    error_log("submitCorreccion: Agregado contador ID {$detalle['id_contador_correccion']} para notificación");
+                } else {
+                    error_log("submitCorreccion: WARNING - Detalle ID {$detalle['id']} no tiene id_contador_correccion");
+                    
+                    // INTENTO ALTERNATIVO: Buscar el contador asignado a la liquidación
+                    if (!empty($liquidacion['id_contador'])) {
+                        $usuariosANotificar[$liquidacion['id_contador']] = [
+                            'tipo' => 'CONTADOR',
+                            'detalle_id' => $detalle['id'],
+                            'no_factura' => $detalle['no_factura'] ?? 'N/A',
+                            'fallback' => true
+                        ];
+                        error_log("submitCorreccion: Usando contador de liquidación ID {$liquidacion['id_contador']} como fallback");
+                    }
+                }
+            }
+            
+            if ($normalized_role === 'SUPERVISOR') {
+                $this->auditoriaModel->createAuditoria(
+                    $id,
+                    $detalle['id'],
+                    $_SESSION['user_id'],
+                    'CORRECTION_ENVIADA',
+                    "Detalle corregido y enviado a $nuevoEstado para supervisor ID {$detalle['id_supervisor_correccion']}"
+                );
+            } else {
+                $this->auditoriaModel->createAuditoria(
+                    $id,
+                    $detalle['id'],
+                    $_SESSION['user_id'],
+                    'CORRECTION_ENVIADA',
+                    "Detalle corregido y enviado a $nuevoEstado para contador ID {$detalle['id_contador_correccion']}"
+                );
+            }
+            $updatedCount++;
+        }
+
+        if ($updatedCount === 0) {
+            error_log("submitCorreccion: No se actualizaron detalles para rol $normalized_role en liquidación ID $id");
+            throw new Exception('No se procesaron detalles para el rol especificado.');
+        }
+
+        $this->auditoriaModel->createAuditoria(
+            $id,
+            null,
+            $_SESSION['user_id'],
+            'CORRECCIONES_ENVIADAS',
+            "Correcciones enviadas a $normalized_role, liquidación sin cambio de estado"
+        );
+
+        // NUEVA LÓGICA: ENVIAR CORREOS DE NOTIFICACIÓN A LOS USUARIOS QUE SOLICITARON LAS CORRECCIONES
+        if (!empty($usuariosANotificar)) {
+            error_log("submitCorreccion: Enviando notificaciones a " . count($usuariosANotificar) . " usuario(s)");
+            
+            foreach ($usuariosANotificar as $usuarioId => $info) {
+                try {
+                    $usuarioANotificar = $usuarioModel->getUsuarioById($usuarioId);
+                    if ($usuarioANotificar && !empty($usuarioANotificar['email'])) {
+                        $loginController = new LoginController();
+                        
+                        if ($info['tipo'] === 'SUPERVISOR') {
+                            $emailSent = $loginController->sendCorreccionCompletadaNotification(
+                                $usuarioANotificar['email'],
+                                $usuarioANotificar['nombre'],
+                                $id,
+                                $info['no_factura'],
+                                $usuario['nombre'], // Nombre del encargado que corrigió
+                                'SUPERVISOR'
+                            );
+                        } else {
+                            $emailSent = $loginController->sendCorreccionCompletadaNotification(
+                                $usuarioANotificar['email'],
+                                $usuarioANotificar['nombre'],
+                                $id,
+                                $info['no_factura'],
+                                $usuario['nombre'], // Nombre del encargado que corrigió
+                                'CONTADOR'
+                            );
+                        }
+
+                        if ($emailSent) {
+                            error_log("✅ Correo de corrección completada enviado a {$info['tipo']}: " . $usuarioANotificar['email']);
+                        } else {
+                            error_log("⚠️ No se pudo enviar correo de corrección completada a {$info['tipo']}: " . $usuarioANotificar['email']);
+                        }
+                    } else {
+                        error_log("⚠️ No se encontró información del {$info['tipo']} ID $usuarioId para enviar notificación");
+                    }
+                } catch (Exception $e) {
+                    error_log("❌ Error al enviar correo de corrección completada a {$info['tipo']} ID $usuarioId: " . $e->getMessage());
+                    // No detener el proceso principal si falla el correo
+                }
+            }
+        } else {
+            error_log("⚠️ submitCorreccion: No se encontraron usuarios para notificar");
+        }
+
+        $this->pdo->commit();
+        error_log("submitCorreccion: $updatedCount detalle(s) actualizados para liquidación ID $id a rol $normalized_role");
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'message' => "Correcciones enviadas correctamente a $normalized_role",
+            'notifications_sent' => count($usuariosANotificar)
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        $this->pdo->rollBack();
+        error_log('submitCorreccion: Error al enviar correcciones para liquidación ID $id: ' . $e->getMessage());
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al enviar correcciones: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 
     public function getLiquidacionState($id)
     {

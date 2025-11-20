@@ -704,4 +704,263 @@ public function sendEncargadoNotification($email, $nombre, $liquidationId, $liqu
         return false;
     }
 }
+
+public function sendCorreccionNotification($email, $nombre, $liquidationId, $detallesEnviadosACorreccion, $contadorName) {
+    try {
+        error_log("🔧 Enviando correo de corrección requerida a encargado: $email");
+        
+        $asunto = 'Corrección Requerida en Liquidación - AgroCaja Chica';
+        
+        $systemUrl = $this->getSystemUrl();
+        
+        // Preparar la lista de detalles que requieren corrección
+        $listaDetalles = '';
+        $facturasUnicas = [];
+        
+        foreach ($detallesEnviadosACorreccion as $index => $detalle) {
+            $listaDetalles .= "
+                <div style='background: #fff3cd; padding: 10px; margin: 5px 0; border-radius: 5px; border-left: 4px solid #ffc107;'>
+                    <strong>Detalle #" . ($index + 1) . ":</strong><br>
+                    <strong>Factura:</strong> {$detalle['no_factura']}<br>
+                    <strong>Tipo de Gasto:</strong> {$detalle['t_gasto']}<br>
+                    <strong>Comentario de correcion:</strong> {$detalle['comentario']}
+                </div>
+            ";
+            
+            // Agregar a facturas únicas para el resumen
+            if (!in_array($detalle['no_factura'], $facturasUnicas)) {
+                $facturasUnicas[] = $detalle['no_factura'];
+            }
+        }
+        
+        $resumenFacturas = implode(', ', $facturasUnicas);
+        $cantidadDetalles = count($detallesEnviadosACorreccion);
+
+        $mensaje = "
+            <html>
+            <head>
+                <title>Corrección Requerida</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center; border: 1px solid #ffc107; }
+                    .info-box { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #007bff; }
+                    .warning-box { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
+                    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+                    .btn { display: inline-block; padding: 12px 24px; background: #ffc107; color: #212529; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                    .urgent { color: #d9534f; font-weight: bold; }
+                    .steps { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h2>⚠️ Corrección Requerida - AgroCaja Chica</h2>
+                    </div>
+                    
+                    <p>Hola <strong>{$nombre}</strong>,</p>
+                    
+                    <p><strong>{$contadorName}</strong> ha enviado <strong>{$cantidadDetalles} detalle(s)</strong> de tu liquidación para corrección.</p>
+                    
+                    <div class='warning-box'>
+                        <h3>📋 Resumen de Correcciones</h3>
+                        <p><strong>ID de Liquidación:</strong> #{$liquidationId}</p>
+                        <p><strong>Facturas afectadas:</strong> {$resumenFacturas}</p>
+                        <p><strong>Total de detalles a corregir:</strong> {$cantidadDetalles}</p>
+                        <p><strong>Solicitado por:</strong> {$contadorName}</p>
+                        <p><strong>Fecha de solicitud:</strong> " . date('d/m/Y H:i') . "</p>
+                    </div>
+                    
+                    <div class='info-box'>
+                        <h3>📝 Detalles que Requieren Corrección</h3>
+                        {$listaDetalles}
+                    </div>
+                    
+                    <div class='steps'>
+                        <h4>🔧 Para corregir los detalles:</h4>
+                        <ol>
+                            <li>Inicia sesión en el sistema</li>
+                            <li>Ve a la sección <strong>Liquidaciones</strong></li>
+                            <li>Busca la liquidación con ID <strong>#{$liquidationId}</strong></li>
+                            <li>Revisa los detalles marcados en <strong style='color: #ffc107;'>CORRECCIÓN</strong></li>
+                            <li>Realiza las correcciones solicitadas</li>
+                            <li>Guarda los cambios</li>
+                        </ol>
+                    </div>
+                    
+                    <p style='text-align: center;'>
+                        <a href='{$systemUrl}' class='btn'>
+                            🔧 Corregir Liquidación
+                        </a>
+                    </p>
+                    
+                    <p style='text-align: center; font-size: 14px; color: #666;'>
+                        <em>Una vez que realices las correcciones, la liquidación volverá a revisión.</em>
+                    </p>
+                    
+                    <div class='footer'>
+                        <p>Este es un mensaje automático del sistema AgroCaja Chica.</p>
+                        <p>Por favor no respondas a este correo.</p>
+                        <p>AgroCaja Chica &copy; " . date('Y') . "</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ";
+        
+        $mensajeAlterno = "CORRECCIÓN REQUERIDA - AGROCAJA CHICA\n\n" .
+            "Hola {$nombre},\n\n" .
+            "{$contadorName} ha enviado {$cantidadDetalles} detalle(s) de tu liquidación para corrección.\n\n" .
+            "RESUMEN DE CORRECCIONES:\n" .
+            "ID de Liquidación: #{$liquidationId}\n" .
+            "Facturas afectadas: {$resumenFacturas}\n" .
+            "Total de detalles a corregir: {$cantidadDetalles}\n" .
+            "Solicitado por: {$contadorName}\n" .
+            "Fecha: " . date('d/m/Y H:i') . "\n\n" .
+            "DETALLES QUE REQUIEREN CORRECCIÓN:\n";
+        
+        foreach ($detallesEnviadosACorreccion as $index => $detalle) {
+            $mensajeAlterno .= "Detalle #" . ($index + 1) . ":\n" .
+                "  Factura: {$detalle['no_factura']}\n" .
+                "  Tipo de Gasto: {$detalle['t_gasto']}\n" .
+                "  Comentario: {$detalle['comentario']}\n\n";
+        }
+        
+        $mensajeAlterno .= "PARA CORREGIR LOS DETALLES:\n" .
+            "1. Inicia sesión en el sistema: {$systemUrl}\n" .
+            "2. Ve a la sección 'Liquidaciones'\n" .
+            "3. Busca la liquidación con ID #{$liquidationId}\n" .
+            "4. Revisa los detalles marcados en CORRECCIÓN\n" .
+            "5. Realiza las correcciones solicitadas\n" .
+            "6. Guarda los cambios\n\n" .
+            "Una vez que realices las correcciones, la liquidación volverá a revisión.\n\n" .
+            "Saludos,\nSistema AgroCaja Chica";
+
+        $result = $this->sendWithExactConfig($email, $nombre, $asunto, $mensaje, $mensajeAlterno);
+        
+        if ($result) {
+            error_log("✅ Correo de corrección requerida enviado exitosamente al encargado: $email");
+        } else {
+            error_log("❌ Falló el envío de correo de corrección requerida al encargado: $email");
+        }
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        error_log("❌ Error enviando notificación de corrección requerida al encargado: " . $e->getMessage());
+        return false;
+    }
+}
+
+public function sendCorreccionCompletadaNotification($email, $nombre, $liquidationId, $noFactura, $encargadoName, $tipoUsuario) {
+    try {
+        error_log("🔧 Enviando correo de corrección completada a $tipoUsuario: $email");
+        
+        $asunto = 'Corrección Completada - Liquidación Lista para Revisión - AgroCaja Chica';
+        
+        $systemUrl = $this->getSystemUrl();
+        
+        $tipoUsuarioTexto = $tipoUsuario === 'SUPERVISOR' ? 'supervisor' : 'contador';
+        $estadoDestino = $tipoUsuario === 'SUPERVISOR' ? 'PENDIENTE_AUTORIZACION' : 'PENDIENTE_REVISION_CONTABILIDAD';
+        
+        $mensaje = "
+            <html>
+            <head>
+                <title>Corrección Completada</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #d4edda; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
+                    .info-box { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #28a745; }
+                    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+                    .btn { display: inline-block; padding: 12px 24px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                    .success { color: #28a745; font-weight: bold; }
+                    .steps { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h2>✅ Corrección Completada - AgroCaja Chica</h2>
+                    </div>
+                    
+                    <p>Hola <strong>{$nombre}</strong>,</p>
+                    
+                    <p>El encargado <strong>{$encargadoName}</strong> ha completado las correcciones que solicitaste y la liquidación está lista para tu revisión.</p>
+                    
+                    <div class='info-box'>
+                        <h3>📊 Información de la Liquidación</h3>
+                        <p><strong>ID de Liquidación:</strong> #{$liquidationId}</p>
+                        <p><strong>Factura Corregida:</strong> {$noFactura}</p>
+                        <p><strong>Estado Actual:</strong> <span class='success'>{$estadoDestino}</span></p>
+                        <p><strong>Corregido por:</strong> {$encargadoName}</p>
+                        <p><strong>Fecha de Corrección:</strong> " . date('d/m/Y H:i') . "</p>
+                        <p><strong>Destino:</strong> Revisión por {$tipoUsuarioTexto}</p>
+                    </div>
+                    
+                    <div class='steps'>
+                        <h4>📝 Para revisar la liquidación corregida:</h4>
+                        <ol>
+                            <li>Inicia sesión en el sistema</li>
+                            <li>Ve a la sección <strong>Liquidaciones</strong></li>
+                            <li>Busca la liquidación con ID <strong>#{$liquidationId}</strong></li>
+                            <li>Revisa los detalles que fueron corregidos</li>
+                            <li>Continúa con el proceso de autorización/revisión</li>
+                        </ol>
+                    </div>
+                    
+                    <p style='text-align: center;'>
+                        <a href='{$systemUrl}' class='btn'>
+                            🔍 Revisar Liquidación
+                        </a>
+                    </p>
+                    
+                    <p style='text-align: center; font-size: 14px; color: #666;'>
+                        <em>La liquidación está esperando tu revisión para continuar con el proceso.</em>
+                    </p>
+                    
+                    <div class='footer'>
+                        <p>Este es un mensaje automático del sistema AgroCaja Chica.</p>
+                        <p>Por favor no respondas a este correo.</p>
+                        <p>AgroCaja Chica &copy; " . date('Y') . "</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ";
+        
+        $mensajeAlterno = "CORRECCIÓN COMPLETADA - AGROCAJA CHICA\n\n" .
+            "Hola {$nombre},\n\n" .
+            "El encargado {$encargadoName} ha completado las correcciones que solicitaste y la liquidación está lista para tu revisión.\n\n" .
+            "INFORMACIÓN DE LA LIQUIDACIÓN:\n" .
+            "ID: #{$liquidationId}\n" .
+            "Factura Corregida: {$noFactura}\n" .
+            "Estado Actual: {$estadoDestino}\n" .
+            "Corregido por: {$encargadoName}\n" .
+            "Fecha: " . date('d/m/Y H:i') . "\n" .
+            "Destino: Revisión por {$tipoUsuarioTexto}\n\n" .
+            "PARA REVISAR LA LIQUIDACIÓN CORREGIDA:\n" .
+            "1. Inicia sesión en el sistema: {$systemUrl}\n" .
+            "2. Ve a la sección 'Liquidaciones'\n" .
+            "3. Busca la liquidación con ID #{$liquidationId}\n" .
+            "4. Revisa los detalles que fueron corregidos\n" .
+            "5. Continúa con el proceso de autorización/revisión\n\n" .
+            "La liquidación está esperando tu revisión para continuar con el proceso.\n\n" .
+            "Saludos,\nSistema AgroCaja Chica";
+
+        $result = $this->sendWithExactConfig($email, $nombre, $asunto, $mensaje, $mensajeAlterno);
+        
+        if ($result) {
+            error_log("✅ Correo de corrección completada enviado exitosamente a {$tipoUsuario}: $email");
+        } else {
+            error_log("❌ Falló el envío de correo de corrección completada a {$tipoUsuario}: $email");
+        }
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        error_log("❌ Error enviando notificación de corrección completada a {$tipoUsuario}: " . $e->getMessage());
+        return false;
+    }
+}
 }
