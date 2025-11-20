@@ -1487,7 +1487,7 @@ function savePhoto() {
     photoPreviewContainer.appendChild(previewDiv);
 
     closeCameraModal();
-  }, 'image/jpeg', 0.9); // Calidad inicial del 90%
+  }, 'image/jpeg', 0.92); // Calidad inicial del 90%
 }
 
 function removePhoto(fileToRemove, previewDiv) {
@@ -1807,7 +1807,7 @@ async function convertPdfToImages(pdfFile) {
                 for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
                     try {
                         const page = await pdf.getPage(pageNum);
-                        const viewport = page.getViewport({ scale: 1.2 }); // Escala ligeramente reducida
+                        const viewport = page.getViewport({ scale: 1.4 }); // Escala ligeramente reducida
                         
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
@@ -1823,7 +1823,7 @@ async function convertPdfToImages(pdfFile) {
                         
                         // Convertir canvas a Blob con compresión
                         const blob = await new Promise(resolve => {
-                            canvas.toBlob(resolve, 'image/jpeg', 0.75); // 75% de calidad
+                            canvas.toBlob(resolve, 'image/jpeg', 0.80); // 75% de calidad
                         });
                         
                         const convertedFile = new File(
@@ -1904,7 +1904,7 @@ async function processUploadedFiles(files) {
                     // Comprimir las imágenes convertidas del PDF
                     for (let convertedFile of convertedFiles) {
                         if (needsCompression(convertedFile)) {
-                            const compressedFile = await compressImage(convertedFile, 0.8, 1000);
+                            const compressedFile = await compressImage(convertedFile, 0.78, 1400);
                             processedFiles.push(compressedFile);
                             
                             console.log(`PDF página comprimida: ${convertedFile.size} -> ${compressedFile.size} bytes (${((1 - compressedFile.size/convertedFile.size) * 100).toFixed(1)}% reducción)`);
@@ -1922,7 +1922,7 @@ async function processUploadedFiles(files) {
             // Comprimir imágenes normales
             if (needsCompression(file)) {
                 try {
-                    const compressedFile = await compressImage(file, 0.8, 1200);
+                    const compressedFile = await compressImage(file, 0.75, 1400);
                     processedFiles.push(compressedFile);
                     
                     console.log(`Imagen comprimida: ${file.size} -> ${compressedFile.size} bytes (${((1 - compressedFile.size/file.size) * 100).toFixed(1)}% reducción)`);
@@ -1956,7 +1956,7 @@ async function processUploadedFiles(files) {
 }
 
 // Función para comprimir imágenes
-async function compressImage(file, quality = 0.7, maxWidth = 1200) {
+async function compressImage(file, quality = 0.75, maxWidth = 1400) {
     return new Promise((resolve) => {
         const reader = new FileReader();
         
@@ -1991,6 +1991,7 @@ async function compressImage(file, quality = 0.7, maxWidth = 1200) {
                             file.name,
                             { 
                                 type: 'image/jpeg',
+                                quality,
                                 lastModified: new Date().getTime()
                             }
                         );
@@ -2007,7 +2008,7 @@ async function compressImage(file, quality = 0.7, maxWidth = 1200) {
 }
 
 // Función para verificar si una imagen necesita compresión
-function needsCompression(file, maxSizeMB = 1) {
+function needsCompression(file, maxSizeMB = 1.8) {
     return file.size > maxSizeMB * 1024 * 1024;
 }
 
