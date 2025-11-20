@@ -203,6 +203,13 @@
         .dashboard-card.en-correccion h3 { color: #e67e22; }
         .dashboard-card.en-correccion .status-icon { background: #e67e22; }
 
+        /* NUEVO ESTADO: EXPIRADO */
+        .dashboard-card.expirado {
+            border-top-color: #7f8c8d;
+        }
+        .dashboard-card.expirado h3 { color: #7f8c8d; }
+        .dashboard-card.expirado .status-icon { background: #7f8c8d; }
+
         /* Separador */
         .divider {
             height: 1px;
@@ -235,6 +242,7 @@
         .dashboard-card:nth-child(7) { animation-delay: 0.4s; }
         .dashboard-card:nth-child(8) { animation-delay: 0.45s; }
         .dashboard-card:nth-child(9) { animation-delay: 0.5s; }
+        .dashboard-card:nth-child(10) { animation-delay: 0.55s; } /* Nueva animación para EXPIRADO */
 
         /* Estilo responsivo */
         @media (max-width: 768px) {
@@ -426,6 +434,25 @@
                 <div class="stat-row">
                     <span class="stat-label">Monto Total</span>
                     <span class="stat-value monto">Q<?php echo number_format($resumen['FINALIZADO']['monto'], 2); ?></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVA TARJETA: EXPIRADO -->
+        <div class="dashboard-card expirado">
+            <div class="status-icon">⏰</div>
+            <h3>Expirado</h3>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['EXPIRADO']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['EXPIRADO']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['EXPIRADO']['monto'], 2); ?></span>
                 </div>
             </div>
         </div>

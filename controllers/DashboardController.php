@@ -25,7 +25,7 @@ class DashboardController {
 
         $liquidacionModel = new Liquidacion();
 
-        // Initialize summary array
+        // Initialize summary array - INCLUYENDO EXPIRADO
         $resumen = [
             'EN_PROCESO' => ['cantidad' => 0, 'monto' => 0],
             'PENDIENTE_AUTORIZACION' => ['cantidad' => 0, 'monto' => 0],
@@ -34,6 +34,7 @@ class DashboardController {
             'AUTORIZADO_POR_CONTABILIDAD' => ['cantidad' => 0, 'monto' => 0],
             'RECHAZADO_POR_CONTABILIDAD' => ['cantidad' => 0, 'monto' => 0],
             'FINALIZADO' => ['cantidad' => 0, 'monto' => 0],
+            'EXPIRADO' => ['cantidad' => 0, 'monto' => 0], // NUEVO ESTADO
             'DESCARTADO' => ['cantidad' => 0, 'monto' => 0],
             'EN_CORRECCION' => ['cantidad' => 0, 'monto' => 0],
         ];
