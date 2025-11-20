@@ -9,6 +9,55 @@ class Liquidacion {
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
+    public function checkAndFinalizeOldLiquidaciones() {
+    try {
+        $twoWeeksAgo = date('Y-m-d 00:00:00', strtotime('-2 weeks'));
+        error_log("Auto-expirado liquidaciones creadas antes de: $twoWeeksAgo");
+        
+        // Cambiar estado a EXPIRADO en lugar de FINALIZADO
+        $query = "
+            UPDATE liquidaciones 
+            SET estado = 'EXPIRADO', 
+                updated_at = NOW() 
+            WHERE estado IN ('EN_PROCESO', 'PENDIENTE_REVISION_CONTABILIDAD', 'PENDIENTE_AUTORIZACION')
+            AND fecha_creacion <= ?
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $result = $stmt->execute([$twoWeeksAgo]);
+        $rowCount = $stmt->rowCount();
+        
+        error_log("Auto-expiradas $rowCount liquidaciones antiguas");
+        return $rowCount;
+        
+    } catch (PDOException $e) {
+        error_log("Error en checkAndFinalizeOldLiquidaciones: " . $e->getMessage());
+        return 0;
+    }
+}
+
+public function getLiquidacionAgeInWeeks($fechaCreacion) {
+    $creacion = new DateTime($fechaCreacion);
+    $hoy = new DateTime();
+    $diferencia = $creacion->diff($hoy);
+    return floor($diferencia->days / 7);
+}
+
+public function hasRecentMovements($liquidacionId, $weeks = 2) {
+    $dateLimit = date('Y-m-d H:i:s', strtotime("-$weeks weeks"));
+    
+    $stmt = $this->pdo->prepare("
+        SELECT COUNT(*) as count 
+        FROM detalle_liquidaciones 
+        WHERE id_liquidacion = ? 
+        AND (created_at > ? OR updated_at > ?)
+    ");
+    $stmt->execute([$liquidacionId, $dateLimit, $dateLimit]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    return $result['count'] > 0;
+}
+
     public function getAllLiquidaciones($idUsuario = null, $idSupervisor = null, $estado = null, $idContador = null) {
         $query = "
             SELECT l.*, 
@@ -187,31 +236,26 @@ class Liquidacion {
     }
 
     public function getLiquidacionesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
-    $query = "
-        SELECT l.*, 
-               cc.nombre as caja_chica, 
-               SUM(dl.total_factura) as total_gastos
-        FROM liquidaciones l
-        LEFT JOIN detalle_liquidaciones dl ON l.id = dl.id_liquidacion
-        LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
-        WHERE l.fecha_inicio >= ? 
-          AND l.fecha_fin <= ?
-          AND l.estado = 'FINALIZADO'        
-          AND dl.estado = 'FINALIZADO'
-    ";
-    $params = [$fechaInicio, $fechaFin];
+        $query = "
+            SELECT l.*, cc.nombre as caja_chica, SUM(dl.total_factura) as total_gastos
+            FROM liquidaciones l
+            LEFT JOIN detalle_liquidaciones dl ON l.id = dl.id_liquidacion
+            LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id
+            WHERE l.fecha_inicio >= ? AND l.fecha_fin <= ?
+        ";
+        $params = [$fechaInicio, $fechaFin];
 
-    if (!empty($idCajaChica)) {
-        $query .= " AND l.id_caja_chica = ?";
-        $params[] = $idCajaChica;
+        if (!empty($idCajaChica)) {
+            $query .= " AND l.id_caja_chica = ?";
+            $params[] = $idCajaChica;
+        }
+
+        $query .= " GROUP BY l.id";
+
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    $query .= " GROUP BY l.id ORDER BY l.id DESC";
-
-    $stmt = $this->pdo->prepare($query);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
 
     public function updateMontoTotal($id, $montoTotal) {
         $stmt = $this->pdo->prepare("UPDATE liquidaciones SET monto_total = ? WHERE id = ?");
@@ -268,4 +312,6 @@ class Liquidacion {
         return $result['exportado'] ?? 0;
     }
 }
+
+
 ?>
