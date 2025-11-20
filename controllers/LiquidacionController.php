@@ -177,6 +177,8 @@ class LiquidacionController
             exit;
         }
 
+        $this->liquidacionModel->checkAndFinalizeOldLiquidaciones();
+
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
         if (!$usuario) {
@@ -640,7 +642,8 @@ class LiquidacionController
                     'PENDIENTE_REVISION_CONTABILIDAD',
                     'FINALIZADO',
                     'RECHAZADO_AUTORIZACION',
-                    'RECHAZADO_POR_CONTABILIDAD'
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'EXPIRADO' 
                 ];
                 if (!in_array($estado, $allowedEstados)) {
                     throw new Exception("Estado no permitido: {$estado}. Contacta al administrador del sistema.");
