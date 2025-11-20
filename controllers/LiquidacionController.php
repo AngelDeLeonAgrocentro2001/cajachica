@@ -1824,8 +1824,8 @@ class LiquidacionController
 
                         // ENVIAR CORREO AL CONTADOR
                         try {
-                            $contadorEmail = "angel.deleon@agrocentro.com";
-                            $contadorNombre = "Angel De Leon";
+                            $contadorEmail = "cajachica@agrocentro.com";
+                            $contadorNombre = "Equipo de Contabilidad";
 
                             $loginController = new LoginController();
                             $emailSent = $loginController->sendContadorNotification(
