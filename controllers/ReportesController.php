@@ -11,16 +11,14 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Mpdf\Mpdf;
 
-class ReportesController
-{
+class ReportesController {
     private $liquidacionModel;
     private $detalleLiquidacionModel;
     private $cajaChicaModel;
     private $usuarioModel;
     private $baseUrl;
 
-    public function __construct()
-    {
+    public function __construct() {
         $this->liquidacionModel = new Liquidacion();
         $this->detalleLiquidacionModel = new DetalleLiquidacion();
         $this->cajaChicaModel = new CajaChica();
@@ -29,8 +27,7 @@ class ReportesController
         $this->baseUrl = 'http://localhost:8080/agrocaja-chica/';
     }
 
-    public function list()
-    {
+    public function list() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -50,8 +47,7 @@ class ReportesController
         exit;
     }
 
-    public function generarResumen()
-    {
+    public function generarResumen() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -113,8 +109,7 @@ class ReportesController
                                 <td data-label="Total Gastos"><?php echo htmlspecialchars($liquidacion['total_gastos'] ?? '0.00'); ?></td>
                                 <td data-label="Estado"><?php echo htmlspecialchars($liquidacion['estado']); ?></td>
                                 <td data-label="Acciones">
-                                    <button class="btn-primary" onclick="showDetalles(<?php echo $liquidacion['id']; ?>)">Ver
-                                        Detalles</button>
+                                    <button class="btn-primary" onclick="showDetalles(<?php echo $liquidacion['id']; ?>)">Ver Detalles</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -140,8 +135,7 @@ class ReportesController
         exit;
     }
 
-    public function generarDetalle()
-    {
+    public function generarDetalle() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -201,8 +195,7 @@ class ReportesController
                                 <td data-label="Liquidación Fecha"><?php echo htmlspecialchars($detalle['liquidacion_fecha']); ?></td>
                                 <td data-label="Caja Chica"><?php echo htmlspecialchars($detalle['caja_chica']); ?></td>
                                 <td data-label="No. Factura"><?php echo htmlspecialchars($detalle['no_factura']); ?></td>
-                                <td data-label="Nombre Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A'); ?>
-                                </td>
+                                <td data-label="Nombre Proveedor"><?php echo htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A'); ?></td>
                                 <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
                                 <td data-label="Total Factura"><?php echo htmlspecialchars($detalle['total_factura']); ?></td>
                                 <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
@@ -230,136 +223,134 @@ class ReportesController
         exit;
     }
 
-    private function exportResumenToPDF($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica)
-    {
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        try {
-            $mpdf = new Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4-L',
-                'margin_top' => 20,
-                'margin_bottom' => 20,
-                'margin_left' => 15,
-                'margin_right' => 15,
-            ]);
-
-            $mpdf->SetTitle('Reporte de Resumen - Solo Finalizadas');
-            $mpdf->SetAuthor('AgroCaja Chica');
-
-            $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Resumen de Liquidaciones (Solo Finalizadas)</h1>';
-            $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
-
-            if ($idCajaChica) {
-                $caja = $this->cajaChicaModel->getCajaChicaById($idCajaChica);
-                $cajaNombre = $caja ? $caja['nombre'] : 'Desconocida';
-                $html .= "<p style='text-align: center; color: #555;'>Caja Chica: " . htmlspecialchars($cajaNombre) . "</p>";
-            }
-
-            $html .= '<table border="1" style="width:100%; border-collapse:collapse; font-size: 12px;">';
-            $html .= '<thead>';
-            $html .= '<tr style="background-color:#2c3e50; color:white;">';
-            $html .= '<th style="padding: 8px;">ID</th>';
-            $html .= '<th style="padding: 8px;">Caja Chica</th>';
-            $html .= '<th style="padding: 8px;">Fecha Creación</th>';
-            $html .= '<th style="padding: 8px;">Monto Total</th>';
-            $html .= '<th style="padding: 8px;">Total Gastos</th>';
-            $html .= '<th style="padding: 8px;">Estado</th>';
-            $html .= '</tr>';
-            $html .= '</thead>';
-            $html .= '<tbody>';
-
-            $hayDatos = false;
-
-            foreach ($liquidaciones as $liquidacion) {
-                // 1. FILTRAR SOLO LAS LIQUIDACIONES FINALIZADAS
-                if (!isset($liquidacion['estado']) || strtoupper(trim($liquidacion['estado'])) !== 'FINALIZADO') {
-                    continue; // Saltar esta liquidación
-                }
-
-                $hayDatos = true;
-
-                $id = $liquidacion['id'] ?? '';
-                $cajaChica = $liquidacion['caja_chica'] ?? '';
-                $fechaCreacion = $liquidacion['fecha_creacion'] ?? '';
-                $montoTotal = $liquidacion['monto_total'] ?? '';
-                $totalGastos = $liquidacion['total_gastos'] ?? '0.00';
-                $estado = $liquidacion['estado'] ?? '';
-
-                // Fila principal de la liquidación
-                $html .= '<tr>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($id) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($cajaChica) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fechaCreacion) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($montoTotal) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalGastos) . '</td>';
-                $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">' . htmlspecialchars($estado) . '</td>';
-                $html .= '</tr>';
-
-                // 2. OBTENER DETALLES Y FILTRAR SOLO LOS FINALIZADOS
-                $todosDetalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
-                $detallesFinalizados = array_filter($todosDetalles, function ($d) {
-                    return isset($d['estado']) && strtoupper(trim($d['estado'])) === 'FINALIZADO';
-                });
-
-                if (!empty($detallesFinalizados)) {
-                    // Cabecera de detalles
-                    $html .= '<tr>';
-                    $html .= '<td colspan="6" style="padding: 8px; background-color: #e9ecef; font-weight: bold;">Detalles de Liquidación #' . htmlspecialchars($id) . '</td>';
-                    $html .= '</tr>';
-
-                    $html .= '<tr style="background-color:#4a6a8a; color:white;">';
-                    $html .= '<th style="padding: 8px;">ID Detalle</th>';
-                    $html .= '<th style="padding: 8px;">No. Factura</th>';
-                    $html .= '<th style="padding: 8px;">Proveedor</th>';
-                    $html .= '<th style="padding: 8px;">Fecha</th>';
-                    $html .= '<th style="padding: 8px;">Total Factura</th>';
-                    $html .= '<th style="padding: 8px;">Estado</th>';
-                    $html .= '</tr>';
-
-                    foreach ($detallesFinalizados as $detalle) {
-                        $html .= '<tr>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['id'] ?? '') . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['no_factura'] ?? '') . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A') . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['fecha'] ?? '') . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['total_factura'] ?? '0.00') . '</td>';
-                        $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">Finalizado</td>';
-                        $html .= '</tr>';
-                    }
-                }
-                // Si no hay detalles finalizados, puedes omitir la sección o poner un mensaje
-                else {
-                    $html .= '<tr>';
-                    $html .= '<td colspan="6" style="padding: 8px; text-align: center; color:#888; font-style:italic;">No hay facturas finalizadas en esta liquidación.</td>';
-                    $html .= '</tr>';
-                }
-            }
-
-            if (!$hayDatos) {
-                $html .= '<tr>';
-                $html .= '<td colspan="6" style="padding: 20px; text-align: center; color:#888;">No se encontraron liquidaciones con estado "Finalizado" en el rango seleccionado.</td>';
-                $html .= '</tr>';
-            }
-
-            $html .= '</tbody></table>';
-
-            $mpdf->WriteHTML($html);
-            $mpdf->Output('reporte_resumen_solo_finalizadas.pdf', 'D');
-            exit;
-
-        } catch (Exception $e) {
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
-            exit;
-        }
+    private function exportResumenToPDF($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
+    while (ob_get_level()) {
+        ob_end_clean();
     }
 
-    private function exportResumenToExcel($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica)
-    {
+    try {
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L',
+            'margin_top' => 20,
+            'margin_bottom' => 20,
+            'margin_left' => 15,
+            'margin_right' => 15,
+        ]);
+
+        $mpdf->SetTitle('Reporte de Resumen - Solo Finalizadas');
+        $mpdf->SetAuthor('AgroCaja Chica');
+
+        $html = '<h1 style="text-align: center; color: #2c3e50;">Reporte de Resumen de Liquidaciones (Solo Finalizadas)</h1>';
+        $html .= "<p style='text-align: center; color: #555;'>Fecha Inicio: " . htmlspecialchars($fechaInicio) . " | Fecha Fin: " . htmlspecialchars($fechaFin) . "</p>";
+
+        if ($idCajaChica) {
+            $caja = $this->cajaChicaModel->getCajaChicaById($idCajaChica);
+            $cajaNombre = $caja ? $caja['nombre'] : 'Desconocida';
+            $html .= "<p style='text-align: center; color: #555;'>Caja Chica: " . htmlspecialchars($cajaNombre) . "</p>";
+        }
+
+        $html .= '<table border="1" style="width:100%; border-collapse:collapse; font-size: 12px;">';
+        $html .= '<thead>';
+        $html .= '<tr style="background-color:#2c3e50; color:white;">';
+        $html .= '<th style="padding: 8px;">ID</th>';
+        $html .= '<th style="padding: 8px;">Caja Chica</th>';
+        $html .= '<th style="padding: 8px;">Fecha Creación</th>';
+        $html .= '<th style="padding: 8px;">Monto Total</th>';
+        $html .= '<th style="padding: 8px;">Total Gastos</th>';
+        $html .= '<th style="padding: 8px;">Estado</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        $hayDatos = false;
+
+        foreach ($liquidaciones as $liquidacion) {
+            // 1. FILTRAR SOLO LAS LIQUIDACIONES FINALIZADAS
+            if (!isset($liquidacion['estado']) || strtoupper(trim($liquidacion['estado'])) !== 'FINALIZADO') {
+                continue; // Saltar esta liquidación
+            }
+
+            $hayDatos = true;
+
+            $id            = $liquidacion['id'] ?? '';
+            $cajaChica     = $liquidacion['caja_chica'] ?? '';
+            $fechaCreacion = $liquidacion['fecha_creacion'] ?? '';
+            $montoTotal    = $liquidacion['monto_total'] ?? '';
+            $totalGastos   = $liquidacion['total_gastos'] ?? '0.00';
+            $estado        = $liquidacion['estado'] ?? '';
+
+            // Fila principal de la liquidación
+            $html .= '<tr>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($id) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($cajaChica) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($fechaCreacion) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($montoTotal) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($totalGastos) . '</td>';
+            $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">' . htmlspecialchars($estado) . '</td>';
+            $html .= '</tr>';
+
+            // 2. OBTENER DETALLES Y FILTRAR SOLO LOS FINALIZADOS
+            $todosDetalles = $this->detalleLiquidacionModel->getDetallesByLiquidacionId($liquidacion['id']);
+            $detallesFinalizados = array_filter($todosDetalles, function($d) {
+                return isset($d['estado']) && strtoupper(trim($d['estado'])) === 'FINALIZADO';
+            });
+
+            if (!empty($detallesFinalizados)) {
+                // Cabecera de detalles
+                $html .= '<tr>';
+                $html .= '<td colspan="6" style="padding: 8px; background-color: #e9ecef; font-weight: bold;">Detalles de Liquidación #' . htmlspecialchars($id) . '</td>';
+                $html .= '</tr>';
+
+                $html .= '<tr style="background-color:#4a6a8a; color:white;">';
+                $html .= '<th style="padding: 8px;">ID Detalle</th>';
+                $html .= '<th style="padding: 8px;">No. Factura</th>';
+                $html .= '<th style="padding: 8px;">Proveedor</th>';
+                $html .= '<th style="padding: 8px;">Fecha</th>';
+                $html .= '<th style="padding: 8px;">Total Factura</th>';
+                $html .= '<th style="padding: 8px;">Estado</th>';
+                $html .= '</tr>';
+
+                foreach ($detallesFinalizados as $detalle) {
+                    $html .= '<tr>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['id'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['no_factura'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['nombre_proveedor'] ?? 'N/A') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['fecha'] ?? '') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($detalle['total_factura'] ?? '0.00') . '</td>';
+                    $html .= '<td style="padding: 8px; text-align: center; background-color:#d4edda;">Finalizado</td>';
+                    $html .= '</tr>';
+                }
+            }
+            // Si no hay detalles finalizados, puedes omitir la sección o poner un mensaje
+            else {
+                $html .= '<tr>';
+                $html .= '<td colspan="6" style="padding: 8px; text-align: center; color:#888; font-style:italic;">No hay facturas finalizadas en esta liquidación.</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        if (!$hayDatos) {
+            $html .= '<tr>';
+            $html .= '<td colspan="6" style="padding: 20px; text-align: center; color:#888;">No se encontraron liquidaciones con estado "Finalizado" en el rango seleccionado.</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+
+        $mpdf->WriteHTML($html);
+        $mpdf->Output('reporte_resumen_solo_finalizadas.pdf', 'D');
+        exit;
+
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+    private function exportResumenToExcel($liquidaciones, $fechaInicio, $fechaFin, $idCajaChica) {
         if (ob_get_length()) {
             ob_end_clean();
         }
@@ -415,8 +406,7 @@ class ReportesController
         exit;
     }
 
-    private function exportDetalleToPDF($detalles, $fechaInicio, $fechaFin, $idCajaChica)
-    {
+    private function exportDetalleToPDF($detalles, $fechaInicio, $fechaFin, $idCajaChica) {
         while (ob_get_level()) {
             ob_end_clean();
         }
@@ -457,14 +447,14 @@ class ReportesController
             $html .= '<tbody>';
 
             foreach ($detalles as $detalle) {
-                $id = isset($detalle['id']) ? (string) $detalle['id'] : '';
-                $liquidacionFecha = isset($detalle['liquidacion_fecha']) ? (string) $detalle['liquidacion_fecha'] : '';
-                $cajaChica = isset($detalle['caja_chica']) ? (string) $detalle['caja_chica'] : '';
-                $noFactura = isset($detalle['no_factura']) ? (string) $detalle['no_factura'] : '';
-                $nombreProveedor = isset($detalle['nombre_proveedor']) ? (string) $detalle['nombre_proveedor'] : 'N/A';
-                $fecha = isset($detalle['fecha']) ? (string) $detalle['fecha'] : '';
-                $totalFactura = isset($detalle['total_factura']) ? (string) $detalle['total_factura'] : '';
-                $estado = isset($detalle['estado']) ? (string) $detalle['estado'] : '';
+                $id = isset($detalle['id']) ? (string)$detalle['id'] : '';
+                $liquidacionFecha = isset($detalle['liquidacion_fecha']) ? (string)$detalle['liquidacion_fecha'] : '';
+                $cajaChica = isset($detalle['caja_chica']) ? (string)$detalle['caja_chica'] : '';
+                $noFactura = isset($detalle['no_factura']) ? (string)$detalle['no_factura'] : '';
+                $nombreProveedor = isset($detalle['nombre_proveedor']) ? (string)$detalle['nombre_proveedor'] : 'N/A';
+                $fecha = isset($detalle['fecha']) ? (string)$detalle['fecha'] : '';
+                $totalFactura = isset($detalle['total_factura']) ? (string)$detalle['total_factura'] : '';
+                $estado = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
 
                 $html .= '<tr>';
                 $html .= '<td style="padding: 8px; text-align: center;">' . htmlspecialchars($id) . '</td>';
@@ -492,8 +482,7 @@ class ReportesController
         }
     }
 
-    private function exportDetalleToExcel($detalles, $fechaInicio, $fechaFin, $idCajaChica)
-    {
+    private function exportDetalleToExcel($detalles, $fechaInicio, $fechaFin, $idCajaChica) {
         if (ob_get_length()) {
             ob_end_clean();
         }
@@ -553,8 +542,7 @@ class ReportesController
         exit;
     }
 
-    public function getDetallesByLiquidacion()
-    {
+    public function getDetallesByLiquidacion() {
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
             http_response_code(401);
@@ -616,14 +604,10 @@ class ReportesController
                                 <td data-label="DPI"><?php echo htmlspecialchars($detalle['dpi'] ?? 'N/A'); ?></td>
                                 <td data-label="Cantidad"><?php echo htmlspecialchars($detalle['cantidad'] ?? 'N/A'); ?></td>
                                 <td data-label="Serie"><?php echo htmlspecialchars($detalle['serie'] ?? 'N/A'); ?></td>
-                                <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?>
-                                </td>
+                                <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
                                 <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
-                                <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?>
-                                </td>
-                                <td data-label="Cuenta Contable">
-                                    <?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?>
-                                </td>
+                                <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
+                                <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
                                 <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
                                 <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
                                 <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
@@ -633,13 +617,13 @@ class ReportesController
                                 <td data-label="Estado"><?php echo htmlspecialchars($detalle['estado']); ?></td>
                                 <td data-label="Archivos">
                                     <?php
-                                    $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
-                                    if (is_array($rutas) && !empty($rutas)) {
-                                        foreach ($rutas as $index => $ruta) {
-                                            // Asegurar que la ruta esté correctamente formateada
-                                            $rutaLimpia = str_replace('\\', '/', $ruta);
-                                            $fileName = basename($rutaLimpia);
-                                            echo '
+                         $rutas = !empty($detalle['rutas_archivos']) ? json_decode($detalle['rutas_archivos'], true) : [];
+                         if (is_array($rutas) && !empty($rutas)) {
+                             foreach ($rutas as $index => $ruta) {
+                                 // Asegurar que la ruta esté correctamente formateada
+                                 $rutaLimpia = str_replace('\\', '/', $ruta);
+                                 $fileName = basename($rutaLimpia);
+                                  echo '
                                  <div class="file-item">
                                      <a href="' . htmlspecialchars($rutaLimpia) . '" 
                                         class="file-link" 
@@ -649,11 +633,11 @@ class ReportesController
                                         Ver archivo
                                      </a>
                                  </div>';
-                                        }
-                                    } else {
-                                        echo 'N/A';
-                                    }
-                                    ?>
+                             }
+                         } else {
+                             echo 'N/A';
+                         }
+                         ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -661,8 +645,7 @@ class ReportesController
                 </tbody>
             </table>
             <div class="export-buttons">
-                <button class="btn-export btn-export-pdf" onclick="exportDetallesToPDF(<?php echo $idLiquidacion; ?>)">Exportar a
-                    PDF</button>
+                <button class="btn-export btn-export-pdf" onclick="exportDetallesToPDF(<?php echo $idLiquidacion; ?>)">Exportar a PDF</button>
             </div>
             <?php
             $html = ob_get_clean();
@@ -675,94 +658,86 @@ class ReportesController
         exit;
     }
 
-    public function exportDetallesToPDF($idLiquidacion)
-    {
-        ini_set('memory_limit', '1024M');
-        ini_set('max_execution_time', 300);
-        ini_set('pcre.backtrack_limit', '10000000');
-        ini_set('pcre.recursion_limit', '10000000');
+    public function exportDetallesToPDF($idLiquidacion) {
+    ini_set('memory_limit', '1024M');
+    ini_set('max_execution_time', 300);
+    ini_set('pcre.backtrack_limit', '10000000');
+    ini_set('pcre.recursion_limit', '10000000');
+    
+    if (ob_get_length()) {
+        ob_end_clean();
+    }
 
-        if (ob_get_length()) {
-            ob_end_clean();
+    try {
+        if (!is_numeric($idLiquidacion) || $idLiquidacion <= 0) {
+            throw new Exception('ID de liquidación inválido: ' . $idLiquidacion);
         }
 
-        try {
-            if (!is_numeric($idLiquidacion) || $idLiquidacion <= 0) {
-                throw new Exception('ID de liquidación inválido: ' . $idLiquidacion);
+        error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
+
+        $detalles = $this->detalleLiquidacionModel->getDetallesFinalizadosByLiquidacionId($idLiquidacion);
+        if ($detalles === false) {
+            throw new Exception('Error al obtener detalles de la liquidación');
+        }
+
+        $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
+        if ($liquidacion === false) {
+            throw new Exception('Error al obtener liquidación');
+        }
+
+        $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
+        $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+
+        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
+        $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
+        $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
+
+        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
+        if ($codigo_cliente === 'N/A' && !empty($detalles)) {
+            $primerDetalle = reset($detalles);
+            if (isset($primerDetalle['codigo_cliente'])) {
+                $codigo_cliente = $primerDetalle['codigo_cliente'];
             }
+        }
 
-            error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
+        $cuentaContableModel = new CuentaContable();
+        $totalGeneral = 0;
+        $gastosPorTipo = [];
 
-            $detalles = $this->detalleLiquidacionModel->getDetallesFinalizadosByLiquidacionId($idLiquidacion);
-            if ($detalles === false) {
-                throw new Exception('Error al obtener detalles de la liquidación');
+        foreach ($detalles as &$detalle) {
+            $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
+            $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
+            $totalGeneral += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+            $tipoGasto = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : 'Sin Clasificar';
+            if (!isset($gastosPorTipo[$tipoGasto])) {
+                $gastosPorTipo[$tipoGasto] = 0;
             }
+            $gastosPorTipo[$tipoGasto] += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+        }
+        unset($detalle);
 
-            $liquidacion = $this->liquidacionModel->getLiquidacionById($idLiquidacion);
-            if ($liquidacion === false) {
-                throw new Exception('Error al obtener liquidación');
-            }
+        error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
 
-            $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
-            $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L',
+            'margin_top' => 20,
+            'margin_bottom' => 30,
+            'margin_left' => 20,
+            'margin_right' => 20,
+            'default_font_size' => 10,
+            'default_font' => 'Helvetica',
+        ]);
+        $mpdf->SetTitle('Reporte de Detalles de Liquidación');
+        $mpdf->SetAuthor('AgroCaja Chica');
 
-            // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
-            $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
-            $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
-
-            // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
-            if ($codigo_cliente === 'N/A' && !empty($detalles)) {
-                $primerDetalle = reset($detalles);
-                if (isset($primerDetalle['codigo_cliente'])) {
-                    $codigo_cliente = $primerDetalle['codigo_cliente'];
-                }
-            }
-
-            $cuentaContableModel = new CuentaContable();
-            $totalGeneral = 0;
-            $gastosPorTipo = [];
-
-            foreach ($detalles as &$detalle) {
-                $cuentaContable = $cuentaContableModel->getCuentaContableById($detalle['id_cuenta_contable']);
-                $detalle['cuenta_contable_nombre'] = $cuentaContable['nombre'] ?? 'N/A';
-                $totalGeneral += isset($detalle['total_factura']) ? (float) $detalle['total_factura'] : 0;
-                $tipoGasto = isset($detalle['t_gasto']) ? (string) $detalle['t_gasto'] : 'Sin Clasificar';
-                if (!isset($gastosPorTipo[$tipoGasto])) {
-                    $gastosPorTipo[$tipoGasto] = 0;
-                }
-                $gastosPorTipo[$tipoGasto] += isset($detalle['total_factura']) ? (float) $detalle['total_factura'] : 0;
-            }
-            unset($detalle);
-
-            error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
-
-            $mpdf = new Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4-L',
-                'margin_top' => 20,
-                'margin_bottom' => 30,
-                'margin_left' => 20,
-                'margin_right' => 20,
-                'default_font_size' => 10,
-                'default_font' => 'Helvetica',
-                'allow_charset_conversion' => true,
-                'autoScriptToLang' => true,
-                'autoLangToFont' => true,
-                'useSubstitutions' => true,
-                'img_dpi' => 96,
-                'showImageErrors' => true, // Mostrar errores de imágenes
-                'allow_output_buffering' => true
-            ]);
-            $mpdf->SetTitle('Reporte de Detalles de Liquidación');
-            $mpdf->SetAuthor('AgroCaja Chica');
-
-            $footerHtml = '
+        $footerHtml = '
             <div style="text-align: center; color: #6b7280; font-size: 9px;">
                 <p>Página {PAGENO} de {nbpg}</p>
             </div>';
-            $mpdf->SetFooter($footerHtml);
+        $mpdf->SetFooter($footerHtml);
 
-            $stylesheet = '
+        $stylesheet = '
             body {
                 color: #2d3748;
                 font-family: "Helvetica", sans-serif;
@@ -893,461 +868,353 @@ class ReportesController
                 color: #1a4971;
             }
         ';
+        
+        // Escribir el CSS primero
+        $mpdf->WriteHTML($stylesheet, 1);
 
-            // Escribir el CSS primero
-            $mpdf->WriteHTML($stylesheet, 1);
+        // Generar y escribir el HTML en chunks
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
 
-            // Generar y escribir el HTML en chunks
-            $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
+        error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
-            error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
 
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
-            header('Cache-Control: no-cache, no-store, must-revalidate');
-            header('Pragma: no-cache');
-            header('Expires: 0');
-
-            $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
-            error_log('PDF output completed for liquidation #' . $idLiquidacion);
+        $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
+        error_log('PDF output completed for liquidation #' . $idLiquidacion);
+        exit;
+    } catch (Exception $e) {
+        error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
+        if (headers_sent()) {
             exit;
-        } catch (Exception $e) {
-            error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
-            if (headers_sent()) {
-                exit;
-            }
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
-            exit;
+        }
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
+    // Chunk 1: Encabezado e información general
+    $htmlChunk1 = '<div class="content-container">';
+    $htmlChunk1 .= '<div class="logo-container">';
+    $htmlChunk1 .= '<img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo">';
+    $htmlChunk1 .= '</div>';
+
+    $htmlChunk1 .= '<div class="header">';
+    $htmlChunk1 .= '<h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>';
+    $htmlChunk1 .= '</div>';
+
+    $htmlChunk1 .= '<div class="info">';
+    $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
+    $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
+    $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
+    $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
+    $htmlChunk1 .= '</div>';
+
+    $mpdf->WriteHTML($htmlChunk1, 2);
+    unset($htmlChunk1); // Liberar memoria
+
+    // Chunk 2: Tabla de detalles (cabecera)
+    $htmlChunk2 = '<table class="table">';
+    $htmlChunk2 .= '<thead>';
+    $htmlChunk2 .= '<tr>';
+    $htmlChunk2 .= '<th>ID</th>';
+    $htmlChunk2 .= '<th>Tipo de Documento</th>';
+    $htmlChunk2 .= '<th>No. Factura</th>';
+    $htmlChunk2 .= '<th>Proveedor</th>';
+    $htmlChunk2 .= '<th>NIT</th>';
+    $htmlChunk2 .= '<th>DPI</th>';
+    $htmlChunk2 .= '<th>Cantidad</th>';
+    $htmlChunk2 .= '<th>Serie</th>';
+    $htmlChunk2 .= '<th>Centro de Costo</th>';
+    $htmlChunk2 .= '<th>Tipo de Gasto</th>';
+    $htmlChunk2 .= '<th>Tipo de Combustible</th>';
+    $htmlChunk2 .= '<th>Cuenta Contable</th>';
+    $htmlChunk2 .= '<th>Fecha</th>';
+    $htmlChunk2 .= '<th>Subtotal</th>';
+    $htmlChunk2 .= '<th>IVA</th>';
+    $htmlChunk2 .= '<th>IDP</th>';
+    $htmlChunk2 .= '<th>INGUAT</th>';
+    $htmlChunk2 .= '<th>Total Bruto</th>';
+    $htmlChunk2 .= '<th>Estado</th>';
+    $htmlChunk2 .= '</tr>';
+    $htmlChunk2 .= '</thead>';
+    $htmlChunk2 .= '<tbody>';
+
+    $mpdf->WriteHTML($htmlChunk2, 2);
+    unset($htmlChunk2);
+
+    // Chunk 3: Filas de la tabla (en grupos para evitar memoria excesiva)
+    $chunkSize = 10; // Procesar 10 filas a la vez
+    $totalRows = count($detalles);
+    
+    for ($i = 0; $i < $totalRows; $i += $chunkSize) {
+        $htmlChunkRows = '';
+        $end = min($i + $chunkSize, $totalRows);
+        
+        for ($j = $i; $j < $end; $j++) {
+            $detalle = $detalles[$j];
+            
+            $detalle['id'] = isset($detalle['id']) ? (string)$detalle['id'] : '';
+            $detalle['tipo_documento'] = isset($detalle['tipo_documento']) ? (string)$detalle['tipo_documento'] : '';
+            $detalle['no_factura'] = isset($detalle['no_factura']) ? (string)$detalle['no_factura'] : '';
+            $detalle['nombre_proveedor'] = isset($detalle['nombre_proveedor']) ? (string)$detalle['nombre_proveedor'] : '';
+            $detalle['nit_proveedor'] = isset($detalle['nit_proveedor']) ? (string)$detalle['nit_proveedor'] : 'N/A';
+            $detalle['dpi'] = isset($detalle['dpi']) ? (string)$detalle['dpi'] : 'N/A';
+            $detalle['cantidad'] = isset($detalle['cantidad']) ? (string)$detalle['cantidad'] : 'N/A';
+            $detalle['serie'] = isset($detalle['serie']) ? (string)$detalle['serie'] : 'N/A';
+            $detalle['nombre_centro_costo'] = isset($detalle['nombre_centro_costo']) ? (string)$detalle['nombre_centro_costo'] : 'N/A';
+            $detalle['t_gasto'] = isset($detalle['t_gasto']) ? (string)$detalle['t_gasto'] : '';
+            $detalle['tipo_combustible'] = isset($detalle['tipo_combustible']) ? (string)$detalle['tipo_combustible'] : 'N/A';
+            $detalle['cuenta_contable_nombre'] = isset($detalle['cuenta_contable_nombre']) ? (string)$detalle['cuenta_contable_nombre'] : 'N/A';
+            $detalle['fecha'] = isset($detalle['fecha']) ? (string)$detalle['fecha'] : '';
+            $detalle['subtotal'] = isset($detalle['subtotal']) ? (float)$detalle['subtotal'] : 0;
+            $detalle['iva'] = isset($detalle['iva']) ? (float)$detalle['iva'] : 0;
+            $detalle['idp'] = isset($detalle['idp']) ? (float)$detalle['idp'] : 0;
+            $detalle['inguat'] = isset($detalle['inguat']) ? (float)$detalle['inguat'] : 0;
+            $detalle['total_factura'] = isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
+            $detalle['estado'] = isset($detalle['estado']) ? (string)$detalle['estado'] : '';
+
+            $htmlChunkRows .= '<tr>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['id']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['tipo_documento']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['no_factura']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_proveedor']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nit_proveedor']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['dpi']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['cantidad']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['serie']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_centro_costo']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['t_gasto']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['tipo_combustible']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['cuenta_contable_nombre']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['fecha']) . '</td>';
+            $htmlChunkRows .= '<td>' . number_format($detalle['subtotal'], 2) . '</td>';
+            $htmlChunkRows .= '<td>' . number_format($detalle['iva'], 2) . '</td>';
+            $htmlChunkRows .= '<td>' . number_format($detalle['idp'], 2) . '</td>';
+            $htmlChunkRows .= '<td>' . number_format($detalle['inguat'], 2) . '</td>';
+            $htmlChunkRows .= '<td>' . number_format($detalle['total_factura'], 2) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['estado']) . '</td>';
+            $htmlChunkRows .= '</tr>';
+        }
+        
+        $mpdf->WriteHTML($htmlChunkRows, 2);
+        unset($htmlChunkRows);
+        
+        // Pequeña pausa para liberar memoria
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
         }
     }
 
-    private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo)
-    {
-        // Chunk 1: Encabezado e información general
-        $htmlChunk1 = '<div class="content-container">';
-        $htmlChunk1 .= '<div class="logo-container">';
-        $htmlChunk1 .= '<img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo">';
-        $htmlChunk1 .= '</div>';
+    // Chunk 4: Total general y cierre de tabla
+    $htmlChunk4 = '';
+    if (empty($detalles)) {
+        $htmlChunk4 .= '<tr><td colspan="19" style="text-align: center;">No hay detalles disponibles.</td></tr>';
+    } else {
+        $htmlChunk4 .= '<tr class="total-row">';
+        $htmlChunk4 .= '<td colspan="17" style="text-align: right;">Total General:</td>';
+        $htmlChunk4 .= '<td>' . number_format($totalGeneral, 2) . '</td>';
+        $htmlChunk4 .= '<td></td>';
+        $htmlChunk4 .= '</tr>';
+    }
+    $htmlChunk4 .= '</tbody>';
+    $htmlChunk4 .= '</table>';
 
-        $htmlChunk1 .= '<div class="header">';
-        $htmlChunk1 .= '<h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>';
-        $htmlChunk1 .= '</div>';
+    $mpdf->WriteHTML($htmlChunk4, 2);
+    unset($htmlChunk4);
 
-        $htmlChunk1 .= '<div class="info">';
-        $htmlChunk1 .= '<p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . '</p>';
-        $htmlChunk1 .= '<p><strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . '</p>';
-        $htmlChunk1 .= '<p><strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>';
-        $htmlChunk1 .= '<p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>';
-        $htmlChunk1 .= '</div>';
+    // Chunk 5: Resumen de gastos
+    $htmlChunk5 = '<div class="summary-section">';
+    $htmlChunk5 .= '<h2>Resumen de Gastos por Tipo</h2>';
+    $htmlChunk5 .= '<table class="summary-table">';
+    $htmlChunk5 .= '<thead>';
+    $htmlChunk5 .= '<tr>';
+    $htmlChunk5 .= '<th>Tipo de Gasto</th>';
+    $htmlChunk5 .= '<th>Total</th>';
+    $htmlChunk5 .= '</tr>';
+    $htmlChunk5 .= '</thead>';
+    $htmlChunk5 .= '<tbody>';
 
-        $mpdf->WriteHTML($htmlChunk1, 2);
-        unset($htmlChunk1); // Liberar memoria
-
-        // Chunk 2: Tabla de detalles (cabecera)
-        $htmlChunk2 = '<table class="table">';
-        $htmlChunk2 .= '<thead>';
-        $htmlChunk2 .= '<tr>';
-        $htmlChunk2 .= '<th>ID</th>';
-        $htmlChunk2 .= '<th>Tipo de Documento</th>';
-        $htmlChunk2 .= '<th>No. Factura</th>';
-        $htmlChunk2 .= '<th>Proveedor</th>';
-        $htmlChunk2 .= '<th>NIT</th>';
-        $htmlChunk2 .= '<th>DPI</th>';
-        $htmlChunk2 .= '<th>Cantidad</th>';
-        $htmlChunk2 .= '<th>Serie</th>';
-        $htmlChunk2 .= '<th>Centro de Costo</th>';
-        $htmlChunk2 .= '<th>Tipo de Gasto</th>';
-        $htmlChunk2 .= '<th>Tipo de Combustible</th>';
-        $htmlChunk2 .= '<th>Cuenta Contable</th>';
-        $htmlChunk2 .= '<th>Fecha</th>';
-        $htmlChunk2 .= '<th>Subtotal</th>';
-        $htmlChunk2 .= '<th>IVA</th>';
-        $htmlChunk2 .= '<th>IDP</th>';
-        $htmlChunk2 .= '<th>INGUAT</th>';
-        $htmlChunk2 .= '<th>Total Bruto</th>';
-        $htmlChunk2 .= '<th>Estado</th>';
-        $htmlChunk2 .= '</tr>';
-        $htmlChunk2 .= '</thead>';
-        $htmlChunk2 .= '<tbody>';
-
-        $mpdf->WriteHTML($htmlChunk2, 2);
-        unset($htmlChunk2);
-
-        // Chunk 3: Filas de la tabla (en grupos para evitar memoria excesiva)
-        $chunkSize = 10; // Procesar 10 filas a la vez
-        $totalRows = count($detalles);
-
-        for ($i = 0; $i < $totalRows; $i += $chunkSize) {
-            $htmlChunkRows = '';
-            $end = min($i + $chunkSize, $totalRows);
-
-            for ($j = $i; $j < $end; $j++) {
-                $detalle = $detalles[$j];
-
-                $detalle['id'] = isset($detalle['id']) ? (string) $detalle['id'] : '';
-                $detalle['tipo_documento'] = isset($detalle['tipo_documento']) ? (string) $detalle['tipo_documento'] : '';
-                $detalle['no_factura'] = isset($detalle['no_factura']) ? (string) $detalle['no_factura'] : '';
-                $detalle['nombre_proveedor'] = isset($detalle['nombre_proveedor']) ? (string) $detalle['nombre_proveedor'] : '';
-                $detalle['nit_proveedor'] = isset($detalle['nit_proveedor']) ? (string) $detalle['nit_proveedor'] : 'N/A';
-                $detalle['dpi'] = isset($detalle['dpi']) ? (string) $detalle['dpi'] : 'N/A';
-                $detalle['cantidad'] = isset($detalle['cantidad']) ? (string) $detalle['cantidad'] : 'N/A';
-                $detalle['serie'] = isset($detalle['serie']) ? (string) $detalle['serie'] : 'N/A';
-                $detalle['nombre_centro_costo'] = isset($detalle['nombre_centro_costo']) ? (string) $detalle['nombre_centro_costo'] : 'N/A';
-                $detalle['t_gasto'] = isset($detalle['t_gasto']) ? (string) $detalle['t_gasto'] : '';
-                $detalle['tipo_combustible'] = isset($detalle['tipo_combustible']) ? (string) $detalle['tipo_combustible'] : 'N/A';
-                $detalle['cuenta_contable_nombre'] = isset($detalle['cuenta_contable_nombre']) ? (string) $detalle['cuenta_contable_nombre'] : 'N/A';
-                $detalle['fecha'] = isset($detalle['fecha']) ? (string) $detalle['fecha'] : '';
-                $detalle['subtotal'] = isset($detalle['subtotal']) ? (float) $detalle['subtotal'] : 0;
-                $detalle['iva'] = isset($detalle['iva']) ? (float) $detalle['iva'] : 0;
-                $detalle['idp'] = isset($detalle['idp']) ? (float) $detalle['idp'] : 0;
-                $detalle['inguat'] = isset($detalle['inguat']) ? (float) $detalle['inguat'] : 0;
-                $detalle['total_factura'] = isset($detalle['total_factura']) ? (float) $detalle['total_factura'] : 0;
-                $detalle['estado'] = isset($detalle['estado']) ? (string) $detalle['estado'] : '';
-
-                $htmlChunkRows .= '<tr>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['id']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['tipo_documento']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['no_factura']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_proveedor']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nit_proveedor']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['dpi']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['cantidad']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['serie']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_centro_costo']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['t_gasto']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['tipo_combustible']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['cuenta_contable_nombre']) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['fecha']) . '</td>';
-                $htmlChunkRows .= '<td>' . number_format($detalle['subtotal'], 2) . '</td>';
-                $htmlChunkRows .= '<td>' . number_format($detalle['iva'], 2) . '</td>';
-                $htmlChunkRows .= '<td>' . number_format($detalle['idp'], 2) . '</td>';
-                $htmlChunkRows .= '<td>' . number_format($detalle['inguat'], 2) . '</td>';
-                $htmlChunkRows .= '<td>' . number_format($detalle['total_factura'], 2) . '</td>';
-                $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['estado']) . '</td>';
-                $htmlChunkRows .= '</tr>';
-            }
-
-            $mpdf->WriteHTML($htmlChunkRows, 2);
-            unset($htmlChunkRows);
-
-            // Pequeña pausa para liberar memoria
-            if (function_exists('gc_collect_cycles')) {
-                gc_collect_cycles();
-            }
+    if (empty($gastosPorTipo)) {
+        $htmlChunk5 .= '<tr><td colspan="2" style="text-align: center;">No hay datos de gastos por tipo.</td></tr>';
+    } else {
+        ksort($gastosPorTipo);
+        foreach ($gastosPorTipo as $tipo => $total) {
+            $htmlChunk5 .= '<tr>';
+            $htmlChunk5 .= '<td>' . htmlspecialchars($tipo) . '</td>';
+            $htmlChunk5 .= '<td>' . number_format($total, 2) . '</td>';
+            $htmlChunk5 .= '</tr>';
         }
+    }
 
-        // Chunk 4: Total general y cierre de tabla
-        $htmlChunk4 = '';
-        if (empty($detalles)) {
-            $htmlChunk4 .= '<tr><td colspan="19" style="text-align: center;">No hay detalles disponibles.</td></tr>';
-        } else {
-            $htmlChunk4 .= '<tr class="total-row">';
-            $htmlChunk4 .= '<td colspan="17" style="text-align: right;">Total General:</td>';
-            $htmlChunk4 .= '<td>' . number_format($totalGeneral, 2) . '</td>';
-            $htmlChunk4 .= '<td></td>';
-            $htmlChunk4 .= '</tr>';
-        }
-        $htmlChunk4 .= '</tbody>';
-        $htmlChunk4 .= '</table>';
+    $htmlChunk5 .= '</tbody>';
+    $htmlChunk5 .= '</table>';
+    $htmlChunk5 .= '</div>';
 
-        $mpdf->WriteHTML($htmlChunk4, 2);
-        unset($htmlChunk4);
+    $mpdf->WriteHTML($htmlChunk5, 2);
+    unset($htmlChunk5);
 
-        // Chunk 5: Resumen de gastos
-        $htmlChunk5 = '<div class="summary-section">';
-        $htmlChunk5 .= '<h2>Resumen de Gastos por Tipo</h2>';
-        $htmlChunk5 .= '<table class="summary-table">';
-        $htmlChunk5 .= '<thead>';
-        $htmlChunk5 .= '<tr>';
-        $htmlChunk5 .= '<th>Tipo de Gasto</th>';
-        $htmlChunk5 .= '<th>Total</th>';
-        $htmlChunk5 .= '</tr>';
-        $htmlChunk5 .= '</thead>';
-        $htmlChunk5 .= '<tbody>';
+    // Chunk 6: Archivos adjuntos (procesar uno por uno para evitar memoria excesiva)
+    $htmlChunk6 = '<div class="images-section">';
+    $htmlChunk6 .= '<h2>Archivos Adjuntos</h2>';
+    $hasFiles = false;
 
-        if (empty($gastosPorTipo)) {
-            $htmlChunk5 .= '<tr><td colspan="2" style="text-align: center;">No hay datos de gastos por tipo.</td></tr>';
-        } else {
-            ksort($gastosPorTipo);
-            foreach ($gastosPorTipo as $tipo => $total) {
-                $htmlChunk5 .= '<tr>';
-                $htmlChunk5 .= '<td>' . htmlspecialchars($tipo) . '</td>';
-                $htmlChunk5 .= '<td>' . number_format($total, 2) . '</td>';
-                $htmlChunk5 .= '</tr>';
-            }
-        }
+    $mpdf->WriteHTML($htmlChunk6, 2);
+    unset($htmlChunk6);
 
-        $htmlChunk5 .= '</tbody>';
-        $htmlChunk5 .= '</table>';
-        $htmlChunk5 .= '</div>';
-
-        $mpdf->WriteHTML($htmlChunk5, 2);
-        unset($htmlChunk5);
-
-        // Chunk 6: Archivos adjuntos (procesar uno por uno para evitar memoria excesiva)
-        $htmlChunk6 = '<div class="images-section">';
-        $htmlChunk6 .= '<h2>Archivos Adjuntos</h2>';
-        $hasFiles = false;
-
-        $mpdf->WriteHTML($htmlChunk6, 2);
-        unset($htmlChunk6);
-
-        // Procesar imágenes una por una
-        foreach ($detalles as $detalle) {
-            $rutas = $detalle['rutas_archivos'] ?? [];
-            if (is_array($rutas) && !empty($rutas)) {
-                foreach ($rutas as $ruta) {
-                    $hasFiles = true;
-
-                    $imageContent = $this->getImageForPDF($ruta);
-                    if ($imageContent) {
-                        $htmlImage = '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
-                        $htmlImage .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
-                        $htmlImage .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
-
-                        // Agregar manejo de errores para la imagen
-                        $htmlImage .= '<img src="' . $imageContent . '" 
-                      style="max-width: 750px; max-height: 500px; border: 1px solid #ddd;" 
-                      alt="' . htmlspecialchars(basename($ruta)) . '"
-                      onerror="this.style.display=\'none\'">';
-
-                        $htmlImage .= '</div>';
-
-                        $mpdf->WriteHTML($htmlImage, 2);
-                    } else {
-                        // Mostrar mensaje cuando la imagen no está disponible
-                        $htmlError = '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center; border: 1px dashed #ccc; padding: 20px;">';
-                        $htmlError .= '<p style="font-size: 10px; color: #666;">Imagen no disponible: ' . htmlspecialchars(basename($ruta)) . '</p>';
-                        $htmlError .= '<p style="font-size: 9px; color: #999;">Factura: ' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</p>';
-                        $htmlError .= '</div>';
-
-                        $mpdf->WriteHTML($htmlError, 2);
+    // Procesar imágenes una por una
+    foreach ($detalles as $detalle) {
+        $rutas = $detalle['rutas_archivos'] ?? [];
+        if (is_array($rutas) && !empty($rutas)) {
+            foreach ($rutas as $ruta) {
+                $hasFiles = true;
+                
+                $imageContent = $this->getImageForPDF($ruta);
+                
+                if ($imageContent) {
+                    $htmlImage = '<div style="page-break-inside: avoid; margin-bottom: 20px; text-align: center;">';
+                    $htmlImage .= '<p style="font-size: 10px; margin-bottom: 5px;"><strong>Factura #' . htmlspecialchars($detalle['no_factura'] ?? 'N/A') . '</strong></p>';
+                    $htmlImage .= '<p style="font-size: 9px; margin-bottom: 10px;">Archivo: ' . htmlspecialchars(basename($ruta)) . '</p>';
+                    $htmlImage .= '<img src="' . $imageContent . '" style="max-width: 750px; max-height: 500px; border: 1px solid #ddd;" alt="' . htmlspecialchars(basename($ruta)) . '">';
+                    $htmlImage .= '</div>';
+                    
+                    $mpdf->WriteHTML($htmlImage, 2);
+                    unset($htmlImage);
+                    unset($imageContent); // Liberar memoria de la imagen
+                    
+                    // Pequeña pausa entre imágenes
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
                     }
                 }
             }
         }
-
-        // Chunk final: Cierre y mensaje si no hay archivos
-        if (!$hasFiles) {
-            $htmlFinal = '<p style="text-align: center;">No hay archivos disponibles.</p>';
-            $mpdf->WriteHTML($htmlFinal, 2);
-            unset($htmlFinal);
-        }
-
-        $htmlClose = '</div></div>';
-        $mpdf->WriteHTML($htmlClose, 2);
-    }
-    private function getImageForPDF($ruta)
-    {
-        try {
-            // Limpiar y normalizar la ruta
-            $cleanPath = $this->normalizePath($ruta);
-
-            // Intentar en este orden:
-            // 1. Digital Ocean Spaces (URL pública)
-            $spacesImage = $this->getImageFromSpacesPublic($cleanPath);
-            if ($spacesImage) {
-                return $spacesImage;
-            }
-
-            // 2. Digital Ocean Spaces (API)
-            $spacesApiImage = $this->getImageFromSpacesApi($cleanPath);
-            if ($spacesApiImage) {
-                return $spacesApiImage;
-            }
-
-            // 3. Sistema de archivos local
-            $localImage = $this->getImageFromLocal($cleanPath);
-            if ($localImage) {
-                return $localImage;
-            }
-
-            // 4. Usar URL directa si es una URL válida
-            if (filter_var($cleanPath, FILTER_VALIDATE_URL)) {
-                return $cleanPath;
-            }
-
-            error_log("No se pudo obtener la imagen: " . $ruta);
-            return null;
-
-        } catch (Exception $e) {
-            error_log('Error getting image for PDF: ' . $e->getMessage());
-            return null;
-        }
     }
 
-    private function normalizePath($ruta)
-    {
-        // Reemplazar barras invertidas
+    // Chunk final: Cierre y mensaje si no hay archivos
+    if (!$hasFiles) {
+        $htmlFinal = '<p style="text-align: center;">No hay archivos disponibles.</p>';
+        $mpdf->WriteHTML($htmlFinal, 2);
+        unset($htmlFinal);
+    }
+
+    $htmlClose = '</div></div>';
+    $mpdf->WriteHTML($htmlClose, 2);
+}
+    private function getImageForPDF($ruta) {
+    try {
+        // Primero intenta con Digital Ocean Spaces
+        $spacesImage = $this->getImageFromSpaces($ruta);
+        if ($spacesImage) {
+            return $spacesImage;
+        }
+        
+        // Si no funciona, intenta con el sistema de archivos local
+        return $this->getImageFromLocal($ruta);
+        
+    } catch (Exception $e) {
+        error_log('Error getting image for PDF: ' . $e->getMessage());
+        return null;
+    }
+}
+
+private function getImageFromSpaces($ruta) {
+    try {
+        require_once __DIR__ . '/../config/spaces.php';
+        
+        $filesystem = getSpacesFilesystem();
+        
+        // Extraer la clave del archivo de la ruta
+        $key = $this->extractKeyFromPath($ruta);
+        
+        if (!$key) {
+            return null;
+        }
+        
+        // Verificar si el archivo existe
+        if (!$filesystem->fileExists($key)) {
+            error_log("File does not exist in Spaces: " . $key);
+            return null;
+        }
+        
+        // Obtener el contenido del archivo
+        $fileContent = $filesystem->read($key);
+        
+        // Obtener el MIME type
+        $mimeType = $filesystem->mimeType($key);
+        
+        // Convertir a base64
+        $base64 = base64_encode($fileContent);
+        
+        return 'data:' . $mimeType . ';base64,' . $base64;
+        
+    } catch (Exception $e) {
+        error_log('Error getting image from Spaces: ' . $e->getMessage());
+        return null;
+    }
+}
+
+private function getImageFromLocal($ruta) {
+    try {
+        // Limpiar la ruta
         $cleanPath = str_replace('\\', '/', $ruta);
-
-        // Si es una ruta relativa, construir la ruta completa para Spaces
-        if (
-            strpos($cleanPath, 'digitaloceanspaces.com') === false &&
-            strpos($cleanPath, 'http') === false
-        ) {
-            // Asumir que es una ruta de Spaces
-            $bucket = getenv('DO_SPACES_BUCKET') ?: 'acstorage';
-            $region = getenv('DO_SPACES_REGION') ?: 'sfo3';
-            return "https://{$bucket}.{$region}.digitaloceanspaces.com/{$cleanPath}";
+        
+        // Si es una ruta relativa, construir la ruta absoluta
+        if (strpos($cleanPath, '/') !== 0) {
+            $basePath = $_SERVER['DOCUMENT_ROOT'] ?? __DIR__ . '/../../public';
+            $absolutePath = rtrim($basePath, '/') . '/' . ltrim($cleanPath, '/');
+        } else {
+            $absolutePath = $cleanPath;
         }
+        
+        // Verificar si el archivo existe
+        if (!file_exists($absolutePath)) {
+            error_log("File does not exist locally: " . $absolutePath);
+            return null;
+        }
+        
+        // Obtener el contenido y MIME type
+        $fileContent = file_get_contents($absolutePath);
+        $mimeType = mime_content_type($absolutePath);
+        
+        // Verificar que sea una imagen
+        if (strpos($mimeType, 'image/') !== 0) {
+            error_log("File is not an image: " . $mimeType);
+            return null;
+        }
+        
+        $base64 = base64_encode($fileContent);
+        return 'data:' . $mimeType . ';base64,' . $base64;
+        
+    } catch (Exception $e) {
+        error_log('Error getting image from local: ' . $e->getMessage());
+        return null;
+    }
+}
 
+private function extractKeyFromPath($ruta) {
+    // Si la ruta ya es una URL completa de Spaces
+    if (strpos($ruta, 'digitaloceanspaces.com') !== false) {
+        $parsedUrl = parse_url($ruta);
+        return ltrim($parsedUrl['path'] ?? '', '/');
+    }
+    
+    // Si es una ruta relativa que apunta a Spaces
+    $cleanPath = str_replace('\\', '/', $ruta);
+    
+    // Buscar patrones comunes en rutas de Spaces
+    if (strpos($cleanPath, 'CAJA_CHICA/Uploads/') !== false) {
         return $cleanPath;
     }
-
-    private function getImageFromSpacesPublic($ruta)
-    {
-        try {
-            // Si ya es una URL pública de Spaces, usarla directamente
-            if (strpos($ruta, 'digitaloceanspaces.com') !== false) {
-                // Verificar si la URL es accesible
-                $headers = @get_headers($ruta);
-                if ($headers && strpos($headers[0], '200')) {
-                    return $ruta;
-                }
-            }
-            return null;
-        } catch (Exception $e) {
-            error_log('Error with Spaces public URL: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    private function getImageFromSpacesApi($ruta)
-    {
-        try {
-            require_once __DIR__ . '/../config/spaces.php';
-
-            $filesystem = getSpacesFilesystem();
-
-            // Extraer la clave del archivo
-            $key = $this->extractKeyFromPath($ruta);
-
-            if (!$key || !$filesystem->fileExists($key)) {
-                return null;
-            }
-
-            // Obtener el contenido
-            $fileContent = $filesystem->read($key);
-            $mimeType = $filesystem->mimeType($key);
-
-            // Verificar que sea una imagen soportada
-            $supportedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
-            if (!in_array($mimeType, $supportedMimes)) {
-                error_log("Unsupported image type: " . $mimeType);
-                return null;
-            }
-
-            $base64 = base64_encode($fileContent);
-            return 'data:' . $mimeType . ';base64,' . $base64;
-
-        } catch (Exception $e) {
-            error_log('Error getting image from Spaces API: ' . $e->getMessage());
-            return null;
-        }
-    }
-    private function getImageFromSpaces($ruta)
-    {
-        try {
-            require_once __DIR__ . '/../config/spaces.php';
-
-            $filesystem = getSpacesFilesystem();
-
-            // Extraer la clave del archivo de la ruta
-            $key = $this->extractKeyFromPath($ruta);
-
-            if (!$key) {
-                return null;
-            }
-
-            // Verificar si el archivo existe
-            if (!$filesystem->fileExists($key)) {
-                error_log("File does not exist in Spaces: " . $key);
-                return null;
-            }
-
-            // Obtener el contenido del archivo
-            $fileContent = $filesystem->read($key);
-
-            // Obtener el MIME type
-            $mimeType = $filesystem->mimeType($key);
-
-            // Convertir a base64
-            $base64 = base64_encode($fileContent);
-
-            return 'data:' . $mimeType . ';base64,' . $base64;
-
-        } catch (Exception $e) {
-            error_log('Error getting image from Spaces: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    private function getImageFromLocal($ruta)
-    {
-        try {
-            // Limpiar la ruta
-            $cleanPath = str_replace('\\', '/', $ruta);
-
-            // Si es una ruta relativa, construir la ruta absoluta
-            if (strpos($cleanPath, '/') !== 0) {
-                $basePath = $_SERVER['DOCUMENT_ROOT'] ?? __DIR__ . '/../../public';
-                $absolutePath = rtrim($basePath, '/') . '/' . ltrim($cleanPath, '/');
-            } else {
-                $absolutePath = $cleanPath;
-            }
-
-            // Verificar si el archivo existe
-            if (!file_exists($absolutePath)) {
-                error_log("File does not exist locally: " . $absolutePath);
-                return null;
-            }
-
-            // Obtener el contenido y MIME type
-            $fileContent = file_get_contents($absolutePath);
-            $mimeType = mime_content_type($absolutePath);
-
-            // Verificar que sea una imagen
-            if (strpos($mimeType, 'image/') !== 0) {
-                error_log("File is not an image: " . $mimeType);
-                return null;
-            }
-
-            $base64 = base64_encode($fileContent);
-            return 'data:' . $mimeType . ';base64,' . $base64;
-
-        } catch (Exception $e) {
-            error_log('Error getting image from local: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    private function extractKeyFromPath($ruta)
-    {
-        // Si es una URL completa
-        if (strpos($ruta, 'digitaloceanspaces.com') !== false) {
-            $parsedUrl = parse_url($ruta);
-            return ltrim($parsedUrl['path'] ?? '', '/');
-        }
-
-        // Si es una ruta de Spaces
-        $patterns = [
-            'CAJA_CHICA/Uploads/',
-            'uploads/',
-            'Uploads/'
-        ];
-
-        foreach ($patterns as $pattern) {
-            $pos = strpos($ruta, $pattern);
-            if ($pos !== false) {
-                return substr($ruta, $pos);
-            }
-        }
-
-        // Si no coincide con ningún patrón, devolver la ruta original
-        return $ruta;
-    }
+    
+    // Si no se reconoce el patrón, devolver la ruta limpia
+    return $cleanPath;
+}
 
 }
