@@ -8,26 +8,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
     <style>
       :root {
-        --primary-color: #3b82f6;
-        --primary-dark: #1e40af;
-        --secondary-color: #60a5fa;
-        --accent-color: #facc15;
-        --danger-color: #ef4444;
-        --success-color: #22c55e;
-        --background-color: #ffffff;
+        --primary-color: #2d6a4f;
+        --primary-dark: #1a4d3e;
+        --primary-light: #52b788;
+        --secondary-color: #40916c;
+        --accent-color: #f39c12;
+        --danger-color: #dc2626;
+        --success-color: #16a34a;
+        --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
         --card-background: #ffffff;
-        --text-color: #111827;
-        --text-muted: #46484e;
-        --border-color: #d1d5db;
-        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-        --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.12);
-        --gradient-primary: linear-gradient(135deg, #3b82f6, #60a5fa);
-        --gradient-danger: linear-gradient(135deg, #ef4444, #f87171);
-        --gradient-success: linear-gradient(135deg, #22c55e, #4ade80);
-        --border-radius-sm: 8px;
-        --border-radius-md: 12px;
-        --border-radius-lg: 16px;
-        --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 2px 8px rgba(45, 106, 79, 0.08);
+        --shadow-md: 0 4px 16px rgba(45, 106, 79, 0.12);
+        --shadow-lg: 0 8px 24px rgba(45, 106, 79, 0.15);
       }
     
       * {
@@ -37,133 +32,132 @@
       }
     
       body {
-        background-color: var(--background-color);
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--background-gradient);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: var(--text-color);
         line-height: 1.6;
         margin: 0;
         padding: 1rem;
         min-height: 100vh;
         overflow-x: hidden;
-        scroll-behavior: smooth;
       }
     
       .container {
         width: 100%;
-        max-width: 1280px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 0 1rem;
-        scroll-behavior: smooth;
+      }
 
+      /* Page Header */
+      .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
       }
     
       h2 {
         text-align: center;
-        margin: 2rem 0 1.5rem;
-        font-size: clamp(1.75rem, 4vw, 2.25rem);
-        font-weight: 800;
+        color: white;
+        margin: 0 0 1.5rem 0;
+        font-size: 2rem;
+        font-weight: 700;
         letter-spacing: -0.025em;
-        background: var(--gradient-primary);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        position: relative;
-        padding-bottom: 0.5rem;
+      }
+
+      /* Información Grid */
+      .container .informacion {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
       }
     
-      h2::after {
+      .container .informacion p {
+        text-align: left;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 0.95rem;
+        margin: 0;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+      }
+    
+      .container .informacion p strong {
+        color: white;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .container .informacion p span {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        font-size: 0.813rem;
+      }
+    
+      h3 {
+        color: var(--primary-color);
+        margin: 2rem 0 1rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-align: center;
+        position: relative;
+        padding-bottom: 0.75rem;
+      }
+
+      h3::after {
         content: '';
         position: absolute;
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
         width: 80px;
-        height: 4px;
-        background: var(--gradient-primary);
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
         border-radius: 2px;
       }
-
-      .container .informacion{
-        display: grid;
-        grid-template-columns: repeat(3,1fr);
-        grid-auto-rows: 1fr;
-      }
     
-      h3 {
-        color: var(--text-color);
-        margin: 2rem 0 1rem;
-        font-size: clamp(1.5rem, 3vw, 1.75rem);
-        font-weight: 700;
-        text-align: center;
-      }
-    
-      .container .informacion p {
-        text-align: center;
-        color: var(--text-muted);
-        font-size: clamp(0.9rem, 2vw, 1rem);
-        margin: 0.75rem 0;
-        font-family: "Inter", sans-serif;
-        
-      }
-    
-      .container .informacion p strong {
-        color: var(--text-color);
-        font-weight: 700;
-        
-      }
-
-      .container .informacion p span{
-        border: .5px solid #0000003d;
-        border-radius: 10%;
-        background-color: #e6f7f798;
-        padding: 5px;
-        font-size: 0.75rem;
-      }
-    
-      .info-container {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 1rem;
-        margin: 1.5rem 0;
-      }
-    
-      .info-item {
-        background-color: var(--card-background);
-        padding: 0.75rem 1.25rem;
-        border-radius: var(--border-radius-sm);
-        box-shadow: var(--shadow-sm);
-        text-align: center;
-        min-width: 200px;
-        flex: 1 1 auto;
-      }
-    
+      /* Table Wrapper */
       .table-wrapper {
         width: 100%;
         overflow-x: auto;
         margin: 2rem 0;
         -webkit-overflow-scrolling: touch;
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--shadow-sm);
-        background-color: var(--card-background);
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        background: var(--card-background);
+        border-top: 4px solid var(--primary-color);
       }
     
       #facturasTable {
         width: 100%;
         min-width: 100%;
         border-collapse: collapse;
-        background-color: var(--card-background);
       }
     
       #facturasTable thead {
-        background: var(--gradient-primary);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
         position: sticky;
         top: 0;
+        z-index: 10;
       }
     
       #facturasTable th,
       #facturasTable td {
-        padding: 1rem;
+        padding: 1rem 1.25rem;
         text-align: left;
         font-size: 0.875rem;
       }
@@ -171,70 +165,80 @@
       #facturasTable th {
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.5px;
         font-size: 0.8rem;
         white-space: nowrap;
       }
     
       #facturasTable tbody tr {
         border-bottom: 1px solid var(--border-color);
-        transition: var(--transition);
+        transition: all 0.2s ease;
       }
     
       #facturasTable tbody tr:nth-child(even) {
-        background-color: rgba(59, 130, 246, 0.03);
+        background: rgba(45, 106, 79, 0.03);
       }
     
       #facturasTable tbody tr:hover {
-        background-color: rgba(59, 130, 246, 0.08);
+        background: rgba(45, 106, 79, 0.08);
         transform: translateY(-1px);
       }
     
       #facturasTable button {
         padding: 0.5rem 1rem;
         border: none;
-        border-radius: var(--border-radius-sm);
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 0.8rem;
+        font-size: 0.813rem;
         font-weight: 600;
         margin: 0.25rem;
-        transition: var(--transition);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 80px;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
     
       #facturasTable button.edit-btn {
-        background: var(--gradient-primary);
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
         color: white;
       }
     
       #facturasTable button.edit-btn:hover {
-        background: var(--primary-dark);
-        transform: scale(1.05);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
       }
     
       #facturasTable button.delete-btn {
-        background: var(--gradient-danger);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
       }
     
       #facturasTable button.delete-btn:hover {
-        background: #b91c1c;
-        transform: scale(1.05);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+
+      /* Footer Table */
+      #facturasTable tfoot {
+        background: rgba(45, 106, 79, 0.1);
       }
     
+      #facturasTable tfoot td {
+        font-weight: 700;
+        color: var(--primary-color);
+        padding: 1rem 1.25rem;
+      }
+    
+      /* Form Styles */
       #facturaForm {
         width: 100%;
-        background-color: var(--card-background);
-        padding: 1.5rem;
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--shadow-sm);
+        background: var(--card-background);
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 1.25rem;
         margin: 2rem 0;
+        border-top: 4px solid var(--primary-color);
       }
     
       #facturaForm div {
@@ -253,12 +257,13 @@
       #facturaForm select,
       #facturaForm textarea {
         width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius-sm);
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
         font-size: 0.875rem;
-        background-color: #f9fafb;
-        transition: var(--transition);
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+        font-family: inherit;
       }
     
       #facturaForm textarea {
@@ -271,50 +276,58 @@
       #facturaForm textarea:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        background-color: white;
+        box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+        background: white;
+      }
+
+      #facturaForm input:read-only {
+        background: #e5e7eb;
+        cursor: not-allowed;
       }
     
       #facturaForm button {
-        padding: 0.75rem;
+        padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: var(--border-radius-sm);
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
         font-weight: 600;
-        transition: var(--transition);
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
     
       #facturaForm button[type="submit"] {
-        background: var(--gradient-primary);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
         height: auto;
         width: 100%;
       }
     
       #facturaForm button[type="submit"]:hover {
-        background: var(--primary-dark);
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
       #facturaForm button[type="submit"][disabled] {
         background: #d1d5db;
         cursor: not-allowed;
         transform: none;
+        opacity: 0.6;
       }
     
       #facturaForm button[type="button"] {
-        background: var(--gradient-danger);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
         color: white;
         height: auto;
-        width: 35%;
+        width: 100%;
       }
     
       #facturaForm button[type="button"]:hover {
-        background: #b91c1c;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
+      /* File Upload Container */
       #file-upload-container {
         display: flex;
         flex-direction: column;
@@ -323,29 +336,33 @@
       }
     
       #take-photo-btn {
-        background: var(--gradient-success);
+        background: linear-gradient(135deg, var(--accent-color) 0%, #d97706 100%);
         color: white;
-        padding: 0.75rem;
-        border-radius: var(--border-radius-sm);
+        padding: 0.875rem 1rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
+        font-weight: 600;
         border: none;
-        transition: var(--transition);
+        transition: all 0.3s ease;
         width: 100%;
         max-width: 200px;
+        box-shadow: var(--shadow-sm);
       }
     
       #take-photo-btn:hover {
-        background: #15803d;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
       #take-photo-btn:disabled {
         background: #d1d5db;
         cursor: not-allowed;
         transform: none;
+        opacity: 0.6;
       }
     
+      /* Photo Preview */
       #photo-preview-container {
         display: flex;
         flex-wrap: wrap;
@@ -357,14 +374,16 @@
         position: relative;
         width: 100px;
         height: 100px;
-        border-radius: var(--border-radius-sm);
+        border-radius: 10px;
         overflow: hidden;
         box-shadow: var(--shadow-sm);
-        transition: var(--transition);
+        transition: all 0.3s ease;
+        border: 2px solid var(--border-color);
       }
     
       #photo-preview-container .photo-preview:hover {
         transform: scale(1.05);
+        box-shadow: var(--shadow-md);
       }
     
       .photo-preview img {
@@ -375,25 +394,71 @@
     
       .remove-photo-btn {
         position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
+        top: 0.25rem;
+        right: 0.25rem;
         background: var(--danger-color);
         color: white;
         border: none;
         border-radius: 50%;
-        width: 1.5rem;
-        height: 1.5rem;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 0.75rem;
-        transition: var(--transition);
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
     
       .remove-photo-btn:hover {
         background: #b91c1c;
         transform: scale(1.1);
+      }
+
+      /* Centro Costo Fields */
+      .cuenta_contable_centro_costo {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(45, 106, 79, 0.05);
+        border-radius: 10px;
+        border: 2px solid var(--border-color);
+      }
+
+      .cuenta_contable_centro_select {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        background: #f8f9fa;
+      }
+
+      .cuenta_contable_centro_select:disabled {
+        background: #e5e7eb;
+        color: #666;
+        cursor: not-allowed;
+      }
+
+      /* Add Button */
+      #add_centro_costo {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #add_centro_costo:hover {
+        transform: scale(1.1) rotate(90deg);
+        box-shadow: var(--shadow-md);
       }
     
       /* Modal Styles */
@@ -405,7 +470,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
+        background-color: rgba(0, 0, 0, 0.6);
         z-index: 1000;
         justify-content: center;
         align-items: center;
@@ -419,16 +484,17 @@
     
       .camera-modal-content,
       .modal-content {
-        background-color: var(--card-background);
-        border-radius: var(--border-radius-md);
+        background: var(--card-background);
+        border-radius: 16px;
         width: 95%;
-        max-width: 800px;
+        max-width: 850px;
         max-height: 90vh;
         position: relative;
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-lg);
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        border-top: 4px solid var(--primary-color);
       }
     
       .modal-content {
@@ -436,15 +502,16 @@
       }
     
       .camera-modal-content {
-        padding: 1.5rem;
+        padding: 2rem;
         gap: 1.5rem;
       }
     
       .camera-modal-content video {
         width: 100%;
         max-height: 60vh;
-        border-radius: var(--border-radius-sm);
+        border-radius: 12px;
         background: #000;
+        box-shadow: var(--shadow-md);
       }
     
       .camera-modal-content canvas {
@@ -459,60 +526,61 @@
       }
     
       .camera-modal-content button {
-        padding: 0.75rem 1.5rem;
+        padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: var(--border-radius-sm);
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
         font-weight: 600;
-        transition: var(--transition);
+        transition: all 0.3s ease;
         flex: 1 1 auto;
         min-width: 120px;
+        box-shadow: var(--shadow-sm);
       }
     
       #capture-photo-btn {
-        background: var(--gradient-primary);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
     
       #capture-photo-btn:hover {
-        background: var(--primary-dark);
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
       #retake-photo-btn {
-        background: var(--gradient-danger);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
       }
     
       #retake-photo-btn:hover {
-        background: #b91c1c;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
       #save-photo-btn {
-        background: var(--gradient-success);
+        background: linear-gradient(135deg, var(--success-color) 0%, #15803d 100%);
         color: white;
       }
     
       #save-photo-btn:hover {
-        background: #15803d;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
       .close-modal,
       .modal-close {
         position: absolute;
-        top: 1rem;
-        right: 1rem;
-        font-size: 1.5rem;
+        top: 1.25rem;
+        right: 1.25rem;
+        font-size: 1.75rem;
         cursor: pointer;
         color: var(--text-muted);
-        transition: var(--transition);
-        background: none;
+        transition: all 0.3s ease;
+        background: rgba(0, 0, 0, 0.05);
         border: none;
-        width: 2rem;
-        height: 2rem;
+        width: 36px;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -522,63 +590,56 @@
       .close-modal:hover,
       .modal-close:hover {
         color: var(--danger-color);
-        background-color: rgba(239, 68, 68, 0.1);
+        background: rgba(220, 38, 38, 0.1);
         transform: rotate(90deg);
       }
     
+      /* Action Buttons */
       .buttons {
         width: 100%;
         margin: 2rem 0;
         display: flex;
-        justify-content: flex-end;
+        justify-content: center;
         gap: 1rem;
         flex-wrap: wrap;
       }
     
       .buttons button {
-        padding: 0.75rem 1.5rem;
+        padding: 0.875rem 2rem;
         border: none;
-        border-radius: var(--border-radius-sm);
+        border-radius: 12px;
         cursor: pointer;
-        font-size: 0.875rem;
+        font-size: 0.95rem;
         font-weight: 600;
-        transition: var(--transition);
-        min-width: 120px;
+        transition: all 0.3s ease;
+        min-width: 150px;
+        box-shadow: var(--shadow-sm);
       }
     
       .buttons button.save-btn {
-        background: var(--gradient-success);
+        background: linear-gradient(135deg, var(--success-color) 0%, #15803d 100%);
         color: white;
       }
     
       .buttons button.save-btn:hover {
-        background: #15803d;
-        transform: scale(1.02);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
       }
     
       .buttons button.cancel-btn {
-        background: var(--gradient-danger);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
         color: white;
       }
     
       .buttons button.cancel-btn:hover {
-        background: #b91c1c;
-        transform: scale(1.02);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
       }
     
-      #facturasTable tfoot {
-        background-color: rgba(59, 130, 246, 0.1);
-      }
-    
-      #facturasTable tfoot td {
-        font-weight: 700;
-        color: var(--primary-dark);
-        padding: 1rem;
-      }
-    
+      /* Modal Header/Body/Footer */
       .modal-header {
-        padding: 1.25rem;
-        background: var(--gradient-primary);
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
         display: flex;
         justify-content: space-between;
@@ -598,21 +659,17 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        background-color: #f8fafc;
+        background: #f8fafc;
       }
     
-      .modal-body iframe {
+      .modal-body iframe,
+      .modal-body img {
         width: 100%;
         height: 100%;
         border: none;
         display: none;
-      }
-    
-      .modal-body img {
-        max-width: 100%;
-        max-height: 100%;
+        border-radius: 8px;
         object-fit: contain;
-        display: none;
       }
     
       .modal-body iframe.active,
@@ -621,50 +678,98 @@
       }
     
       .modal-footer {
-        padding: 1rem;
+        padding: 1.25rem 1.5rem;
         display: flex;
         justify-content: center;
         border-top: 1px solid var(--border-color);
+        background: #f8f9fa;
       }
     
       .modal-footer button {
-        padding: 0.75rem 1.5rem;
-        background: var(--gradient-danger);
+        padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
         border: none;
-        border-radius: var(--border-radius-sm);
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
         font-weight: 600;
-        transition: var(--transition);
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
     
       .modal-footer button:hover {
-        background: #b91c1c;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
     
+      /* File Links */
       .file-link {
         color: var(--primary-color);
         text-decoration: none;
         cursor: pointer;
-        font-size: 0.875rem;
+        font-size: 0.813rem;
         font-weight: 500;
-        transition: var(--transition);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        background: rgba(45, 106, 79, 0.1);
+        display: inline-block;
+        transition: all 0.3s ease;
       }
     
       .file-link:hover {
-        color: var(--primary-dark);
-        text-decoration: underline;
+        background: var(--primary-color);
+        color: white;
+        transform: translateX(3px);
+      }
+
+      /* DTE Suggestions */
+      #dte-suggestions {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 2px solid var(--primary-color);
+        max-height: 320px;
+        overflow-y: auto;
+        width: 100%;
+        display: none;
+        box-shadow: var(--shadow-lg);
+        border-radius: 10px;
+        margin-top: 0.5rem;
+      }
+
+      #dte-search-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-bottom: 2px solid var(--border-color);
+        font-size: 0.875rem;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+      }
+
+      #dte-search-input:focus {
+        outline: none;
+        border-bottom-color: var(--primary-color);
+      }
+
+      .dte-suggestion {
+        padding: 0.75rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        font-size: 0.875rem;
+      }
+
+      .dte-suggestion:hover {
+        background: rgba(45, 106, 79, 0.1);
       }
     
       /* Responsive Styles */
       @media (max-width: 1024px) {
         .container {
-          padding: 0 1.5rem;
+          padding: 0 1rem;
         }
         
         #facturaForm {
@@ -673,23 +778,30 @@
       }
     
       @media (max-width: 768px) {
-
         body {
           padding: 0.75rem;
         }
         
         .container {
-          padding: 0 1rem;
+          padding: 0 0.5rem;
         }
 
-        .container .informacion{
+        .page-header {
+          padding: 1.5rem 1rem;
+        }
+
+        h2 {
+          font-size: 1.5rem;
+        }
+
+        .container .informacion {
           grid-template-columns: 1fr;
-          grid-auto-rows: 1fr;
+          padding: 1rem;
         }
         
         #facturaForm {
           grid-template-columns: 1fr;
-          padding: 1.25rem;
+          padding: 1.5rem;
           margin: 1rem 0;
         }
         
@@ -700,11 +812,11 @@
         
         .buttons {
           justify-content: center;
+          flex-direction: column;
         }
         
         .buttons button {
           width: 100%;
-          max-width: 300px;
         }
         
         .camera-modal-content,
@@ -720,10 +832,8 @@
         .camera-modal-content button {
           width: 100%;
         }
-        #facturaForm input, #facturaForm select, #facturaForm textarea{
-          width: 90%;
-        }
-        #take-photo-btn{
+
+        #take-photo-btn {
           display: none;
         }
       }
@@ -733,29 +843,16 @@
           padding: 0.5rem;
         }
         
-        .container {
-          padding: 0 0.5rem;
-        }
-        
         h2 {
-          font-size: 1.5rem;
-          margin: 1.5rem 0 1rem;
+          font-size: 1.25rem;
         }
         
         h3 {
           font-size: 1.25rem;
         }
         
-        .info-container {
-          flex-direction: column;
-        }
-        
-        .info-item {
-          width: 100%;
-        }
-        
         #facturasTable tbody td {
-          font-size: 0.8rem;
+          font-size: 0.813rem;
           padding: 0.5rem;
         }
         
@@ -797,17 +894,21 @@
           display: flex;
           flex-direction: column;
           margin-bottom: 1.5rem;
-          border: 1px solid var(--border-color);
-          border-radius: var(--border-radius-sm);
+          border: 2px solid var(--border-color);
+          border-radius: 12px;
           box-shadow: var(--shadow-sm);
-          padding: 0.5rem;
+          padding: 0.75rem;
+        }
+
+        #facturasTable tbody tr:hover {
+          box-shadow: var(--shadow-md);
         }
         
         #facturasTable tbody td {
           display: flex;
           justify-content: space-between;
           text-align: right;
-          padding: 0.5rem;
+          padding: 0.75rem 0.5rem;
           border-bottom: 1px solid var(--border-color);
         }
         
@@ -817,7 +918,7 @@
         
         #facturasTable tbody td::before {
           content: attr(data-label);
-          font-weight: 600;
+          font-weight: 700;
           color: var(--primary-color);
           margin-right: 1rem;
           text-align: left;
@@ -826,16 +927,16 @@
         #facturasTable tfoot tr {
           display: flex;
           flex-direction: column;
-          border: 1px solid var(--border-color);
-          border-radius: var(--border-radius-sm);
+          border: 2px solid var(--border-color);
+          border-radius: 12px;
           box-shadow: var(--shadow-sm);
-          padding: 0.5rem;
+          padding: 0.75rem;
         }
         
         #facturasTable tfoot td {
           display: flex;
           justify-content: space-between;
-          padding: 0.5rem;
+          padding: 0.75rem 0.5rem;
           border-bottom: 1px solid var(--border-color);
         }
         
@@ -845,103 +946,40 @@
         
         #facturasTable tfoot td::before {
           content: attr(data-label);
-          font-weight: 600;
+          font-weight: 700;
           color: var(--primary-color);
           margin-right: 1rem;
           text-align: left;
         }
       }
-
-      /* Responsive DTE Suggestions */
-#dte-suggestions {
-  width: 100%;
-  max-width: 600px; /* Limit width on large screens */
-  min-width: 250px; /* Minimum width for mobile */
-  box-sizing: border-box;
-}
-
-.dte-suggestion {
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dte-suggestion:hover {
-  background-color: #f5f5f5;
-}
-
-#dte-search-input {
-  font-size: 14px;
-  outline: none;
-}
-
-#dte-search-input:focus {
-  border-color: #007bff;
-}
-
-@media (max-width: 600px) {
-  #dte-suggestions {
-    max-height: 200px; /* Smaller height on mobile */
-    font-size: 12px;
-  }
-  
-  .dte-suggestion {
-    font-size: 12px;
-    padding: 6px;
-  }
-  
-  #dte-search-input {
-    font-size: 12px;
-    padding: 5px;
-  }
-}
-.cuenta_contable_centro_costo {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  border: 1px solid #ddd;
-}
-
-.cuenta_contable_centro_select {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.cuenta_contable_centro_select:disabled {
-  background-color: #f5f5f5;
-  color: #666;
-}
     </style>
   </head>
   <body>
     <div class="container">
     <?php include '../views/partials/menu.php'; ?>
-    <h2>
-        Gestión de Facturas de Liquidación ID:
+    <div class="page-header">
+      <h2>
+        📋 Gestión de Facturas de Liquidación ID:
         <?php echo htmlspecialchars($data['id']); ?>
-    </h2>
-    <div class="informacion">
+      </h2>
+      <div class="informacion">
         <p>
-            <strong>Nombre de Caja Chica:</strong>
-            <span><?php echo htmlspecialchars($data['nombre_caja_chica']); ?></span>
+          <strong>💰 Caja Chica</strong>
+          <span><?php echo htmlspecialchars($data['nombre_caja_chica']); ?></span>
         </p>
         <p>
-            <strong>Código:</strong>
-            <span><?php echo htmlspecialchars($data['clientes']); ?></span>
+          <strong>📋 Código</strong>
+          <span><?php echo htmlspecialchars($data['clientes']); ?></span>
         </p>
         <p>
-            <strong>Centro de Costo:</strong>
-            <span><?php echo htmlspecialchars($data['centro_costo_caja_chica_nombre']); ?> / <?php echo htmlspecialchars($data['centro_costo_caja_chica_codigo']); ?></span>
+          <strong>🏢 Centro de Costo</strong>
+          <span><?php echo htmlspecialchars($data['centro_costo_caja_chica_nombre']); ?> / <?php echo htmlspecialchars($data['centro_costo_caja_chica_codigo']); ?></span>
         </p>
         <p>
-            <strong>Fecha de Modificación:</strong>
-            <span><?php echo htmlspecialchars($data['updated_at']); ?></span>
+          <strong>🔄 Fecha Modificación</strong>
+          <span><?php echo htmlspecialchars($data['updated_at']); ?></span>
         </p>
+      </div>
     </div>
 
     <h3 id="formTitle">Agregar Nueva Factura</h3>

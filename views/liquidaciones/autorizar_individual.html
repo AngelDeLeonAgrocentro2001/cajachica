@@ -9,18 +9,22 @@
     </title>
     <style>
       :root {
-        --primary-color: #5d87e2;
-        --secondary-color: #1e3a8a;
-        --accent-color: #f59e0b;
+        --primary-color: #2d6a4f;
+        --primary-dark: #1a4d3e;
+        --primary-light: #52b788;
+        --secondary-color: #40916c;
+        --accent-color: #f39c12;
         --danger-color: #dc2626;
         --success-color: #16a34a;
-        --background-color: #f8fafc;
+        --background-color: #f5f7fa;
+        --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
         --card-background: #ffffff;
         --text-color: #1e293b;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
-        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+        --shadow-sm: 0 2px 8px rgba(45, 106, 79, 0.08);
+        --shadow-md: 0 4px 16px rgba(45, 106, 79, 0.12);
+        --shadow-lg: 0 8px 24px rgba(45, 106, 79, 0.15);
       }
 
       * {
@@ -30,93 +34,200 @@
       }
 
       body {
-        background-color: var(--background-color);
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--background-gradient);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: var(--text-color);
-        line-height: 1.5;
+        line-height: 1.6;
         margin: 0;
         padding: 1rem;
         width: 100vw;
         overflow-x: hidden;
+        min-height: 100vh;
       }
 
       .container {
         width: 100%;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 0 1rem;
       }
 
+      /* Page Header */
+      .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
+      }
+
       h2 {
         text-align: center;
-        color: var(--text-color);
-        margin: 2rem 0;
-        font-size: 1.875rem;
+        color: rgb(43, 42, 42);
+        margin: 0 0 1rem 0;
+        font-size: 2rem;
         font-weight: 700;
         letter-spacing: -0.025em;
       }
 
+      .liquidacion-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+      }
+
+      .liquidacion-info p {
+        text-align: left;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 0.95rem;
+        margin: 0;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+      }
+
+      .liquidacion-info p strong {
+        color: white;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
       h3 {
-        color: var(--text-color);
-        margin: 1.5rem 0 0.75rem;
+        color: var(--primary-color);
+        margin: 2rem 0 1rem;
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         text-align: center;
+        position: relative;
+        padding-bottom: 0.75rem;
       }
 
-      p {
-        text-align: center;
-        color: var(--text-muted);
-        font-size: 1rem;
-        margin: 0.5rem 0;
+      h3::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+        border-radius: 2px;
       }
 
-      p strong {
-        color: var(--text-color);
+      /* Action Buttons */
+      .bulk-action-btn,
+      .send-to-correction-btn {
+        padding: 0.875rem 2rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 0.95rem;
         font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-md);
+        position: relative;
+        overflow: hidden;
       }
 
+      .bulk-action-btn::before,
+      .send-to-correction-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s ease;
+      }
+
+      .bulk-action-btn:hover::before,
+      .send-to-correction-btn:hover::before {
+        left: 100%;
+      }
+
+      .bulk-action-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        display: block;
+        width: fit-content;
+        margin: 0 auto 1.5rem;
+      }
+
+      .bulk-action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .send-to-correction-btn {
+        background: linear-gradient(135deg, var(--accent-color) 0%, #d97706 100%);
+        color: white;
+      }
+
+      .send-to-correction-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      /* Table Wrapper */
       .table-wrapper {
         width: 100%;
         overflow-x: auto;
         margin: 1.5rem 0;
         -webkit-overflow-scrolling: touch;
+        background: var(--card-background);
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        border-top: 4px solid var(--primary-color);
       }
 
       #facturasTable {
         width: 100%;
         min-width: 1200px;
         border-collapse: collapse;
-        background-color: var(--card-background);
-        box-shadow: var(--shadow-md);
-        border-radius: 0.75rem;
-        overflow: hidden;
       }
 
       #facturasTable thead {
-        background-color: var(--secondary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
 
       #facturasTable th,
       #facturasTable td {
-        padding: 0.75rem 1rem;
+        padding: 1rem 1.25rem;
         text-align: left;
         font-size: 0.875rem;
         min-width: 100px;
       }
 
       #facturasTable th {
-        font-weight: 600;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
       }
 
       #facturasTable tbody tr {
         border-bottom: 1px solid var(--border-color);
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
       }
 
       #facturasTable tbody tr:hover {
-        background-color: #f1f5f9;
+        background: rgba(45, 106, 79, 0.05);
       }
 
       #facturasTable td {
@@ -126,70 +237,49 @@
       #facturasTable input[type="checkbox"] {
         cursor: pointer;
         accent-color: var(--primary-color);
+        width: 18px;
+        height: 18px;
       }
 
       tr.in-correction {
-        background-color: #e5e7eb;
-        opacity: 0.8;
+        background-color: #f3f4f6;
+        opacity: 0.7;
       }
 
       tr.in-correction td {
-        display: none;
+        color: var(--text-muted);
       }
 
       tr.in-correction input[type="checkbox"] {
         pointer-events: none;
       }
-      .bulk-action-btn,
-      .send-to-correction-btn {
-        padding: 0.75rem;
-        border: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-        font-size: 0.875rem;
+
+      /* File Links */
+      .file-item {
+        margin: 0.25rem 0;
+      }
+
+      .file-link {
+        color: var(--primary-color);
+        text-decoration: none;
         font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-      }
-
-      .bulk-action-btn,
-      .send-to-correction-btn {
-        background-color: var(--primary-color);
-        color: white;
-      }
-
-      .bulk-action-btn:hover,
-      .send-to-correction-btn:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
-      }
-
-      .send-to-correction-btn {
-        background-color: var(--accent-color);
-      }
-
-      .send-to-correction-btn:hover {
-        background-color: #d97706;
-      }
-
-      .bulk-action-btn {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        background: rgba(45, 106, 79, 0.1);
         display: inline-block;
-        width: fit-content;
-        margin: 0 auto 1rem;
-        position: relative;
-        left: 0;
+        transition: all 0.3s ease;
+        font-size: 0.813rem;
       }
 
-      .hidden {
-        display: none;
+      .file-link:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateX(3px);
       }
 
       /* Modal Styles */
       .modal {
         display: none;
-        /* position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0; */
         width: 100%;
         height: 100%;
         background-color: transparent;
@@ -202,22 +292,23 @@
       }
 
       .modal-content {
-        background-color: var(--card-background);
-        width:100%;
-        max-width: 670px;
+        background: var(--card-background);
+        width: 100%;
+        max-width: 700px;
         height: 80%;
-        border-radius: 0.75rem;
-        box-shadow: var(--shadow-md);
+        border-radius: 16px;
+        box-shadow: var(--shadow-lg);
         position: relative;
         overflow: hidden;
         display: flex;
         flex-direction: column;
         cursor: move;
+        border-top: 4px solid var(--primary-color);
       }
 
       .modal-header {
-        padding: 1rem;
-        background-color: var(--secondary-color);
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
         display: flex;
         justify-content: space-between;
@@ -232,21 +323,30 @@
       }
 
       .modal-close {
-        background: none;
+        background: rgba(255, 255, 255, 0.1);
         border: none;
         color: white;
         font-size: 1.5rem;
         cursor: pointer;
         line-height: 1;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
       }
 
       .modal-close:hover {
+        background: rgba(220, 38, 38, 0.2);
         color: var(--danger-color);
+        transform: rotate(90deg);
       }
 
       .modal-body {
         flex: 1;
-        padding: 1rem;
+        padding: 1.5rem;
         overflow: auto;
         display: flex;
         justify-content: center;
@@ -258,6 +358,7 @@
         height: 100%;
         border: none;
         display: none;
+        border-radius: 8px;
       }
 
       .modal-body img {
@@ -265,6 +366,7 @@
         max-height: 100%;
         object-fit: contain;
         display: none;
+        border-radius: 8px;
       }
 
       .modal-body iframe.active,
@@ -273,27 +375,29 @@
       }
 
       .modal-footer {
-        padding: 1rem;
+        padding: 1.25rem 1.5rem;
         display: flex;
         justify-content: center;
         border-top: 1px solid var(--border-color);
+        background: #f8f9fa;
       }
 
       .modal-footer button {
-        padding: 0.75rem 1.5rem;
-        background-color: var(--danger-color);
+        padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       .modal-footer button:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       /* Autorizar Modal Styles */
@@ -308,6 +412,7 @@
         background-color: rgba(0, 0, 0, 0.6);
         justify-content: center;
         align-items: center;
+        backdrop-filter: blur(4px);
       }
 
       #autorizarModal.active {
@@ -316,75 +421,97 @@
 
       #autorizarModal .modal-content {
         width: 90%;
-        max-width: 500px;
+        max-width: 550px;
         height: auto;
-        padding: 1.5rem;
+        padding: 0;
       }
 
       #autorizarForm {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 1.25rem;
+        padding: 1.5rem;
       }
 
       #autorizarForm select,
       #autorizarForm textarea {
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 0.375rem;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
         font-size: 0.875rem;
         width: 100%;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        font-family: inherit;
       }
 
       #autorizarForm textarea {
         resize: vertical;
-        min-height: 120px;
+        min-height: 140px;
       }
 
       #autorizarForm select:focus,
       #autorizarForm textarea:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+        background: white;
       }
 
       #autorizarForm .error {
         color: var(--danger-color);
-        font-size: 0.75rem;
+        font-size: 0.813rem;
         display: none;
+        padding: 0.75rem;
+        background: rgba(220, 38, 38, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid var(--danger-color);
       }
 
       #autorizarForm .success {
         color: var(--success-color);
-        font-size: 0.75rem;
+        font-size: 0.813rem;
         display: none;
+        padding: 0.75rem;
+        background: rgba(22, 163, 74, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid var(--success-color);
+      }
+
+      #autorizarForm .modal-footer {
+        padding: 0;
+        border: none;
+        background: transparent;
+        gap: 0.75rem;
       }
 
       #autorizarForm button[type="submit"] {
-        background-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
+        flex: 1;
       }
 
       #autorizarForm button[type="submit"]:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #autorizarForm button[type="submit"][disabled] {
-        background-color: #d1d5db;
+        background: #d1d5db;
         cursor: not-allowed;
         transform: none;
+        opacity: 0.6;
       }
 
       #autorizarForm button[type="button"] {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
         color: white;
+        flex: 1;
       }
 
       #autorizarForm button[type="button"]:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       /* Contador Modal Styles */
@@ -399,7 +526,7 @@
         justify-content: center;
         align-items: center;
         z-index: 1005;
-        backdrop-filter: blur(2px);
+        backdrop-filter: blur(4px);
       }
 
       #contadorModal.active {
@@ -408,79 +535,123 @@
 
       #contadorModal .modal-content {
         background: var(--card-background);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
+        padding: 2rem;
+        border-radius: 16px;
         width: 90%;
-        max-width: 500px;
+        max-width: 550px;
         text-align: center;
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-lg);
+        border-top: 4px solid var(--primary-color);
+        height: auto;
       }
 
       #contadorModal h3 {
-        color: var(--text-color);
-        margin-bottom: 1.25rem;
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
       }
 
       #contadorSelect {
         width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 0.375rem;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
         font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
       }
 
       #contadorSelect:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+        background: white;
       }
 
       #contadorModal button {
-        padding: 0.75rem;
+        padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 0.875rem;
-        font-weight: 500;
+        font-weight: 600;
         width: 48%;
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
       }
 
       #contadorModal button#confirmContadorBtn {
-        background-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
-        margin-right: 2%;
+        margin-right: 4%;
       }
 
       #contadorModal button#confirmContadorBtn:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       #contadorModal button#cancelContadorBtn {
-        background-color: var(--danger-color);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
         color: white;
       }
 
       #contadorModal button#cancelContadorBtn:hover {
-        background-color: #b91c1c;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
+      /* Correction Comment Input */
+      .correccion-comment {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 0.813rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+      }
+
+      .correccion-comment:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
+        background: white;
+      }
+
+      .correccion-comment:disabled {
+        background: #e5e7eb;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      /* Responsive Styles */
       @media (max-width: 768px) {
         .modal-content {
           width: 95%;
           height: 90%;
         }
+
         .container {
           padding: 0 0.5rem;
         }
 
+        .page-header {
+          padding: 1.5rem 1rem;
+        }
+
+        h2 {
+          font-size: 1.5rem;
+        }
+
+        .liquidacion-info {
+          grid-template-columns: 1fr;
+          padding: 1rem;
+        }
+
         .table-wrapper {
           margin: 1rem 0;
-          overflow-x: auto;
+          border-radius: 12px;
         }
 
         #facturasTable {
@@ -494,27 +665,33 @@
         #facturasTable tbody tr {
           display: block;
           margin-bottom: 1rem;
-          border: 1px solid var(--border-color);
-          border-radius: 0.5rem;
-          background-color: var(--card-background);
+          border: 2px solid var(--border-color);
+          border-radius: 12px;
+          background: var(--card-background);
           box-shadow: var(--shadow-sm);
+          padding: 0.75rem;
+        }
+
+        #facturasTable tbody tr:hover {
+          box-shadow: var(--shadow-md);
         }
 
         #facturasTable tbody td {
           display: flex;
-                justify-content: right;
-                align-items: center;
-                text-align: right;
-                /* padding: 0.5rem 0.75rem; */
-                font-size: 0.74rem;
-                position: relative;
-                border-bottom: 1px solid var(--border-color);
+          justify-content: space-between;
+          align-items: center;
+          text-align: right;
+          padding: 0.75rem 0.5rem;
+          font-size: 0.813rem;
+          position: relative;
+          border-bottom: 1px solid var(--border-color);
+          min-width: auto;
         }
 
-        #facturasTable tbody td span{
-                /* background-color: red; */
-                width: 70%;
-            }
+        #facturasTable tbody td span {
+          width: 60%;
+          text-align: right;
+        }
 
         #facturasTable tbody td:last-child {
           border-bottom: none;
@@ -522,24 +699,25 @@
 
         #facturasTable tbody td:before {
           content: attr(data-label);
-          position: absolute;
-          left: 0.75rem;
-          font-weight: 600;
-          color: var(--text-color);
+          font-weight: 700;
+          color: var(--primary-color);
+          text-align: left;
+          width: 35%;
         }
 
         tr.in-correction {
-          background-color: #e5e7eb;
-          opacity: 0.8;
+          background-color: #f3f4f6;
+          opacity: 0.7;
         }
 
         .correccion-comment {
-          margin-top: 1rem;
+          margin-top: 0.5rem;
+          font-size: 0.75rem;
         }
 
         .modal-content {
           width: 95%;
-          margin: 10% auto;
+          margin: 5% auto;
         }
 
         #contadorModal button {
@@ -553,23 +731,37 @@
 
         #autorizarModal .modal-content {
           width: 95%;
-          padding: 1rem;
+          padding: 0;
+        }
+
+        #autorizarForm .modal-footer {
+          flex-direction: column;
+        }
+
+        #autorizarForm .modal-footer button {
+          width: 100%;
+        }
+
+        .bulk-action-btn,
+        .send-to-correction-btn {
+          width: 100%;
+          margin-bottom: 1rem;
         }
       }
 
       @media (max-width: 480px) {
         h2 {
-          font-size: 1.5rem;
+          font-size: 1.25rem;
         }
 
         h3 {
           font-size: 1.25rem;
         }
 
-        .bulk-action-btn,
-        .send-to-correction-btn {
-          width: 100%;
+        .page-header {
+          padding: 1.25rem 0.75rem;
         }
+
         .modal-content {
           width: 100%;
           height: 95%;

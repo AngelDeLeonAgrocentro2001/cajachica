@@ -6,189 +6,491 @@
     <title>Dashboard - AgroCaja Chica</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* Estilo general del cuerpo */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #f4f7fa; /* Fondo claro */
-            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             transition: margin-left 0.3s ease-in-out;
+            min-height: 100vh;
         }
 
-        /* Título principal */
-        h2 {
+        /* Header del Dashboard */
+        .dashboard-header {
+            background: linear-gradient(135deg, #2d6a4f 0%, #1a4d3e 100%);
+            color: white;
+            padding: 30px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-header h2 {
             text-align: center;
-            color: #2c3e50;
-            margin: 30px 0;
+            color: white;
+            margin: 0;
             font-size: 2rem;
             font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-top: 8px;
         }
 
         /* Contenedor del dashboard */
         .dashboard-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Grid responsivo */
-            gap: 20px;
-            padding: 20px;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 40px 20px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         /* Estilo de las tarjetas */
         .dashboard-card {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            text-align: left;
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            border-top: 4px solid;
         }
 
-        /* Efecto de hover en las tarjetas */
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+            pointer-events: none;
+        }
+
         .dashboard-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
         }
 
         /* Título de las tarjetas */
         .dashboard-card h3 {
-            margin: 0 0 15px;
-            font-size: 1.2rem;
+            margin: 0 0 20px;
+            font-size: 1.1rem;
             font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dashboard-card h3::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Contenedor de estadísticas */
+        .card-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 700;
             color: #2c3e50;
         }
 
-        /* Texto dentro de las tarjetas */
-        .dashboard-card p {
-            margin: 5px 0;
-            font-size: 1rem;
-            color: #666;
+        .stat-value.monto {
+            color: #27ae60;
+        }
+
+        /* Icono de estado */
+        .status-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            opacity: 0.15;
         }
 
         /* Colores diferenciados según el estado */
         .dashboard-card.en-proceso {
-            border-left: 5px solid #3498db; /* Azul para En Proceso */
+            border-top-color: #3498db;
         }
+        .dashboard-card.en-proceso h3 { color: #3498db; }
+        .dashboard-card.en-proceso .status-icon { background: #3498db; }
 
         .dashboard-card.pendiente-autorizacion {
-            border-left: 5px solid #f39c12; /* Amarillo para Pendiente Autorización */
+            border-top-color: #f39c12;
         }
+        .dashboard-card.pendiente-autorizacion h3 { color: #f39c12; }
+        .dashboard-card.pendiente-autorizacion .status-icon { background: #f39c12; }
 
         .dashboard-card.pendiente-revision-contabilidad {
-            border-left: 5px solid #27ae60; /* Verde para Pendiente Revisión Contabilidad */
+            border-top-color: #9b59b6;
         }
+        .dashboard-card.pendiente-revision-contabilidad h3 { color: #9b59b6; }
+        .dashboard-card.pendiente-revision-contabilidad .status-icon { background: #9b59b6; }
 
         .dashboard-card.rechazado-autorizacion {
-            border-left: 5px solid #e74c3c; /* Rojo para Rechazado Autorización */
+            border-top-color: #e74c3c;
         }
+        .dashboard-card.rechazado-autorizacion h3 { color: #e74c3c; }
+        .dashboard-card.rechazado-autorizacion .status-icon { background: #e74c3c; }
 
         .dashboard-card.autorizado-contabilidad {
-            border-left: 5px solid #2ecc71; /* Verde claro para Autorizado por Contabilidad */
+            border-top-color: #2ecc71;
         }
+        .dashboard-card.autorizado-contabilidad h3 { color: #2ecc71; }
+        .dashboard-card.autorizado-contabilidad .status-icon { background: #2ecc71; }
 
         .dashboard-card.rechazado-contabilidad {
-            border-left: 5px solid #c0392b; /* Rojo oscuro para Rechazado por Contabilidad */
+            border-top-color: #c0392b;
         }
+        .dashboard-card.rechazado-contabilidad h3 { color: #c0392b; }
+        .dashboard-card.rechazado-contabilidad .status-icon { background: #c0392b; }
 
         .dashboard-card.finalizado {
-            border-left: 5px solid #16a085; /* Verde oscuro para Finalizado */
+            border-top-color: #16a085;
         }
+        .dashboard-card.finalizado h3 { color: #16a085; }
+        .dashboard-card.finalizado .status-icon { background: #16a085; }
 
         .dashboard-card.descartado {
-            border-left: 5px solid #7f8c8d; /* Gris para Descartado */
+            border-top-color: #95a5a6;
         }
+        .dashboard-card.descartado h3 { color: #95a5a6; }
+        .dashboard-card.descartado .status-icon { background: #95a5a6; }
 
         .dashboard-card.en-correccion {
-            border-left: 5px solid #e67e22; /* Naranja para En Corrección */
+            border-top-color: #e67e22;
+        }
+        .dashboard-card.en-correccion h3 { color: #e67e22; }
+        .dashboard-card.en-correccion .status-icon { background: #e67e22; }
+
+        /* NUEVO ESTADO: EXPIRADO */
+        .dashboard-card.expirado {
+            border-top-color: #7f8c8d;
+        }
+        .dashboard-card.expirado h3 { color: #7f8c8d; }
+        .dashboard-card.expirado .status-icon { background: #7f8c8d; }
+
+        /* Separador */
+        .divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #e0e0e0, transparent);
+            margin: 15px 0;
         }
 
-        .dashboard-card.expirado {
-            border-left: 5px solid #95a5a6; /* Gris azulado para Expirado */
-            background-color: #f8f9fa; /* Fondo ligeramente diferente */
+        /* Animación de entrada */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
+        .dashboard-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .dashboard-card:nth-child(1) { animation-delay: 0.1s; }
+        .dashboard-card:nth-child(2) { animation-delay: 0.15s; }
+        .dashboard-card:nth-child(3) { animation-delay: 0.2s; }
+        .dashboard-card:nth-child(4) { animation-delay: 0.25s; }
+        .dashboard-card:nth-child(5) { animation-delay: 0.3s; }
+        .dashboard-card:nth-child(6) { animation-delay: 0.35s; }
+        .dashboard-card:nth-child(7) { animation-delay: 0.4s; }
+        .dashboard-card:nth-child(8) { animation-delay: 0.45s; }
+        .dashboard-card:nth-child(9) { animation-delay: 0.5s; }
+        .dashboard-card:nth-child(10) { animation-delay: 0.55s; } /* Nueva animación para EXPIRADO */
 
         /* Estilo responsivo */
         @media (max-width: 768px) {
             .dashboard-container {
-                grid-template-columns: 1fr; /* Una columna en pantallas pequeñas */
-                padding: 10px;
+                grid-template-columns: 1fr;
+                padding: 20px 15px;
+                gap: 20px;
+            }
+
+            .dashboard-header h2 {
+                font-size: 1.5rem;
             }
 
             .dashboard-card h3 {
+                font-size: 1rem;
+            }
+
+            .stat-value {
                 font-size: 1.1rem;
             }
 
-            .dashboard-card p {
-                font-size: 0.9rem;
+            .status-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
             }
         }
 
         @media (max-width: 480px) {
-            h2 {
-                font-size: 1.5rem;
+            .dashboard-header {
+                padding: 20px 15px;
+            }
+
+            .dashboard-header h2 {
+                font-size: 1.3rem;
             }
 
             .dashboard-card {
-                padding: 15px;
+                padding: 20px;
             }
+
+            .stat-row {
+                padding: 8px 0;
+            }
+
+            .stat-label {
+                font-size: 0.85rem;
+            }
+
+            .stat-value {
+                font-size: 1rem;
+            }
+        }
+
+        /* Badge para cantidad cero */
+        .stat-value.zero {
+            color: #bdc3c7;
         }
     </style>
 </head>
 <body>
     <?php include '../views/partials/menu.php'; ?>
-    <h2>Dashboard - AgroCaja Chica</h2>
+    
+    <div class="dashboard-header">
+        <h2>Dashboard - AgroCaja Chica</h2>
+        <div class="dashboard-subtitle">Resumen general de estados y montos</div>
+    </div>
+
     <div class="dashboard-container">
         <div class="dashboard-card en-proceso">
+            <div class="status-icon">⏳</div>
             <h3>En Proceso</h3>
-            <p>Cantidad: <?php echo $resumen['EN_PROCESO']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['EN_PROCESO']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['EN_PROCESO']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['EN_PROCESO']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['EN_PROCESO']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card pendiente-autorizacion">
+            <div class="status-icon">⏱️</div>
             <h3>Pendiente Autorización</h3>
-            <p>Cantidad: <?php echo $resumen['PENDIENTE_AUTORIZACION']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['PENDIENTE_AUTORIZACION']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['PENDIENTE_AUTORIZACION']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['PENDIENTE_AUTORIZACION']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['PENDIENTE_AUTORIZACION']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card pendiente-revision-contabilidad">
+            <div class="status-icon">📋</div>
             <h3>Pendiente Revisión Contabilidad</h3>
-            <p>Cantidad: <?php echo $resumen['PENDIENTE_REVISION_CONTABILIDAD']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['PENDIENTE_REVISION_CONTABILIDAD']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['PENDIENTE_REVISION_CONTABILIDAD']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['PENDIENTE_REVISION_CONTABILIDAD']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['PENDIENTE_REVISION_CONTABILIDAD']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card rechazado-autorizacion">
+            <div class="status-icon">❌</div>
             <h3>Rechazado Autorización</h3>
-            <p>Cantidad: <?php echo $resumen['RECHAZADO_AUTORIZACION']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['RECHAZADO_AUTORIZACION']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['RECHAZADO_AUTORIZACION']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['RECHAZADO_AUTORIZACION']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['RECHAZADO_AUTORIZACION']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card autorizado-contabilidad">
+            <div class="status-icon">✅</div>
             <h3>Autorizado por Contabilidad</h3>
-            <p>Cantidad: <?php echo $resumen['AUTORIZADO_POR_CONTABILIDAD']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['AUTORIZADO_POR_CONTABILIDAD']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['AUTORIZADO_POR_CONTABILIDAD']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['AUTORIZADO_POR_CONTABILIDAD']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['AUTORIZADO_POR_CONTABILIDAD']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card rechazado-contabilidad">
+            <div class="status-icon">🚫</div>
             <h3>Rechazado por Contabilidad</h3>
-            <p>Cantidad: <?php echo $resumen['RECHAZADO_POR_CONTABILIDAD']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['RECHAZADO_POR_CONTABILIDAD']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['RECHAZADO_POR_CONTABILIDAD']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['RECHAZADO_POR_CONTABILIDAD']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['RECHAZADO_POR_CONTABILIDAD']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card finalizado">
+            <div class="status-icon">🎉</div>
             <h3>Finalizado</h3>
-            <p>Cantidad: <?php echo $resumen['FINALIZADO']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['FINALIZADO']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['FINALIZADO']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['FINALIZADO']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['FINALIZADO']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
+        <!-- NUEVA TARJETA: EXPIRADO -->
         <div class="dashboard-card expirado">
+            <div class="status-icon">⏰</div>
             <h3>Expirado</h3>
-            <p>Cantidad: <?php echo $resumen['EXPIRADO']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['EXPIRADO']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['EXPIRADO']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['EXPIRADO']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['EXPIRADO']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card descartado">
+            <div class="status-icon">🗑️</div>
             <h3>Descartado</h3>
-            <p>Cantidad: <?php echo $resumen['DESCARTADO']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['DESCARTADO']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['DESCARTADO']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['DESCARTADO']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['DESCARTADO']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
+
         <div class="dashboard-card en-correccion">
+            <div class="status-icon">✏️</div>
             <h3>En Corrección</h3>
-            <p>Cantidad: <?php echo $resumen['EN_CORRECCION']['cantidad']; ?></p>
-            <p>Monto: Q<?php echo number_format($resumen['EN_CORRECCION']['monto'], 2); ?></p>
+            <div class="divider"></div>
+            <div class="card-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Cantidad</span>
+                    <span class="stat-value <?php echo $resumen['EN_CORRECCION']['cantidad'] == 0 ? 'zero' : ''; ?>">
+                        <?php echo $resumen['EN_CORRECCION']['cantidad']; ?>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monto Total</span>
+                    <span class="stat-value monto">Q<?php echo number_format($resumen['EN_CORRECCION']['monto'], 2); ?></span>
+                </div>
+            </div>
         </div>
     </div>
 </body>
