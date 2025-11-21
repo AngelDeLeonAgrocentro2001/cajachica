@@ -196,7 +196,7 @@ function filterLiquidations() {
             matches = matches && nombreCajaChica.includes(searchCajaChica);
         }
 
-        // Filter by Estado - NUEVO FILTRO (funciona en todos los modos)
+        // Filter by Estado - NUEVO FILTRO (incluye EXPIRADO)
         if (searchEstado) {
             matches = matches && liquidacion.estado === searchEstado;
         }
@@ -287,12 +287,19 @@ function renderLiquidations() {
                 );
             const isCreator = liquidacion.id_usuario == window.currentUserId;
 
+            // VERIFICAR SI LA LIQUIDACIÓN ESTÁ EXPIRADA
+            const isLiquidacionExpirada = liquidacion.estado === 'EXPIRADO';
+
+            // APLICAR CLASE CSS SI ESTÁ EXPIRADA
+            const rowClass = isLiquidacionExpirada ? 'liquidacion-antigua' : '';
+
             // PERMISOS PARA CREACIÓN/EDICIÓN (ENCARGADOS, INCLUYENDO ROLES MIXTOS)
             if (
                 window.userPermissions.create_liquidaciones &&
                 window.isEncargadoLike && // Allow for Encargado-like roles
                 isCreator &&
-                liquidacion.estado === "EN_PROCESO"
+                liquidacion.estado === "EN_PROCESO" &&
+                !isLiquidacionExpirada // No permitir editar si está expirada
             ) {
                 actions.push(
                     `<button onclick="showEditForm(${liquidacion.id})" class="edit-btn">Editar</button>`
@@ -310,6 +317,11 @@ function renderLiquidations() {
                         hasCorrections ? "disabled" : ""
                     }>Finalizar</button>`
                 );
+            } else if (isLiquidacionExpirada) {
+                // Mostrar mensaje de liquidación expirada
+                actions.push(
+                    `<span class="auto-finalized-msg">Expirada automáticamente</span>`
+                );
             }
 
             // BOTÓN "VER LIQUIDACIÓN" PARA TODOS LOS ESTADOS RELEVANTES
@@ -318,9 +330,10 @@ function renderLiquidations() {
                     "PENDIENTE_AUTORIZACION",
                     "PENDIENTE_REVISION_CONTABILIDAD",
                     "FINALIZADO",
+                    "EXPIRADO", // Añadir EXPIRADO a la lista
                     "RECHAZADO_AUTORIZACION",
                     "RECHAZADO_POR_CONTABILIDAD",
-                ].includes(liquidacion.estado)
+                ].includes(liquidacion.estado) || isLiquidacionExpirada
             ) {
                 actions.push(
                     `<button onclick="verLiquidacion(${liquidacion.id})" class="view-btn">Ver Liquidación</button>`
@@ -332,19 +345,8 @@ function renderLiquidations() {
                 (window.userPermissions.autorizar_liquidaciones && window.isSupervisorLike) ||
                 (window.userPermissions.revisar_liquidaciones && window.isContabilidadLike);
 
-            // console.log('Verificación de permisos:', {
-            //     liquidacionId: liquidacion.id,
-            //     estado: liquidacion.estado,
-            //     tienePermisoAutorizar: tienePermisoAutorizar,
-            //     isSupervisorLike: window.isSupervisorLike,
-            //     isContabilidadLike: window.isContabilidadLike,
-            //     isEncargadoLike: window.isEncargadoLike,
-            //     isCreator: isCreator,
-            //     permisos: window.userPermissions
-            // });
-
             // BOTÓN "AUTORIZAR" PARA SUPERVISORES (INCLUYENDO ROLES MIXTOS)
-            if (tienePermisoAutorizar) {
+            if (tienePermisoAutorizar && !isLiquidacionExpirada) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const mode = urlParams.get("mode");
                 
@@ -352,14 +354,12 @@ function renderLiquidations() {
                     actions.push(
                         `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'autorizar')" class="edit-btn">Autorizar</button>`
                     );
-                    console.log('Añadiendo botón Autorizar para liquidación:', liquidacion.id);
                 }
                 
                 if (mode === "revisar" && liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD") {
                     actions.push(
                         `<button onclick="autorizarLiquidacion(${liquidacion.id}, 'revisar')" class="edit-btn">Revisar</button>`
                     );
-                    console.log('Añadiendo botón Revisar para liquidación:', liquidacion.id);
                 }
             }
 
@@ -372,13 +372,10 @@ function renderLiquidations() {
             }
 
             const actionsHtml = actions.join(" ");
-            const estado =
-                liquidacion.estado && liquidacion.estado !== "N/A"
-                    ? liquidacion.estado
-                    : "EN_PROCESO";
+            const estado = liquidacion.estado && liquidacion.estado !== "N/A" ? liquidacion.estado : "EN_PROCESO";
 
             tbody.innerHTML += `
-                <tr>
+                <tr class="${rowClass}">
                     <td data-label="ID">${liquidacion.id}</td>
                     <td data-label="Caja Chica">${
                         liquidacion.nombre_caja_chica || "N/A"
