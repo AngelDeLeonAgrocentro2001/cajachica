@@ -208,32 +208,41 @@ class DteController {
     }
 
     private function convertExcelDate($excelDate) {
-        if (empty($excelDate)) {
-            return null;
-        }
-        
-        // Si es una fecha de Excel (número serial)
-        if (is_numeric($excelDate)) {
-            try {
-                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($excelDate);
-                return $date->format('Y-m-d H:i:s');
-            } catch (Exception $e) {
-                error_log("Error convirtiendo fecha Excel: " . $e->getMessage());
-            }
-        }
-        
-        // Intentar convertir desde string
-        try {
-            $timestamp = strtotime($excelDate);
-            if ($timestamp !== false) {
-                return date('Y-m-d H:i:s', $timestamp);
-            }
-        } catch (Exception $e) {
-            error_log("Error convirtiendo fecha string: " . $e->getMessage());
-        }
-        
+    if (empty($excelDate) || $excelDate === 'NULL' || $excelDate === 'null') {
         return null;
     }
+    
+    // Si es una fecha de Excel (número serial)
+    if (is_numeric($excelDate)) {
+        try {
+            // Verificar si es una fecha de Excel válida (generalmente entre 1900 y hoy)
+            if ($excelDate > 0 && $excelDate < 50000) {
+                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($excelDate);
+                return $date->format('Y-m-d H:i:s');
+            }
+        } catch (Exception $e) {
+            error_log("Error convirtiendo fecha Excel numérica [$excelDate]: " . $e->getMessage());
+        }
+    }
+    
+    // Si es string, intentar convertir
+    if (is_string($excelDate)) {
+        $trimmedDate = trim($excelDate);
+        if (!empty($trimmedDate)) {
+            try {
+                $timestamp = strtotime($trimmedDate);
+                if ($timestamp !== false) {
+                    return date('Y-m-d H:i:s', $timestamp);
+                }
+            } catch (Exception $e) {
+                error_log("Error convirtiendo fecha string [$trimmedDate]: " . $e->getMessage());
+            }
+        }
+    }
+    
+    error_log("No se pudo convertir la fecha: " . print_r($excelDate, true));
+    return null;
+}
 
     public function searchByNit() {
         if (!isset($_SESSION['user_id'])) {
