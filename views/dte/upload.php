@@ -200,7 +200,7 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
             const formData = new FormData(this);
             const messageDiv = document.getElementById('message');
 
-            fetch('../public/index.php?controller=dte&action=uploadExcel', {
+            fetch('/index.php?controller=dte&action=uploadExcel', {
                 method: 'POST',
                 body: formData
             })
