@@ -10,7 +10,6 @@ class DteModel {
 
     public function isDteDuplicate($numero_autorizacion, $serie, $numero_dte) {
         try {
-            // Verificar que todos los campos necesarios estén presentes
             if (empty($numero_autorizacion) || empty($serie) || empty($numero_dte)) {
                 error_log("Campos incompletos para verificación de duplicado: numero_autorizacion=$numero_autorizacion, serie=$serie, numero_dte=$numero_dte");
                 return false;
@@ -20,10 +19,6 @@ class DteModel {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$numero_autorizacion, $serie, $numero_dte]);
             $count = $stmt->fetchColumn();
-            
-            if ($count > 0) {
-                error_log("DTE DUPLICADO ENCONTRADO: numero_autorizacion=$numero_autorizacion, serie=$serie, numero_dte=$numero_dte");
-            }
             
             return $count > 0;
         } catch (PDOException $e) {
@@ -37,7 +32,7 @@ class DteModel {
             // Verificar duplicados
             if ($this->isDteDuplicate($data['numero_autorizacion'], $data['serie'], $data['numero_dte'])) {
                 error_log("DTE duplicado detectado: numero_autorizacion={$data['numero_autorizacion']}, serie={$data['serie']}, numero_dte={$data['numero_dte']}");
-                return false; // Indicar que no se insertó por duplicado
+                return false;
             }
 
             $sql = "INSERT INTO dte (
@@ -55,17 +50,22 @@ class DteModel {
             )";
             
             $stmt = $this->pdo->prepare($sql);
+            
+            // Convertir valores para coincidir con la estructura de la BD
+            $fecha_emision = !empty($data['fecha_emision']) ? date('Y-m-d H:i:s', strtotime($data['fecha_emision'])) : null;
+            $fecha_anulacion = !empty($data['fecha_anulacion']) ? date('Y-m-d H:i:s', strtotime($data['fecha_anulacion'])) : null;
+            
             $result = $stmt->execute([
-                $data['fecha_emision'],
+                $fecha_emision,
                 $data['numero_autorizacion'],
                 $data['tipo_dte'],
                 $data['serie'],
-                $data['numero_dte'],
-                $data['clasificacion_emisor'],
+                $data['numero_dte'], // varchar en BD
+                intval($data['clasificacion_emisor']), // int en BD
                 $data['exportacion'],
                 $data['nit_emisor'],
                 $data['nombre_emisor'],
-                $data['codigo_establecimiento'],
+                intval($data['codigo_establecimiento']), // int en BD
                 $data['nombre_establecimiento'],
                 $data['id_receptor'],
                 $data['nombre_receptor'],
@@ -73,31 +73,31 @@ class DteModel {
                 $data['nombre_certificador'],
                 $data['estado'],
                 $data['moneda'],
-                $data['gran_total'],
-                $data['iva'],
+                floatval($data['gran_total']), // decimal en BD
+                floatval($data['iva']), // decimal en BD
                 $data['marca_anulado'],
-                $data['fecha_anulacion'] ?: null,
-                $data['petroleo'],
-                $data['turismo_hospedaje'],
-                $data['turismo_pasajes'],
-                $data['timbre_prensa'],
-                $data['bomberos'],
-                $data['tasa_municipal'],
-                $data['bebidas_alcoholicas'],
-                $data['tabaco'],
-                $data['cemento'],
-                $data['bebidas_no_alcoholicas'],
-                $data['tarifa_portuaria'],
+                $fecha_anulacion,
+                floatval($data['petroleo']),
+                floatval($data['turismo_hospedaje']),
+                floatval($data['turismo_pasajes']),
+                floatval($data['timbre_prensa']),
+                floatval($data['bomberos']),
+                floatval($data['tasa_municipal']),
+                floatval($data['bebidas_alcoholicas']),
+                floatval($data['tabaco']),
+                floatval($data['cemento']),
+                floatval($data['bebidas_no_alcoholicas']),
+                floatval($data['tarifa_portuaria']),
                 'X' // Default value for usado
             ]);
+            
             if (!$result) {
                 error_log("Error al ejecutar la consulta SQL: " . print_r($stmt->errorInfo(), true));
                 return false;
             }
             return true;
         } catch (PDOException $e) {
-            // Verificar si es error de duplicado
-            if ($e->getCode() == 23000) { // Código de error para violación de restricción única
+            if ($e->getCode() == 23000) {
                 error_log("DTE duplicado detectado a nivel de BD: " . $e->getMessage());
                 return false;
             }
@@ -109,25 +109,36 @@ class DteModel {
 
     public function getDtesByNit($nit, $fechaInicio = null, $fechaFin = null) {
         try {
-            $sql = "SELECT d.numero_autorizacion, d.serie, CAST(d.numero_dte AS CHAR) AS numero_dte, 
-                           d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, d.nit_emisor 
-                    FROM dte d
-                    WHERE d.nit_emisor LIKE :nit 
-                    AND d.usado = 'X'";
+            $sql = "SELECT 
+                    d.numero_autorizacion, 
+                    d.serie, 
+                    d.numero_dte, 
+                    d.nombre_emisor, 
+                    DATE_FORMAT(d.fecha_emision, '%Y-%m-%d') as fecha_emision, 
+                    d.gran_total, 
+                    d.iva, 
+                    d.nit_emisor,
+                    d.tipo_dte,
+                    d.estado,
+                    d.usado
+                FROM dte d
+                WHERE d.nit_emisor LIKE :nit 
+                AND d.usado = 'X'";
             
             $params = ['nit' => "%$nit%"];
             
             if ($fechaInicio && $fechaFin) {
-                $sql .= " AND d.fecha_emision BETWEEN :fecha_inicio AND :fecha_fin";
+                $sql .= " AND DATE(d.fecha_emision) BETWEEN :fecha_inicio AND :fecha_fin";
                 $params['fecha_inicio'] = $fechaInicio;
                 $params['fecha_fin'] = $fechaFin;
             }
             
-            // $sql .= " LIMIT 10";
+            $sql .= " ORDER BY d.fecha_emision DESC LIMIT 100";
             
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             $dtes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
             error_log("DTEs encontrados para NIT $nit: " . count($dtes));
             return $dtes;
         } catch (PDOException $e) {
@@ -139,7 +150,7 @@ class DteModel {
     public function updateDteUsado($serie, $numero_dte) {
         try {
             $serie = trim($serie);
-            $numero_dte = trim(str_replace(['-', ' '], '', $numero_dte));
+            $numero_dte = trim($numero_dte);
             
             $sql = "UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?";
             $stmt = $this->pdo->prepare($sql);
@@ -149,17 +160,6 @@ class DteModel {
                 error_log("DTE actualizado: serie=$serie, numero_dte=$numero_dte, usado=Y");
                 return true;
             } else {
-                // Verificar si ya estaba en 'Y'
-                $checkSql = "SELECT usado FROM dte WHERE serie = ? AND numero_dte = ?";
-                $checkStmt = $this->pdo->prepare($checkSql);
-                $checkStmt->execute([$serie, $numero_dte]);
-                $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($dte && $dte['usado'] === 'Y') {
-                    error_log("DTE ya estaba en estado 'Y': serie=$serie, numero_dte=$numero_dte");
-                    return true;
-                }
-                
                 error_log("No se encontró DTE para actualizar: serie=$serie, numero_dte=$numero_dte");
                 return false;
             }
