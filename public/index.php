@@ -23,7 +23,7 @@ require_once '../controllers/AccesoController.php';
 require_once '../controllers/BaseController.php';
 require_once '../controllers/FacturaController.php';
 require_once '../controllers/CentroCostoController.php';
-require_once '../controllers/DteController.php'; // Agregado
+require_once '../controllers/DteController.php';
 
 $controller = isset($_GET['controller']) ? $_GET['controller'] : 'dashboard';
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
