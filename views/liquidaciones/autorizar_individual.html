@@ -186,25 +186,39 @@
       /* Table Wrapper */
       .table-wrapper {
         width: 100%;
-        overflow-x: auto;
+        overflow: auto;
         margin: 1.5rem 0;
         -webkit-overflow-scrolling: touch;
         background: var(--card-background);
         border-radius: 16px;
         box-shadow: var(--shadow-md);
         border-top: 4px solid var(--primary-color);
+        max-height: 70vh;                   /* Altura máxima antes de que aparezca scroll vertical */
+    position: relative;
       }
 
       #facturasTable {
         width: 100%;
         min-width: 1200px;
         border-collapse: collapse;
+        border-collapse: separate;          /* Importante: separate en lugar de collapse */
+    border-spacing: 0;
       }
+
+      #facturasTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-bottom: 2px solid var(--primary-light);
+}
 
       #facturasTable thead {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
+      
 
       #facturasTable th,
       #facturasTable td {
@@ -212,6 +226,7 @@
         text-align: left;
         font-size: 0.875rem;
         min-width: 100px;
+        border-bottom: 1px solid #0a0a0a34;
       }
 
       #facturasTable th {
