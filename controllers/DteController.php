@@ -211,41 +211,69 @@ class DteController {
 }
 
     public function searchByNit() {
-        if (!isset($_SESSION['user_id'])) {
-            header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado']);
-            exit;
-        }
-        // $usuario = $this->usuarioModel->getUsuarioById($_SESSION['user_id']);
-        // if (!$this->usuarioModel->tienePermiso($usuario, 'manage_dte')) {
-        //     header('Content-Type: application/json');
-        //     http_response_code(403);
-        //     echo json_encode(['error' => 'No tienes permiso para buscar DTEs']);
-        //     exit;
-        // }
-    
-        $nit = isset($_GET['nit']) ? trim($_GET['nit']) : '';
-        $fechaInicio = isset($_GET['fecha_inicio']) ? trim($_GET['fecha_inicio']) : null;
-        $fechaFin = isset($_GET['fecha_fin']) ? trim($_GET['fecha_fin']) : null;
-    
-        if (empty($nit)) {
-            header('Content-Type: application/json');
-            echo json_encode([]);
-            exit;
-        }
-    
-        try {
-            $dtes = $this->dteModel->getDtesByNit($nit, $fechaInicio, $fechaFin);
-            header('Content-Type: application/json');
-            echo json_encode($dtes);
-            exit;
-        } catch (Exception $e) {
-            error_log("Error al buscar DTEs por NIT: " . $e->getMessage());
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al buscar DTEs']);
-            exit;
-        }
+    if (!isset($_SESSION['user_id'])) {
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado']);
+        exit;
     }
+
+    $nit = isset($_GET['nit']) ? trim($_GET['nit']) : '';
+    $serie = isset($_GET['serie']) ? trim($_GET['serie']) : ''; // Agregar parámetro serie
+    $fechaInicio = isset($_GET['fecha_inicio']) ? trim($_GET['fecha_inicio']) : null;
+    $fechaFin = isset($_GET['fecha_fin']) ? trim($_GET['fecha_fin']) : null;
+
+    if (empty($nit) && empty($serie)) { // Validar ambos campos
+        header('Content-Type: application/json');
+        echo json_encode([]);
+        exit;
+    }
+
+    try {
+        // Modificar el modelo para aceptar ambos parámetros
+        $dtes = $this->dteModel->getDtesByNitOrSerie($nit, $serie, $fechaInicio, $fechaFin);
+        header('Content-Type: application/json');
+        echo json_encode($dtes);
+        exit;
+    } catch (Exception $e) {
+        error_log("Error al buscar DTEs: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al buscar DTEs']);
+        exit;
+    }
+}
+
+    public function searchDtes() {
+    if (!isset($_SESSION['user_id'])) {
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado']);
+        exit;
+    }
+
+    $nit = isset($_GET['nit']) ? trim($_GET['nit']) : '';
+    $serie = isset($_GET['serie']) ? trim($_GET['serie']) : '';
+    $fechaInicio = isset($_GET['fecha_inicio']) ? trim($_GET['fecha_inicio']) : null;
+    $fechaFin = isset($_GET['fecha_fin']) ? trim($_GET['fecha_fin']) : null;
+
+    if (empty($nit) && empty($serie)) {
+        header('Content-Type: application/json');
+        echo json_encode([]);
+        exit;
+    }
+
+    try {
+        $dtes = $this->dteModel->searchDtes($nit, $serie, $fechaInicio, $fechaFin);
+        header('Content-Type: application/json');
+        echo json_encode($dtes);
+        exit;
+    } catch (Exception $e) {
+        error_log("Error al buscar DTEs: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al buscar DTEs']);
+        exit;
+    }
+}
 }

@@ -746,6 +746,9 @@ switch ($controller) {
             case 'searchByNit':
                 $dteController->searchByNit();
                 break;
+            case 'searchDtes':
+                $dteController->searchDtes();
+                break;
             default:
                 header('HTTP/1.1 404 Not Found');
                 echo json_encode(['error' => 'Acción no encontrada para dte']);

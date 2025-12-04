@@ -168,4 +168,95 @@ class DteModel {
             return false;
         }
     }
+
+    public function searchDtes($nit = '', $serie = '', $fechaInicio = null, $fechaFin = null) {
+    try {
+        $sql = "SELECT d.numero_autorizacion, d.serie, CAST(d.numero_dte AS CHAR) AS numero_dte, 
+                       d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
+                       d.nit_emisor, d.usado
+                FROM dte d
+                WHERE 1=1";
+        
+        $params = [];
+        $conditions = [];
+        
+        if (!empty($nit)) {
+            $conditions[] = "d.nit_emisor LIKE ?";
+            $params[] = "%$nit%";
+        }
+        
+        if (!empty($serie)) {
+            $conditions[] = "d.serie LIKE ?";
+            $params[] = "%$serie%";
+        }
+        
+        if (!empty($conditions)) {
+            $sql .= " AND (" . implode(" OR ", $conditions) . ")";
+        }
+        
+        if ($fechaInicio && $fechaFin) {
+            $sql .= " AND d.fecha_emision BETWEEN ? AND ?";
+            $params[] = $fechaInicio;
+            $params[] = $fechaFin;
+        }
+        
+        // Ordenar por fecha de emisión descendente
+        $sql .= " ORDER BY d.fecha_emision DESC";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $dtes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("DTEs encontrados: nit=$nit, serie=$serie, total=" . count($dtes));
+        return $dtes;
+    } catch (PDOException $e) {
+        error_log("Error al buscar DTEs: " . $e->getMessage());
+        throw $e;
+    }
+}
+public function getDtesByNitOrSerie($nit = '', $serie = '', $fechaInicio = null, $fechaFin = null) {
+    try {
+        $sql = "SELECT d.numero_autorizacion, d.serie, CAST(d.numero_dte AS CHAR) AS numero_dte, 
+                       d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
+                       d.nit_emisor, d.usado
+                FROM dte d
+                WHERE 1=1";
+        
+        $params = [];
+        $conditions = [];
+        
+        if (!empty($nit)) {
+            $conditions[] = "d.nit_emisor LIKE ?";
+            $params[] = "%$nit%";
+        }
+        
+        if (!empty($serie)) {
+            $conditions[] = "d.serie LIKE ?";
+            $params[] = "%$serie%";
+        }
+        
+        if (!empty($conditions)) {
+            $sql .= " AND (" . implode(" OR ", $conditions) . ")";
+        }
+        
+        if ($fechaInicio && $fechaFin) {
+            $sql .= " AND d.fecha_emision BETWEEN ? AND ?";
+            $params[] = $fechaInicio;
+            $params[] = $fechaFin;
+        }
+        
+        // Ordenar por fecha de emisión descendente
+        $sql .= " ORDER BY d.fecha_emision DESC";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $dtes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("DTEs encontrados: nit=$nit, serie=$serie, total=" . count($dtes));
+        return $dtes;
+    } catch (PDOException $e) {
+        error_log("Error al buscar DTEs: " . $e->getMessage());
+        throw $e;
+    }
+}
 }
