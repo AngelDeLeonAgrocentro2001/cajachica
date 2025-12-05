@@ -1092,30 +1092,41 @@ async function exportToSap(id) {
 }
 
 async function finalizarLiquidacion(id) {
+    // Deshabilitar el botón inmediatamente para evitar doble clic
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = 'Finalizando...';
+    
     currentLiquidationId = id;
 
     try {
-        // PRIMERA LLAMADA: Solo para obtener información del supervisor
+        // Solo UNA llamada a la API (elimina la llamada separada a getSupervisorInfo)
         const response = await fetch(
-            `index.php?controller=liquidacion&action=getSupervisorInfo&id=${id}`,
+            `index.php?controller=liquidacion&action=finalizar&id=${id}`,
             {
                 method: "POST",
                 headers: {
                     "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/json",
                 },
+                body: JSON.stringify({
+                    confirm: true // Agregar confirmación explícita
+                })
             }
         );
 
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || "Error al obtener información del supervisor");
+            throw new Error(result.error || "Error al finalizar la liquidación");
         }
 
+        // Mostrar información del supervisor del resultado
         const supervisor = result.supervisor || {};
         const supervisorName = supervisor.nombre || "Desconocido";
         const supervisorEmail = supervisor.email || "N/A";
 
+        // Preguntar confirmación ANTES de enviar
         Swal.fire({
             title: "¿Finalizar Liquidación?",
             html: `La liquidación será asignada al supervisor:<br><strong>${supervisorName}</strong> (${supervisorEmail})<br>¿Estás seguro de continuar?`,
@@ -1125,58 +1136,60 @@ async function finalizarLiquidacion(id) {
             cancelButtonColor: "#d33",
             confirmButtonText: "Sí, finalizar",
             cancelButtonText: "Cancelar",
-        }).then(async (swalResult) => {
-            if (swalResult.isConfirmed) {
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
                 try {
-                    // SEGUNDA LLAMADA: Solo para finalizar (esta sí ejecutará el envío de correo)
-                    const finalizeResponse = await fetch(
-                        `index.php?controller=liquidacion&action=finalizar&id=${id}`,
+                    // Hacer una segunda llamada SOLO para confirmar
+                    const confirmResponse = await fetch(
+                        `index.php?controller=liquidacion&action=confirmarFinalizar&id=${id}`,
                         {
                             method: "POST",
                             headers: {
                                 "X-Requested-With": "XMLHttpRequest",
-                            },
+                                "Content-Type": "application/json",
+                            }
                         }
                     );
-
-                    const finalizeResult = await finalizeResponse.json();
-
-                    if (!finalizeResponse.ok) {
-                        throw new Error(finalizeResult.error || "Error al finalizar la liquidación");
-                    }
-
-                    const channel = new BroadcastChannel("liquidacion-estado");
-                    channel.postMessage({
-                        id: currentLiquidationId,
-                        action: "estado-cambiado",
-                    });
-
-                    Swal.fire({
-                        title: "¡Éxito!",
-                        text: finalizeResult.message || "Liquidación finalizada correctamente",
-                        icon: "success",
-                        confirmButtonText: "OK",
-                    }).then(() => {
-                        window.location.href = "index.php?controller=liquidacion&action=list";
-                    });
+                    
+                    return confirmResponse.json();
                 } catch (error) {
-                    console.error("Error al finalizar la liquidación:", error);
-                    Swal.fire({
-                        title: "Error",
-                        text: error.message || "Error al finalizar la liquidación. Intenta de nuevo.",
-                        icon: "error",
-                        confirmButtonText: "OK",
-                    });
+                    Swal.showValidationMessage(`Error: ${error.message}`);
                 }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const channel = new BroadcastChannel("liquidacion-estado");
+                channel.postMessage({
+                    id: currentLiquidationId,
+                    action: "estado-cambiado",
+                });
+
+                Swal.fire({
+                    title: "¡Éxito!",
+                    text: result.value.message || "Liquidación finalizada correctamente",
+                    icon: "success",
+                    confirmButtonText: "OK",
+                }).then(() => {
+                    window.location.href = "index.php?controller=liquidacion&action=list";
+                });
+            } else {
+                // Rehabilitar botón si se cancela
+                btn.disabled = false;
+                btn.innerHTML = 'Finalizar';
             }
         });
     } catch (error) {
-        console.error("Error al iniciar finalización:", error);
+        console.error("Error al finalizar la liquidación:", error);
         Swal.fire({
             title: "Error",
-            text: error.message || "Error al cargar información del supervisor. Intenta de nuevo.",
+            text: error.message || "Error al finalizar la liquidación. Intenta de nuevo.",
             icon: "error",
             confirmButtonText: "OK",
+        }).then(() => {
+            // Rehabilitar botón en caso de error
+            btn.disabled = false;
+            btn.innerHTML = 'Finalizar';
         });
     }
 }
