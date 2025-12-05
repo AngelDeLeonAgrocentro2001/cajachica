@@ -447,7 +447,7 @@ class LoginController {
                     
                     <p style='text-align: center; font-size: 14px; color: #666;'>
                         <em>copia y pega esta URL en tu navegador:</em><br>
-                        <code>https://caja-chica.agrocentro.site/index.php?controller=login&action=login</code>
+                        <code>https://caja-chica.agrocentro.site</code>
                         
                     </p>
                     
