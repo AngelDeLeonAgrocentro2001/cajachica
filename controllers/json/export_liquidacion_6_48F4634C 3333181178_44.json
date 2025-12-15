@@ -1,0 +1,34 @@
+﻿{
+    "DocType": "dDocument_Service",
+    "CardCode": "CCHD0012",
+    "U_CODIGO": "CCHD0012",
+    "DocDate": "2025-12-01",
+    "TaxDate": "2025-10-30",
+    "DocDueDate": "2025-12-01",
+    "Comments": "1w1w1w",
+    "JournalMemo": "1w1w1w",
+    "U_NIT": "11145439",
+    "U_NOMBRE": "HANDY MALENA , ALBILLO DÍAZ DE ALVARADO",
+    "U_F_Tipo": "FEL",
+    "Series": 82,
+    "DocTotal": 425,
+    "TotalDiscount": 0,
+    "Reference1": "6-48F4634C 3333181178",
+    "NumAtCard": "48F4634C 3333181178",
+    "U_F_DEC": "2025-12-01",
+    "U_F_DEC_D": "DEC-2025",
+    "DocCurrency": "QTZ",
+    "DocRate": 1,
+    "DocumentLines": [
+        {
+            "LineType": 0,
+            "ItemDescription": "Alimentos - 1w1w1w",
+            "PriceAfterVAT": 425,
+            "TaxCode": "IVA",
+            "CostingCode": "D20",
+            "AccountCode": "641501001",
+            "U_TipoDoc": "FEL",
+            "U_TipoA": "B"
+        }
+    ]
+}
