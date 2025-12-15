@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard - AgroCaja Chica</title>
-    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="../views/css/style.css" />
     <style>
       * {
         margin: 0;
@@ -381,7 +381,7 @@
     </div>
 
     <div class="dashboard-container">
-      <div class="dashboard-card en-proceso">
+      <div class="dashboard-card en-proceso" id="proceso">
         <div class="status-icon">⏳</div>
         <h3>En Proceso</h3>
         <div class="divider"></div>
@@ -403,7 +403,7 @@
         </div>
       </div>
 
-      <div class="dashboard-card pendiente-autorizacion">
+      <div class="dashboard-card pendiente-autorizacion" id="autorizacion">
         <div class="status-icon">⏱️</div>
         <h3>Pendiente Autorización</h3>
         <div class="divider"></div>
@@ -580,7 +580,7 @@
         </div>
       </div>
 
-      <div class="dashboard-card en-correccion">
+      <div class="dashboard-card en-correccion" id="correcion">
         <div class="status-icon">✏️</div>
         <h3>En Corrección</h3>
         <div class="divider"></div>
@@ -602,6 +602,7 @@
         </div>
       </div>
     </div>
+
     <script>
       let proceso = document.getElementById("proceso");
       let correcion = document.getElementById("correcion");
