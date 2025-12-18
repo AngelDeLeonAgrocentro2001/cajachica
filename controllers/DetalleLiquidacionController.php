@@ -520,6 +520,7 @@ class DetalleLiquidacionController {
                     if ($detalle['serie'] && $detalle['no_factura']) {
                         $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
                         $stmt->execute([$detalle['serie'], str_replace('-', '', $detalle['no_factura'])]);
+                        $detalleModel->liberarDte($detalle['serie'], $detalle['no_factura']);
                         error_log("Reset DTE usado to 'X' for serie={$detalle['serie']}, numero_dte=" . str_replace('-', '', $detalle['no_factura']));
                     }
                     $stmt = $this->pdo->prepare("SELECT usado FROM dte WHERE serie = ? AND numero_dte = ?");
@@ -628,79 +629,87 @@ class DetalleLiquidacionController {
         }
     }
 
-    public function deleteDetalleLiquidacion($id) {
-        if (!isset($_SESSION['user_id'])) {
-            error_log('Error: No hay session user_id en deleteDetalleLiquidacion');
-            header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode(['error' => 'No autorizado']);
-            exit;
-        }
-    
-        $usuarioModel = new Usuario();
-        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuarioModel->tienePermiso($usuario, 'delete_detalles')) {
-            error_log('Error: No tienes permiso para eliminar detalles de liquidaciones');
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar detalles de liquidaciones']);
-            exit;
-        }
-    
-        $detalleModel = new DetalleLiquidacion();
-        $detalle = $detalleModel->getDetalleById($id);
-        if (!$detalle) {
-            error_log('Error: Detalle no encontrado para ID ' . $id);
-            header('Content-Type: application/json');
-            http_response_code(404);
-            echo json_encode(['error' => 'Detalle no encontrado']);
-            exit;
-        }
-    
-        if ($detalle['id_usuario'] != $_SESSION['user_id']) {
-            error_log('Error: No tienes permiso para eliminar este detalle (ID: ' . $id . ')');
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['error' => 'No tienes permiso para eliminar este detalle']);
-            exit;
-        }
-    
-        try {
-            $this->pdo->beginTransaction();
-    
-            // Reset DTE usado to 'X'
-            if ($detalle['serie'] && $detalle['no_factura']) {
-                $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
-                $stmt->execute([$detalle['serie'], str_replace('-', '', $detalle['no_factura'])]);
-                error_log("Reset DTE usado to 'X' for serie={$detalle['serie']}, numero_dte=" . str_replace('-', '', $detalle['no_factura']));
-            }
-    
-            // Eliminar solo el detalle actual si grupo_id = 0, o todos los detalles del grupo si grupo_id > 0
-            if ($detalle['grupo_id'] == 0) {
-                $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE id = ?");
-                $stmt->execute([$id]);
-                error_log("Eliminado detalle individual ID $id con grupo_id 0");
-            } else {
-                $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE grupo_id = ?");
-                $stmt->execute([$detalle['grupo_id']]);
-                error_log("Eliminados todos los detalles para grupo_id {$detalle['grupo_id']}");
-            }
-    
-            $auditoria = new Auditoria();
-            $auditoria->createAuditoria($detalle['id_liquidacion'], $id, $_SESSION['user_id'], 'ELIMINAR_DETALLE', "Detalle de liquidación eliminado: ID $id, grupo_id {$detalle['grupo_id']}");
-    
-            $this->pdo->commit();
-            header('Content-Type: application/json');
-            echo json_encode(['message' => 'Grupo de detalles de liquidación eliminado']);
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            error_log("Error al eliminar detalle ID $id: " . $e->getMessage());
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al eliminar grupo de detalles de liquidación: ' . $e->getMessage()]);
-        }
+   public function deleteDetalleLiquidacion($id) {
+    if (!isset($_SESSION['user_id'])) {
+        error_log('Error: No hay session user_id en deleteDetalleLiquidacion');
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado']);
         exit;
     }
+    
+    $usuarioModel = new Usuario();
+    $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+    if (!$usuarioModel->tienePermiso($usuario, 'delete_detalles')) {
+        error_log('Error: No tienes permiso para eliminar detalles de liquidaciones');
+        header('Content-Type: application/json');
+        http_response_code(403);
+        echo json_encode(['error' => 'No tienes permiso para eliminar detalles de liquidaciones']);
+        exit;
+    }
+    
+    $detalleModel = new DetalleLiquidacion();
+    $detalle = $detalleModel->getDetalleById($id);
+    if (!$detalle) {
+        error_log('Error: Detalle no encontrado para ID ' . $id);
+        header('Content-Type: application/json');
+        http_response_code(404);
+        echo json_encode(['error' => 'Detalle no encontrado']);
+        exit;
+    }
+    
+    if ($detalle['id_usuario'] != $_SESSION['user_id']) {
+        error_log('Error: No tienes permiso para eliminar este detalle (ID: ' . $id . ')');
+        header('Content-Type: application/json');
+        http_response_code(403);
+        echo json_encode(['error' => 'No tienes permiso para eliminar este detalle']);
+        exit;
+    }
+    
+    try {
+        $this->pdo->beginTransaction();
+        
+        // 1. Primero liberar DTE si existe
+        if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+            $detalleModel->liberarDte($detalle['serie'], $detalle['no_factura']);
+        }
+        
+        // 2. Si tiene grupo_id > 0, liberar DTEs de todos los detalles del grupo
+        if ($detalle['grupo_id'] > 0) {
+            $detallesGrupo = $detalleModel->getDetallesByGrupoId($detalle['grupo_id'], $detalle['id_liquidacion']);
+            foreach ($detallesGrupo as $detalleGrupo) {
+                if (!empty($detalleGrupo['serie']) && !empty($detalleGrupo['no_factura'])) {
+                    $detalleModel->liberarDte($detalleGrupo['serie'], $detalleGrupo['no_factura']);
+                }
+            }
+        }
+        
+        // 3. Eliminar los detalles
+        if ($detalle['grupo_id'] == 0) {
+            $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE id = ?");
+            $stmt->execute([$id]);
+            error_log("Eliminado detalle individual ID $id con grupo_id 0");
+        } else {
+            $stmt = $this->pdo->prepare("DELETE FROM detalle_liquidaciones WHERE grupo_id = ?");
+            $stmt->execute([$detalle['grupo_id']]);
+            error_log("Eliminados todos los detalles para grupo_id {$detalle['grupo_id']}");
+        }
+        
+        $auditoria = new Auditoria();
+        $auditoria->createAuditoria($detalle['id_liquidacion'], $id, $_SESSION['user_id'], 'ELIMINAR_DETALLE', "Detalle de liquidación eliminado: ID $id, grupo_id {$detalle['grupo_id']}");
+        
+        $this->pdo->commit();
+        header('Content-Type: application/json');
+        echo json_encode(['message' => 'Grupo de detalles de liquidación eliminado']);
+    } catch (Exception $e) {
+        $this->pdo->rollBack();
+        error_log("Error al eliminar detalle ID $id: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al eliminar grupo de detalles de liquidación: ' . $e->getMessage()]);
+    }
+    exit;
+}
 
     public function revisarDetalle($id = null) {
         if (!isset($_SESSION['user_id'])) {
