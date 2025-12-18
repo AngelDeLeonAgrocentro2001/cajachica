@@ -14,12 +14,12 @@ class Liquidacion {
         $twoWeeksAgo = date('Y-m-d 00:00:00', strtotime('-2 weeks'));
         error_log("Auto-expirado liquidaciones creadas antes de: $twoWeeksAgo");
         
-        // Cambiar estado a EXPIRADO en lugar de FINALIZADO
+        // Cambiar estado a EXPIRADO
         $query = "
             UPDATE liquidaciones 
             SET estado = 'EXPIRADO', 
                 updated_at = NOW() 
-            WHERE estado IN ('EN_PROCESO', 'PENDIENTE_REVISION_CONTABILIDAD', 'PENDIENTE_AUTORIZACION')
+            WHERE estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
             AND fecha_creacion <= ?
         ";
         
@@ -28,6 +28,10 @@ class Liquidacion {
         $rowCount = $stmt->rowCount();
         
         error_log("Auto-expiradas $rowCount liquidaciones antiguas");
+        
+        // NUEVO: Eliminar liquidaciones EXPIRADAS con más de 1 hora
+        $this->deleteExpiredLiquidaciones();
+        
         return $rowCount;
         
     } catch (PDOException $e) {
@@ -36,6 +40,394 @@ class Liquidacion {
     }
 }
 
+// NUEVO MÉTODO: Eliminar liquidaciones EXPIRADAS después de 5 minutos
+public function deleteExpiredLiquidaciones() {
+    try {
+        $fiveMinutesAgo = date('Y-m-d H:i:s', strtotime('-12 hour'));
+        error_log("Eliminando liquidaciones EXPIRADAS desde: $fiveMinutesAgo");
+        
+        // Obtener liquidaciones EXPIRADAS con más de 5 minutos
+        $query = "
+            SELECT id, estado 
+            FROM liquidaciones 
+            WHERE estado = 'EXPIRADO'
+            AND updated_at <= ?
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$fiveMinutesAgo]);
+        $liquidaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Liquidaciones EXPIRADAS encontradas para eliminar: " . count($liquidaciones));
+        
+        $deletedCount = 0;
+        
+        foreach ($liquidaciones as $liquidacion) {
+            $liquidacionId = $liquidacion['id'];
+            error_log("Procesando liquidación EXPIRADA ID: $liquidacionId para eliminación");
+            
+            try {
+                // Verificar estado DTE antes de eliminar
+                $detallesConDte = $this->verificarEstadoDteDespuesEliminacion($liquidacionId);
+                
+                // Liberar y eliminar facturas asociadas
+                if ($this->liberarYeliminarFacturas($liquidacionId)) {
+                    // Eliminar la liquidación
+                    $deleteStmt = $this->pdo->prepare("DELETE FROM liquidaciones WHERE id = ?");
+                    $deleteStmt->execute([$liquidacionId]);
+                    
+                    if ($deleteStmt->rowCount() > 0) {
+                        $deletedCount++;
+                        error_log("✓ Liquidación EXPIRADA eliminada ID: $liquidacionId");
+                        
+                        // Registrar auditoría
+                        $this->registrarAuditoriaEliminacion($liquidacionId);
+                        
+                        // Verificar estado DTE después de eliminar
+                        $this->verificarEstadoDteDespuesEliminacionEnDte($detallesConDte);
+                    }
+                } else {
+                    error_log("✗ No se pudo liberar facturas de liquidación ID: $liquidacionId");
+                }
+            } catch (Exception $e) {
+                error_log("✗ Error procesando liquidación ID: $liquidacionId - " . $e->getMessage());
+                continue; // Continuar con la siguiente liquidación
+            }
+        }
+        
+        error_log("Total liquidaciones EXPIRADAS eliminadas: $deletedCount");
+        return $deletedCount;
+        
+    } catch (PDOException $e) {
+        error_log("Error en deleteExpiredLiquidaciones: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Método para verificar estado DTE después de la operación
+private function verificarEstadoDteDespuesEliminacionEnDte($detalles) {
+    foreach ($detalles as $detalle) {
+        if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+            // 🔴 **Misma lógica de extracción**
+            $numero_dte = $detalle['serie'] && strpos($detalle['no_factura'], $detalle['serie']) === 0 
+                ? substr($detalle['no_factura'], strlen($detalle['serie'])) 
+                : $detalle['no_factura'];
+            
+            $numero_dte_limpio = str_replace('-', '', $numero_dte);
+            $numero_dte_limpio = preg_replace('/\s+/', '', $numero_dte_limpio);
+            
+            $checkStmt = $this->pdo->prepare("SELECT usado FROM dte WHERE serie = ? AND numero_dte = ?");
+            $checkStmt->execute([$detalle['serie'], $numero_dte_limpio]);
+            $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$dte) {
+                // Intentar con el número exacto
+                $checkStmt->execute([$detalle['serie'], $detalle['no_factura']]);
+                $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            }
+            
+            if ($dte) {
+                error_log("Estado DTE después de eliminar - Serie: {$detalle['serie']}, Factura: {$detalle['no_factura']}, Numero DTE: $numero_dte_limpio, Estado: {$dte['usado']}");
+            } else {
+                error_log("DTE no encontrado después de eliminar - Serie: {$detalle['serie']}, Factura: {$detalle['no_factura']}, Numero DTE calc: $numero_dte_limpio");
+            }
+        }
+    }
+}
+
+// En la clase Liquidacion, añade este método:
+private function liberarYeliminarFacturas($liquidacionId) {
+    try {
+        $this->pdo->beginTransaction();
+        
+        error_log("=== INICIANDO liberarYeliminarFacturas para liquidación ID: $liquidacionId ===");
+        
+        // 1. Obtener todas las facturas (detalles) de la liquidación
+        $query = "
+            SELECT id, serie, no_factura 
+            FROM detalle_liquidaciones 
+            WHERE id_liquidacion = ?
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId]);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Número de detalles encontrados: " . count($detalles));
+        
+        // 2. Para cada factura, liberar DTE si existe
+        foreach ($detalles as $index => $detalle) {
+            error_log("Procesando detalle {$index}: ID={$detalle['id']}, Serie={$detalle['serie']}, No Factura={$detalle['no_factura']}");
+            
+            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+                // Usar el método liberarDte que ya existe
+                $this->liberarDte($detalle['serie'], $detalle['no_factura']);
+            } else {
+                error_log("Detalle sin serie o número de factura, no se puede liberar DTE");
+            }
+        }
+        
+        // 3. Eliminar todos los detalles de la liquidación
+        $deleteDetallesQuery = "DELETE FROM detalle_liquidaciones WHERE id_liquidacion = ?";
+        $deleteStmt = $this->pdo->prepare($deleteDetallesQuery);
+        $deleteStmt->execute([$liquidacionId]);
+        
+        $detallesEliminados = $deleteStmt->rowCount();
+        error_log("Detalles eliminados: $detallesEliminados registros");
+        
+        // 4. Eliminar auditorías relacionadas
+        $deleteAuditoriaQuery = "DELETE FROM auditoria WHERE id_liquidacion = ?";
+        $deleteAuditoriaStmt = $this->pdo->prepare($deleteAuditoriaQuery);
+        $deleteAuditoriaStmt->execute([$liquidacionId]);
+        
+        $auditoriasEliminadas = $deleteAuditoriaStmt->rowCount();
+        error_log("Auditorías eliminadas: $auditoriasEliminadas registros");
+        
+        $this->pdo->commit();
+        error_log("=== TRANSACCIÓN COMPLETADA para liquidación ID: $liquidacionId ===");
+        return true;
+        
+    } catch (PDOException $e) {
+        $this->pdo->rollBack();
+        error_log("ERROR en liberarYeliminarFacturas para liquidación ID: $liquidacionId - " . $e->getMessage());
+        return false;
+    }
+}
+// NUEVO MÉTODO: Liberar y eliminar facturas asociadas
+public function liberarDte($serie, $no_factura) {
+    try {
+        if (empty($serie) || empty($no_factura)) {
+            error_log("Error: Serie o número de factura vacíos para liberar DTE");
+            return false;
+        }
+        
+        // 🔴 **IMPORTANTE: Extraer el numero_dte como en el primer ejemplo**
+        $numero_dte = $serie && strpos($no_factura, $serie) === 0 
+            ? substr($no_factura, strlen($serie)) 
+            : $no_factura;
+        
+        // Limpiar el número de factura (quitar guiones y espacios)
+        $numero_dte_limpio = str_replace('-', '', $numero_dte);
+        $numero_dte_limpio = preg_replace('/\s+/', '', $numero_dte_limpio);
+        
+        error_log("=== INICIANDO liberarDte ===");
+        error_log("Serie: '$serie', No Factura original: '$no_factura'");
+        error_log("Numero DTE extraído: '$numero_dte'");
+        error_log("Numero DTE limpio: '$numero_dte_limpio'");
+        
+        // Verificar si el DTE existe
+        $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
+        $checkStmt->execute([$serie, $numero_dte_limpio]);
+        $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dte) {
+            error_log("✗ DTE no encontrado en la tabla dte con numero_dte_limpio");
+            
+            // 🔴 **Intentar buscar exactamente como está en la factura**
+            $checkStmt->execute([$serie, $no_factura]);
+            $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$dte) {
+                error_log("✗ DTE no encontrado con ninguna variación");
+                
+                // Buscar en la tabla dte para ver qué formatos existen
+                $searchStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie LIKE ?");
+                $searchStmt->execute([$serie]);
+                $allDtes = $searchStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (count($allDtes) > 0) {
+                    error_log("DTEs encontrados con serie '$serie':");
+                    foreach ($allDtes as $dteItem) {
+                        error_log("  - Numero DTE: '{$dteItem['numero_dte']}', Usado: '{$dteItem['usado']}'");
+                    }
+                }
+                
+                return false;
+            } else {
+                $numero_dte_limpio = $no_factura; // Usar el número exacto
+                error_log("✓ DTE encontrado con número exacto de factura");
+            }
+        }
+        
+        error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
+        
+        // Solo actualizar si está en 'Y' (usado)
+        if ($dte['usado'] === 'Y') {
+            $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
+            $updateStmt->execute([$serie, $numero_dte_limpio]);
+            $rowCount = $updateStmt->rowCount();
+            
+            error_log("UPDATE ejecutado - Filas afectadas: $rowCount");
+            
+            if ($rowCount > 0) {
+                // Verificar el cambio
+                $checkStmt->execute([$serie, $numero_dte_limpio]);
+                $dte_actualizado = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                error_log("✓ DTE liberado exitosamente de 'Y' a 'X'");
+                error_log("Estado DTE después: '{$dte_actualizado['usado']}'");
+                return true;
+            } else {
+                error_log("✗ No se pudo actualizar el DTE (posiblemente ya estaba en 'X')");
+                return false;
+            }
+        } else if ($dte['usado'] === 'X') {
+            error_log("DTE ya está liberado (estado 'X')");
+            return true; // Ya está liberado
+        } else {
+            error_log("DTE está en estado desconocido: '{$dte['usado']}'");
+            return false;
+        }
+        
+    } catch (PDOException $e) {
+        error_log("✗ ERROR en liberarDte: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Añade este método a la clase Liquidacion:
+private function liberarDteIndividual($serie, $no_factura) {
+    try {
+        if (empty($serie) || empty($no_factura)) {
+            error_log("Error: Serie o número de factura vacíos para liberar DTE");
+            return false;
+        }
+        
+        // Limpiar el número de factura (quitar guiones)
+        $numero_dte_limpio = str_replace('-', '', $no_factura);
+        
+        error_log("Liberando DTE individual - Serie: '$serie', Numero DTE: '$numero_dte_limpio'");
+        
+        // Verificar si el DTE existe
+        $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
+        $checkStmt->execute([$serie, $numero_dte_limpio]);
+        $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dte) {
+            error_log("✗ DTE no encontrado para liberar - serie: '$serie', numero_dte: '$numero_dte_limpio'");
+            return false;
+        }
+        
+        error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
+        
+        // Solo liberar si está en 'Y' (usado)
+        if ($dte['usado'] === 'Y') {
+            $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
+            $updateStmt->execute([$serie, $numero_dte_limpio]);
+            $rowCount = $updateStmt->rowCount();
+            
+            if ($rowCount > 0) {
+                error_log("✓ DTE liberado de 'Y' a 'X' - serie: '$serie', numero_dte: '$numero_dte_limpio'");
+                return true;
+            }
+        } else if ($dte['usado'] === 'X') {
+            error_log("DTE ya está liberado (estado 'X')");
+            return true;
+        }
+        
+        return false;
+        
+    } catch (PDOException $e) {
+        error_log("Error al liberar DTE individual: " . $e->getMessage());
+        return false;
+    }
+}
+// MÉTODO PARA DEPURAR - Verificar estado de DTE después de eliminar
+// En la clase Liquidacion, agrega este método para debug:
+public function verificarEstadoDteDespuesEliminacion($liquidacionId) {
+    try {
+        // Obtener detalles antes de eliminar
+        $query = "
+            SELECT dl.serie, dl.no_factura, d.usado as dte_estado_antes
+            FROM detalle_liquidaciones dl
+            LEFT JOIN dte d ON dl.serie = d.serie 
+            WHERE dl.id_liquidacion = ?
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId]);
+        $detallesConDte = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("=== VERIFICACIÓN DTE ANTES DE ELIMINAR LIQUIDACIÓN $liquidacionId ===");
+        
+        // Para cada detalle, verificar con la misma lógica de extracción
+        foreach ($detallesConDte as &$detalle) {
+            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+                // 🔴 **Misma lógica de extracción**
+                $numero_dte = $detalle['serie'] && strpos($detalle['no_factura'], $detalle['serie']) === 0 
+                    ? substr($detalle['no_factura'], strlen($detalle['serie'])) 
+                    : $detalle['no_factura'];
+                
+                $numero_dte_limpio = str_replace('-', '', $numero_dte);
+                $numero_dte_limpio = preg_replace('/\s+/', '', $numero_dte_limpio);
+                
+                // Verificar en la tabla dte con la misma lógica
+                $checkStmt = $this->pdo->prepare("SELECT usado FROM dte WHERE serie = ? AND numero_dte = ?");
+                $checkStmt->execute([$detalle['serie'], $numero_dte_limpio]);
+                $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$dte) {
+                    // Intentar con el número exacto
+                    $checkStmt->execute([$detalle['serie'], $detalle['no_factura']]);
+                    $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                }
+                
+                $detalle['dte_estado_antes'] = $dte['usado'] ?? 'NO_ENCONTRADO';
+                $detalle['numero_dte_calculado'] = $numero_dte_limpio;
+                
+                error_log("Serie: {$detalle['serie']}, Factura: {$detalle['no_factura']}, Numero DTE calc: {$detalle['numero_dte_calculado']}, Estado DTE: {$detalle['dte_estado_antes']}");
+            }
+        }
+        
+        return $detallesConDte;
+        
+    } catch (PDOException $e) {
+        error_log("Error al verificar estado DTE: " . $e->getMessage());
+        return [];
+    }
+}
+// NUEVO MÉTODO: Registrar auditoría de eliminación automática
+private function registrarAuditoriaEliminacion($liquidacionId) {
+    try {
+        $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0; // 0 para sistema automático
+        
+        $query = "
+            INSERT INTO auditoria (
+                id_liquidacion, 
+                id_detalle, 
+                id_usuario, 
+                accion, 
+                descripcion, 
+                fecha
+            ) VALUES (?, NULL, ?, 'ELIMINACION_AUTOMATICA', ?, NOW())
+        ";
+        
+        $descripcion = "Liquidación EXPIRADA eliminada automáticamente después de 1 hora. Facturas liberadas.";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId, $userId, $descripcion]);
+        
+        error_log("Auditoría registrada para eliminación automática de liquidación ID: $liquidacionId");
+        
+    } catch (PDOException $e) {
+        error_log("Error al registrar auditoría de eliminación: " . $e->getMessage());
+    }
+}
+public function getTiempoRestanteExpiracion($fechaExpiracion) {
+    $expiracion = new DateTime($fechaExpiracion);
+    $ahora = new DateTime();
+    
+    if ($ahora > $expiracion) {
+        return "00:00:00"; // Ya expiró
+    }
+    
+    $diferencia = $ahora->diff($expiracion);
+    return sprintf(
+        "%02d:%02d:%02d",
+        $diferencia->h,
+        $diferencia->i,
+        $diferencia->s
+    );
+}
 public function getLiquidacionAgeInWeeks($fechaCreacion) {
     $creacion = new DateTime($fechaCreacion);
     $hoy = new DateTime();
@@ -312,6 +704,4 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $result['exportado'] ?? 0;
     }
 }
-
-
 ?>

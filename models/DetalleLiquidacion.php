@@ -567,73 +567,129 @@ public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
     }
 
     public function updateDteUsado($serie, $numero_dte) {
-        try {
-            // Limpiar y normalizar los datos
-            $serie = trim($serie);
-            $numero_dte = trim(str_replace('-', '', $numero_dte));
+    try {
+        // Limpiar y normalizar los datos
+        $serie = trim($serie);
+        $numero_dte = trim(str_replace('-', '', $numero_dte));
+        
+        error_log("Intentando actualizar DTE - Serie: '$serie', Numero DTE: '$numero_dte'");
+        
+        // Verificar que ambos campos tengan valor
+        if (empty($serie) || empty($numero_dte)) {
+            error_log("Error: Serie o numero_dte vacíos - serie: '$serie', numero_dte: '$numero_dte'");
+            return false;
+        }
+        
+        // Primero verificar si el DTE existe
+        $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
+        $checkStmt->execute([$serie, $numero_dte]);
+        $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dte) {
+            error_log("DTE no encontrado - serie: '$serie', numero_dte: '$numero_dte'");
             
-            error_log("Intentando actualizar DTE - Serie: '$serie', Numero DTE: '$numero_dte'");
-            
-            // Verificar que ambos campos tengan valor
-            if (empty($serie) || empty($numero_dte)) {
-                error_log("Error: Serie o numero_dte vacíos - serie: '$serie', numero_dte: '$numero_dte'");
-                return false;
+            // Intentar buscar sin espacios
+            $numero_dte_sin_espacios = str_replace(' ', '', $numero_dte);
+            if ($numero_dte_sin_espacios !== $numero_dte) {
+                $checkStmt->execute([$serie, $numero_dte_sin_espacios]);
+                $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($dte) {
+                    error_log("DTE encontrado sin espacios - usando: '$numero_dte_sin_espacios'");
+                    $numero_dte = $numero_dte_sin_espacios;
+                }
             }
-            
-            // Primero verificar si el DTE existe
-            $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
-            $checkStmt->execute([$serie, $numero_dte]);
-            $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$dte) {
-                error_log("DTE no encontrado - serie: '$serie', numero_dte: '$numero_dte'");
-                
-                // Intentar buscar sin espacios
-                $numero_dte_sin_espacios = str_replace(' ', '', $numero_dte);
-                if ($numero_dte_sin_espacios !== $numero_dte) {
-                    $checkStmt->execute([$serie, $numero_dte_sin_espacios]);
-                    $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($dte) {
-                        error_log("DTE encontrado sin espacios - usando: '$numero_dte_sin_espacios'");
-                        $numero_dte = $numero_dte_sin_espacios;
-                    }
-                }
-                
-                if (!$dte) {
-                    error_log("DTE definitivamente no encontrado después de búsquedas alternativas");
-                    return false;
-                }
+                error_log("DTE definitivamente no encontrado después de búsquedas alternativas");
+                return false;
             }
+        }
+        
+        error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
+        
+        // Actualizar el campo usado
+        $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
+        $updateStmt->execute([$serie, $numero_dte]);
+        $rowCount = $updateStmt->rowCount();
+        
+        error_log("UPDATE ejecutado - Filas afectadas: $rowCount");
+        
+        if ($rowCount === 0) {
+            error_log("No se pudo actualizar el DTE - posiblemente ya estaba en 'Y'");
+            // Verificar el estado actual
+            $checkStmt->execute([$serie, $numero_dte]);
+            $dte_actual = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            error_log("Estado actual del DTE: '{$dte_actual['usado']}'");
             
-            error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
-            
-            // Actualizar el campo usado
-            $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'Y' WHERE serie = ? AND numero_dte = ?");
-            $updateStmt->execute([$serie, $numero_dte]);
+            // Si ya está en 'Y', considerarlo éxito
+            return $dte_actual['usado'] === 'Y';
+        }
+        
+        return true;
+        
+    } catch (PDOException $e) {
+        error_log("Error al actualizar usado en dte para serie='$serie', numero_dte='$numero_dte': " . $e->getMessage());
+        return false;
+    }
+}
+
+// En la clase DetalleLiquidacion, asegúrate que el método liberarDte sea así:
+public function liberarDte($serie, $no_factura) {
+    try {
+        if (empty($serie) || empty($no_factura)) {
+            error_log("Error: Serie o número de factura vacíos para liberar DTE");
+            return false;
+        }
+        
+        // Limpiar el número de factura (quitar guiones)
+        $numero_dte_limpio = str_replace('-', '', $no_factura);
+        
+        error_log("=== INICIANDO liberarDte ===");
+        error_log("Serie: '$serie', No Factura original: '$no_factura', Numero DTE limpio: '$numero_dte_limpio'");
+        
+        // Verificar si el DTE existe
+        $checkStmt = $this->pdo->prepare("SELECT serie, numero_dte, usado FROM dte WHERE serie = ? AND numero_dte = ?");
+        $checkStmt->execute([$serie, $numero_dte_limpio]);
+        $dte = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dte) {
+            error_log("✗ DTE no encontrado en la tabla dte");
+            error_log("Buscando con serie: '$serie' y numero_dte: '$numero_dte_limpio'");
+            return false;
+        }
+        
+        error_log("DTE encontrado - Estado actual: '{$dte['usado']}'");
+        
+        // Solo actualizar si está en 'Y'
+        if ($dte['usado'] === 'Y') {
+            $updateStmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
+            $updateStmt->execute([$serie, $numero_dte_limpio]);
             $rowCount = $updateStmt->rowCount();
             
             error_log("UPDATE ejecutado - Filas afectadas: $rowCount");
             
-            if ($rowCount === 0) {
-                error_log("No se pudo actualizar el DTE - posiblemente ya estaba en 'Y'");
-                // Verificar el estado actual
-                $checkStmt->execute([$serie, $numero_dte]);
-                $dte_actual = $checkStmt->fetch(PDO::FETCH_ASSOC);
-                error_log("Estado actual del DTE: '{$dte_actual['usado']}'");
-                
-                // Si ya está en 'Y', considerarlo éxito
-                return $dte_actual['usado'] === 'Y';
+            if ($rowCount > 0) {
+                // Verificar el cambio
+                $checkStmt->execute([$serie, $numero_dte_limpio]);
+                $dte_actualizado = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                error_log("✓ DTE liberado exitosamente");
+                error_log("Estado DTE después: '{$dte_actualizado['usado']}'");
+                return true;
             }
-            
-            return true;
-            
-        } catch (PDOException $e) {
-            error_log("Error al actualizar usado en dte para serie='$serie', numero_dte='$numero_dte': " . $e->getMessage());
-            return false;
+        } else {
+            error_log("DTE no estaba en estado 'Y', estado actual: '{$dte['usado']}'");
+            return true; // Ya está liberado
         }
+        
+        return false;
+        
+    } catch (PDOException $e) {
+        error_log("✗ ERROR en liberarDte: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        return false;
     }
-
+}
     public function getDetallesByGrupoId($grupoId, $id_liquidacion) {
         try {
             $grupoId = intval($grupoId);

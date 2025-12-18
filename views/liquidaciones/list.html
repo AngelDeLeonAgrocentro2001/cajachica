@@ -852,6 +852,68 @@
     transform: none !important;
     box-shadow: none !important;
 }
+
+/* Agrega esto a tu CSS existente */
+
+/* Estilo para filas de liquidaciones expiradas */
+.liquidacion-expirada {
+    background-color: #fff3cd !important; /* Amarillo claro */
+    border-left: 4px solid #ffc107 !important;
+}
+
+/* Estado expirado */
+.estado-expirado {
+    color: #856404;
+    font-weight: bold;
+    background-color: #fff3cd;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #ffc107;
+}
+
+/* Temporizador */
+.temporizador-expirado {
+    color: #856404;
+    font-weight: bold;
+    font-size: 0.9em;
+    background-color: #ffeaa7;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #fdcb6e;
+    display: inline-block;
+}
+
+/* Mensaje de eliminando */
+.eliminando-msg {
+    color: #721c24;
+    font-weight: bold;
+    font-size: 0.9em;
+    background-color: #f8d7da;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #f5c6cb;
+    display: inline-block;
+    animation: blink 1s infinite;
+}
+
+/* Animación de parpadeo */
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.5; }
+}
+
+/* Botones deshabilitados para liquidaciones expiradas */
+.liquidacion-expirada .edit-btn,
+.liquidacion-expirada .delete-btn,
+.liquidacion-expirada .finalize-btn,
+.liquidacion-expirada .view-btn {
+    opacity: 0.6;
+    /* cursor: not-allowed !important; */
+}
+
+.liquidacion-expirada .view-btn {
+    opacity: 1; /* El botón ver sigue disponible */
+}
     </style>
     <script>
       const userPermissions = {
