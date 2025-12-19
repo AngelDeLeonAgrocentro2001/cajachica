@@ -125,6 +125,12 @@ async function loadLiquidations() {
         window.isEncargadoLike = data.isEncargadoLike || false;
         window.userRole = data.userRole || window.userRole || '';
         
+        // Contar liquidaciones expiradas
+        const expiradasCount = liquidacionesData.filter(liq => liq.estado === 'EXPIRADO').length;
+        if (expiradasCount > 0) {
+            console.log(`Hay ${expiradasCount} liquidación(es) EXPIRADA(s) que se eliminarán automáticamente`);
+        }
+
         // Mostrar información sobre el modo actual
         if (mode === "revisar") {
             console.log('Modo REVISAR activado: Mostrando todas las liquidaciones, usa el filtro de estado para buscar específicas');
@@ -136,6 +142,9 @@ async function loadLiquidations() {
         currentPage = 1;
         renderLiquidations();
         renderCorrectedDetalles();
+        
+        // Iniciar actualización de temporizadores
+        iniciarActualizacionTemporizadores();
     } catch (error) {
         console.error("Error al cargar liquidaciones:", error);
         alert("Error al cargar las liquidaciones. Intenta de nuevo.");
@@ -289,9 +298,14 @@ function renderLiquidations() {
 
             // VERIFICAR SI LA LIQUIDACIÓN ESTÁ EXPIRADA
             const isLiquidacionExpirada = liquidacion.estado === 'EXPIRADO';
+            
+            // Obtener la fecha de expiración (updated_at cuando se marcó como EXPIRADO)
+            const fechaExpiracion = liquidacion.updated_at || liquidacion.fecha_creacion;
+            const tiempoRestante = isLiquidacionExpirada ? 
+                calcularTiempoRestante(fechaExpiracion) : null;
 
             // APLICAR CLASE CSS SI ESTÁ EXPIRADA
-            const rowClass = isLiquidacionExpirada ? 'liquidacion-antigua' : '';
+            const rowClass = isLiquidacionExpirada ? 'liquidacion-expirada' : '';
 
             // PERMISOS PARA CREACIÓN/EDICIÓN (ENCARGADOS, INCLUYENDO ROLES MIXTOS)
             if (
@@ -318,10 +332,12 @@ function renderLiquidations() {
                     }>Finalizar</button>`
                 );
             } else if (isLiquidacionExpirada) {
-                // Mostrar mensaje de liquidación expirada
-                actions.push(
-                    `<span class="auto-finalized-msg">Expirada automáticamente</span>`
-                );
+                // Mostrar mensaje con temporizador para liquidaciones expiradas
+                const tiempoHtml = tiempoRestante === "00:00:00" 
+                    ? '<span class="eliminando-msg">ELIMINANDO...</span>' 
+                    : `<span class="temporizador-expirado" data-fecha-expiracion="${fechaExpiracion}">Se elimina en: ${tiempoRestante}</span>`;
+                
+                actions.push(tiempoHtml);
             }
 
             // BOTÓN "VER LIQUIDACIÓN" PARA TODOS LOS ESTADOS RELEVANTES
@@ -372,10 +388,12 @@ function renderLiquidations() {
             }
 
             const actionsHtml = actions.join(" ");
-            const estado = liquidacion.estado && liquidacion.estado !== "N/A" ? liquidacion.estado : "EN_PROCESO";
+            const estado = liquidacion.estado && liquidacion.estado !== "N/A" ? 
+                (isLiquidacionExpirada ? `<span class="estado-expirado">EXPIRADO</span>` : liquidacion.estado) 
+                : "EN_PROCESO";
 
             tbody.innerHTML += `
-                <tr class="${rowClass}">
+                <tr class="${rowClass}" data-liquidacion-id="${liquidacion.id}">
                     <td data-label="ID">${liquidacion.id}</td>
                     <td data-label="Caja Chica">${
                         liquidacion.nombre_caja_chica || "N/A"
@@ -406,7 +424,83 @@ function renderLiquidations() {
     }
 
     renderPagination();
+    
+    // Iniciar la actualización de temporizadores
+    iniciarActualizacionTemporizadores();
 }
+
+// Función para calcular el tiempo restante hasta la eliminación
+function calcularTiempoRestante(fechaExpiracion) {
+    try {
+        const fechaExp = new Date(fechaExpiracion);
+        const ahora = new Date();
+        
+        // Añadir 5 minutos (300,000 milisegundos) a la fecha de expiración
+        const fechaEliminacion = new Date(fechaExp.getTime() + (720 * 60 * 1000));
+        
+        // Calcular diferencia
+        const diferenciaMs = fechaEliminacion - ahora;
+        
+        if (diferenciaMs <= 0) {
+            return "00:00:00";
+        }
+        
+        // Convertir a horas, minutos, segundos
+        const horas = Math.floor(diferenciaMs / (1000 * 60 * 60));
+        const minutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
+        const segundos = Math.floor((diferenciaMs % (1000 * 60)) / 1000);
+        
+        return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+    } catch (error) {
+        console.error("Error calculando tiempo restante:", error);
+        return "00:00:00";
+    }
+}
+
+// Función para actualizar todos los temporizadores
+function actualizarTemporizadores() {
+    const temporizadores = document.querySelectorAll('.temporizador-expirado');
+    
+    temporizadores.forEach(temporizador => {
+        const fechaExpiracion = temporizador.getAttribute('data-fecha-expiracion');
+        if (fechaExpiracion) {
+            const tiempoRestante = calcularTiempoRestante(fechaExpiracion);
+            
+            if (tiempoRestante === "00:00:00") {
+                // Cuando el tiempo llega a cero, mostrar mensaje y recargar
+                temporizador.innerHTML = '<span class="eliminando-msg">ELIMINANDO...</span>';
+                
+                // Recargar la lista después de 5 segundos
+                setTimeout(() => {
+                    loadLiquidations();
+                }, 5000);
+            } else {
+                temporizador.textContent = `Se elimina en: ${tiempoRestante}`;
+            }
+        }
+    });
+}
+
+// Función para iniciar la actualización periódica de temporizadores
+function iniciarActualizacionTemporizadores() {
+    // Limpiar intervalo anterior si existe
+    if (window.temporizadorInterval) {
+        clearInterval(window.temporizadorInterval);
+    }
+    
+    // Actualizar cada segundo
+    window.temporizadorInterval = setInterval(actualizarTemporizadores, 1000);
+    
+    // Ejecutar una vez inmediatamente
+    actualizarTemporizadores();
+}
+
+// Detener el intervalo cuando se cierre la página
+window.addEventListener('beforeunload', () => {
+    if (window.temporizadorInterval) {
+        clearInterval(window.temporizadorInterval);
+    }
+});
 
 function renderPagination() {
     const paginationControls = document.getElementById("paginationControls");
@@ -1306,4 +1400,3 @@ function addFormValidations(id = null) {
         }
     });
 }
-
