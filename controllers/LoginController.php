@@ -963,4 +963,109 @@ public function sendCorreccionCompletadaNotification($email, $nombre, $liquidati
         return false;
     }
 }
+
+// En la clase LoginController, añade este método:
+public function sendExpirationWarningEmail($email, $nombre, $liquidationId, $liquidacionInfo) {
+    try {
+        error_log("📧 Enviando correo de advertencia de expiración a: $email");
+        
+        $asunto = '⚠️ Advertencia: Liquidación por Expirar - AgroCaja Chica';
+        
+        $systemUrl = $this->getSystemUrl();
+        
+        $mensaje = "
+            <html>
+            <head>
+                <title>Advertencia: Liquidación por Expirar</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center; border: 2px solid #ffc107; }
+                    .info-box { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
+                    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+                    .btn { display: inline-block; padding: 12px 24px; background: #ffc107; color: #212529; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                    .warning { color: #856404; font-weight: bold; }
+                    .urgent { color: #d9534f; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h2>⚠️ ADVERTENCIA: LIQUIDACIÓN POR EXPIRAR</h2>
+                    </div>
+                    
+                    <p>Hola <strong>{$nombre}</strong>,</p>
+                    
+                    <p>Te informamos que <span class='urgent'>mañana expirará</span> una liquidación en el sistema AgroCaja Chica.</p>
+                    
+                    <div class='info-box'>
+                        <h3>📊 Información de la Liquidación</h3>
+                        <p><strong>ID de Liquidación:</strong> #{$liquidationId}</p>
+                        <p><strong>Estado Actual:</strong> <span class='warning'>POR EXPIRAR</span></p>
+                        <p><strong>Tiempo Restante:</strong> <span class='urgent'>MENOS DE 24 HORAS</span></p>
+                        <p><strong>Fecha de Creación:</strong> " . date('d/m/Y', strtotime('-13 days')) . "</p>
+                        <p><strong>Fecha de Expiración:</strong> <span class='urgent'>" . date('d/m/Y') . " (MAÑANA)</span></p>
+                        " . ($liquidacionInfo ? "<p><strong>Detalles:</strong> {$liquidacionInfo}</p>" : "") . "
+                    </div>
+                    
+                    <p><strong>📝 Acción Requerida:</strong></p>
+                    <ul>
+                        <li>Si la liquidación está <strong>EN_PROCESO</strong>, por favor envíala para autorización</li>
+                        <li>Si está <strong>PENDIENTE_AUTORIZACION</strong>, por favor revísala y autorízala</li>
+                        <li>De lo contrario, mañana será automáticamente marcada como <strong>EXPIRADA</strong></li>
+                    </ul>
+                    
+                    <p style='text-align: center;'>
+                        <a href='{$systemUrl}' class='btn'>
+                            🔄 Revisar Liquidación
+                        </a>
+                    </p>
+                    
+                    <p style='text-align: center; font-size: 14px; color: #666;'>
+                        <em>Este es un aviso automático. La liquidación será marcada como EXPIRADA mañana automáticamente.</em>
+                    </p>
+                    
+                    <div class='footer'>
+                        <p>Este es un mensaje automático del sistema AgroCaja Chica.</p>
+                        <p>Por favor no respondas a este correo.</p>
+                        <p>AgroCaja Chica &copy; " . date('Y') . "</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ";
+        
+        $mensajeAlterno = "⚠️ ADVERTENCIA: LIQUIDACIÓN POR EXPIRAR - AGROCAJA CHICA\n\n" .
+            "Hola {$nombre},\n\n" .
+            "Te informamos que MAÑANA EXPIRARÁ una liquidación en el sistema AgroCaja Chica.\n\n" .
+            "INFORMACIÓN DE LA LIQUIDACIÓN:\n" .
+            "ID: #{$liquidationId}\n" .
+            "Estado: POR EXPIRAR\n" .
+            "Tiempo Restante: MENOS DE 24 HORAS\n" .
+            "Fecha de Creación: " . date('d/m/Y', strtotime('-13 days')) . "\n" .
+            "Fecha de Expiración: " . date('d/m/Y') . " (MAÑANA)\n" .
+            ($liquidacionInfo ? "Detalles: {$liquidacionInfo}\n" : "") . "\n\n" .
+            "ACCIÓN REQUERIDA:\n" .
+            "1. Si la liquidación está EN_PROCESO, por favor envíala para autorización\n" .
+            "2. Si está PENDIENTE_AUTORIZACION, por favor revísala y autorízala\n" .
+            "3. De lo contrario, mañana será automáticamente marcada como EXPIRADA\n\n" .
+            "Enlace al sistema: {$systemUrl}\n\n" .
+            "Este es un aviso automático. La liquidación será marcada como EXPIRADA mañana automáticamente.\n\n" .
+            "Saludos,\nSistema AgroCaja Chica";
+
+        $result = $this->sendWithExactConfig($email, $nombre, $asunto, $mensaje, $mensajeAlterno);
+        
+        if ($result) {
+            error_log("✅ Correo de advertencia de expiración enviado exitosamente a: $email");
+        } else {
+            error_log("❌ Falló el envío de correo de advertencia de expiración a: $email");
+        }
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        error_log("❌ Error enviando correo de advertencia de expiración: " . $e->getMessage());
+        return false;
+    }
+}
 }
