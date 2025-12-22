@@ -240,7 +240,7 @@ class Liquidacion {
 // NUEVO MÉTODO: Eliminar liquidaciones EXPIRADAS después de 5 minutos
 public function deleteExpiredLiquidaciones() {
     try {
-        $fiveMinutesAgo = date('Y-m-d H:i:s', strtotime('-30 minutes'));
+        $fiveMinutesAgo = date('Y-m-d H:i:s', strtotime('-1 hour'));
         error_log("Eliminando liquidaciones EXPIRADAS desde: $fiveMinutesAgo");
         
         // Obtener liquidaciones EXPIRADAS con más de 5 minutos
