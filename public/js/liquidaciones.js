@@ -1400,3 +1400,4 @@ function addFormValidations(id = null) {
         }
     });
 }
+
