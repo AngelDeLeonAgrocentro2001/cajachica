@@ -436,7 +436,7 @@ function calcularTiempoRestante(fechaExpiracion) {
         const ahora = new Date();
         
         // Añadir 5 minutos (300,000 milisegundos) a la fecha de expiración
-        const fechaEliminacion = new Date(fechaExp.getTime() + (0.0166667 * 60 * 1000));
+        const fechaEliminacion = new Date(fechaExp.getTime() + (0.5 * 60 * 1000));
         
         // Calcular diferencia
         const diferenciaMs = fechaEliminacion - ahora;
