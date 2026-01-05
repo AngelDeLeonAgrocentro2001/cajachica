@@ -3552,7 +3552,7 @@ class LiquidacionController
                     error_log("Factura {$noFactura}: Fecha para comparar: " . $fechaParaComparar->format('Y-m-d') . " (fecha_documento: " . ($dl['fecha_documento'] ?? 'No disponible') . ")");
 
                     // Determinar el mes contable según el día del mes
-                    if ($diaActual >= 1 && $diaActual <= 6) {
+                    if ($diaActual >= 1 && $diaActual <= 7) {
                         // Del 1 al 4: usar mes anterior para contabilidad
                         $mesContable = (clone $fechaActual)->modify('-1 month')->format('Y-m');
                         error_log("Factura {$noFactura}: Día actual {$diaActual} - Usando mes anterior: {$mesContable}");
