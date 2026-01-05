@@ -363,14 +363,17 @@ async function exportDetallesToPDF(idLiquidacion) {
             }
         });
 
+        // Almacenar la respuesta para poder leerla múltiples veces
+        const responseClone = response.clone(); // Clonar la respuesta
+        
         // Check if the response is successful
         if (!response.ok) {
             let errorMessage = 'Error al exportar los detalles';
             try {
-                const errorData = await response.json();
+                const errorData = await responseClone.json();
                 errorMessage = errorData.error || errorMessage;
             } catch (jsonError) {
-                // If JSON parsing fails, fall back to plain text
+                // Si falla el JSON, usar el texto de la respuesta original
                 const errorText = await response.text();
                 errorMessage = errorText || 'Error desconocido del servidor';
             }
