@@ -363,37 +363,32 @@ async function exportDetallesToPDF(idLiquidacion) {
             }
         });
 
-        // Verificar si la respuesta es exitosa
+        // Almacenar la respuesta para poder leerla múltiples veces
+        const responseClone = response.clone(); // Clonar la respuesta
+        
+        // Check if the response is successful
         if (!response.ok) {
             let errorMessage = 'Error al exportar los detalles';
             try {
-                // Crear una copia temporal solo para leer el error
-                const errorResponse = response.clone();
-                const errorText = await errorResponse.text();
-                
-                // Intentar parsear como JSON, si falla usar como texto
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.error || errorMessage;
-                } catch {
-                    errorMessage = errorText || `Error HTTP: ${response.status} ${response.statusText}`;
-                }
-            } catch (e) {
-                errorMessage = `Error HTTP: ${response.status} ${response.statusText}`;
+                const errorData = await responseClone.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (jsonError) {
+                // Si falla el JSON, usar el texto de la respuesta original
+                const errorText = await response.text();
+                errorMessage = errorText || 'Error desconocido del servidor';
             }
             throw new Error(errorMessage);
         }
 
-        // Verificar el tipo de contenido
+        // Check the content type to ensure it's a PDF
         const contentType = response.headers.get('Content-Type');
         if (!contentType || !contentType.includes('application/pdf')) {
-            throw new Error('El servidor no devolvió un PDF válido');
+            const errorText = await response.text();
+            throw new Error('Respuesta no es un PDF válido: ' + errorText);
         }
 
-        // Obtener el blob directamente de la respuesta original
+        // Get the blob and create a downloadable link
         const blob = await response.blob();
-        
-        // Crear y descargar el archivo
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -402,7 +397,6 @@ async function exportDetallesToPDF(idLiquidacion) {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-        
     } catch (error) {
         console.error('Error al exportar a PDF:', error);
         alert('Error al exportar los detalles a PDF: ' + error.message);
