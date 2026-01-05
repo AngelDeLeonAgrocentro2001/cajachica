@@ -659,13 +659,12 @@ class ReportesController {
     }
 
     public function exportDetallesToPDF($idLiquidacion) {
-    ini_set('memory_limit', '2048M');  // Aumentar memoria
-    ini_set('max_execution_time', 600); // 10 minutos
+    ini_set('memory_limit', '2048M');
+    ini_set('max_execution_time', 600);
     ini_set('pcre.backtrack_limit', '10000000');
     ini_set('pcre.recursion_limit', '10000000');
     
-    // Limpiar cualquier buffer de salida
-    while (ob_get_level()) {
+    if (ob_get_length()) {
         ob_end_clean();
     }
 
@@ -676,7 +675,6 @@ class ReportesController {
 
         error_log('Starting PDF generation for liquidation #' . $idLiquidacion);
 
-        // Obtener detalles (SOLO DATOS, SIN PROCESAR IMÁGENES)
         $detalles = $this->detalleLiquidacionModel->getDetallesFinalizadosByLiquidacionId($idLiquidacion);
         if ($detalles === false) {
             throw new Exception('Error al obtener detalles de la liquidación');
@@ -690,10 +688,11 @@ class ReportesController {
         $cajaChica = $this->cajaChicaModel->getCajaChicaById($liquidacion['id_caja_chica']);
         $nombre_caja_chica = $cajaChica['nombre'] ?? 'N/A';
 
-        // OBTENER EL CÓDIGO DE CLIENTE
+        // OBTENER EL CÓDIGO DE CLIENTE DEL USUARIO QUE CREÓ LA LIQUIDACIÓN
         $usuarioLiquidacion = $this->usuarioModel->getUsuarioById($liquidacion['id_usuario']);
         $codigo_cliente = $usuarioLiquidacion['clientes'] ?? 'N/A';
 
+        // Si no se encuentra en el usuario de la liquidación, intentar obtenerlo del primer detalle
         if ($codigo_cliente === 'N/A' && !empty($detalles)) {
             $primerDetalle = reset($detalles);
             if (isset($primerDetalle['codigo_cliente'])) {
@@ -714,14 +713,11 @@ class ReportesController {
                 $gastosPorTipo[$tipoGasto] = 0;
             }
             $gastosPorTipo[$tipoGasto] += isset($detalle['total_factura']) ? (float)$detalle['total_factura'] : 0;
-            
-            // NO procesar imágenes aquí para ahorrar memoria
         }
         unset($detalle);
 
         error_log('Data fetched successfully for liquidation #' . $idLiquidacion);
 
-        // Configurar mPDF para generar más rápido
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
             'format' => 'A4-L',
@@ -731,273 +727,175 @@ class ReportesController {
             'margin_right' => 20,
             'default_font_size' => 10,
             'default_font' => 'Helvetica',
-            'tempDir' => sys_get_temp_dir(), // Usar directorio temporal del sistema
-            'compress' => true, // Comprimir PDF
         ]);
-        
-        $mpdf->SetTitle('Reporte de Detalles de Liquidación #' . $idLiquidacion);
+        $mpdf->SetTitle('Reporte de Detalles de Liquidación');
         $mpdf->SetAuthor('AgroCaja Chica');
 
         $footerHtml = '
             <div style="text-align: center; color: #6b7280; font-size: 9px;">
-                <p>Página {PAGENO} de {nbpg} | Generado: ' . date('d/m/Y H:i:s') . '</p>
+                <p>Página {PAGENO} de {nbpg}</p>
             </div>';
         $mpdf->SetFooter($footerHtml);
 
-        // Generar HTML SIN imágenes embebidas
-        $html = $this->generatePDFHTML($idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
+        $stylesheet = '
+            body {
+                color: #2d3748;
+                font-family: "Helvetica", sans-serif;
+            }
+            .content-container {
+                margin-top: -10px; 
+                padding-top: 10px; 
+            }
+            .logo-container {
+                text-align: center;
+                margin-bottom: 10px;
+            }
+            .logo-container img {
+                max-width: 150px;
+            }
+            .header {
+                background-color: #2b6cb0;
+                color: #ffffff;
+                padding: 15px;
+                text-align: center;
+                margin-bottom: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+                font-weight: bold;
+            }
+            .info {
+                text-align: center;
+                margin-bottom: 20px;
+                color: #4a5568;
+                font-size: 11px;
+            }
+            .table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+                page-break-inside: auto;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            .table th {
+                background-color: #3182ce;
+                color: #ffffff;
+                padding: 10px;
+                text-align: center;
+                font-size: 10px;
+                font-weight: bold;
+                border: 1px solid #e2e8f0;
+            }
+            .table td {
+                padding: 8px;
+                text-align: center;
+                border: 1px solid #e2e8f0;
+                font-size: 9px;
+            }
+            .table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            .table tr:nth-child(even) {
+                background-color: #f7fafc;
+            }
+            .table tr:hover {
+                background-color: #e6f0fa;
+            }
+            .total-row td {
+                background-color: #edf2f7;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            .summary-section {
+                margin-top: 30px;
+            }
+            .summary-section h2 {
+                font-size: 16px;
+                color: #2b6cb0;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            
+            .summary-table {
+                width: 50%;
+                margin: 0 auto;
+                border-collapse: collapse;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            .summary-table th {
+                background-color: #4a5568;
+                color: #ffffff;
+                padding: 8px;
+                text-align: center;
+                font-size: 10px;
+                font-weight: bold;
+                border: 1px solid #e2e8f0;
+            }
+            .summary-table td {
+                padding: 8px;
+                text-align: center;
+                border: 1px solid #e2e8f0;
+                font-size: 9px;
+            }
+            .summary-table tr:nth-child(even) {
+                background-color: #f7fafc;
+            }
+            .images-section {
+                margin-top: 30px;
+            }
+            .images-section h2 {
+                font-size: 16px;
+                color: #2b6cb0;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            
+            .images-section{
+            text-align: center;
+            }
+            .images-section a {
+                color: #2b6cb0;
+                text-decoration: underline;
+                font-size: 10px;
+                display: block;
+                margin: 5px 0;
+            }
+            .images-section a:hover {
+                color: #1a4971;
+            }
+        ';
         
-        $mpdf->WriteHTML($html);
+        // Escribir el CSS primero
+        $mpdf->WriteHTML($stylesheet, 1);
+
+        // Generar y escribir el HTML en chunks
+        $this->writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo);
+
         error_log('HTML written to PDF for liquidation #' . $idLiquidacion);
 
-        // Enviar headers y output
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="detalles_liquidacion_' . $idLiquidacion . '.pdf"');
         header('Cache-Control: no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
         header('Expires: 0');
-        
-        // Enviar el PDF
+
         $mpdf->Output('detalles_liquidacion_' . $idLiquidacion . '.pdf', 'D');
         error_log('PDF output completed for liquidation #' . $idLiquidacion);
         exit;
-        
     } catch (Exception $e) {
         error_log('Error generating PDF for liquidation #' . $idLiquidacion . ': ' . $e->getMessage());
-        
-        // Limpiar buffer antes de enviar error
-        while (ob_get_level()) {
-            ob_end_clean();
+        if (headers_sent()) {
+            exit;
         }
-        
         header('Content-Type: application/json');
         http_response_code(500);
         echo json_encode(['error' => 'Error al generar el PDF: ' . $e->getMessage()]);
         exit;
     }
-}
-
-private function generatePDFHTML($idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
-    $html = '
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: Helvetica, Arial, sans-serif; color: #2d3748; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header img { max-width: 150px; }
-            .title { 
-                background-color: #2b6cb0; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 8px;
-                margin-bottom: 20px;
-                text-align: center;
-            }
-            .info { 
-                text-align: center; 
-                margin-bottom: 20px; 
-                color: #4a5568; 
-                font-size: 11px;
-                border: 1px solid #e2e8f0;
-                padding: 10px;
-                border-radius: 5px;
-            }
-            .table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-bottom: 20px;
-                font-size: 9px;
-            }
-            .table th { 
-                background-color: #3182ce; 
-                color: white; 
-                padding: 8px; 
-                text-align: center;
-                border: 1px solid #e2e8f0;
-            }
-            .table td { 
-                padding: 6px; 
-                text-align: center;
-                border: 1px solid #e2e8f0;
-            }
-            .table tr:nth-child(even) { background-color: #f7fafc; }
-            .total-row td { background-color: #edf2f7; font-weight: bold; }
-            .summary { 
-                margin-top: 30px;
-                border: 1px solid #e2e8f0;
-                padding: 15px;
-                border-radius: 5px;
-            }
-            .summary h3 { 
-                color: #2b6cb0; 
-                text-align: center; 
-                margin-bottom: 10px;
-            }
-            .summary-table { 
-                width: 100%; 
-                border-collapse: collapse;
-                margin-top: 10px;
-            }
-            .summary-table th { 
-                background-color: #4a5568; 
-                color: white; 
-                padding: 8px;
-                text-align: center;
-            }
-            .summary-table td { 
-                padding: 8px; 
-                text-align: center;
-                border: 1px solid #e2e8f0;
-            }
-            .files-section { margin-top: 30px; }
-            .files-section h3 { color: #2b6cb0; text-align: center; }
-            .file-link { 
-                color: #2b6cb0; 
-                text-decoration: none;
-                margin: 5px 0;
-                display: inline-block;
-            }
-            .warning { 
-                background-color: #fff3cd; 
-                border: 1px solid #ffeaa7;
-                padding: 10px;
-                border-radius: 5px;
-                margin-top: 20px;
-                text-align: center;
-                font-size: 10px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <img src="https://agrocentro.com/wp-content/uploads/2024/03/LOGO-VERTICAL.svg" alt="AgroCaja Chica Logo">
-        </div>
-        
-        <div class="title">
-            <h1>Reporte de Detalles de Liquidación #' . htmlspecialchars($idLiquidacion) . '</h1>
-        </div>
-        
-        <div class="info">
-            <p><strong>Caja Chica:</strong> ' . htmlspecialchars($nombre_caja_chica) . ' | 
-               <strong>Código de Cliente:</strong> ' . htmlspecialchars($codigo_cliente) . ' | 
-               <strong>Fecha Creación:</strong> ' . htmlspecialchars($liquidacion['fecha_creacion'] ?? 'N/A') . '</p>
-            <p><strong>Fecha de Generación:</strong> ' . date('d/m/Y H:i:s') . ' CST</p>
-        </div>';
-        
-    // Tabla de detalles
-    $html .= '<table class="table">';
-    $html .= '<thead>
-        <tr>
-            <th>ID</th>
-            <th>Factura</th>
-            <th>Proveedor</th>
-            <th>NIT</th>
-            <th>Centro Costo</th>
-            <th>Tipo Gasto</th>
-            <th>Cuenta</th>
-            <th>Fecha</th>
-            <th>Subtotal</th>
-            <th>IVA</th>
-            <th>Total</th>
-            <th>Estado</th>
-        </tr>
-    </thead>
-    <tbody>';
-    
-    if (empty($detalles)) {
-        $html .= '<tr><td colspan="12" style="text-align: center;">No hay detalles disponibles.</td></tr>';
-    } else {
-        foreach ($detalles as $detalle) {
-            $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($detalle['id'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['no_factura'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['nombre_proveedor'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['nit_proveedor'] ?? 'N/A') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['t_gasto'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A') . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['fecha'] ?? '') . '</td>';
-            $html .= '<td>' . number_format($detalle['subtotal'] ?? 0, 2) . '</td>';
-            $html .= '<td>' . number_format($detalle['iva'] ?? 0, 2) . '</td>';
-            $html .= '<td>' . number_format($detalle['total_factura'] ?? 0, 2) . '</td>';
-            $html .= '<td>' . htmlspecialchars($detalle['estado'] ?? '') . '</td>';
-            $html .= '</tr>';
-        }
-        
-        // Total general
-        $html .= '<tr class="total-row">';
-        $html .= '<td colspan="10" style="text-align: right;"><strong>Total General:</strong></td>';
-        $html .= '<td><strong>' . number_format($totalGeneral, 2) . '</strong></td>';
-        $html .= '<td></td>';
-        $html .= '</tr>';
-    }
-    
-    $html .= '</tbody></table>';
-    
-    // Resumen de gastos por tipo
-    if (!empty($gastosPorTipo)) {
-        $html .= '<div class="summary">
-            <h3>Resumen de Gastos por Tipo</h3>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>Tipo de Gasto</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>';
-        
-        ksort($gastosPorTipo);
-        foreach ($gastosPorTipo as $tipo => $total) {
-            $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($tipo) . '</td>';
-            $html .= '<td>' . number_format($total, 2) . '</td>';
-            $html .= '</tr>';
-        }
-        
-        $html .= '</tbody>
-            </table>
-        </div>';
-    }
-    
-    // Sección de archivos (solo enlaces, no imágenes embebidas)
-    $hasFiles = false;
-    $html .= '<div class="files-section">
-        <h3>Archivos Adjuntos</h3>';
-    
-    foreach ($detalles as $detalle) {
-        $rutas = $detalle['rutas_archivos'] ?? [];
-        if (is_array($rutas) && !empty($rutas)) {
-            $hasFiles = true;
-            $html .= '<p><strong>Factura ' . htmlspecialchars($detalle['no_factura'] ?? '') . ':</strong></p>';
-            foreach ($rutas as $index => $ruta) {
-                $fileName = basename($ruta);
-                // Mostrar solo el enlace, no la imagen
-                $html .= '<div class="file-link">
-                    • ' . htmlspecialchars($fileName) . ' 
-                    (Disponible en: ' . htmlspecialchars($ruta) . ')
-                </div>';
-            }
-        }
-    }
-    
-    if (!$hasFiles) {
-        $html .= '<p>No hay archivos adjuntos disponibles.</p>';
-    }
-    
-    $html .= '</div>';
-    
-    // Añadir nota explicativa
-    $html .= '<div class="warning">
-        <p><strong>Nota:</strong> Los archivos adjuntos no están incluidos en este PDF por razones de rendimiento.</p>
-        <p>Para ver las imágenes/facturas, acceda a los enlaces mostrados arriba o consulte el sistema directamente.</p>
-    </div>';
-    
-    $html .= '</body></html>';
-    
-    return $html;
 }
 
 private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liquidacion, $nombre_caja_chica, $codigo_cliente, $totalGeneral, $gastosPorTipo) {
