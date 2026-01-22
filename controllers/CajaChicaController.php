@@ -42,7 +42,8 @@ class CajaChicaController {
             'CCHD0008', 'CCHD0011', 'CCHD0012', 'CCHD0013', 'CCHD0019',
             'CCHD0020', 'CCHD0023', 'CCHD0024', 'PN0350', 'PN0354',
             'PN0561', 'PN2009', 'PN9237', 'CCHA0023','CCHA0022','CCHA0024',
-            'CCHA0025','CCHC0099','CCHC0098','CCHC0100','CCHA0026','CCHC0101'
+            'CCHA0025','CCHC0099','CCHC0098','CCHC0100','CCHA0026','CCHC0101',
+            'CCHC0102'
         )";
         error_log("Query constructed: $qry");
         $respuesta = $this->mdlObtenerClientes($qry, $db_name);
