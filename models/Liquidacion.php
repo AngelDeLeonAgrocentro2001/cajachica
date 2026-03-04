@@ -10,104 +10,118 @@ class Liquidacion {
     }
 
     // NUEVO MÉTODO: Enviar correo de advertencia el día antes de expirar
-    public function sendExpirationWarningEmail($liquidacionId, $liquidacionInfo) {
-        try {
-            error_log("🔔 Enviando correo de advertencia por expiración para liquidación ID: $liquidacionId");
-            
-            // Obtener información de la liquidación
-            $query = "
-                SELECT l.*, 
-                       u.email as encargado_email, 
-                       u.nombre as encargado_nombre,
-                       s.email as supervisor_email,
-                       s.nombre as supervisor_nombre
-                FROM liquidaciones l
-                LEFT JOIN usuarios u ON l.id_usuario = u.id
-                LEFT JOIN usuarios s ON l.id_supervisor = s.id
-                WHERE l.id = ?
-            ";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute([$liquidacionId]);
-            $liquidacion = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$liquidacion) {
-                error_log("❌ Liquidación no encontrada para ID: $liquidacionId");
-                return false;
-            }
-            
-            // Calcular fecha de expiración (14 días después de fecha_creacion)
-            $fechaCreacion = new DateTime($liquidacion['fecha_creacion']);
-            $fechaExpiracion = clone $fechaCreacion;
-            $fechaExpiracion->modify('+14 days');
-            
-            $fechaAdvertencia = clone $fechaCreacion;
-            $fechaAdvertencia->modify('+13 days'); // Día antes de expirar
-            
-            // Verificar si hoy es el día de advertencia (13 días después)
-            $hoy = new DateTime('today');
-            
-            if ($hoy->format('Y-m-d') !== $fechaAdvertencia->format('Y-m-d')) {
-                error_log("⚠️ No es el día de advertencia para liquidación ID: $liquidacionId");
-                error_log("  - Hoy: " . $hoy->format('Y-m-d'));
-                error_log("  - Día advertencia: " . $fechaAdvertencia->format('Y-m-d'));
-                return false;
-            }
-            
-            // Preparar datos para el correo
-            $datosCorreo = [
-                'liquidacion_id' => $liquidacionId,
-                'encargado_nombre' => $liquidacion['encargado_nombre'] ?? 'Encargado',
-                'encargado_email' => $liquidacion['encargado_email'] ?? '',
-                'supervisor_nombre' => $liquidacion['supervisor_nombre'] ?? 'Supervisor',
-                'supervisor_email' => $liquidacion['supervisor_email'] ?? '',
-                'fecha_creacion' => $fechaCreacion->format('d/m/Y'),
-                'fecha_expiracion' => $fechaExpiracion->format('d/m/Y'),
-                'estado_actual' => $liquidacion['estado'] ?? 'EN_PROCESO'
-            ];
-            
-            // Enviar correos
-            $loginController = new LoginController();
-            $enviosExitosos = 0;
-            
-            // Enviar al encargado si tiene email
-            if (!empty($datosCorreo['encargado_email'])) {
-                $resultEncargado = $loginController->sendExpirationWarningEmail(
-                    $datosCorreo['encargado_email'],
-                    $datosCorreo['encargado_nombre'],
-                    $liquidacionId,
-                    "Tu liquidación expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
-                );
-                
-                if ($resultEncargado) {
-                    $enviosExitosos++;
-                    error_log("✅ Correo de advertencia enviado al encargado: " . $datosCorreo['encargado_email']);
-                }
-            }
-            
-            // Enviar al supervisor si tiene email
-            if (!empty($datosCorreo['supervisor_email'])) {
-                $resultSupervisor = $loginController->sendExpirationWarningEmail(
-                    $datosCorreo['supervisor_email'],
-                    $datosCorreo['supervisor_nombre'],
-                    $liquidacionId,
-                    "Liquidación del encargado {$datosCorreo['encargado_nombre']} expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
-                );
-                
-                if ($resultSupervisor) {
-                    $enviosExitosos++;
-                    error_log("✅ Correo de advertencia enviado al supervisor: " . $datosCorreo['supervisor_email']);
-                }
-            }
-            
-            error_log("📨 Total correos de advertencia enviados: $enviosExitosos");
-            return $enviosExitosos > 0;
-            
-        } catch (Exception $e) {
-            error_log("❌ Error en sendExpirationWarningEmail: " . $e->getMessage());
+    // NUEVO MÉTODO: Enviar correo de advertencia el día antes de expirar (CORREGIDO)
+public function sendExpirationWarningEmail($liquidacionId, $liquidacionInfo) {
+    try {
+        error_log("🔔 Enviando correo de advertencia por expiración para liquidación ID: $liquidacionId");
+        
+        // VERIFICAR NUEVAMENTE si ya se envió hoy (doble verificación)
+        if ($this->verificarCorreoEnviadoHoy($liquidacionId)) {
+            error_log("⚠️ Correo de advertencia YA ENVIADO HOY para liquidación ID: $liquidacionId. Omitiendo envío.");
             return false;
         }
+        
+        // Obtener información de la liquidación
+        $query = "
+            SELECT l.*, 
+                   u.email as encargado_email, 
+                   u.nombre as encargado_nombre,
+                   s.email as supervisor_email,
+                   s.nombre as supervisor_nombre
+            FROM liquidaciones l
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN usuarios s ON l.id_supervisor = s.id
+            WHERE l.id = ?
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId]);
+        $liquidacion = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$liquidacion) {
+            error_log("❌ Liquidación no encontrada para ID: $liquidacionId");
+            return false;
+        }
+        
+        // Calcular fecha de expiración (14 días después de fecha_creacion)
+        $fechaCreacion = new DateTime($liquidacion['fecha_creacion']);
+        $fechaExpiracion = clone $fechaCreacion;
+        $fechaExpiracion->modify('+14 days');
+        
+        $fechaAdvertencia = clone $fechaCreacion;
+        $fechaAdvertencia->modify('+13 days'); // Día antes de expirar
+        
+        // Verificar si hoy es el día de advertencia (13 días después)
+        $hoy = new DateTime('today');
+        
+        if ($hoy->format('Y-m-d') !== $fechaAdvertencia->format('Y-m-d')) {
+            error_log("⚠️ No es el día de advertencia para liquidación ID: $liquidacionId");
+            error_log("  - Hoy: " . $hoy->format('Y-m-d'));
+            error_log("  - Día advertencia: " . $fechaAdvertencia->format('Y-m-d'));
+            return false;
+        }
+        
+        // Preparar datos para el correo
+        $datosCorreo = [
+            'liquidacion_id' => $liquidacionId,
+            'encargado_nombre' => $liquidacion['encargado_nombre'] ?? 'Encargado',
+            'encargado_email' => $liquidacion['encargado_email'] ?? '',
+            'supervisor_nombre' => $liquidacion['supervisor_nombre'] ?? 'Supervisor',
+            'supervisor_email' => $liquidacion['supervisor_email'] ?? '',
+            'fecha_creacion' => $fechaCreacion->format('d/m/Y'),
+            'fecha_expiracion' => $fechaExpiracion->format('d/m/Y'),
+            'estado_actual' => $liquidacion['estado'] ?? 'EN_PROCESO'
+        ];
+        
+        // Enviar correos
+        $loginController = new LoginController();
+        $enviosExitosos = 0;
+        
+        // Enviar al encargado si tiene email
+        if (!empty($datosCorreo['encargado_email'])) {
+            $resultEncargado = $loginController->sendExpirationWarningEmail(
+                $datosCorreo['encargado_email'],
+                $datosCorreo['encargado_nombre'],
+                $liquidacionId,
+                "Tu liquidación expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
+            );
+            
+            if ($resultEncargado) {
+                $enviosExitosos++;
+                error_log("✅ Correo de advertencia enviado al encargado: " . $datosCorreo['encargado_email']);
+            }
+        }
+        
+        // Enviar al supervisor si tiene email
+        if (!empty($datosCorreo['supervisor_email'])) {
+            $resultSupervisor = $loginController->sendExpirationWarningEmail(
+                $datosCorreo['supervisor_email'],
+                $datosCorreo['supervisor_nombre'],
+                $liquidacionId,
+                "Liquidación del encargado {$datosCorreo['encargado_nombre']} expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
+            );
+            
+            if ($resultSupervisor) {
+                $enviosExitosos++;
+                error_log("✅ Correo de advertencia enviado al supervisor: " . $datosCorreo['supervisor_email']);
+            }
+        }
+        
+        // SOLO REGISTRAR EN AUDITORÍA SI HUBO AL MENOS UN ENVÍO EXITOSO
+        if ($enviosExitosos > 0) {
+            $this->registrarAdvertenciaExpiración($liquidacionId);
+            error_log("📨 Total correos de advertencia enviados: $enviosExitosos");
+        } else {
+            error_log("⚠️ No se pudo enviar ningún correo de advertencia para liquidación ID: $liquidacionId");
+        }
+        
+        return $enviosExitosos > 0;
+        
+    } catch (Exception $e) {
+        error_log("❌ Error en sendExpirationWarningEmail: " . $e->getMessage());
+        return false;
     }
+}
     
     // MÉTODO MODIFICADO: Ahora también verifica y envía advertencias
     public function checkAndFinalizeOldLiquidaciones() {
@@ -155,42 +169,46 @@ class Liquidacion {
     }
     // NUEVO MÉTODO: Verificar y enviar advertencias de expiración
     private function checkAndSendExpirationWarnings() {
-        try {
-            error_log("🔍 Verificando liquidaciones para advertencia de expiración...");
+    try {
+        error_log("🔍 Verificando liquidaciones para advertencia de expiración...");
+        
+        // Obtener liquidaciones que están en su día 13 (mañana expiran)
+        $thirteenDaysAgo = date('Y-m-d', strtotime('-13 days'));
+        
+        $query = "
+            SELECT l.id, l.fecha_creacion, l.estado,
+                   u.email as encargado_email, 
+                   u.nombre as encargado_nombre,
+                   s.email as supervisor_email,
+                   s.nombre as supervisor_nombre
+            FROM liquidaciones l
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN usuarios s ON l.id_supervisor = s.id
+            WHERE DATE(l.fecha_creacion) = ?
+            AND l.estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
+            AND NOT EXISTS (
+                SELECT 1 FROM auditoria a 
+                WHERE a.id_liquidacion = l.id 
+                AND a.accion = 'ADVERTENCIA_EXPIRACION'
+                AND DATE(a.fecha) = CURDATE()
+            )
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$thirteenDaysAgo]);
+        $liquidaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Liquidaciones encontradas para advertencia: " . count($liquidaciones));
+        
+        $advertenciasEnviadas = 0;
+        
+        foreach ($liquidaciones as $liquidacion) {
+            error_log("Procesando liquidación ID: {$liquidacion['id']} para advertencia");
             
-            // Obtener liquidaciones que están en su día 13 (mañana expiran)
-            $thirteenDaysAgo = date('Y-m-d', strtotime('-13 days'));
+            // Verificar si ya se envió correo hoy para esta liquidación
+            $yaEnviadoHoy = $this->verificarCorreoEnviadoHoy($liquidacion['id']);
             
-            $query = "
-                SELECT l.id, l.fecha_creacion, l.estado,
-                       u.email as encargado_email, 
-                       u.nombre as encargado_nombre,
-                       s.email as supervisor_email,
-                       s.nombre as supervisor_nombre
-                FROM liquidaciones l
-                LEFT JOIN usuarios u ON l.id_usuario = u.id
-                LEFT JOIN usuarios s ON l.id_supervisor = s.id
-                WHERE DATE(l.fecha_creacion) = ?
-                AND l.estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
-                AND NOT EXISTS (
-                    SELECT 1 FROM auditoria a 
-                    WHERE a.id_liquidacion = l.id 
-                    AND a.accion = 'ADVERTENCIA_EXPIRACION'
-                    AND DATE(a.fecha) = CURDATE()
-                )
-            ";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute([$thirteenDaysAgo]);
-            $liquidaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            error_log("Liquidaciones encontradas para advertencia: " . count($liquidaciones));
-            
-            $advertenciasEnviadas = 0;
-            
-            foreach ($liquidaciones as $liquidacion) {
-                error_log("Procesando liquidación ID: {$liquidacion['id']} para advertencia");
-                
+            if (!$yaEnviadoHoy) {
                 // Enviar advertencia
                 if ($this->sendExpirationWarningEmail($liquidacion['id'], $liquidacion)) {
                     $advertenciasEnviadas++;
@@ -198,16 +216,48 @@ class Liquidacion {
                     // Registrar en auditoría que se envió la advertencia
                     $this->registrarAdvertenciaExpiración($liquidacion['id']);
                 }
+            } else {
+                error_log("Correo de advertencia ya enviado hoy para liquidación ID: {$liquidacion['id']}");
             }
-            
-            error_log("Total advertencias de expiración enviadas: $advertenciasEnviadas");
-            return $advertenciasEnviadas;
-            
-        } catch (PDOException $e) {
-            error_log("Error en checkAndSendExpirationWarnings: " . $e->getMessage());
-            return 0;
         }
+        
+        error_log("Total advertencias de expiración enviadas: $advertenciasEnviadas");
+        return $advertenciasEnviadas;
+        
+    } catch (PDOException $e) {
+        error_log("Error en checkAndSendExpirationWarnings: " . $e->getMessage());
+        return 0;
     }
+}
+
+// NUEVO MÉTODO: Verificar si ya se envió correo de advertencia hoy
+private function verificarCorreoEnviadoHoy($liquidacionId) {
+    try {
+        $query = "
+            SELECT COUNT(*) as count 
+            FROM auditoria 
+            WHERE id_liquidacion = ? 
+            AND accion = 'ADVERTENCIA_EXPIRACION'
+            AND DATE(fecha) = CURDATE()
+        ";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $enviado = $result['count'] > 0;
+        
+        if ($enviado) {
+            error_log("📧 Correo de advertencia ya enviado hoy para liquidación ID: $liquidacionId");
+        }
+        
+        return $enviado;
+        
+    } catch (PDOException $e) {
+        error_log("Error al verificar correo enviado hoy: " . $e->getMessage());
+        return false; // En caso de error, permitir el envío
+    }
+}
     
     // NUEVO MÉTODO: Registrar advertencia de expiración en auditoría
     private function registrarAdvertenciaExpiración($liquidacionId) {
