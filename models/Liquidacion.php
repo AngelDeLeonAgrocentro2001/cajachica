@@ -9,13 +9,53 @@ class Liquidacion {
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
+    // MÉTODO CORREGIDO: Registrar advertencia de expiración en auditoría
+private function registrarAdvertenciaExpiracion($liquidacionId) {
+    try {
+        $userId = 0; // Sistema automático
+        
+        // Verificar la estructura de la tabla auditoria
+        $query = "
+            INSERT INTO auditoria (
+                id_liquidacion, 
+                id_usuario, 
+                accion, 
+                descripcion, 
+                fecha
+            ) VALUES (?, ?, 'ADVERTENCIA_EXPIRACION', ?, NOW())
+        ";
+        
+        $descripcion = "Correo de advertencia enviado: La liquidación expirará mañana.";
+        
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute([$liquidacionId, $userId, $descripcion]);
+        
+        error_log("✅ Auditoría registrada para advertencia de expiración - Liquidación ID: $liquidacionId");
+        
+    } catch (PDOException $e) {
+        error_log("Error al registrar auditoría de advertencia: " . $e->getMessage());
+    }
+}
+
     // NUEVO MÉTODO: Enviar correo de advertencia el día antes de expirar
     public function sendExpirationWarningEmail($liquidacionId, $liquidacionInfo) {
     try {
         error_log("🔔 Enviando correo de advertencia por expiración para liquidación ID: $liquidacionId");
         
-        // 🔴 VERIFICACIÓN CRÍTICA: Verificar si ya se envió hoy ANTES de hacer cualquier cosa
-        if ($this->verificarCorreoEnviadoHoy($liquidacionId)) {
+        // 🔴 VERIFICACIÓN CRÍTICA: Verificar si ya se registró en auditoría hoy
+        $checkQuery = "
+            SELECT COUNT(*) as count 
+            FROM auditoria 
+            WHERE id_liquidacion = ? 
+            AND accion = 'ADVERTENCIA_EXPIRACION'
+            AND DATE(fecha) = CURDATE()
+        ";
+        
+        $checkStmt = $this->pdo->prepare($checkQuery);
+        $checkStmt->execute([$liquidacionId]);
+        $yaEnviado = $checkStmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+        
+        if ($yaEnviado) {
             error_log("⚠️ Correo de advertencia YA ENVIADO HOY para liquidación ID: $liquidacionId. Omitiendo envío.");
             return false;
         }
@@ -55,94 +95,63 @@ class Liquidacion {
         
         if ($hoy->format('Y-m-d') !== $fechaAdvertencia->format('Y-m-d')) {
             error_log("⚠️ No es el día de advertencia para liquidación ID: $liquidacionId");
-            error_log("  - Hoy: " . $hoy->format('Y-m-d'));
-            error_log("  - Día advertencia: " . $fechaAdvertencia->format('Y-m-d'));
             return false;
         }
         
-        // 🔴 VERIFICACIÓN ADICIONAL: Usar transacción para evitar condiciones de carrera
-        $this->pdo->beginTransaction();
+        // Preparar datos para el correo
+        $datosCorreo = [
+            'liquidacion_id' => $liquidacionId,
+            'encargado_nombre' => $liquidacion['encargado_nombre'] ?? 'Encargado',
+            'encargado_email' => $liquidacion['encargado_email'] ?? '',
+            'supervisor_nombre' => $liquidacion['supervisor_nombre'] ?? 'Supervisor',
+            'supervisor_email' => $liquidacion['supervisor_email'] ?? '',
+            'fecha_creacion' => $fechaCreacion->format('d/m/Y'),
+            'fecha_expiracion' => $fechaExpiracion->format('d/m/Y'),
+            'estado_actual' => $liquidacion['estado'] ?? 'EN_PROCESO'
+        ];
         
-        try {
-            // Verificar NUEVAMENTE dentro de la transacción
-            $stmtCheck = $this->pdo->prepare("
-                SELECT COUNT(*) as count 
-                FROM auditoria 
-                WHERE id_liquidacion = ? 
-                AND accion = 'ADVERTENCIA_EXPIRACION'
-                AND DATE(fecha) = CURDATE()
-                FOR UPDATE
-            ");
-            $stmtCheck->execute([$liquidacionId]);
-            $yaEnviado = $stmtCheck->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+        // Enviar correos
+        $loginController = new LoginController();
+        $enviosExitosos = 0;
+        
+        // Enviar al encargado si tiene email
+        if (!empty($datosCorreo['encargado_email'])) {
+            $resultEncargado = $loginController->sendExpirationWarningEmail(
+                $datosCorreo['encargado_email'],
+                $datosCorreo['encargado_nombre'],
+                $liquidacionId,
+                "Tu liquidación expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
+            );
             
-            if ($yaEnviado) {
-                $this->pdo->commit();
-                error_log("⚠️ Correo ya enviado (verificado en transacción) para liquidación ID: $liquidacionId");
-                return false;
+            if ($resultEncargado) {
+                $enviosExitosos++;
+                error_log("✅ Correo de advertencia enviado al encargado: " . $datosCorreo['encargado_email']);
             }
+        }
+        
+        // Enviar al supervisor si tiene email
+        if (!empty($datosCorreo['supervisor_email'])) {
+            $resultSupervisor = $loginController->sendExpirationWarningEmail(
+                $datosCorreo['supervisor_email'],
+                $datosCorreo['supervisor_nombre'],
+                $liquidacionId,
+                "Liquidación del encargado {$datosCorreo['encargado_nombre']} expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
+            );
             
-            // Preparar datos para el correo
-            $datosCorreo = [
-                'liquidacion_id' => $liquidacionId,
-                'encargado_nombre' => $liquidacion['encargado_nombre'] ?? 'Encargado',
-                'encargado_email' => $liquidacion['encargado_email'] ?? '',
-                'supervisor_nombre' => $liquidacion['supervisor_nombre'] ?? 'Supervisor',
-                'supervisor_email' => $liquidacion['supervisor_email'] ?? '',
-                'fecha_creacion' => $fechaCreacion->format('d/m/Y'),
-                'fecha_expiracion' => $fechaExpiracion->format('d/m/Y'),
-                'estado_actual' => $liquidacion['estado'] ?? 'EN_PROCESO'
-            ];
-            
-            // Enviar correos
-            $loginController = new LoginController();
-            $enviosExitosos = 0;
-            
-            // Enviar al encargado si tiene email
-            if (!empty($datosCorreo['encargado_email'])) {
-                $resultEncargado = $loginController->sendExpirationWarningEmail(
-                    $datosCorreo['encargado_email'],
-                    $datosCorreo['encargado_nombre'],
-                    $liquidacionId,
-                    "Tu liquidación expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
-                );
-                
-                if ($resultEncargado) {
-                    $enviosExitosos++;
-                    error_log("✅ Correo de advertencia enviado al encargado: " . $datosCorreo['encargado_email']);
-                }
+            if ($resultSupervisor) {
+                $enviosExitosos++;
+                error_log("✅ Correo de advertencia enviado al supervisor: " . $datosCorreo['supervisor_email']);
             }
-            
-            // Enviar al supervisor si tiene email
-            if (!empty($datosCorreo['supervisor_email'])) {
-                $resultSupervisor = $loginController->sendExpirationWarningEmail(
-                    $datosCorreo['supervisor_email'],
-                    $datosCorreo['supervisor_nombre'],
-                    $liquidacionId,
-                    "Liquidación del encargado {$datosCorreo['encargado_nombre']} expirará mañana. Fecha de creación: {$datosCorreo['fecha_creacion']}"
-                );
-                
-                if ($resultSupervisor) {
-                    $enviosExitosos++;
-                    error_log("✅ Correo de advertencia enviado al supervisor: " . $datosCorreo['supervisor_email']);
-                }
-            }
-            
-            // SOLO registrar en auditoría si se envió al menos un correo
-            if ($enviosExitosos > 0) {
-                $this->registrarAdvertenciaExpiración($liquidacionId);
-                $this->pdo->commit();
-                error_log("📨 Total correos de advertencia enviados: $enviosExitosos");
-                return true;
-            } else {
-                $this->pdo->rollBack();
-                error_log("⚠️ No se pudo enviar ningún correo de advertencia para liquidación ID: $liquidacionId");
-                return false;
-            }
-            
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            throw $e;
+        }
+        
+        // SOLO registrar en auditoría si se envió al menos un correo
+        if ($enviosExitosos > 0) {
+            $this->registrarAdvertenciaExpiracion($liquidacionId);
+            error_log("📨 Total correos de advertencia enviados: $enviosExitosos");
+            return true;
+        } else {
+            error_log("⚠️ No se pudo enviar ningún correo de advertencia para liquidación ID: $liquidacionId");
+            return false;
         }
         
     } catch (Exception $e) {
@@ -220,20 +229,22 @@ private function verificarCorreoEnviadoHoy($liquidacionId) {
     // NUEVO MÉTODO: Verificar y enviar advertencias de expiración
     private function checkAndSendExpirationWarnings() {
     try {
+        // Verificar si ya se ejecutó en esta petición (usando una bandera estática)
+        static $yaEjecutado = false;
+        if ($yaEjecutado) {
+            error_log("⚠️ checkAndSendExpirationWarnings ya se ejecutó en esta petición, omitiendo...");
+            return 0;
+        }
+        $yaEjecutado = true;
+        
         error_log("🔍 Verificando liquidaciones para advertencia de expiración...");
         
         // Obtener liquidaciones que están en su día 13 (mañana expiran)
         $thirteenDaysAgo = date('Y-m-d', strtotime('-13 days'));
         
         $query = "
-            SELECT l.id, l.fecha_creacion, l.estado,
-                   u.email as encargado_email, 
-                   u.nombre as encargado_nombre,
-                   s.email as supervisor_email,
-                   s.nombre as supervisor_nombre
+            SELECT l.id, l.fecha_creacion, l.estado
             FROM liquidaciones l
-            LEFT JOIN usuarios u ON l.id_usuario = u.id
-            LEFT JOIN usuarios s ON l.id_supervisor = s.id
             WHERE DATE(l.fecha_creacion) = ?
             AND l.estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
         ";
