@@ -45,25 +45,9 @@ private function registrarAdvertenciaExpiracion($liquidacionId) {
     public function sendExpirationWarningEmail($liquidacionId, $liquidacionInfo) {
     try {
         error_log("🔔 Enviando correo de advertencia por expiración para liquidación ID: $liquidacionId");
-        if ($this->verificarCorreoEnviadoHoy($liquidacionId)) {
-            error_log("⚠️ Correo de advertencia YA ENVIADO HOY para liquidación ID: $liquidacionId. Omitiendo envío.");
-            return false;
-        }
         
         // 🔴 VERIFICACIÓN CRÍTICA: Verificar si ya se registró en auditoría hoy
-        $checkQuery = "
-            SELECT COUNT(*) as count 
-            FROM auditoria 
-            WHERE id_liquidacion = ? 
-            AND accion = 'ADVERTENCIA_EXPIRACION'
-            AND DATE(fecha) = CURDATE()
-        ";
-        
-        $checkStmt = $this->pdo->prepare($checkQuery);
-        $checkStmt->execute([$liquidacionId]);
-        $yaEnviado = $checkStmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
-        
-        if ($yaEnviado) {
+        if ($this->verificarCorreoEnviadoHoy($liquidacionId)) {
             error_log("⚠️ Correo de advertencia YA ENVIADO HOY para liquidación ID: $liquidacionId. Omitiendo envío.");
             return false;
         }
@@ -160,12 +144,6 @@ private function registrarAdvertenciaExpiracion($liquidacionId) {
         } else {
             error_log("⚠️ No se pudo enviar ningún correo de advertencia para liquidación ID: $liquidacionId");
             return false;
-        }
-
-        if ($enviosExitosos > 0) {
-            $this->registrarAdvertenciaExpiracion($liquidacionId);
-            error_log("📨 Total correos de advertencia enviados: $enviosExitosos");
-            return true;
         }
         
     } catch (Exception $e) {
@@ -307,24 +285,43 @@ private function cleanupSessionCache() {
             // Verificar si ya se ejecutó HOY (a nivel global)
             $today = date('Y-m-d');
             $checkGlobalLock = $this->pdo->prepare("
-                SELECT COUNT(*) as count 
+                SELECT COUNT(*) as count, locked_at
                 FROM task_locks 
                 WHERE task_name = 'daily_expiration_check' 
                 AND DATE(locked_at) = ?
             ");
             $checkGlobalLock->execute([$today]);
+            $globalLock = $checkGlobalLock->fetch(PDO::FETCH_ASSOC);
             
-            if ($checkGlobalLock->fetch(PDO::FETCH_ASSOC)['count'] > 0) {
-                error_log("⚠️ Verificación diaria ya ejecutada hoy, omitiendo...");
-                return 0;
+            // CORRECCIÓN: Si existe pero fue hace más de 1 hora, permitir re-ejecución
+            if ($globalLock && $globalLock['count'] > 0) {
+                $lockedAt = strtotime($globalLock['locked_at']);
+                $now = time();
+                
+                // Si el lock es muy reciente (menos de 1 hora), omitir
+                if (($now - $lockedAt) < 3600) { // 1 hora
+                    error_log("⚠️ Verificación diaria ya ejecutada hoy hace menos de 1 hora, omitiendo...");
+                    return 0;
+                } else {
+                    // Si pasó más de 1 hora, actualizar el lock en lugar de insertar nuevo
+                    error_log("⚠️ Verificación diaria ejecutada hace más de 1 hora, permitiendo re-ejecución...");
+                    $updateGlobalLock = $this->pdo->prepare("
+                        UPDATE task_locks 
+                        SET locked_at = NOW() 
+                        WHERE task_name = 'daily_expiration_check' 
+                        AND DATE(locked_at) = ?
+                    ");
+                    $updateGlobalLock->execute([$today]);
+                }
+            } else {
+                // No existe lock para hoy, insertarlo
+                $insertGlobalLock = $this->pdo->prepare("
+                    INSERT INTO task_locks (task_name, liquidacion_id, locked_at) 
+                    VALUES ('daily_expiration_check', 0, NOW())
+                ");
+                $insertGlobalLock->execute();
+                error_log("✅ Lock global creado para hoy");
             }
-            
-            // Registrar que hoy ya se ejecutó
-            $insertGlobalLock = $this->pdo->prepare("
-                INSERT INTO task_locks (task_name, liquidacion_id, locked_at) 
-                VALUES ('daily_expiration_check', 0, NOW())
-            ");
-            $insertGlobalLock->execute();
             
         } finally {
             $this->pdo->exec("UNLOCK TABLES");
