@@ -174,7 +174,13 @@ private function verificarCorreoEnviadoHoy($liquidacionId) {
         $stmt->execute([$liquidacionId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $result['count'] > 0;
+        $enviadoHoy = $result['count'] > 0;
+        
+        if ($enviadoHoy) {
+            error_log("📊 Verificación: Liquidación $liquidacionId ya tiene auditoría de advertencia hoy");
+        }
+        
+        return $enviadoHoy;
         
     } catch (PDOException $e) {
         error_log("Error al verificar correo enviado hoy: " . $e->getMessage());
@@ -229,14 +235,6 @@ private function verificarCorreoEnviadoHoy($liquidacionId) {
     // NUEVO MÉTODO: Verificar y enviar advertencias de expiración
     private function checkAndSendExpirationWarnings() {
     try {
-        // Verificar si ya se ejecutó en esta petición (usando una bandera estática)
-        static $yaEjecutado = false;
-        if ($yaEjecutado) {
-            error_log("⚠️ checkAndSendExpirationWarnings ya se ejecutó en esta petición, omitiendo...");
-            return 0;
-        }
-        $yaEjecutado = true;
-        
         error_log("🔍 Verificando liquidaciones para advertencia de expiración...");
         
         // Obtener liquidaciones que están en su día 13 (mañana expiran)
@@ -260,10 +258,44 @@ private function verificarCorreoEnviadoHoy($liquidacionId) {
         foreach ($liquidaciones as $liquidacion) {
             error_log("Procesando liquidación ID: {$liquidacion['id']} para advertencia");
             
-            // Enviar advertencia (el método sendExpirationWarningEmail ya tiene su propia verificación)
-            if ($this->sendExpirationWarningEmail($liquidacion['id'], $liquidacion)) {
-                $advertenciasEnviadas++;
-                error_log("✅ Advertencia enviada para liquidación ID: {$liquidacion['id']}");
+            // 🔴 NUEVA VERIFICACIÓN: Usar LOCK para evitar ejecución concurrente
+            $lockQuery = "
+                INSERT INTO task_locks (task_name, liquidacion_id, locked_at) 
+                VALUES ('expiration_warning', ?, NOW())
+                ON DUPLICATE KEY UPDATE 
+                    locked_at = IF(locked_at < DATE_SUB(NOW(), INTERVAL 1 HOUR), NOW(), locked_at),
+                    task_name = VALUES(task_name)
+            ";
+            
+            try {
+                $lockStmt = $this->pdo->prepare($lockQuery);
+                $lockStmt->execute([$liquidacion['id']]);
+                
+                // Verificar si realmente obtuvimos el lock
+                $checkLockStmt = $this->pdo->prepare("
+                    SELECT * FROM task_locks 
+                    WHERE task_name = 'expiration_warning' 
+                    AND liquidacion_id = ? 
+                    AND locked_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                ");
+                $checkLockStmt->execute([$liquidacion['id']]);
+                $lockInfo = $checkLockStmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Si el lock fue creado/actualizado hace menos de 5 minutos, procesamos
+                if ($lockInfo && (time() - strtotime($lockInfo['locked_at']) < 300)) { // 5 minutos
+                    // Enviar advertencia
+                    if ($this->sendExpirationWarningEmail($liquidacion['id'], $liquidacion)) {
+                        $advertenciasEnviadas++;
+                        error_log("✅ Advertencia enviada para liquidación ID: {$liquidacion['id']}");
+                    }
+                } else {
+                    error_log("⚠️ Lock expirado o no obtenido para liquidación ID: {$liquidacion['id']}");
+                }
+                
+            } catch (PDOException $e) {
+                // Si hay un error de duplicado, significa que otro proceso ya está ejecutando esta tarea
+                error_log("⚠️ Tarea ya en ejecución para liquidación ID: {$liquidacion['id']} - " . $e->getMessage());
+                continue;
             }
         }
         
