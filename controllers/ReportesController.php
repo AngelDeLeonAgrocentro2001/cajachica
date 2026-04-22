@@ -607,7 +607,7 @@ class ReportesController {
                                 <td data-label="Centro de Costo"><?php echo htmlspecialchars($detalle['nombre_centro_costo'] ?? 'N/A'); ?></td>
                                 <td data-label="Tipo de Gasto"><?php echo htmlspecialchars($detalle['t_gasto']); ?></td>
                                 <td data-label="Tipo de Combustible"><?php echo htmlspecialchars($detalle['tipo_combustible'] ?? 'N/A'); ?></td>
-                                <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['cuenta_contable_nombre'] ?? 'N/A'); ?></td>
+                                <td data-label="Cuenta Contable"><?php echo htmlspecialchars($detalle['nombre_cuenta_contable'] ?? 'N/A'); ?></td>
                                 <td data-label="Fecha"><?php echo htmlspecialchars($detalle['fecha']); ?></td>
                                 <td data-label="Subtotal"><?php echo number_format($detalle['subtotal'], 2); ?></td>
                                 <td data-label="IVA"><?php echo number_format($detalle['iva'] ?? 0, 2); ?></td>
@@ -992,7 +992,7 @@ private function writePDFContentInChunks($mpdf, $idLiquidacion, $detalles, $liqu
             $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_centro_costo']) . '</td>';
             $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['t_gasto']) . '</td>';
             $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['tipo_combustible']) . '</td>';
-            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['cuenta_contable_nombre']) . '</td>';
+            $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['nombre_cuenta_contable']) . '</td>';
             $htmlChunkRows .= '<td>' . htmlspecialchars($detalle['fecha']) . '</td>';
             $htmlChunkRows .= '<td>' . number_format($detalle['subtotal'], 2) . '</td>';
             $htmlChunkRows .= '<td>' . number_format($detalle['iva'], 2) . '</td>';
