@@ -3584,10 +3584,10 @@ class LiquidacionController
                     }
 
                     // Si se proporciona un docDate específico, usarlo (para sobreescritura manual)
-                    if ($docDateParam !== null) {
-                        $docDate = $docDateParam;
-                        $taxDate = $docDateParam;
-                        $docDueDate = $docDateParam;
+                    if ($docDate !== null && $docDate !== '') {
+                        $docDate = $docDate;
+                        $taxDate = $docDate;
+                        $docDueDate = $docDate;
                         error_log("Factura {$noFactura}: Usando fecha proporcionada - DocDate: $docDate, TaxDate: $taxDate, DocDueDate: $docDueDate");
                     }
                     $numAtCard = !empty(trim($noFactura)) ? substr(trim($noFactura), 0, 50) : "DLIQ-{$id}-{$timestamp}";
