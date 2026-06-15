@@ -85,17 +85,19 @@ class DteController {
             $rows = $sheet->toArray();
             $header = array_shift($rows); // Quitar encabezado
 
-            // Validar que el número de columnas sea el esperado (32)
-            if (count($header) < 32) {
+            // Validar que el número de columnas sea el esperado (33)
+            // La columna 7 (índice 7) es "Ubicación temporal" y no se guarda en la BD.
+            if (count($header) < 33) {
                 $filesystem->delete($spacesPath); // Eliminar archivo si hay error
                 header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 32 columnas.']);
+                echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 33 columnas.']);
                 exit;
             }
 
             $insertedCount = 0;
             $duplicateCount = 0;
             $errorCount = 0;
+            $anuladoCount = 0;
 
             foreach ($rows as $index => $row) {
                 // Saltar filas vacías
@@ -104,9 +106,20 @@ class DteController {
                 }
 
                 // Validar que la fila tenga suficientes columnas y datos esenciales
-                if (count($row) < 32 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
+                if (count($row) < 33 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
                     error_log("Fila $index incompleta o sin datos esenciales: " . print_r($row, true));
                     $errorCount++;
+                    continue;
+                }
+
+                // Validar el estado del DTE: solo se procesan los "Vigente".
+                // La columna 16 corresponde a "Estado" (con la nueva columna
+                // "Ubicación temporal" en el índice 7, todo lo que estaba a
+                // partir del antiguo índice 7 se recorrió una posición).
+                $estado = trim((string)($row[16] ?? ''));
+                if (strcasecmp($estado, 'Anulado') === 0) {
+                    $anuladoCount++;
+                    error_log("DTE Anulado omitido - Fila $index: numero_autorizacion={$row[1]}, serie={$row[3]}, numero_dte={$row[4]}");
                     continue;
                 }
 
@@ -118,31 +131,32 @@ class DteController {
                     'numero_dte' => $row[4] ?: 0,
                     'clasificacion_emisor' => $row[5] ?: 0,
                     'exportacion' => $row[6] ?: '',
-                    'nit_emisor' => $row[7] ?: '',
-                    'nombre_emisor' => $row[8] ?: '',
-                    'codigo_establecimiento' => $row[9] ?: 0,
-                    'nombre_establecimiento' => $row[10] ?: '',
-                    'id_receptor' => $row[11] ?: '',
-                    'nombre_receptor' => $row[12] ?: '',
-                    'nit_certificador' => $row[13] ?: '',
-                    'nombre_certificador' => $row[14] ?: '',
-                    'estado' => $row[15] ?: '',
-                    'moneda' => $row[16] ?: '',
-                    'gran_total' => $row[17] ?: 0.00,
-                    'iva' => $row[18] ?: 0.00,
-                    'marca_anulado' => $row[19] ?: '',
-                    'fecha_anulacion' => $row[20] ?: null,
-                    'petroleo' => $row[21] ?: 0.00,
-                    'turismo_hospedaje' => $row[22] ?: 0.00,
-                    'turismo_pasajes' => $row[23] ?: 0.00,
-                    'timbre_prensa' => $row[24] ?: 0.00,
-                    'bomberos' => $row[25] ?: 0.00,
-                    'tasa_municipal' => $row[26] ?: 0.00,
-                    'bebidas_alcoholicas' => $row[27] ?: 0.00,
-                    'tabaco' => $row[28] ?: 0.00,
-                    'cemento' => $row[29] ?: 0.00,
-                    'bebidas_no_alcoholicas' => $row[30] ?: 0.00,
-                    'tarifa_portuaria' => $row[31] ?: 0.00,
+                    // $row[7] = 'Ubicación temporal' -> columna nueva, no se guarda
+                    'nit_emisor' => $row[8] ?: '',
+                    'nombre_emisor' => $row[9] ?: '',
+                    'codigo_establecimiento' => $row[10] ?: 0,
+                    'nombre_establecimiento' => $row[11] ?: '',
+                    'id_receptor' => $row[12] ?: '',
+                    'nombre_receptor' => $row[13] ?: '',
+                    'nit_certificador' => $row[14] ?: '',
+                    'nombre_certificador' => $row[15] ?: '',
+                    'estado' => $row[16] ?: '',
+                    'moneda' => $row[17] ?: '',
+                    'gran_total' => $row[18] ?: 0.00,
+                    'iva' => $row[19] ?: 0.00,
+                    'marca_anulado' => $row[20] ?: '',
+                    'fecha_anulacion' => $row[21] ?: null,
+                    'petroleo' => $row[22] ?: 0.00,
+                    'turismo_hospedaje' => $row[23] ?: 0.00,
+                    'turismo_pasajes' => $row[24] ?: 0.00,
+                    'timbre_prensa' => $row[25] ?: 0.00,
+                    'bomberos' => $row[26] ?: 0.00,
+                    'tasa_municipal' => $row[27] ?: 0.00,
+                    'bebidas_alcoholicas' => $row[28] ?: 0.00,
+                    'tabaco' => $row[29] ?: 0.00,
+                    'cemento' => $row[30] ?: 0.00,
+                    'bebidas_no_alcoholicas' => $row[31] ?: 0.00,
+                    'tarifa_portuaria' => $row[32] ?: 0.00,
                     'usado' => 'X', // Default value for usado
                     'file_url' => $fileUrl // Guardar la URL del archivo
                 ];
@@ -177,6 +191,9 @@ class DteController {
             if ($duplicateCount > 0) {
                 $message .= "$duplicateCount DTEs duplicados omitidos. ";
             }
+            if ($anuladoCount > 0) {
+                $message .= "$anuladoCount DTEs anulados omitidos. ";
+            }
             if ($errorCount > 0) {
                 $message .= "$errorCount DTEs con errores. ";
             }
@@ -189,6 +206,7 @@ class DteController {
                 'stats' => [
                     'inserted' => $insertedCount,
                     'duplicates' => $duplicateCount,
+                    'anulados' => $anuladoCount,
                     'errors' => $errorCount
                 ]
             ]);
