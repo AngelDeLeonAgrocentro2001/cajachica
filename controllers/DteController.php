@@ -89,17 +89,19 @@ class DteController
                 $rows = $sheet->toArray();
                 $header = array_shift($rows); // Quitar encabezado
 
-                // Validar que el número de columnas sea el esperado (32)
-                if (count($header) < 32) {
+                // Validar que el número de columnas sea el esperado (33)
+                // La columna con índice 7 es "Ubicación temporal" y no se guarda en la BD.
+                if (count($header) < 33) {
                     $filesystem->delete($spacesPath); // Eliminar archivo si hay error
                     header('Content-Type: application/json');
-                    echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 32 columnas.']);
+                    echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 33 columnas.']);
                     exit;
                 }
 
                 $insertedCount = 0;
                 $duplicateCount = 0;
                 $errorCount = 0;
+                $anuladoCount = 0;
 
                 foreach ($rows as $index => $row) {
                     // Saltar filas vacías
@@ -108,9 +110,19 @@ class DteController
                     }
 
                     // Validar que la fila tenga suficientes columnas y datos esenciales
-                    if (count($row) < 32 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
+                    if (count($row) < 33 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
                         error_log("Fila $index incompleta o sin datos esenciales: " . print_r($row, true));
                         $errorCount++;
+                        continue;
+                    }
+
+                    // Validar el estado del DTE: solo se procesan los "Vigente".
+                    // Columna 16 = "Estado" (con la nueva columna "Ubicación temporal"
+                    // en el índice 7, todo a partir del antiguo índice 7 se recorrió una posición).
+                    $estado = trim((string) ($row[16] ?? ''));
+                    if (strcasecmp($estado, 'Anulado') === 0) {
+                        $anuladoCount++;
+                        error_log("DTE Anulado omitido - Fila $index: numero_autorizacion={$row[1]}, serie={$row[3]}, numero_dte={$row[4]}");
                         continue;
                     }
 
@@ -122,31 +134,32 @@ class DteController
                         'numero_dte' => $row[4] ?: 0,
                         'clasificacion_emisor' => (int) ($row[5] ?: 0),
                         'exportacion' => $row[6] ?: '',
-                        'nit_emisor' => $row[7] ?: '',
-                        'nombre_emisor' => $row[8] ?: '',
-                        'codigo_establecimiento' => (string) ($row[9] ?: ''),
-                        'nombre_establecimiento' => $row[10] ?: '',
-                        'id_receptor' => $row[11] ?: '',
-                        'nombre_receptor' => $row[12] ?: '',
-                        'nit_certificador' => $row[13] ?: '',
-                        'nombre_certificador' => $row[14] ?: '',
-                        'estado' => $row[15] ?: '',
-                        'moneda' => $row[16] ?: '',           // Columna 16: Moneda ("GTQ", "USD")
-                        'gran_total' => is_numeric($row[17]) ? (float) $row[17] : 0.00, // Columna 17: Gran Total (debe ser número)
-                        'iva' => is_numeric($row[18]) ? (float) $row[18] : 0.00,        // Columna 18: IVA (debe ser número)
-                        'marca_anulado' => $row[19] ?: '',
-                        'fecha_anulacion' => $row[20] ?: null,
-                        'petroleo' => is_numeric($row[21]) ? (float) $row[21] : 0.00,
-                        'turismo_hospedaje' => is_numeric($row[22]) ? (float) $row[22] : 0.00,
-                        'turismo_pasajes' => is_numeric($row[23]) ? (float) $row[23] : 0.00,
-                        'timbre_prensa' => is_numeric($row[24]) ? (float) $row[24] : 0.00,
-                        'bomberos' => is_numeric($row[25]) ? (float) $row[25] : 0.00,
-                        'tasa_municipal' => is_numeric($row[26]) ? (float) $row[26] : 0.00,
-                        'bebidas_alcoholicas' => is_numeric($row[27]) ? (float) $row[27] : 0.00,
-                        'tabaco' => is_numeric($row[28]) ? (float) $row[28] : 0.00,
-                        'cemento' => is_numeric($row[29]) ? (float) $row[29] : 0.00,
-                        'bebidas_no_alcoholicas' => is_numeric($row[30]) ? (float) $row[30] : 0.00,
-                        'tarifa_portuaria' => is_numeric($row[31]) ? (float) $row[31] : 0.00,
+                        // $row[7] = 'Ubicación temporal' -> columna nueva, no se guarda
+                        'nit_emisor' => $row[8] ?: '',
+                        'nombre_emisor' => $row[9] ?: '',
+                        'codigo_establecimiento' => (string) ($row[10] ?: ''),
+                        'nombre_establecimiento' => $row[11] ?: '',
+                        'id_receptor' => $row[12] ?: '',
+                        'nombre_receptor' => $row[13] ?: '',
+                        'nit_certificador' => $row[14] ?: '',
+                        'nombre_certificador' => $row[15] ?: '',
+                        'estado' => $row[16] ?: '',
+                        'moneda' => $row[17] ?: '',           // Columna 17: Moneda ("GTQ", "USD")
+                        'gran_total' => is_numeric($row[18]) ? (float) $row[18] : 0.00, // Columna 18: Gran Total (debe ser número)
+                        'iva' => is_numeric($row[19]) ? (float) $row[19] : 0.00,        // Columna 19: IVA (debe ser número)
+                        'marca_anulado' => $row[20] ?: '',
+                        'fecha_anulacion' => $row[21] ?: null,
+                        'petroleo' => is_numeric($row[22]) ? (float) $row[22] : 0.00,
+                        'turismo_hospedaje' => is_numeric($row[23]) ? (float) $row[23] : 0.00,
+                        'turismo_pasajes' => is_numeric($row[24]) ? (float) $row[24] : 0.00,
+                        'timbre_prensa' => is_numeric($row[25]) ? (float) $row[25] : 0.00,
+                        'bomberos' => is_numeric($row[26]) ? (float) $row[26] : 0.00,
+                        'tasa_municipal' => is_numeric($row[27]) ? (float) $row[27] : 0.00,
+                        'bebidas_alcoholicas' => is_numeric($row[28]) ? (float) $row[28] : 0.00,
+                        'tabaco' => is_numeric($row[29]) ? (float) $row[29] : 0.00,
+                        'cemento' => is_numeric($row[30]) ? (float) $row[30] : 0.00,
+                        'bebidas_no_alcoholicas' => is_numeric($row[31]) ? (float) $row[31] : 0.00,
+                        'tarifa_portuaria' => is_numeric($row[32]) ? (float) $row[32] : 0.00,
                         'usado' => 'X',
                         'file_url' => $fileUrl
                     ];
@@ -181,6 +194,9 @@ class DteController
                 if ($duplicateCount > 0) {
                     $message .= "$duplicateCount DTEs duplicados omitidos. ";
                 }
+                if ($anuladoCount > 0) {
+                    $message .= "$anuladoCount DTEs anulados omitidos. ";
+                }
                 if ($errorCount > 0) {
                     $message .= "$errorCount DTEs con errores. ";
                 }
@@ -193,6 +209,7 @@ class DteController
                     'stats' => [
                         'inserted' => $insertedCount,
                         'duplicates' => $duplicateCount,
+                        'anulados' => $anuladoCount,
                         'errors' => $errorCount
                     ]
                 ]);
