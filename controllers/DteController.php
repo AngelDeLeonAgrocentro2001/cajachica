@@ -35,6 +35,102 @@ class DteController
         require_once '../views/dte/upload.php';
     }
 
+    /**
+     * Construye el mapa de índices de columnas a partir del encabezado del Excel.
+     *
+     * Soporta dos formatos:
+     *  - 32 columnas (formato clásico, sin "Ubicación temporal")
+     *  - 33 columnas (con la columna "Ubicación temporal" insertada después de "Exportación")
+     *
+     * Detecta dinámicamente si la columna "Ubicación temporal" está presente
+     * buscándola por nombre en el encabezado, y ajusta los índices de todas
+     * las columnas siguientes en consecuencia.
+     *
+     * @param array $header Fila de encabezado del Excel (array de nombres de columna)
+     * @return array Mapa asociativo: nombre_campo => índice de columna en $row
+     */
+    private function buildColumnMap(array $header): array
+    {
+        // Mapa base asumiendo 32 columnas (SIN "Ubicación temporal")
+        $map = [
+            'fecha_emision'          => 0,
+            'numero_autorizacion'    => 1,
+            'tipo_dte'               => 2,
+            'serie'                  => 3,
+            'numero_dte'             => 4,
+            'clasificacion_emisor'   => 5,
+            'exportacion'            => 6,
+            'nit_emisor'             => 7,
+            'nombre_emisor'          => 8,
+            'codigo_establecimiento' => 9,
+            'nombre_establecimiento' => 10,
+            'id_receptor'            => 11,
+            'nombre_receptor'        => 12,
+            'nit_certificador'       => 13,
+            'nombre_certificador'    => 14,
+            'estado'                 => 15,
+            'moneda'                 => 16,
+            'gran_total'             => 17,
+            'iva'                    => 18,
+            'marca_anulado'          => 19,
+            'fecha_anulacion'        => 20,
+            'petroleo'               => 21,
+            'turismo_hospedaje'      => 22,
+            'turismo_pasajes'        => 23,
+            'timbre_prensa'          => 24,
+            'bomberos'               => 25,
+            'tasa_municipal'         => 26,
+            'bebidas_alcoholicas'    => 27,
+            'tabaco'                 => 28,
+            'cemento'                => 29,
+            'bebidas_no_alcoholicas' => 30,
+            'tarifa_portuaria'       => 31,
+        ];
+
+        // Buscar columna "Ubicación temporal" en el encabezado (búsqueda flexible,
+        // ignorando acentos/mayúsculas).
+        $ubicacionIndex = null;
+        foreach ($header as $colIndex => $colName) {
+            $normalizado = $this->normalizarTexto((string) $colName);
+            if (strpos($normalizado, 'ubicacion') !== false && strpos($normalizado, 'temporal') !== false) {
+                $ubicacionIndex = $colIndex;
+                break;
+            }
+        }
+
+        // Si existe "Ubicación temporal", todas las columnas a partir de ese punto
+        // (que en el mapa base son >= 7, es decir nit_emisor en adelante) se
+        // recorren una posición hacia la derecha.
+        if ($ubicacionIndex !== null) {
+            foreach ($map as $campo => $indice) {
+                if ($indice >= 7) {
+                    $map[$campo] = $indice + 1;
+                }
+            }
+            $map['__ubicacion_temporal_index'] = $ubicacionIndex;
+            $map['__total_columnas'] = 33;
+        } else {
+            $map['__ubicacion_temporal_index'] = null;
+            $map['__total_columnas'] = 32;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Normaliza texto para comparación: minúsculas y sin acentos.
+     */
+    private function normalizarTexto(string $texto): string
+    {
+        $texto = mb_strtolower($texto, 'UTF-8');
+        $reemplazos = [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'à' => 'a', 'è' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
+            'ñ' => 'n',
+        ];
+        return strtr($texto, $reemplazos);
+    }
+
     public function uploadExcel()
     {
         if (!isset($_SESSION['user_id'])) {
@@ -89,14 +185,19 @@ class DteController
                 $rows = $sheet->toArray();
                 $header = array_shift($rows); // Quitar encabezado
 
-                // Validar que el número de columnas sea el esperado (33)
-                // La columna con índice 7 es "Ubicación temporal" y no se guarda en la BD.
-                if (count($header) < 33) {
+                // Validar que el número de columnas sea al menos el mínimo esperado (32)
+                if (count($header) < 32) {
                     $filesystem->delete($spacesPath); // Eliminar archivo si hay error
                     header('Content-Type: application/json');
-                    echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 33 columnas.']);
+                    echo json_encode(['success' => false, 'message' => 'El archivo Excel debe tener al menos 32 columnas.']);
                     exit;
                 }
+
+                // Construir el mapa de columnas dinámicamente según el encabezado.
+                // Soporta archivos con 32 columnas (sin "Ubicación temporal")
+                // y con 33 columnas (con "Ubicación temporal").
+                $colMap = $this->buildColumnMap($header);
+                $minColumnas = $colMap['__total_columnas'];
 
                 $insertedCount = 0;
                 $duplicateCount = 0;
@@ -110,56 +211,58 @@ class DteController
                     }
 
                     // Validar que la fila tenga suficientes columnas y datos esenciales
-                    if (count($row) < 33 || empty($row[1]) || empty($row[3]) || empty($row[4])) {
+                    if (count($row) < $minColumnas
+                        || empty($row[$colMap['numero_autorizacion']])
+                        || empty($row[$colMap['serie']])
+                        || empty($row[$colMap['numero_dte']])
+                    ) {
                         error_log("Fila $index incompleta o sin datos esenciales: " . print_r($row, true));
                         $errorCount++;
                         continue;
                     }
 
                     // Validar el estado del DTE: solo se procesan los "Vigente".
-                    // Columna 16 = "Estado" (con la nueva columna "Ubicación temporal"
-                    // en el índice 7, todo a partir del antiguo índice 7 se recorrió una posición).
-                    $estado = trim((string) ($row[16] ?? ''));
+                    $estado = trim((string) ($row[$colMap['estado']] ?? ''));
                     if (strcasecmp($estado, 'Anulado') === 0) {
                         $anuladoCount++;
-                        error_log("DTE Anulado omitido - Fila $index: numero_autorizacion={$row[1]}, serie={$row[3]}, numero_dte={$row[4]}");
+                        error_log("DTE Anulado omitido - Fila $index: numero_autorizacion={$row[$colMap['numero_autorizacion']]}, serie={$row[$colMap['serie']]}, numero_dte={$row[$colMap['numero_dte']]}");
                         continue;
                     }
 
                     $data = [
-                        'fecha_emision' => $row[0] ?: null,
-                        'numero_autorizacion' => $row[1] ?: '',
-                        'tipo_dte' => $row[2] ?: '',
-                        'serie' => $row[3] ?: '',
-                        'numero_dte' => $row[4] ?: 0,
-                        'clasificacion_emisor' => (int) ($row[5] ?: 0),
-                        'exportacion' => $row[6] ?: '',
-                        // $row[7] = 'Ubicación temporal' -> columna nueva, no se guarda
-                        'nit_emisor' => $row[8] ?: '',
-                        'nombre_emisor' => $row[9] ?: '',
-                        'codigo_establecimiento' => (string) ($row[10] ?: ''),
-                        'nombre_establecimiento' => $row[11] ?: '',
-                        'id_receptor' => $row[12] ?: '',
-                        'nombre_receptor' => $row[13] ?: '',
-                        'nit_certificador' => $row[14] ?: '',
-                        'nombre_certificador' => $row[15] ?: '',
-                        'estado' => $row[16] ?: '',
-                        'moneda' => $row[17] ?: '',           // Columna 17: Moneda ("GTQ", "USD")
-                        'gran_total' => is_numeric($row[18]) ? (float) $row[18] : 0.00, // Columna 18: Gran Total (debe ser número)
-                        'iva' => is_numeric($row[19]) ? (float) $row[19] : 0.00,        // Columna 19: IVA (debe ser número)
-                        'marca_anulado' => $row[20] ?: '',
-                        'fecha_anulacion' => $row[21] ?: null,
-                        'petroleo' => is_numeric($row[22]) ? (float) $row[22] : 0.00,
-                        'turismo_hospedaje' => is_numeric($row[23]) ? (float) $row[23] : 0.00,
-                        'turismo_pasajes' => is_numeric($row[24]) ? (float) $row[24] : 0.00,
-                        'timbre_prensa' => is_numeric($row[25]) ? (float) $row[25] : 0.00,
-                        'bomberos' => is_numeric($row[26]) ? (float) $row[26] : 0.00,
-                        'tasa_municipal' => is_numeric($row[27]) ? (float) $row[27] : 0.00,
-                        'bebidas_alcoholicas' => is_numeric($row[28]) ? (float) $row[28] : 0.00,
-                        'tabaco' => is_numeric($row[29]) ? (float) $row[29] : 0.00,
-                        'cemento' => is_numeric($row[30]) ? (float) $row[30] : 0.00,
-                        'bebidas_no_alcoholicas' => is_numeric($row[31]) ? (float) $row[31] : 0.00,
-                        'tarifa_portuaria' => is_numeric($row[32]) ? (float) $row[32] : 0.00,
+                        'fecha_emision' => $row[$colMap['fecha_emision']] ?: null,
+                        'numero_autorizacion' => $row[$colMap['numero_autorizacion']] ?: '',
+                        'tipo_dte' => $row[$colMap['tipo_dte']] ?: '',
+                        'serie' => $row[$colMap['serie']] ?: '',
+                        'numero_dte' => $row[$colMap['numero_dte']] ?: 0,
+                        'clasificacion_emisor' => (int) ($row[$colMap['clasificacion_emisor']] ?: 0),
+                        'exportacion' => $row[$colMap['exportacion']] ?: '',
+                        // La columna "Ubicación temporal" (si existe) no se guarda en la BD.
+                        'nit_emisor' => $row[$colMap['nit_emisor']] ?: '',
+                        'nombre_emisor' => $row[$colMap['nombre_emisor']] ?: '',
+                        'codigo_establecimiento' => (string) ($row[$colMap['codigo_establecimiento']] ?: ''),
+                        'nombre_establecimiento' => $row[$colMap['nombre_establecimiento']] ?: '',
+                        'id_receptor' => $row[$colMap['id_receptor']] ?: '',
+                        'nombre_receptor' => $row[$colMap['nombre_receptor']] ?: '',
+                        'nit_certificador' => $row[$colMap['nit_certificador']] ?: '',
+                        'nombre_certificador' => $row[$colMap['nombre_certificador']] ?: '',
+                        'estado' => $row[$colMap['estado']] ?: '',
+                        'moneda' => $row[$colMap['moneda']] ?: '',
+                        'gran_total' => is_numeric($row[$colMap['gran_total']]) ? (float) $row[$colMap['gran_total']] : 0.00,
+                        'iva' => is_numeric($row[$colMap['iva']]) ? (float) $row[$colMap['iva']] : 0.00,
+                        'marca_anulado' => $row[$colMap['marca_anulado']] ?: '',
+                        'fecha_anulacion' => $row[$colMap['fecha_anulacion']] ?: null,
+                        'petroleo' => is_numeric($row[$colMap['petroleo']]) ? (float) $row[$colMap['petroleo']] : 0.00,
+                        'turismo_hospedaje' => is_numeric($row[$colMap['turismo_hospedaje']]) ? (float) $row[$colMap['turismo_hospedaje']] : 0.00,
+                        'turismo_pasajes' => is_numeric($row[$colMap['turismo_pasajes']]) ? (float) $row[$colMap['turismo_pasajes']] : 0.00,
+                        'timbre_prensa' => is_numeric($row[$colMap['timbre_prensa']]) ? (float) $row[$colMap['timbre_prensa']] : 0.00,
+                        'bomberos' => is_numeric($row[$colMap['bomberos']]) ? (float) $row[$colMap['bomberos']] : 0.00,
+                        'tasa_municipal' => is_numeric($row[$colMap['tasa_municipal']]) ? (float) $row[$colMap['tasa_municipal']] : 0.00,
+                        'bebidas_alcoholicas' => is_numeric($row[$colMap['bebidas_alcoholicas']]) ? (float) $row[$colMap['bebidas_alcoholicas']] : 0.00,
+                        'tabaco' => is_numeric($row[$colMap['tabaco']]) ? (float) $row[$colMap['tabaco']] : 0.00,
+                        'cemento' => is_numeric($row[$colMap['cemento']]) ? (float) $row[$colMap['cemento']] : 0.00,
+                        'bebidas_no_alcoholicas' => is_numeric($row[$colMap['bebidas_no_alcoholicas']]) ? (float) $row[$colMap['bebidas_no_alcoholicas']] : 0.00,
+                        'tarifa_portuaria' => is_numeric($row[$colMap['tarifa_portuaria']]) ? (float) $row[$colMap['tarifa_portuaria']] : 0.00,
                         'usado' => 'X',
                         'file_url' => $fileUrl
                     ];
@@ -210,7 +313,8 @@ class DteController
                         'inserted' => $insertedCount,
                         'duplicates' => $duplicateCount,
                         'anulados' => $anuladoCount,
-                        'errors' => $errorCount
+                        'errors' => $errorCount,
+                        'formato_columnas' => $minColumnas
                     ]
                 ]);
                 exit;
