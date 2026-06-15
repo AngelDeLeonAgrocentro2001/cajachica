@@ -325,11 +325,13 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
                 <th>No. Autorización</th>
                 <th>Serie</th>
                 <th>No. DTE</th>
-                <th>Nombre Emisor</th>
                 <th>NIT Emisor</th>
                 <th>Gran Total</th>
                 <th>IVA</th>
                 <th>Estado</th>
+                <th>Usuario</th>
+                <th>Liquidación</th>
+                <th>Detalle</th>
               </tr>
             </thead>
             <tbody id="dtesTableBody">
@@ -494,10 +496,17 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
         // Determinar el estado basado en el campo 'usado'
         let estadoBadge = '';
         let estadoText = '';
+        let usuarioTexto = '-';
+        let liquidacionTexto = '-';
+        let detalleTexto = '-';
 
         if (dte.usado === 'Y' || dte.usado === 'y') {
           estadoBadge = 'badge-danger';
           estadoText = 'Desactivado';
+          // Solo se muestra esta información cuando el DTE ya fue utilizado
+          usuarioTexto = dte.nombre_usuario_uso || '-';
+          liquidacionTexto = dte.id_liquidacion || '-';
+          detalleTexto = dte.id_detalle_liquidacion || '-';
         } else {
           estadoBadge = 'badge-success';
           estadoText = 'Activo';
@@ -510,12 +519,13 @@ require_once __DIR__ . '/../partials/menu.php'; // Incluir el menú
     <td>${dte.numero_autorizacion || '-'}</td>
     <td>${dte.serie || '-'}</td>
     <td>${dte.numero_dte || '-'}</td>
-    <td>${dte.nombre_emisor || '-'}</td>
     <td>${dte.nit_emisor || '-'}</td>
     <td>Q ${formatNumber(dte.gran_total)}</td>
     <td>Q ${formatNumber(dte.iva)}</td>
     <td><span class="badge ${estadoBadge}">${estadoText}</span></td>
-    <td>${dte.usado || '-'}</td> <!-- Opcional: mostrar el valor del campo usado -->
+    <td>${usuarioTexto}</td>
+    <td>${liquidacionTexto}</td>
+    <td>${detalleTexto}</td>
 `;
         tableBody.appendChild(row);
       });
