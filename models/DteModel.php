@@ -170,19 +170,14 @@ class DteModel {
     }
 
     /**
-     * Busca DTEs por NIT y/o Serie, incluyendo (cuando usado = 'Y') el nombre
-     * del usuario que utilizó el DTE, y la liquidación y detalle de
-     * liquidación donde está registrado, obtenido a través de
-     * detalle_liquidaciones -> liquidaciones / usuarios.
-     *
-     * Se usa MAX() sobre los campos relacionados para cumplir con el modo
-     * ONLY_FULL_GROUP_BY de MySQL (todas las columnas del SELECT que no
-     * están en el GROUP BY deben ser agregadas).
+     * Usado en la vista de búsqueda de DTE (upload.php).
+     * Incluye nombre_emisor (necesario para la tabla de resultados)
+     * y la información de liquidación/detalle/usuario cuando el DTE está usado.
      */
     public function searchDtes($nit = '', $serie = '', $fechaInicio = null, $fechaFin = null) {
     try {
         $sql = "SELECT d.id, d.numero_autorizacion, d.serie, CAST(d.numero_dte AS CHAR) AS numero_dte, 
-                       d.fecha_emision, d.gran_total, d.iva, 
+                       d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
                        d.nit_emisor, d.usado,
                        MAX(u.id) AS id_usuario_uso,
                        MAX(u.nombre) AS nombre_usuario_uso,
@@ -217,10 +212,9 @@ class DteModel {
             $params[] = $fechaFin;
         }
         
-        // Agrupar por d.id para evitar filas duplicadas si un DTE coincide
-        // con varios detalles de liquidación, y ordenar por fecha de emisión.
+        // GROUP BY incluye nombre_emisor para que ONLY_FULL_GROUP_BY no se queje.
         $sql .= " GROUP BY d.id, d.numero_autorizacion, d.serie, d.numero_dte, 
-                            d.fecha_emision, d.gran_total, d.iva, 
+                            d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
                             d.nit_emisor, d.usado";
         $sql .= " ORDER BY d.fecha_emision DESC";
         
@@ -237,14 +231,19 @@ class DteModel {
 }
 
     /**
-     * Igual que searchDtes(), incluyendo el nombre del usuario que usó el DTE
-     * y la liquidación/detalle de liquidación (cuando usado = 'Y') vía
-     * detalle_liquidaciones -> liquidaciones / usuarios.
+     * Usado tanto en la búsqueda del formulario de facturas (fetchDteSuggestions en JS)
+     * como en la vista upload.php.
+     * 
+     * IMPORTANTE: nombre_emisor DEBE estar en el SELECT porque el JS de manageFacturas
+     * lo usa en selectDte() para rellenar el campo "Nombre Proveedor" del formulario:
+     *   document.getElementById('nombre_proveedor').value = dte.nombre_emisor || '';
+     *
+     * También incluye la información de liquidación/detalle/usuario para upload.php.
      */
     public function getDtesByNitOrSerie($nit = '', $serie = '', $fechaInicio = null, $fechaFin = null) {
     try {
         $sql = "SELECT d.id, d.numero_autorizacion, d.serie, CAST(d.numero_dte AS CHAR) AS numero_dte, 
-                       d.fecha_emision, d.gran_total, d.iva, 
+                       d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
                        d.nit_emisor, d.usado,
                        MAX(u.id) AS id_usuario_uso,
                        MAX(u.nombre) AS nombre_usuario_uso,
@@ -279,10 +278,9 @@ class DteModel {
             $params[] = $fechaFin;
         }
         
-        // Agrupar por d.id para evitar filas duplicadas si un DTE coincide
-        // con varios detalles de liquidación, y ordenar por fecha de emisión.
+        // GROUP BY incluye nombre_emisor para que ONLY_FULL_GROUP_BY no se queje.
         $sql .= " GROUP BY d.id, d.numero_autorizacion, d.serie, d.numero_dte, 
-                            d.fecha_emision, d.gran_total, d.iva, 
+                            d.nombre_emisor, d.fecha_emision, d.gran_total, d.iva, 
                             d.nit_emisor, d.usado";
         $sql .= " ORDER BY d.fecha_emision DESC";
         
