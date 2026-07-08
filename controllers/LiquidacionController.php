@@ -3741,12 +3741,14 @@ class LiquidacionController
                     $cardCode = !empty($usuarioCreador['clientes']) ? trim($usuarioCreador['clientes']) : 'CCHA0010';
                     error_log("Código de cliente para usuario ID {$liquidacion['id_usuario']}: $cardCode");
 
+                    $taxDateFromDocumento = !empty($dl['fecha_documento']) ? (new DateTime($dl['fecha_documento']))->format('Y-m-d') : $docDueDate;
+
                     $purchaseInvoice = [
                         "DocType" => "dDocument_Service",
                         "CardCode" => $cardCode,
                         "U_CODIGO" => $cardCode,
                         "DocDate" => $docDate,
-                        "TaxDate" => $docDueDate,
+                        "TaxDate" => $taxDateFromDocumento,
                         "DocDueDate" => $taxDate,
                         "Comments" => $comments,
                         "JournalMemo" => $comments,
