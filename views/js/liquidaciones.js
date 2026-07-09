@@ -139,20 +139,6 @@ async function loadLiquidations() {
         }
 
         filteredLiquidacionesData = [...liquidacionesData];
-
-        // Aplicar el mismo filtro automático por defecto que ya usa resetSearch(),
-        // para que la carga inicial muestre lo mismo que "resetear filtros" en vez de
-        // todos los estados (evita procesar/renderizar miles de registros de más).
-        if (mode === "revisar" && window.isContabilidadLike) {
-            filteredLiquidacionesData = liquidacionesData.filter(
-                (liquidacion) => liquidacion.estado === "PENDIENTE_REVISION_CONTABILIDAD"
-            );
-        } else if (mode === "autorizar" && window.isSupervisorLike && !isShowingCorrected) {
-            filteredLiquidacionesData = liquidacionesData.filter(
-                (liquidacion) => liquidacion.estado === "PENDIENTE_AUTORIZACION"
-            );
-        }
-
         currentPage = 1;
         renderLiquidations();
         renderCorrectedDetalles();
