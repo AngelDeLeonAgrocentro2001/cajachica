@@ -892,10 +892,20 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         }
     
         if ($estado !== null) {
-            $query .= " AND l.estado = ?";
-            $params[] = $estado;
+            if (is_array($estado)) {
+                if (!empty($estado)) {
+                    $placeholdersEstado = implode(',', array_fill(0, count($estado), '?'));
+                    $query .= " AND l.estado IN ($placeholdersEstado)";
+                    foreach ($estado as $unEstado) {
+                        $params[] = $unEstado;
+                    }
+                }
+            } else {
+                $query .= " AND l.estado = ?";
+                $params[] = $estado;
+            }
         }
-    
+
         if ($idContador !== null) {
             $query .= " AND l.id_contador = ?";
             $params[] = $idContador;

@@ -257,21 +257,19 @@ class LiquidacionController
 
         // 2. MODIFICACIÓN: Si es contabilidad O tiene rol mixto con contabilidad, obtener TODAS las liquidaciones
         if ($isContabilidadRole || ($isEncargadoRole && $isRevisarMode)) {
-            // OBTENER TODAS LAS LIQUIDACIONES, NO SOLO LAS ASIGNADAS
-            $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
-            error_log('TODAS las liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
-
-            // Apply state filter only in revisar mode
             if ($isRevisarMode) {
-                $contabilidadLiquidaciones = array_filter($contabilidadLiquidaciones, function ($liquidacion) {
-                    return in_array($liquidacion['estado'], [
-                        'PENDIENTE_REVISION_CONTABILIDAD',
-                        'FINALIZADO',
-                        'RECHAZADO_POR_CONTABILIDAD',
-                        'EN_PROCESO'
-                    ]);
-                });
-                error_log('Liquidaciones filtradas por estado para revisar: ' . count($contabilidadLiquidaciones) . ' registros');
+                // Filtrar por estado directamente en SQL en vez de traer toda la tabla y filtrar en PHP
+                $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones(null, null, [
+                    'PENDIENTE_REVISION_CONTABILIDAD',
+                    'FINALIZADO',
+                    'RECHAZADO_POR_CONTABILIDAD',
+                    'EN_PROCESO'
+                ]);
+                error_log('Liquidaciones obtenidas (filtradas por estado en SQL) para CONTABILIDAD revisar (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
+            } else {
+                // OBTENER TODAS LAS LIQUIDACIONES, NO SOLO LAS ASIGNADAS
+                $contabilidadLiquidaciones = $this->liquidacionModel->getAllLiquidaciones();
+                error_log('TODAS las liquidaciones obtenidas para CONTABILIDAD (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
             }
 
             // Remove duplicates
@@ -352,8 +350,11 @@ class LiquidacionController
             error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD/ENCARGADO: ' . count($liquidaciones) . ' registros');
         }
 
+        // Traer los detalles de TODAS las liquidaciones en una sola consulta (evita N+1)
+        $detallesPorLiquidacion = $this->detalleModel->getDetallesByLiquidacionIds(array_column($liquidaciones, 'id'));
+
         foreach ($liquidaciones as &$liquidacion) {
-            $liquidacion['detalles'] = $this->detalleModel->getDetallesByLiquidacionId($liquidacion['id']);
+            $liquidacion['detalles'] = $detallesPorLiquidacion[$liquidacion['id']] ?? [];
 
             // Calcular total de gastos sumando los total_factura de los detalles
             $totalGastos = 0;

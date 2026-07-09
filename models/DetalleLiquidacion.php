@@ -412,6 +412,76 @@ public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
         return $detalles;
     }
 
+    // Version en lote de getDetallesByLiquidacionId: misma consulta y misma forma de armar cada
+    // detalle, pero con IN(...) para evitar 1 consulta por liquidacion + 1 por cada detalle.
+    // Devuelve un array indexado por id_liquidacion => [detalles...]
+    public function getDetallesByLiquidacionIds(array $idsLiquidacion) {
+        if (empty($idsLiquidacion)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($idsLiquidacion), '?'));
+        $stmt = $this->pdo->prepare("
+            SELECT dl.*,
+                   cc.nombre AS nombre_centro_costo,
+                   cc.codigo AS codigo_centro_costo,
+                   tg.name AS tipo_gasto,
+                   cc2.nombre AS cuenta_contable,
+                   s.nombre AS nombre_supervisor_correccion,
+                   c.nombre AS nombre_contador_correccion,
+                   u.nombre AS nombre_usuario
+            FROM detalle_liquidaciones dl
+            LEFT JOIN centros_costos cc ON dl.id_centro_costo = cc.id
+            LEFT JOIN tipos_gastos tg ON dl.t_gasto = tg.name
+            LEFT JOIN cuentas_contables cc2 ON dl.id_cuenta_contable = cc2.id
+            LEFT JOIN usuarios s ON dl.id_supervisor_correccion = s.id
+            LEFT JOIN usuarios c ON dl.id_contador_correccion = c.id
+            LEFT JOIN usuarios u ON dl.id_usuario = u.id
+            WHERE dl.id_liquidacion IN ($placeholders)
+        ");
+        $stmt->execute($idsLiquidacion);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $centrosCostoPorDetalle = $this->getCentrosCostoByDetalleIds(array_column($detalles, 'id'));
+
+        $porLiquidacion = [];
+        foreach ($detalles as &$detalle) {
+            $detalle['subtotal'] = floatval($detalle['p_unitario'] ?? $detalle['total_factura']);
+            $detalle['centros_costo'] = $centrosCostoPorDetalle[$detalle['id']] ?? [];
+            $detalle['nombre_centro_costo'] = $detalle['nombre_centro_costo'] . ' / ' . ($detalle['codigo_centro_costo'] ?? 'N/A');
+            $porLiquidacion[$detalle['id_liquidacion']][] = $detalle;
+        }
+        unset($detalle);
+
+        return $porLiquidacion;
+    }
+
+    // Version en lote de getCentrosCostoByDetalle. Devuelve un array indexado por
+    // id_detalle_liquidacion => [centros_costo...]
+    public function getCentrosCostoByDetalleIds(array $idsDetalle) {
+        if (empty($idsDetalle)) {
+            return [];
+        }
+        try {
+            $placeholders = implode(',', array_fill(0, count($idsDetalle), '?'));
+            $sql = "SELECT dcc.*, cc.nombre AS nombre_centro_costo
+                    FROM detalle_centros_costo dcc
+                    JOIN centros_costos cc ON dcc.id_centro_costo = cc.id
+                    WHERE dcc.id_detalle_liquidacion IN ($placeholders)";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($idsDetalle);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $porDetalle = [];
+            foreach ($rows as $row) {
+                $porDetalle[$row['id_detalle_liquidacion']][] = $row;
+            }
+            return $porDetalle;
+        } catch (PDOException $e) {
+            error_log("Error en getCentrosCostoByDetalleIds: " . $e->getMessage());
+            return [];
+        }
+    }
+
     public function getDetallesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
         $query = "
             SELECT dl.*, l.fecha_creacion as liquidacion_fecha, cc.nombre as caja_chica, 
