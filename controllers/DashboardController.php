@@ -182,6 +182,8 @@ class DashboardController {
         $liquidacionModel = new Liquidacion();
         $detalleModel = new DetalleLiquidacion();
 
+        $enCorreccionPorUsuario = $liquidacionModel->getEnCorreccionPorUsuario();
+
         $data = [
             'meses' => $meses,
             'volumen_liquidaciones' => $liquidacionModel->getEstadisticasMensuales($meses),
@@ -189,6 +191,11 @@ class DashboardController {
             'pendientes_revision' => [
                 'liquidaciones' => $liquidacionModel->contarPorEstado('PENDIENTE_REVISION_CONTABILIDAD'),
                 'facturas' => $detalleModel->contarPorEstado('PENDIENTE_REVISION_CONTABILIDAD'),
+            ],
+            'en_correccion' => [
+                'liquidaciones' => array_sum(array_column($enCorreccionPorUsuario, 'liquidaciones')),
+                'facturas' => array_sum(array_column($enCorreccionPorUsuario, 'facturas')),
+                'por_usuario' => $enCorreccionPorUsuario,
             ],
             'tiempo_ciclo' => $liquidacionModel->getTiempoPromedioCicloPorMes($meses),
         ];

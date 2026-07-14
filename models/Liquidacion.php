@@ -1146,6 +1146,25 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Liquidaciones y facturas (detalles) en estado EN_CORRECCION, agrupadas por el
+    // usuario encargado dueño de la liquidacion (para saber de quien son)
+    public function getEnCorreccionPorUsuario() {
+        $stmt = $this->pdo->prepare("
+            SELECT u.id AS id_usuario,
+                   u.nombre AS nombre_usuario,
+                   COUNT(DISTINCT l.id) AS liquidaciones,
+                   COUNT(dl.id) AS facturas
+            FROM detalle_liquidaciones dl
+            JOIN liquidaciones l ON dl.id_liquidacion = l.id
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            WHERE dl.estado = 'EN_CORRECCION'
+            GROUP BY u.id, u.nombre
+            ORDER BY facturas DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getLiquidacionesByEstado($estado) {
         $stmt = $this->pdo->prepare("
             SELECT l.*,

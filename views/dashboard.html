@@ -457,6 +457,38 @@
       .stats-error {
         color: #c0392b;
       }
+
+      /* Tabla "por usuario" dentro del panel de estadisticas */
+      .stats-table-wrap {
+        overflow-x: auto;
+      }
+      .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      .stats-table th,
+      .stats-table td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid #eef0f2;
+      }
+      .stats-table th {
+        color: #7f8c8d;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .stats-table td.num {
+        font-weight: 700;
+        color: #e67e22;
+      }
+      .stats-table-empty {
+        color: #7f8c8d;
+        padding: 15px 0;
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -759,6 +791,12 @@
           });
         });
 
+        function escapeHtml(texto) {
+          const div = document.createElement("div");
+          div.textContent = texto == null ? "" : String(texto);
+          return div.innerHTML;
+        }
+
         const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
         function formatMes(mesStr) {
           const [anio, mes] = mesStr.split("-");
@@ -794,6 +832,14 @@
                 <div class="stats-kpi-label">Liquidaciones pendientes de revisión contabilidad</div>
                 <div class="stats-kpi-value" id="kpi-pendientes-liquidaciones">-</div>
               </div>
+              <div class="stats-kpi-tile" style="border-top-color: #e67e22">
+                <div class="stats-kpi-label">Liquidaciones en corrección</div>
+                <div class="stats-kpi-value" id="kpi-correccion-liquidaciones" style="color: #e67e22">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #e67e22">
+                <div class="stats-kpi-label">Facturas en corrección</div>
+                <div class="stats-kpi-value" id="kpi-correccion-facturas" style="color: #e67e22">-</div>
+              </div>
             </div>
             <div class="stats-chart-card">
               <h4>Liquidaciones y facturas por mes</h4>
@@ -807,10 +853,46 @@
               <h4>Liquidaciones expiradas y rechazadas por mes</h4>
               <div class="stats-chart-wrap"><canvas id="chartSalud"></canvas></div>
             </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones y facturas en corrección — por encargado</h4>
+              <div class="stats-table-wrap" id="tabla-correccion-usuario"></div>
+            </div>
           `;
 
           document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
           document.getElementById("kpi-pendientes-liquidaciones").textContent = data.pendientes_revision.liquidaciones;
+          document.getElementById("kpi-correccion-liquidaciones").textContent = data.en_correccion.liquidaciones;
+          document.getElementById("kpi-correccion-facturas").textContent = data.en_correccion.facturas;
+
+          const tablaCorreccion = document.getElementById("tabla-correccion-usuario");
+          const porUsuario = data.en_correccion.por_usuario || [];
+          if (porUsuario.length === 0) {
+            tablaCorreccion.innerHTML = '<p class="stats-table-empty">No hay liquidaciones ni facturas en corrección.</p>';
+          } else {
+            const filas = porUsuario
+              .map(
+                (fila) => `
+                  <tr>
+                    <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
+                    <td class="num">${fila.liquidaciones}</td>
+                    <td class="num">${fila.facturas}</td>
+                  </tr>
+                `
+              )
+              .join("");
+            tablaCorreccion.innerHTML = `
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Encargado</th>
+                    <th>Liquidaciones</th>
+                    <th>Facturas</th>
+                  </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+              </table>
+            `;
+          }
 
           const meses = new Set();
           data.volumen_liquidaciones.forEach((r) => meses.add(r.mes));
