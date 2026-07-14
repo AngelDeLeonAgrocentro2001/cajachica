@@ -1153,7 +1153,9 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
             SELECT u.id AS id_usuario,
                    u.nombre AS nombre_usuario,
                    COUNT(DISTINCT l.id) AS liquidaciones,
-                   COUNT(dl.id) AS facturas
+                   COUNT(dl.id) AS facturas,
+                   GROUP_CONCAT(DISTINCT l.id ORDER BY l.id) AS ids_liquidaciones,
+                   GROUP_CONCAT(dl.id ORDER BY dl.id) AS ids_facturas
             FROM detalle_liquidaciones dl
             JOIN liquidaciones l ON dl.id_liquidacion = l.id
             LEFT JOIN usuarios u ON l.id_usuario = u.id

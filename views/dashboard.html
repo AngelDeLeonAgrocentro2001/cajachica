@@ -484,6 +484,12 @@
         font-weight: 700;
         color: #e67e22;
       }
+      .stats-table td.ids {
+        color: #7f8c8d;
+        font-size: 0.82rem;
+        word-break: break-word;
+        max-width: 260px;
+      }
       .stats-table-empty {
         color: #7f8c8d;
         padding: 15px 0;
@@ -869,6 +875,7 @@
           if (porUsuario.length === 0) {
             tablaCorreccion.innerHTML = '<p class="stats-table-empty">No hay liquidaciones ni facturas en corrección.</p>';
           } else {
+            const formatIds = (idsStr) => (idsStr ? idsStr.split(",").join(", ") : "-");
             const filas = porUsuario
               .map(
                 (fila) => `
@@ -876,6 +883,8 @@
                     <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
                     <td class="num">${fila.liquidaciones}</td>
                     <td class="num">${fila.facturas}</td>
+                    <td class="ids">${escapeHtml(formatIds(fila.ids_liquidaciones))}</td>
+                    <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
                   </tr>
                 `
               )
@@ -887,6 +896,8 @@
                     <th>Encargado</th>
                     <th>Liquidaciones</th>
                     <th>Facturas</th>
+                    <th>IDs Liquidaciones</th>
+                    <th>IDs Facturas</th>
                   </tr>
                 </thead>
                 <tbody>${filas}</tbody>
