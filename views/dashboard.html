@@ -880,11 +880,11 @@
               </div>
               <div class="stats-kpi-tile" style="border-top-color: #e67e22">
                 <div class="stats-kpi-label">Liquidaciones en corrección</div>
-                <div class="stats-kpi-value" id="kpi-correccion-liquidaciones" style="color: #e67e22">-</div>
+                <div class="stats-kpi-value" id="kpi-en_correccion-liquidaciones" style="color: #e67e22">-</div>
               </div>
               <div class="stats-kpi-tile" style="border-top-color: #e67e22">
                 <div class="stats-kpi-label">Facturas en corrección</div>
-                <div class="stats-kpi-value" id="kpi-correccion-facturas" style="color: #e67e22">-</div>
+                <div class="stats-kpi-value" id="kpi-en_correccion-facturas" style="color: #e67e22">-</div>
               </div>
               <div class="stats-kpi-tile" style="border-top-color: #e74c3c">
                 <div class="stats-kpi-label">Liquidaciones rechazadas (autorización)</div>
@@ -934,8 +934,10 @@
 
           ["en_correccion", "rechazado_autorizacion", "expirado"].forEach((seccion) => {
             const seccionData = data[seccion] || { liquidaciones: 0, facturas: 0, por_usuario: [] };
-            document.getElementById(`kpi-${seccion}-liquidaciones`).textContent = seccionData.liquidaciones;
-            document.getElementById(`kpi-${seccion}-facturas`).textContent = seccionData.facturas;
+            const kpiLiquidaciones = document.getElementById(`kpi-${seccion}-liquidaciones`);
+            const kpiFacturas = document.getElementById(`kpi-${seccion}-facturas`);
+            if (kpiLiquidaciones) kpiLiquidaciones.textContent = seccionData.liquidaciones;
+            if (kpiFacturas) kpiFacturas.textContent = seccionData.facturas;
             renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || []);
           });
 
