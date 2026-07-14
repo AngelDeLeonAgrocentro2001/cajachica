@@ -809,6 +809,46 @@
           return NOMBRES_MES[parseInt(mes, 10) - 1] + " " + anio;
         }
 
+        function formatIds(idsStr) {
+          return idsStr ? idsStr.split(",").join(", ") : "-";
+        }
+
+        function renderTablaPorUsuario(elId, porUsuario) {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          if (!porUsuario || porUsuario.length === 0) {
+            el.innerHTML = '<p class="stats-table-empty">No hay liquidaciones ni facturas en este estado.</p>';
+            return;
+          }
+          const filas = porUsuario
+            .map(
+              (fila) => `
+                <tr>
+                  <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
+                  <td class="num">${fila.liquidaciones}</td>
+                  <td class="num">${fila.facturas}</td>
+                  <td class="ids">${escapeHtml(formatIds(fila.ids_liquidaciones))}</td>
+                  <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
+                </tr>
+              `
+            )
+            .join("");
+          el.innerHTML = `
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Encargado</th>
+                  <th>Liquidaciones</th>
+                  <th>Facturas</th>
+                  <th>IDs Liquidaciones</th>
+                  <th>IDs Facturas</th>
+                </tr>
+              </thead>
+              <tbody>${filas}</tbody>
+            </table>
+          `;
+        }
+
         async function cargarEstadisticas() {
           const contenedor = document.getElementById("estadisticas-content");
           try {
@@ -846,6 +886,22 @@
                 <div class="stats-kpi-label">Facturas en corrección</div>
                 <div class="stats-kpi-value" id="kpi-correccion-facturas" style="color: #e67e22">-</div>
               </div>
+              <div class="stats-kpi-tile" style="border-top-color: #e74c3c">
+                <div class="stats-kpi-label">Liquidaciones rechazadas (autorización)</div>
+                <div class="stats-kpi-value" id="kpi-rechazado_autorizacion-liquidaciones" style="color: #e74c3c">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #e74c3c">
+                <div class="stats-kpi-label">Facturas rechazadas (autorización)</div>
+                <div class="stats-kpi-value" id="kpi-rechazado_autorizacion-facturas" style="color: #e74c3c">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #7f8c8d">
+                <div class="stats-kpi-label">Liquidaciones expiradas</div>
+                <div class="stats-kpi-value" id="kpi-expirado-liquidaciones" style="color: #7f8c8d">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #7f8c8d">
+                <div class="stats-kpi-label">Facturas expiradas</div>
+                <div class="stats-kpi-value" id="kpi-expirado-facturas" style="color: #7f8c8d">-</div>
+              </div>
             </div>
             <div class="stats-chart-card">
               <h4>Liquidaciones y facturas por mes</h4>
@@ -861,49 +917,27 @@
             </div>
             <div class="stats-chart-card">
               <h4>Liquidaciones y facturas en corrección — por encargado</h4>
-              <div class="stats-table-wrap" id="tabla-correccion-usuario"></div>
+              <div class="stats-table-wrap" id="tabla-en_correccion-usuario"></div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones y facturas rechazadas por autorización — por encargado</h4>
+              <div class="stats-table-wrap" id="tabla-rechazado_autorizacion-usuario"></div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones y facturas expiradas — por encargado</h4>
+              <div class="stats-table-wrap" id="tabla-expirado-usuario"></div>
             </div>
           `;
 
           document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
           document.getElementById("kpi-pendientes-liquidaciones").textContent = data.pendientes_revision.liquidaciones;
-          document.getElementById("kpi-correccion-liquidaciones").textContent = data.en_correccion.liquidaciones;
-          document.getElementById("kpi-correccion-facturas").textContent = data.en_correccion.facturas;
 
-          const tablaCorreccion = document.getElementById("tabla-correccion-usuario");
-          const porUsuario = data.en_correccion.por_usuario || [];
-          if (porUsuario.length === 0) {
-            tablaCorreccion.innerHTML = '<p class="stats-table-empty">No hay liquidaciones ni facturas en corrección.</p>';
-          } else {
-            const formatIds = (idsStr) => (idsStr ? idsStr.split(",").join(", ") : "-");
-            const filas = porUsuario
-              .map(
-                (fila) => `
-                  <tr>
-                    <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
-                    <td class="num">${fila.liquidaciones}</td>
-                    <td class="num">${fila.facturas}</td>
-                    <td class="ids">${escapeHtml(formatIds(fila.ids_liquidaciones))}</td>
-                    <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
-                  </tr>
-                `
-              )
-              .join("");
-            tablaCorreccion.innerHTML = `
-              <table class="stats-table">
-                <thead>
-                  <tr>
-                    <th>Encargado</th>
-                    <th>Liquidaciones</th>
-                    <th>Facturas</th>
-                    <th>IDs Liquidaciones</th>
-                    <th>IDs Facturas</th>
-                  </tr>
-                </thead>
-                <tbody>${filas}</tbody>
-              </table>
-            `;
-          }
+          ["en_correccion", "rechazado_autorizacion", "expirado"].forEach((seccion) => {
+            const seccionData = data[seccion] || { liquidaciones: 0, facturas: 0, por_usuario: [] };
+            document.getElementById(`kpi-${seccion}-liquidaciones`).textContent = seccionData.liquidaciones;
+            document.getElementById(`kpi-${seccion}-facturas`).textContent = seccionData.facturas;
+            renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || []);
+          });
 
           const meses = new Set();
           data.volumen_liquidaciones.forEach((r) => meses.add(r.mes));

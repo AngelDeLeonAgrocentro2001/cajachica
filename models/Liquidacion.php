@@ -1167,6 +1167,27 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Liquidaciones (y sus facturas) en un estado dado de la liquidacion (ej. RECHAZADO_AUTORIZACION,
+    // EXPIRADO), agrupadas por el usuario encargado dueño de la liquidacion (para saber de quien son)
+    public function getLiquidacionesPorEstadoPorUsuario($estado) {
+        $stmt = $this->pdo->prepare("
+            SELECT u.id AS id_usuario,
+                   u.nombre AS nombre_usuario,
+                   COUNT(DISTINCT l.id) AS liquidaciones,
+                   COUNT(dl.id) AS facturas,
+                   GROUP_CONCAT(DISTINCT l.id ORDER BY l.id) AS ids_liquidaciones,
+                   GROUP_CONCAT(dl.id ORDER BY dl.id) AS ids_facturas
+            FROM liquidaciones l
+            LEFT JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            WHERE l.estado = ?
+            GROUP BY u.id, u.nombre
+            ORDER BY liquidaciones DESC
+        ");
+        $stmt->execute([$estado]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getLiquidacionesByEstado($estado) {
         $stmt = $this->pdo->prepare("
             SELECT l.*,
