@@ -1,6 +1,7 @@
 <?php
 require_once '../models/Liquidacion.php';
 require_once '../models/Usuario.php';
+require_once '../models/DetalleLiquidacion.php';
 
 class DashboardController {
     private $pdo;
@@ -126,6 +127,8 @@ class DashboardController {
             $resumen['EN_CORRECCION']['monto'] += (float) $liquidacion['monto_total'];
         }
 
+        $isAdmin = $this->esAdmin($usuario);
+
         // ✅ Pasar información del rol al frontend para lógica adicional si es necesario
         echo "<script>const usuarioRol = '" . $rol . "'; const esContador = " . ($this->esContador($usuario) ? 'true' : 'false') . ";</script>";
 
@@ -138,11 +141,61 @@ class DashboardController {
      */
     private function esContador($usuario) {
         $rol = strtoupper($usuario['rol'] ?? '');
-        $esContador = (strpos($rol, 'CONTADOR') !== false || 
+        $esContador = (strpos($rol, 'CONTADOR') !== false ||
                       strpos($rol, 'CONTABILIDAD') !== false);
-        
+
         error_log("🔍 Verificando rol contador - Rol: $rol, Es contador: " . ($esContador ? 'SÍ' : 'NO'));
         return $esContador;
+    }
+
+    /**
+     * Método auxiliar para verificar si el usuario es administrador
+     */
+    private function esAdmin($usuario) {
+        $rol = strtoupper($usuario['rol'] ?? '');
+        return strpos($rol, Usuario::ROL_ADMIN) !== false;
+    }
+
+    /**
+     * Estadisticas mensuales para el tab de graficas del dashboard. Solo ADMIN.
+     */
+    public function estadisticas() {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: application/json; charset=UTF-8');
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $usuarioModel = new Usuario();
+        $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
+        if (!$usuario || !$this->esAdmin($usuario)) {
+            error_log('Acceso denegado a estadisticas del dashboard para user_id: ' . $_SESSION['user_id']);
+            header('Content-Type: application/json; charset=UTF-8');
+            http_response_code(403);
+            echo json_encode(['error' => 'No tienes permiso para ver las estadísticas'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $meses = 6;
+
+        $liquidacionModel = new Liquidacion();
+        $detalleModel = new DetalleLiquidacion();
+
+        $data = [
+            'meses' => $meses,
+            'volumen_liquidaciones' => $liquidacionModel->getEstadisticasMensuales($meses),
+            'volumen_detalles' => $detalleModel->getEstadisticasMensuales($meses),
+            'pendientes_revision' => [
+                'liquidaciones' => $liquidacionModel->contarPorEstado('PENDIENTE_REVISION_CONTABILIDAD'),
+                'facturas' => $detalleModel->contarPorEstado('PENDIENTE_REVISION_CONTABILIDAD'),
+            ],
+            'tiempo_ciclo' => $liquidacionModel->getTiempoPromedioCicloPorMes($meses),
+        ];
+
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit;
     }
 }
 ?>

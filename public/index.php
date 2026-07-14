@@ -56,6 +56,9 @@ switch ($controller) {
             case 'index':
                 $dashboardController->index();
                 break;
+            case 'estadisticas':
+                $dashboardController->estadisticas();
+                break;
             default:
                 header('HTTP/1.1 404 Not Found');
                 echo json_encode(['error' => 'Acción no encontrada para dashboard']);

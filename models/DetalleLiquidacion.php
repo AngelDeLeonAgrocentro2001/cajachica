@@ -412,6 +412,26 @@ public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
         return $detalles;
     }
 
+    // Cuenta detalles (facturas) por estado sin traer las filas completas (para KPIs/estadisticas)
+    public function contarPorEstado($estado) {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM detalle_liquidaciones WHERE estado = ?");
+        $stmt->execute([$estado]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    // Cantidad de detalles (facturas) capturados por mes, para los ultimos $meses meses (incluye el actual)
+    public function getEstadisticasMensuales($meses = 6) {
+        $stmt = $this->pdo->prepare("
+            SELECT DATE_FORMAT(fecha, '%Y-%m') AS mes, COUNT(*) AS cantidad
+            FROM detalle_liquidaciones
+            WHERE fecha >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
+            GROUP BY mes
+            ORDER BY mes ASC
+        ");
+        $stmt->execute([$meses - 1]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getDetallesByFecha($fechaInicio, $fechaFin, $idCajaChica = null) {
         $query = "
             SELECT dl.*, l.fecha_creacion as liquidacion_fecha, cc.nombre as caja_chica, 
