@@ -1109,9 +1109,46 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Cuenta liquidaciones por estado sin traer las filas completas (para KPIs/estadisticas)
+    public function contarPorEstado($estado) {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM liquidaciones WHERE estado = ?");
+        $stmt->execute([$estado]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    // Cantidad de liquidaciones por mes y por estado, para los ultimos $meses meses (incluye el actual)
+    public function getEstadisticasMensuales($meses = 6) {
+        $stmt = $this->pdo->prepare("
+            SELECT DATE_FORMAT(fecha_creacion, '%Y-%m') AS mes, estado, COUNT(*) AS cantidad
+            FROM liquidaciones
+            WHERE fecha_creacion >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
+            GROUP BY mes, estado
+            ORDER BY mes ASC
+        ");
+        $stmt->execute([$meses - 1]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Dias promedio entre creacion y finalizacion, por mes de creacion, solo liquidaciones FINALIZADO
+    public function getTiempoPromedioCicloPorMes($meses = 6) {
+        $stmt = $this->pdo->prepare("
+            SELECT DATE_FORMAT(fecha_creacion, '%Y-%m') AS mes,
+                   AVG(TIMESTAMPDIFF(HOUR, fecha_creacion, updated_at)) / 24 AS promedio_dias,
+                   COUNT(*) AS cantidad
+            FROM liquidaciones
+            WHERE estado = 'FINALIZADO'
+              AND updated_at IS NOT NULL
+              AND fecha_creacion >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
+            GROUP BY mes
+            ORDER BY mes ASC
+        ");
+        $stmt->execute([$meses - 1]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getLiquidacionesByEstado($estado) {
         $stmt = $this->pdo->prepare("
-            SELECT l.*, 
+            SELECT l.*,
                    cc.nombre AS nombre_caja_chica
             FROM liquidaciones l
             LEFT JOIN cajas_chicas cc ON l.id_caja_chica = cc.id

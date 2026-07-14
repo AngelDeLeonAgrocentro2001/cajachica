@@ -370,6 +370,93 @@
       .stat-value.zero {
         color: #bdc3c7;
       }
+
+      /* Pestañas del dashboard (solo visibles para ADMIN) */
+      .dashboard-tabs {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        padding: 20px 20px 0;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .dashboard-tab-btn {
+        background: white;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        padding: 10px 22px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #2c3e50;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        transition: all 0.2s ease;
+      }
+      .dashboard-tab-btn:hover {
+        transform: translateY(-2px);
+      }
+      .dashboard-tab-btn.active {
+        border-color: #2d6a4f;
+        color: #2d6a4f;
+        background: #eaf6ef;
+      }
+
+      /* Panel de estadisticas */
+      .stats-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 25px 20px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+      }
+      .stats-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+      }
+      .stats-kpi-tile {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 20px 25px;
+        border-top: 4px solid #9b59b6;
+      }
+      .stats-kpi-label {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .stats-kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #9b59b6;
+      }
+      .stats-chart-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 25px;
+      }
+      .stats-chart-card h4 {
+        margin: 0 0 15px;
+        color: #2c3e50;
+        font-size: 1.05rem;
+      }
+      .stats-chart-wrap {
+        position: relative;
+        height: 320px;
+      }
+      .stats-error,
+      .stats-loading {
+        text-align: center;
+        color: #7f8c8d;
+        padding: 30px;
+      }
+      .stats-error {
+        color: #c0392b;
+      }
     </style>
   </head>
   <body>
@@ -380,6 +467,14 @@
       <div class="dashboard-subtitle">Resumen general de estados y montos</div>
     </div>
 
+    <?php if ($isAdmin): ?>
+    <div class="dashboard-tabs">
+      <button type="button" class="dashboard-tab-btn active" data-tab="resumen">Resumen</button>
+      <button type="button" class="dashboard-tab-btn" data-tab="estadisticas">📊 Estadísticas</button>
+    </div>
+    <?php endif; ?>
+
+    <div class="dashboard-tab-panel" id="tab-resumen">
     <div class="dashboard-container">
       <div class="dashboard-card en-proceso" id="proceso">
         <div class="status-icon">⏳</div>
@@ -602,6 +697,17 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <?php if ($isAdmin): ?>
+    <div class="dashboard-tab-panel" id="tab-estadisticas" style="display: none">
+      <div class="stats-container" id="estadisticas-content">
+        <p class="stats-loading">Cargando estadísticas...</p>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <?php endif; ?>
 
     <script>
       let proceso = document.getElementById("proceso");
@@ -628,5 +734,169 @@
           "index.php?controller=liquidacion&action=list&mode=revisar";
       });
     </script>
+
+    <?php if ($isAdmin): ?>
+    <script>
+      (function () {
+        const tabButtons = document.querySelectorAll(".dashboard-tab-btn");
+        const panels = {
+          resumen: document.getElementById("tab-resumen"),
+          estadisticas: document.getElementById("tab-estadisticas"),
+        };
+        let statsLoaded = false;
+
+        tabButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const tab = btn.getAttribute("data-tab");
+            tabButtons.forEach((b) => b.classList.toggle("active", b === btn));
+            Object.keys(panels).forEach((key) => {
+              panels[key].style.display = key === tab ? "" : "none";
+            });
+            if (tab === "estadisticas" && !statsLoaded) {
+              statsLoaded = true;
+              cargarEstadisticas();
+            }
+          });
+        });
+
+        const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        function formatMes(mesStr) {
+          const [anio, mes] = mesStr.split("-");
+          return NOMBRES_MES[parseInt(mes, 10) - 1] + " " + anio;
+        }
+
+        async function cargarEstadisticas() {
+          const contenedor = document.getElementById("estadisticas-content");
+          try {
+            const response = await fetch("index.php?controller=dashboard&action=estadisticas", {
+              headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+            if (!response.ok) {
+              throw new Error("HTTP " + response.status);
+            }
+            const data = await response.json();
+            renderEstadisticas(data);
+          } catch (error) {
+            console.error("Error al cargar estadísticas:", error);
+            contenedor.innerHTML = '<p class="stats-error">No se pudieron cargar las estadísticas. Intenta de nuevo.</p>';
+          }
+        }
+
+        function renderEstadisticas(data) {
+          const contenedor = document.getElementById("estadisticas-content");
+          contenedor.innerHTML = `
+            <div class="stats-kpis">
+              <div class="stats-kpi-tile">
+                <div class="stats-kpi-label">Facturas pendientes de revisión contabilidad</div>
+                <div class="stats-kpi-value" id="kpi-pendientes-facturas">-</div>
+              </div>
+              <div class="stats-kpi-tile">
+                <div class="stats-kpi-label">Liquidaciones pendientes de revisión contabilidad</div>
+                <div class="stats-kpi-value" id="kpi-pendientes-liquidaciones">-</div>
+              </div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones y facturas por mes</h4>
+              <div class="stats-chart-wrap"><canvas id="chartVolumen"></canvas></div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>Tiempo promedio de ciclo (días hasta finalizar)</h4>
+              <div class="stats-chart-wrap"><canvas id="chartCiclo"></canvas></div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones expiradas y rechazadas por mes</h4>
+              <div class="stats-chart-wrap"><canvas id="chartSalud"></canvas></div>
+            </div>
+          `;
+
+          document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
+          document.getElementById("kpi-pendientes-liquidaciones").textContent = data.pendientes_revision.liquidaciones;
+
+          const meses = new Set();
+          data.volumen_liquidaciones.forEach((r) => meses.add(r.mes));
+          data.volumen_detalles.forEach((r) => meses.add(r.mes));
+          data.tiempo_ciclo.forEach((r) => meses.add(r.mes));
+          const mesesOrdenados = Array.from(meses).sort();
+
+          const liquidacionesPorMes = {};
+          const expiradoPorMes = {};
+          const rechazadoPorMes = {};
+          mesesOrdenados.forEach((m) => {
+            liquidacionesPorMes[m] = 0;
+            expiradoPorMes[m] = 0;
+            rechazadoPorMes[m] = 0;
+          });
+          data.volumen_liquidaciones.forEach((r) => {
+            const cantidad = parseInt(r.cantidad, 10) || 0;
+            liquidacionesPorMes[r.mes] = (liquidacionesPorMes[r.mes] || 0) + cantidad;
+            if (r.estado === "EXPIRADO") expiradoPorMes[r.mes] = cantidad;
+            if (r.estado === "RECHAZADO_POR_CONTABILIDAD") rechazadoPorMes[r.mes] = cantidad;
+          });
+
+          const detallesPorMes = {};
+          mesesOrdenados.forEach((m) => (detallesPorMes[m] = 0));
+          data.volumen_detalles.forEach((r) => {
+            detallesPorMes[r.mes] = parseInt(r.cantidad, 10) || 0;
+          });
+
+          const cicloPorMes = {};
+          mesesOrdenados.forEach((m) => (cicloPorMes[m] = null));
+          data.tiempo_ciclo.forEach((r) => {
+            cicloPorMes[r.mes] = r.promedio_dias !== null ? Math.round(parseFloat(r.promedio_dias) * 10) / 10 : null;
+          });
+
+          const labels = mesesOrdenados.map(formatMes);
+
+          renderChart("chartVolumen", "bar", labels, [
+            { label: "Liquidaciones", data: mesesOrdenados.map((m) => liquidacionesPorMes[m]), backgroundColor: "#3498db", borderRadius: 4 },
+            { label: "Facturas", data: mesesOrdenados.map((m) => detallesPorMes[m]), backgroundColor: "#16a085", borderRadius: 4 },
+          ]);
+
+          renderChart("chartCiclo", "line", labels, [
+            {
+              label: "Días promedio",
+              data: mesesOrdenados.map((m) => cicloPorMes[m]),
+              borderColor: "#2d6a4f",
+              backgroundColor: "rgba(45, 106, 79, 0.15)",
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+            },
+          ]);
+
+          renderChart("chartSalud", "bar", labels, [
+            { label: "Expiradas", data: mesesOrdenados.map((m) => expiradoPorMes[m]), backgroundColor: "#7f8c8d", borderRadius: 4 },
+            { label: "Rechazadas por Contabilidad", data: mesesOrdenados.map((m) => rechazadoPorMes[m]), backgroundColor: "#c0392b", borderRadius: 4 },
+          ]);
+        }
+
+        const chartInstances = {};
+        function renderChart(canvasId, type, labels, datasets) {
+          const canvas = document.getElementById(canvasId);
+          if (!canvas || typeof Chart === "undefined") return;
+          if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+          }
+          chartInstances[canvasId] = new Chart(canvas.getContext("2d"), {
+            type: type,
+            data: { labels: labels, datasets: datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: datasets.length > 1, position: "bottom" },
+                tooltip: { mode: "index", intersect: false },
+              },
+              scales: {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, grid: { color: "#eef0f2" } },
+              },
+              interaction: { mode: "nearest", axis: "x", intersect: false },
+            },
+          });
+        }
+      })();
+    </script>
+    <?php endif; ?>
   </body>
 </html>
