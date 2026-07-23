@@ -2,6 +2,7 @@
 require_once '../models/Liquidacion.php';
 require_once '../models/Usuario.php';
 require_once '../models/DetalleLiquidacion.php';
+require_once '../models/DteModel.php';
 
 class DashboardController {
     private $pdo;
@@ -181,6 +182,7 @@ class DashboardController {
 
         $liquidacionModel = new Liquidacion();
         $detalleModel = new DetalleLiquidacion();
+        $dteModel = new DteModel();
 
         $enCorreccionPorUsuario = $liquidacionModel->getEnCorreccionPorUsuario();
         $rechazadoAutorizacionPorUsuario = $liquidacionModel->getLiquidacionesPorEstadoPorUsuario('RECHAZADO_AUTORIZACION');
@@ -210,6 +212,10 @@ class DashboardController {
                 'por_usuario' => $expiradoPorUsuario,
             ],
             'tiempo_ciclo' => $liquidacionModel->getTiempoPromedioCicloPorMes($meses),
+            'dte' => [
+                'hoy' => $dteModel->contarHoy(),
+                'por_mes' => $dteModel->getEstadisticasMensuales($meses),
+            ],
         ];
 
         header('Content-Type: application/json; charset=UTF-8');

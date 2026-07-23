@@ -8,6 +8,26 @@ class DteModel {
         $this->pdo = Database::getInstance()->getPdo();
     }
 
+    // Cantidad de DTE con fecha_emision de hoy (para el KPI del dashboard de estadisticas)
+    public function contarHoy() {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM dte WHERE DATE(fecha_emision) = CURDATE()");
+        $stmt->execute();
+        return (int) $stmt->fetchColumn();
+    }
+
+    // Cantidad de DTE por mes segun fecha_emision, para los ultimos $meses meses (incluye el actual)
+    public function getEstadisticasMensuales($meses = 6) {
+        $stmt = $this->pdo->prepare("
+            SELECT DATE_FORMAT(fecha_emision, '%Y-%m') AS mes, COUNT(*) AS cantidad
+            FROM dte
+            WHERE fecha_emision >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
+            GROUP BY mes
+            ORDER BY mes ASC
+        ");
+        $stmt->execute([$meses - 1]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function isDteDuplicate($numero_autorizacion, $serie, $numero_dte) {
         try {
             // Verificar que todos los campos necesarios estén presentes

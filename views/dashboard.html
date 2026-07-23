@@ -902,10 +902,22 @@
                 <div class="stats-kpi-label">Facturas expiradas</div>
                 <div class="stats-kpi-value" id="kpi-expirado-facturas" style="color: #7f8c8d">-</div>
               </div>
+              <div class="stats-kpi-tile" style="border-top-color: #2ecc71">
+                <div class="stats-kpi-label">DTE cargados hoy</div>
+                <div class="stats-kpi-value" id="kpi-dte-hoy" style="color: #2ecc71">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #2ecc71">
+                <div class="stats-kpi-label">DTE cargados este mes</div>
+                <div class="stats-kpi-value" id="kpi-dte-mes" style="color: #2ecc71">-</div>
+              </div>
             </div>
             <div class="stats-chart-card">
               <h4>Liquidaciones y facturas por mes</h4>
               <div class="stats-chart-wrap"><canvas id="chartVolumen"></canvas></div>
+            </div>
+            <div class="stats-chart-card">
+              <h4>DTE cargados por mes</h4>
+              <div class="stats-chart-wrap"><canvas id="chartDte"></canvas></div>
             </div>
             <div class="stats-chart-card">
               <h4>Tiempo promedio de ciclo (días hasta finalizar)</h4>
@@ -931,6 +943,14 @@
 
           document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
           document.getElementById("kpi-pendientes-liquidaciones").textContent = data.pendientes_revision.liquidaciones;
+
+          const dtePorMes = (data.dte && data.dte.por_mes) || [];
+          const mesActualStr = new Date().toISOString().slice(0, 7);
+          const dteEsteMes = dtePorMes.find((r) => r.mes === mesActualStr);
+          const kpiDteHoy = document.getElementById("kpi-dte-hoy");
+          const kpiDteMes = document.getElementById("kpi-dte-mes");
+          if (kpiDteHoy) kpiDteHoy.textContent = (data.dte && data.dte.hoy) || 0;
+          if (kpiDteMes) kpiDteMes.textContent = dteEsteMes ? dteEsteMes.cantidad : 0;
 
           ["en_correccion", "rechazado_autorizacion", "expirado"].forEach((seccion) => {
             const seccionData = data[seccion] || { liquidaciones: 0, facturas: 0, por_usuario: [] };
@@ -979,6 +999,10 @@
           renderChart("chartVolumen", "bar", labels, [
             { label: "Liquidaciones", data: mesesOrdenados.map((m) => liquidacionesPorMes[m]), backgroundColor: "#3498db", borderRadius: 4 },
             { label: "Facturas", data: mesesOrdenados.map((m) => detallesPorMes[m]), backgroundColor: "#16a085", borderRadius: 4 },
+          ]);
+
+          renderChart("chartDte", "bar", dtePorMes.map((r) => formatMes(r.mes)), [
+            { label: "DTE", data: dtePorMes.map((r) => parseInt(r.cantidad, 10) || 0), backgroundColor: "#2ecc71", borderRadius: 4 },
           ]);
 
           renderChart("chartCiclo", "line", labels, [
