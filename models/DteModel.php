@@ -138,9 +138,11 @@ class DteModel {
             $params = ['nit' => "%$nit%"];
             
             if ($fechaInicio && $fechaFin) {
+                // fecha_emision es DATETIME; sin la hora, 'YYYY-MM-DD' se interpreta como
+                // 00:00:00 y excluye facturas emitidas despues de medianoche del ultimo dia.
                 $sql .= " AND d.fecha_emision BETWEEN :fecha_inicio AND :fecha_fin";
                 $params['fecha_inicio'] = $fechaInicio;
-                $params['fecha_fin'] = $fechaFin;
+                $params['fecha_fin'] = $fechaFin . ' 23:59:59';
             }
             
             // $sql .= " LIMIT 10";
@@ -227,9 +229,11 @@ class DteModel {
         }
         
         if ($fechaInicio && $fechaFin) {
+            // fecha_emision es DATETIME; sin la hora, 'YYYY-MM-DD' se interpreta como
+            // 00:00:00 y excluye facturas emitidas despues de medianoche del ultimo dia.
             $sql .= " AND d.fecha_emision BETWEEN ? AND ?";
             $params[] = $fechaInicio;
-            $params[] = $fechaFin;
+            $params[] = $fechaFin . ' 23:59:59';
         }
         
         // GROUP BY incluye nombre_emisor para que ONLY_FULL_GROUP_BY no se queje.
@@ -293,9 +297,11 @@ class DteModel {
         }
         
         if ($fechaInicio && $fechaFin) {
+            // fecha_emision es DATETIME; sin la hora, 'YYYY-MM-DD' se interpreta como
+            // 00:00:00 y excluye facturas emitidas despues de medianoche del ultimo dia.
             $sql .= " AND d.fecha_emision BETWEEN ? AND ?";
             $params[] = $fechaInicio;
-            $params[] = $fechaFin;
+            $params[] = $fechaFin . ' 23:59:59';
         }
         
         // GROUP BY incluye nombre_emisor para que ONLY_FULL_GROUP_BY no se queje.
