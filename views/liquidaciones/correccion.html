@@ -1032,7 +1032,7 @@
                       <td data-label="IDP"><?php echo number_format($detalle['idp'] ?? 0, 2); ?></td>
                       <td data-label="INGUAT"><?php echo number_format($detalle['inguat'] ?? 0, 2); ?></td>
                       <td data-label="Propina"><?php echo number_format($detalle['propina'] ?? 0, 2); ?></td>
-                      <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'] ?? 'N/A'); ?></td>
+                      <td data-label="Total Factura"><?php echo number_format($detalle['total_factura'] ?? 0, 2); ?></td>
                       <td data-label="Comentarios">
                         <?php echo htmlspecialchars($detalle['comentarios'] ?? 'N/A'); ?>
                       </td>
