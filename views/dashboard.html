@@ -813,7 +813,7 @@
           return idsStr ? idsStr.split(",").join(", ") : "-";
         }
 
-        function renderTablaPorUsuario(elId, porUsuario) {
+        function renderTablaPorUsuario(elId, porUsuario, mostrarAutorizador) {
           const el = document.getElementById(elId);
           if (!el) return;
           if (!porUsuario || porUsuario.length === 0) {
@@ -825,6 +825,7 @@
               (fila) => `
                 <tr>
                   <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
+                  ${mostrarAutorizador ? `<td>${escapeHtml(fila.nombre_supervisor || "Sin autorizador asignado")}</td>` : ""}
                   <td class="num">${fila.liquidaciones}</td>
                   <td class="num">${fila.facturas}</td>
                   <td class="ids">${escapeHtml(formatIds(fila.ids_liquidaciones))}</td>
@@ -838,6 +839,7 @@
               <thead>
                 <tr>
                   <th>Encargado</th>
+                  ${mostrarAutorizador ? "<th>Autorizador</th>" : ""}
                   <th>Liquidaciones</th>
                   <th>Facturas</th>
                   <th>IDs Liquidaciones</th>
@@ -910,6 +912,14 @@
                 <div class="stats-kpi-label">DTE cargados este mes</div>
                 <div class="stats-kpi-value" id="kpi-dte-mes" style="color: #2ecc71">-</div>
               </div>
+              <div class="stats-kpi-tile" style="border-top-color: #f39c12">
+                <div class="stats-kpi-label">Liquidaciones pendientes de autorización</div>
+                <div class="stats-kpi-value" id="kpi-pendiente_autorizacion-liquidaciones" style="color: #f39c12">-</div>
+              </div>
+              <div class="stats-kpi-tile" style="border-top-color: #f39c12">
+                <div class="stats-kpi-label">Facturas pendientes de autorización</div>
+                <div class="stats-kpi-value" id="kpi-pendiente_autorizacion-facturas" style="color: #f39c12">-</div>
+              </div>
             </div>
             <div class="stats-chart-card">
               <h4>Liquidaciones y facturas por mes</h4>
@@ -939,6 +949,10 @@
               <h4>Liquidaciones y facturas expiradas — por encargado</h4>
               <div class="stats-table-wrap" id="tabla-expirado-usuario"></div>
             </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones y facturas pendientes de autorización — por encargado y autorizador</h4>
+              <div class="stats-table-wrap" id="tabla-pendiente_autorizacion-usuario"></div>
+            </div>
           `;
 
           document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
@@ -952,13 +966,18 @@
           if (kpiDteHoy) kpiDteHoy.textContent = (data.dte && data.dte.hoy) || 0;
           if (kpiDteMes) kpiDteMes.textContent = dteEsteMes ? dteEsteMes.cantidad : 0;
 
-          ["en_correccion", "rechazado_autorizacion", "expirado"].forEach((seccion) => {
+          [
+            { key: "en_correccion" },
+            { key: "rechazado_autorizacion" },
+            { key: "expirado" },
+            { key: "pendiente_autorizacion", mostrarAutorizador: true },
+          ].forEach(({ key: seccion, mostrarAutorizador }) => {
             const seccionData = data[seccion] || { liquidaciones: 0, facturas: 0, por_usuario: [] };
             const kpiLiquidaciones = document.getElementById(`kpi-${seccion}-liquidaciones`);
             const kpiFacturas = document.getElementById(`kpi-${seccion}-facturas`);
             if (kpiLiquidaciones) kpiLiquidaciones.textContent = seccionData.liquidaciones;
             if (kpiFacturas) kpiFacturas.textContent = seccionData.facturas;
-            renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || []);
+            renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || [], mostrarAutorizador);
           });
 
           const meses = new Set();

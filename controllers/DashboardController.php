@@ -187,6 +187,7 @@ class DashboardController {
         $enCorreccionPorUsuario = $liquidacionModel->getEnCorreccionPorUsuario();
         $rechazadoAutorizacionPorUsuario = $liquidacionModel->getLiquidacionesPorEstadoPorUsuario('RECHAZADO_AUTORIZACION');
         $expiradoPorUsuario = $liquidacionModel->getLiquidacionesPorEstadoPorUsuario('EXPIRADO');
+        $pendienteAutorizacionPorUsuario = $liquidacionModel->getPendienteAutorizacionPorUsuario();
 
         $data = [
             'meses' => $meses,
@@ -210,6 +211,11 @@ class DashboardController {
                 'liquidaciones' => array_sum(array_column($expiradoPorUsuario, 'liquidaciones')),
                 'facturas' => array_sum(array_column($expiradoPorUsuario, 'facturas')),
                 'por_usuario' => $expiradoPorUsuario,
+            ],
+            'pendiente_autorizacion' => [
+                'liquidaciones' => array_sum(array_column($pendienteAutorizacionPorUsuario, 'liquidaciones')),
+                'facturas' => array_sum(array_column($pendienteAutorizacionPorUsuario, 'facturas')),
+                'por_usuario' => $pendienteAutorizacionPorUsuario,
             ],
             'tiempo_ciclo' => $liquidacionModel->getTiempoPromedioCicloPorMes($meses),
             'dte' => [

@@ -1188,6 +1188,30 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Liquidaciones y facturas en PENDIENTE_AUTORIZACION, agrupadas por el usuario encargado
+    // dueño de la liquidacion Y por su autorizador (supervisor asignado)
+    public function getPendienteAutorizacionPorUsuario() {
+        $stmt = $this->pdo->prepare("
+            SELECT u.id AS id_usuario,
+                   u.nombre AS nombre_usuario,
+                   s.id AS id_supervisor,
+                   s.nombre AS nombre_supervisor,
+                   COUNT(DISTINCT l.id) AS liquidaciones,
+                   COUNT(dl.id) AS facturas,
+                   GROUP_CONCAT(DISTINCT l.id ORDER BY l.id) AS ids_liquidaciones,
+                   GROUP_CONCAT(dl.id ORDER BY dl.id) AS ids_facturas
+            FROM liquidaciones l
+            LEFT JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN usuarios s ON l.id_supervisor = s.id
+            WHERE l.estado = 'PENDIENTE_AUTORIZACION'
+            GROUP BY u.id, u.nombre, s.id, s.nombre
+            ORDER BY liquidaciones DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getLiquidacionesByEstado($estado) {
         $stmt = $this->pdo->prepare("
             SELECT l.*,
