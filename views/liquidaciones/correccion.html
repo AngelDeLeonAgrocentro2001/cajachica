@@ -3386,7 +3386,8 @@ function updateTaxesAndTotal() {
         if (tipoCombustible === 'Súper') {
             idp = cantidadGalones * impuestos.idp_super;
         } else if (tipoCombustible === 'Regular') {
-            idp = cantidadGalones * impuestos.idp_regular;
+            // Regular: solo el 90% del galonaje paga IDP (el 10% restante es etanol, que no paga IDP)
+            idp = (cantidadGalones * 0.90) * impuestos.idp_regular;
         } else if (tipoCombustible === 'Diesel') {
             idp = cantidadGalones * impuestos.idp_diesel;
         }
