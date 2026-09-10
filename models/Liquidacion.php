@@ -1212,6 +1212,41 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Detalle de liquidaciones RECHAZADAS (por autorizacion o por contabilidad): de quien es,
+    // quien la rechazo, por que y sus facturas. El motivo/rechazador salen del ultimo registro
+    // de auditoria de rechazo de esa liquidacion.
+    public function getLiquidacionesRechazadasDetalle() {
+        $stmt = $this->pdo->prepare("
+            SELECT l.id AS id_liquidacion,
+                   l.estado,
+                   u.nombre AS nombre_usuario,
+                   a.usuario_nombre AS rechazado_por,
+                   a.tipo_accion AS tipo_rechazo,
+                   a.detalles AS motivo,
+                   a.fecha AS fecha_rechazo,
+                   COUNT(dl.id) AS facturas,
+                   GROUP_CONCAT(DISTINCT dl.id ORDER BY dl.id) AS ids_facturas
+            FROM liquidaciones l
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            LEFT JOIN detalle_liquidaciones dl ON dl.id_liquidacion = l.id
+            LEFT JOIN (
+                SELECT ar.id_liquidacion, ar.usuario_nombre, ar.tipo_accion, ar.detalles, ar.fecha
+                FROM auditoria ar
+                INNER JOIN (
+                    SELECT id_liquidacion, MAX(id) AS max_id
+                    FROM auditoria
+                    WHERE tipo_accion IN ('RECHAZADO_POR_SUPERVISOR', 'RECHAZADO_POR_CONTABILIDAD')
+                    GROUP BY id_liquidacion
+                ) am ON am.max_id = ar.id
+            ) a ON a.id_liquidacion = l.id
+            WHERE l.estado IN ('RECHAZADO_AUTORIZACION', 'RECHAZADO_POR_CONTABILIDAD')
+            GROUP BY l.id, l.estado, u.nombre, a.usuario_nombre, a.tipo_accion, a.detalles, a.fecha
+            ORDER BY a.fecha DESC, l.id DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getLiquidacionesByEstado($estado) {
         $stmt = $this->pdo->prepare("
             SELECT l.*,

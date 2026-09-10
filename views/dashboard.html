@@ -490,6 +490,23 @@
         word-break: break-word;
         max-width: 260px;
       }
+      .stats-table td.motivo {
+        color: #2c3e50;
+        min-width: 200px;
+        max-width: 340px;
+        white-space: normal;
+      }
+      .stats-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #fff;
+        white-space: nowrap;
+      }
       .stats-table-empty {
         color: #7f8c8d;
         padding: 15px 0;
@@ -851,6 +868,61 @@
           `;
         }
 
+        function renderTablaRechazadas(elId, filas) {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          if (!filas || filas.length === 0) {
+            el.innerHTML = '<p class="stats-table-empty">No hay liquidaciones rechazadas.</p>';
+            return;
+          }
+          const estadoLabel = {
+            RECHAZADO_AUTORIZACION: { texto: "Rechazada (autorización)", color: "#e74c3c" },
+            RECHAZADO_POR_CONTABILIDAD: { texto: "Rechazada (contabilidad)", color: "#c0392b" },
+          };
+          const rechazadorLabel = {
+            RECHAZADO_POR_SUPERVISOR: "Supervisor",
+            RECHAZADO_POR_CONTABILIDAD: "Contabilidad",
+          };
+          const cuerpo = filas
+            .map((fila) => {
+              const est = estadoLabel[fila.estado] || { texto: fila.estado || "N/A", color: "#7f8c8d" };
+              const quienRol = rechazadorLabel[fila.tipo_rechazo] || "";
+              const quien = fila.rechazado_por
+                ? escapeHtml(fila.rechazado_por) + (quienRol ? ` (${quienRol})` : "")
+                : quienRol || "N/A";
+              return `
+                <tr>
+                  <td class="num" style="color:#2c3e50">${escapeHtml(String(fila.id_liquidacion))}</td>
+                  <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
+                  <td><span class="stats-badge" style="background:${est.color}">${escapeHtml(est.texto)}</span></td>
+                  <td>${quien}</td>
+                  <td class="motivo">${escapeHtml(fila.motivo || "Sin motivo registrado")}</td>
+                  <td>${escapeHtml(fila.fecha_rechazo || "-")}</td>
+                  <td class="num" style="color:#2c3e50">${fila.facturas}</td>
+                  <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
+                </tr>
+              `;
+            })
+            .join("");
+          el.innerHTML = `
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>ID Liquidación</th>
+                  <th>Encargado</th>
+                  <th>Estado</th>
+                  <th>Rechazada por</th>
+                  <th>Motivo</th>
+                  <th>Fecha rechazo</th>
+                  <th>Facturas</th>
+                  <th>IDs Facturas</th>
+                </tr>
+              </thead>
+              <tbody>${cuerpo}</tbody>
+            </table>
+          `;
+        }
+
         async function cargarEstadisticas() {
           const contenedor = document.getElementById("estadisticas-content");
           try {
@@ -953,6 +1025,10 @@
               <h4>Liquidaciones y facturas pendientes de autorización — por encargado y autorizador</h4>
               <div class="stats-table-wrap" id="tabla-pendiente_autorizacion-usuario"></div>
             </div>
+            <div class="stats-chart-card">
+              <h4>Liquidaciones rechazadas — motivo y quién la rechazó</h4>
+              <div class="stats-table-wrap" id="tabla-rechazadas-detalle"></div>
+            </div>
           `;
 
           document.getElementById("kpi-pendientes-facturas").textContent = data.pendientes_revision.facturas;
@@ -979,6 +1055,8 @@
             if (kpiFacturas) kpiFacturas.textContent = seccionData.facturas;
             renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || [], mostrarAutorizador);
           });
+
+          renderTablaRechazadas("tabla-rechazadas-detalle", data.rechazadas_detalle || []);
 
           const meses = new Set();
           data.volumen_liquidaciones.forEach((r) => meses.add(r.mes));
