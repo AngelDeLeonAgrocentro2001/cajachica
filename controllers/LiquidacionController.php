@@ -3497,7 +3497,7 @@ class LiquidacionController
                             'error' => $e->getMessage()
                         ];
 
-                        $tipoDocumento = mb_strtoupper($dl['tipo_documento'] ?? 'FACTURA', 'UTF-8');
+                        $tipoDocumento = mb_strtoupper(trim($dl['tipo_documento'] ?? ''), 'UTF-8');
                         $documentosParaSAP = [
                             'FACTURA',
                             'FACTURA ELECTRONICA',
@@ -3541,6 +3541,32 @@ class LiquidacionController
                 $noFactura = $groupedDetalles[$groupKey]['no_factura'];
                 try {
                     error_log("Procesando exportación para grupo {$groupKey} (Factura: {$noFactura}, Grupo ID: {$groupedDetalles[$groupKey]['grupo_id']}) con " . count($detalles) . " detalles");
+
+                    // Los documentos que no son facturas (recibos informativos u otros) NO se exportan a SAP.
+                    // Si el grupo no contiene ninguna factura, se marca como FINALIZADO directamente,
+                    // nunca va a corrección.
+                    $documentosParaSAP = [
+                        'FACTURA',
+                        'FACTURA ELECTRONICA',
+                        'FACTURA PEQUEÑO CONTRIBUYENTE',
+                        'FACTURA ELECTRONICA TIPO FACE',
+                        'FACTURA DEL EXTERIOR'
+                    ];
+                    $grupoTieneFactura = false;
+                    foreach ($detalles as $detalleGrupo) {
+                        if (in_array(mb_strtoupper(trim($detalleGrupo['tipo_documento'] ?? ''), 'UTF-8'), $documentosParaSAP)) {
+                            $grupoTieneFactura = true;
+                            break;
+                        }
+                    }
+                    if (!$grupoTieneFactura) {
+                        error_log("Grupo {$groupKey} (Documento: {$noFactura}) no contiene facturas: se finaliza sin exportar a SAP");
+                        foreach ($detalles as $detalleGrupo) {
+                            $detalleLiquidacionModel->updateEstado($detalleGrupo['id'], 'FINALIZADO');
+                            $this->auditoriaModel->createAuditoria($id, $detalleGrupo['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_SAP', "Documento {$detalleGrupo['tipo_documento']} finalizado sin exportar a SAP (no es factura): {$noFactura}");
+                        }
+                        continue;
+                    }
 
                     $dl = $detalles[0];
                     $docDate = $docDate ?? date('Y-m-d', strtotime($dl['fecha']));
@@ -3924,7 +3950,7 @@ class LiquidacionController
 
                     // NUEVA LÓGICA: Determinar el estado final según el tipo de documento
                     foreach ($detalles as $detalle) {
-                        $tipoDocumento = mb_strtoupper($detalle['tipo_documento'] ?? 'FACTURA', 'UTF-8');
+                        $tipoDocumento = mb_strtoupper(trim($detalle['tipo_documento'] ?? ''), 'UTF-8');
 
                         // Definir qué documentos van a SAP y cuáles no
                         $documentosParaSAP = [
