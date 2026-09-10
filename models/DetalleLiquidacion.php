@@ -455,6 +455,27 @@ public function getDetallesFinalizadosByLiquidacionId($id_liquidacion) {
         return $porLiquidacion;
     }
 
+    // Suma de total_factura por liquidacion (para la columna "Total Gastos" del listado),
+    // sin traer las filas de detalle. Devuelve un array indexado por id_liquidacion => suma.
+    public function getTotalGastosByLiquidacionIds(array $idsLiquidacion) {
+        if (empty($idsLiquidacion)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($idsLiquidacion), '?'));
+        $stmt = $this->pdo->prepare("
+            SELECT id_liquidacion, COALESCE(SUM(total_factura), 0) AS total_gastos
+            FROM detalle_liquidaciones
+            WHERE id_liquidacion IN ($placeholders)
+            GROUP BY id_liquidacion
+        ");
+        $stmt->execute($idsLiquidacion);
+        $totales = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $totales[$row['id_liquidacion']] = $row['total_gastos'];
+        }
+        return $totales;
+    }
+
     // Version en lote de getCentrosCostoByDetalle. Devuelve un array indexado por
     // id_detalle_liquidacion => [centros_costo...]
     public function getCentrosCostoByDetalleIds(array $idsDetalle) {

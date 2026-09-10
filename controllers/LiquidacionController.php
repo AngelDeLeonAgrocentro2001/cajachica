@@ -350,19 +350,13 @@ class LiquidacionController
             error_log('Liquidaciones filtradas para usuario no SUPERVISOR/CONTABILIDAD/ENCARGADO: ' . count($liquidaciones) . ' registros');
         }
 
-        // Traer los detalles de TODAS las liquidaciones en una sola consulta (evita N+1)
-        $detallesPorLiquidacion = $this->detalleModel->getDetallesByLiquidacionIds(array_column($liquidaciones, 'id'));
+        // El listado solo muestra el "Total Gastos" (suma de las facturas), no las facturas en sí.
+        // Traemos únicamente esa suma por liquidación en una consulta ligera, en vez de traer
+        // todas las filas de detalle anidadas (que la tabla nunca usa).
+        $totalesPorLiquidacion = $this->detalleModel->getTotalGastosByLiquidacionIds(array_column($liquidaciones, 'id'));
 
         foreach ($liquidaciones as &$liquidacion) {
-            $liquidacion['detalles'] = $detallesPorLiquidacion[$liquidacion['id']] ?? [];
-
-            // Calcular total de gastos sumando los total_factura de los detalles
-            $totalGastos = 0;
-            if (!empty($liquidacion['detalles'])) {
-                foreach ($liquidacion['detalles'] as $detalle) {
-                    $totalGastos += floatval($detalle['total_factura'] ?? 0);
-                }
-            }
+            $totalGastos = floatval($totalesPorLiquidacion[$liquidacion['id']] ?? 0);
             $liquidacion['total_gastos'] = number_format($totalGastos, 2);
         }
         unset($liquidacion);
