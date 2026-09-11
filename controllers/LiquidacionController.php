@@ -3283,6 +3283,11 @@ class LiquidacionController
                 $groupedDetalles[$groupKey]['ids'][] = $dl['id'];
             }
 
+            // Si un documento que no es factura (recibo, etc.) queda FINALIZADO aquí porque
+            // falló esta validación (que es específica para el envío a SAP), igual cuenta como
+            // "procesado" más abajo: si no, el rollback final deshace ese FINALIZADO.
+            $huboDocumentoFinalizadoSinSap = false;
+
             // Validate grouped invoices
             foreach ($groupedDetalles as $groupKey => $group) {
                 $detalles = $group['detalles'];
@@ -3508,6 +3513,14 @@ class LiquidacionController
                             // Otros documentos se marcan como finalizados incluso con errores de validación
                             $detalleLiquidacionModel->updateEstado($dl['id'], 'FINALIZADO');
                             $this->auditoriaModel->createAuditoria($id, $dl['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_VALIDACION', "Documento {$tipoDocumento} finalizado sin validación completa: {$noFactura}");
+                            $huboDocumentoFinalizadoSinSap = true;
+                            $results[] = [
+                                'no_factura' => $noFactura,
+                                'grupo_id' => $group['grupo_id'],
+                                'success' => true,
+                                'message' => "Documento {$noFactura} finalizado (no es factura, no se envía a SAP)",
+                                'detalle_ids' => [$dl['id']],
+                            ];
                         }
                     }
                 }
@@ -3528,7 +3541,9 @@ class LiquidacionController
             $cookie = "B1SESSION={$loginResult['sessionId']}; ROUTEID={$loginResult['routeId']}";
 
             // Process valid invoices for SAP export
-            $atLeastOneProcessed = false;
+            // Si ya finalizamos algún documento que no es factura durante la validación,
+            // eso ya cuenta como procesado (aunque no haya ninguna factura que enviar a SAP).
+            $atLeastOneProcessed = $huboDocumentoFinalizadoSinSap;
             $successCount = 0;
             foreach ($validDetalles as $groupKey => $detalles) {
                 $indices = $groupedDetalles[$groupKey]['indices'];
@@ -3559,6 +3574,14 @@ class LiquidacionController
                             $detalleLiquidacionModel->updateEstado($detalleGrupo['id'], 'FINALIZADO');
                             $this->auditoriaModel->createAuditoria($id, $detalleGrupo['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_SAP', "Documento {$detalleGrupo['tipo_documento']} finalizado sin exportar a SAP (no es factura): {$noFactura}");
                         }
+                        $results[] = [
+                            'no_factura' => $noFactura,
+                            'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                            'success' => true,
+                            'message' => "Documento {$noFactura} finalizado (no es factura, no se envía a SAP)",
+                            'detalle_ids' => array_column($detalles, 'id'),
+                        ];
+                        $atLeastOneProcessed = true;
                         continue;
                     }
 
@@ -3963,6 +3986,7 @@ class LiquidacionController
                             // Otros documentos (recibos, etc.) - se marcan como finalizados aunque no vayan a SAP
                             $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
                             $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'DOCUMENTO_FINALIZADO_SIN_SAP', "Documento {$tipoDocumento} finalizado sin exportar a SAP: {$noFactura}");
+                            $atLeastOneProcessed = true;
                         }
                     }
                 }
