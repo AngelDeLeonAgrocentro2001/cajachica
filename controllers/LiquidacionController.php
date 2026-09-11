@@ -3104,6 +3104,36 @@ class LiquidacionController
         ];
     }
 
+    /**
+     * Asegura que todos los strings de la estructura sean UTF-8 válido antes de mandarlos
+     * a json_encode(). Si algún comentario/nombre quedó guardado en la base con bytes que
+     * no son UTF-8 (ej. tildes capturadas como Windows-1252/ISO-8859-1), json_encode()
+     * falla en silencio y devuelve false, lo que termina mandando un POST vacío/roto a SAP
+     * ("HTTP 400 - Bad Post content"). Esto repara esos casos sin tocar el texto que ya
+     * está bien codificado.
+     */
+    private function sanearUtf8Recursivo($valor)
+    {
+        if (is_array($valor)) {
+            foreach ($valor as $clave => $v) {
+                $valor[$clave] = $this->sanearUtf8Recursivo($v);
+            }
+            return $valor;
+        }
+        if (is_string($valor) && !mb_check_encoding($valor, 'UTF-8')) {
+            $convertido = @mb_convert_encoding($valor, 'UTF-8', 'ISO-8859-1');
+            if ($convertido !== false && mb_check_encoding($convertido, 'UTF-8')) {
+                error_log("sanearUtf8Recursivo: texto reparado de ISO-8859-1 a UTF-8: '{$valor}' -> '{$convertido}'");
+                return $convertido;
+            }
+            // Último recurso: quitar los bytes inválidos para no romper el JSON
+            $limpio = @iconv('UTF-8', 'UTF-8//IGNORE', $valor);
+            error_log("sanearUtf8Recursivo: no se pudo convertir, se removieron bytes inválidos: '{$valor}'");
+            return $limpio !== false ? $limpio : '';
+        }
+        return $valor;
+    }
+
     public function exportar($id, $docDate = null)
     {
         ob_start();
@@ -3816,8 +3846,15 @@ class LiquidacionController
                         $line['DiscountAmount'] = 0;
                     }
 
+                    // Reparar cualquier texto (comentarios, nombre de proveedor, etc.) que no esté en
+                    // UTF-8 válido antes de codificar el JSON, para que SAP no rechace el POST.
+                    $purchaseInvoice = $this->sanearUtf8Recursivo($purchaseInvoice);
+
                     $jsonFilePath = "$jsonDir/export_liquidacion_{$id}_{$groupKey}.json";
                     $jsonContent = json_encode($purchaseInvoice, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    if ($jsonContent === false) {
+                        throw new Exception("No se pudo generar el JSON para SAP (factura {$noFactura}): " . json_last_error_msg());
+                    }
                     if (file_put_contents($jsonFilePath, "\xEF\xBB\xBF" . $jsonContent) === false) {
                         throw new Exception("No se pudo escribir el archivo JSON: $jsonFilePath");
                     }
