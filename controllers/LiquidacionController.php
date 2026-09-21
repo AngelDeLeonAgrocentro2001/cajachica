@@ -843,6 +843,23 @@ class LiquidacionController
         try {
             $this->pdo->beginTransaction();
 
+            // Actualizar DTE a 'X' antes de eliminar, igual que en manageFacturas y deleteFacturaCorreccion,
+            // para que la factura pueda volver a ingresarse
+            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+                $serie_detalle = trim($detalle['serie']);
+                $no_factura_detalle = trim($detalle['no_factura']);
+                $numero_dte_detalle = $serie_detalle && strpos($no_factura_detalle, $serie_detalle) === 0
+                    ? substr($no_factura_detalle, strlen($serie_detalle))
+                    : $no_factura_detalle;
+                $numero_dte_detalle = trim(str_replace('-', '', $numero_dte_detalle));
+
+                if (!empty($serie_detalle) && !empty($numero_dte_detalle)) {
+                    $stmt = $this->pdo->prepare("UPDATE dte SET usado = 'X' WHERE serie = ? AND numero_dte = ?");
+                    $stmt->execute([$serie_detalle, $numero_dte_detalle]);
+                    error_log("DTE actualizado a 'X' al eliminar detalle (deleteDetail): Serie: '$serie_detalle', Numero DTE: '$numero_dte_detalle', filas afectadas: " . $stmt->rowCount());
+                }
+            }
+
             // Delete the detail
             if (!$detalleModel->deleteDetalleLiquidacion($detalleId)) {
                 throw new Exception('Error al eliminar el detalle');
