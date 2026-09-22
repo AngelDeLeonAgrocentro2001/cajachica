@@ -2719,7 +2719,49 @@ class LiquidacionController
         }
     }
 
-    // Funciones para errores al exportar 
+    // Verifica en SAP si una factura ya fue creada (por Reference1) antes de darla por fallida.
+    // Esto cubre el caso en que SAP sí registró el documento pero la respuesta HTTP nunca llegó
+    // a tiempo (timeout, error transitorio, etc.), evitando que se mande a corrección algo que
+    // ya está en SAP.
+    private function verificarFacturaEnSap($cookie, $reference1)
+    {
+        try {
+            $filtro = "Reference1 eq '" . str_replace("'", "''", $reference1) . "'";
+            $url = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices?\$filter=" . rawurlencode($filtro) . "&\$select=DocEntry,DocNum,Reference1,NumAtCard,CardCode,DocTotal";
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => ['Cookie: ' . $cookie],
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 20,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($response === false || $curlError || $httpCode >= 400) {
+                error_log("verificarFacturaEnSap: no se pudo verificar Reference1 '$reference1' - HTTP $httpCode" . ($curlError ? ", cURL: $curlError" : ""));
+                return null;
+            }
+
+            $data = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE || empty($data['value'][0])) {
+                return null;
+            }
+
+            error_log("verificarFacturaEnSap: Reference1 '$reference1' SÍ existe en SAP, DocEntry: {$data['value'][0]['DocEntry']}");
+            return $data['value'][0];
+        } catch (Exception $e) {
+            error_log("verificarFacturaEnSap: excepción al verificar Reference1 '$reference1': " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // Funciones para errores al exportar
     private function manejarErroresSapYReintentar($errorCode, $errorMessage, $nitProveedor, $nombreProveedor, $noFactura, $cookie, $jsonContent, $sapUrl, $detalles, $detalleLiquidacionModel, $id, $groupKey, $groupedDetalles, $jsonFilePath)
     {
         error_log("Manejando error SAP: $errorCode - $errorMessage para NIT: $nitProveedor");
@@ -3889,6 +3931,8 @@ class LiquidacionController
                         CURLOPT_POSTFIELDS => $jsonContent,
                         CURLOPT_SSL_VERIFYPEER => false,
                         CURLOPT_SSL_VERIFYHOST => false,
+                        CURLOPT_CONNECTTIMEOUT => 10,
+                        CURLOPT_TIMEOUT => 45,
                     ]);
 
                     $response = curl_exec($ch);
@@ -3898,6 +3942,28 @@ class LiquidacionController
 
                     if ($response === false || $curlError) {
                         error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $curlError");
+
+                        // Antes de dar por fallida la factura, verificar si SAP sí la creó
+                        // (puede pasar con timeouts: SAP procesa el documento pero la respuesta no llega a tiempo)
+                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}");
+                        if ($facturaExistente) {
+                            error_log("Factura {$noFactura} SÍ existe en SAP (DocEntry {$facturaExistente['DocEntry']}) pese al error de conexión, se marca como finalizada");
+                            foreach ($detalles as $detalle) {
+                                $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada tras error de conexión): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}");
+                            }
+                            $results[] = [
+                                'no_factura' => $noFactura,
+                                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                                'success' => true,
+                                'message' => "Grupo {$groupKey} (Factura: {$noFactura}) ya existía en SAP, verificada tras error de conexión",
+                                'detalle_ids' => array_column($detalles, 'id'),
+                                'sap_response' => $facturaExistente,
+                            ];
+                            $atLeastOneProcessed = true;
+                            continue;
+                        }
+
                         throw new Exception("Error de conexión SAP para factura {$noFactura}: $curlError");
                     }
 
@@ -3988,6 +4054,28 @@ class LiquidacionController
                                 $errorMsg .= " (Error JSON: " . json_last_error_msg() . ")";
                             }
                             error_log("Respuesta SAP no válida: " . substr($response, 0, 500));
+                        }
+
+                        // Antes de dar por fallida la factura, verificar si SAP sí la creó pese al
+                        // error reportado (puede pasar con errores transitorios o de validación
+                        // posteriores a la creación del documento en SAP)
+                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}");
+                        if ($facturaExistente) {
+                            error_log("Factura {$noFactura} SÍ existe en SAP (DocEntry {$facturaExistente['DocEntry']}) pese a error HTTP $httpCode, se marca como finalizada");
+                            foreach ($detalles as $detalle) {
+                                $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada pese a error HTTP $httpCode): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}");
+                            }
+                            $results[] = [
+                                'no_factura' => $noFactura,
+                                'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                                'success' => true,
+                                'message' => "Grupo {$groupKey} (Factura: {$noFactura}) ya existía en SAP, verificada pese a error reportado",
+                                'detalle_ids' => array_column($detalles, 'id'),
+                                'sap_response' => $facturaExistente,
+                            ];
+                            $atLeastOneProcessed = true;
+                            continue;
                         }
 
                         throw new Exception($errorMsg);
