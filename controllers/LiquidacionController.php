@@ -263,7 +263,8 @@ class LiquidacionController
                     'PENDIENTE_REVISION_CONTABILIDAD',
                     'FINALIZADO',
                     'RECHAZADO_POR_CONTABILIDAD',
-                    'EN_PROCESO'
+                    'EN_PROCESO',
+                    'PENDIENTE_AUTORIZACION'
                 ]);
                 error_log('Liquidaciones obtenidas (filtradas por estado en SQL) para CONTABILIDAD revisar (ID: ' . $_SESSION['user_id'] . '): ' . count($contabilidadLiquidaciones) . ' registros');
             } else {
