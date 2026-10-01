@@ -132,5 +132,12 @@ class Auditoria {
         $stmt->execute($params);
         return (int) $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     }
+
+    // Devuelve todos los valores de tipo_accion que realmente existen en la tabla,
+    // para que el filtro no dependa de una lista fija que se desactualiza con el código.
+    public function getDistinctTiposAccion() {
+        $stmt = $this->pdo->query("SELECT DISTINCT tipo_accion FROM auditoria WHERE tipo_accion IS NOT NULL AND tipo_accion != '' ORDER BY tipo_accion ASC");
+        return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'tipo_accion');
+    }
 }
 ?>

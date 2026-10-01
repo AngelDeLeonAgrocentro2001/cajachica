@@ -35,18 +35,11 @@ class AuditoriaController {
             $selectUsuarios .= "<option value='{$u['id']}'>{$u['nombre']}</option>";
         }
 
-        $tiposAcciones = [
-            'CREADO', 'ACTUALIZADO', 'ELIMINADO', 'AUTORIZADO_POR_SUPERVISOR', 
-            'RECHAZADO_POR_SUPERVISOR', 'AUTORIZADO_POR_CONTABILIDAD', 
-            'RECHAZADO_POR_CONTABILIDAD', 'DESCARTADO', 'EXPORTADO', 
-            'REPORTE_GENERADO', 'CREAR_USUARIO', 'ACTUALIZAR_USUARIO', 
-            'ELIMINAR_USUARIO', 'CREAR_FACTURA', 'ACTUALIZAR_FACTURA', 
-            'ELIMINAR_FACTURA', 'AUTORIZAR_FACTURA', 'RECHAZAR_FACTURA', 
-            'PAGAR_FACTURA', 'RECHAZAR_FACTURA_CONTABILIDAD', 'FINALIZADO'
-        ];
+        $auditoriaModelList = new Auditoria();
+        $tiposAcciones = $auditoriaModelList->getDistinctTiposAccion();
         $selectTiposAcciones = '<option value="">Todos</option>';
         foreach ($tiposAcciones as $accion) {
-            $selectTiposAcciones .= "<option value='{$accion}'>{$accion}</option>";
+            $selectTiposAcciones .= "<option value='" . htmlspecialchars($accion, ENT_QUOTES) . "'>" . htmlspecialchars($accion, ENT_QUOTES) . "</option>";
         }
 
         require '../views/auditoria/list.html';
