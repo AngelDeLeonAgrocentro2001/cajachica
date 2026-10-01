@@ -77,37 +77,60 @@ class Auditoria {
         return $mapping[$tipo_accion] ?? 'RECHAZADO';
     }
 
-    public function getAuditoria($filters = []) {
-        $sql = "
-            SELECT a.*, u.nombre AS usuario_nombre 
-            FROM auditoria a 
-            LEFT JOIN usuarios u ON a.id_usuario = u.id 
-            WHERE 1=1
-        ";
+    private function buildWhereAuditoria($filters, &$params) {
+        $where = " WHERE 1=1";
         $params = [];
 
         if (!empty($filters['id_usuario'])) {
-            $sql .= " AND a.id_usuario = ?";
+            $where .= " AND a.id_usuario = ?";
             $params[] = $filters['id_usuario'];
         }
         if (!empty($filters['tipo_accion'])) {
-            $sql .= " AND a.tipo_accion = ?";
+            $where .= " AND a.tipo_accion = ?";
             $params[] = $filters['tipo_accion'];
         }
         if (!empty($filters['fecha_inicio'])) {
-            $sql .= " AND a.fecha >= ?";
+            $where .= " AND a.fecha >= ?";
             $params[] = $filters['fecha_inicio'];
         }
         if (!empty($filters['fecha_fin'])) {
-            $sql .= " AND a.fecha <= ?";
-            $params[] = $filters['fecha_fin'];
+            $where .= " AND a.fecha <= ?";
+            $params[] = $filters['fecha_fin'] . ' 23:59:59';
         }
 
-        $sql .= " ORDER BY a.fecha DESC";
+        return $where;
+    }
+
+    public function getAuditoria($filters = [], $page = 1, $perPage = 50) {
+        $params = [];
+        $where = $this->buildWhereAuditoria($filters, $params);
+
+        $page = max(1, (int) $page);
+        $perPage = max(1, min(200, (int) $perPage));
+        $offset = ($page - 1) * $perPage;
+
+        $sql = "
+            SELECT a.*, u.nombre AS usuario_nombre
+            FROM auditoria a
+            LEFT JOIN usuarios u ON a.id_usuario = u.id
+            {$where}
+            ORDER BY a.fecha DESC
+            LIMIT {$perPage} OFFSET {$offset}
+        ";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function countAuditoria($filters = []) {
+        $params = [];
+        $where = $this->buildWhereAuditoria($filters, $params);
+
+        $sql = "SELECT COUNT(*) AS total FROM auditoria a {$where}";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return (int) $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     }
 }
 ?>

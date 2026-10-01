@@ -86,11 +86,21 @@ class AuditoriaController {
             $filters['fecha_fin'] = $_GET['fecha_fin'];
         }
 
+        $page = isset($_GET['page']) && $_GET['page'] !== '' ? (int) $_GET['page'] : 1;
+        $perPage = isset($_GET['per_page']) && $_GET['per_page'] !== '' ? (int) $_GET['per_page'] : 50;
+
         $auditoriaModel = new Auditoria();
-        $auditoria = $auditoriaModel->getAuditoria($filters);
+        $auditoria = $auditoriaModel->getAuditoria($filters, $page, $perPage);
+        $total = $auditoriaModel->countAuditoria($filters);
 
         header('Content-Type: application/json');
-        echo json_encode($auditoria);
+        echo json_encode([
+            'data' => $auditoria,
+            'total' => $total,
+            'page' => max(1, $page),
+            'per_page' => max(1, min(200, $perPage)),
+            'total_pages' => $perPage > 0 ? (int) ceil($total / max(1, min(200, $perPage))) : 1,
+        ]);
         exit;
     }
 }

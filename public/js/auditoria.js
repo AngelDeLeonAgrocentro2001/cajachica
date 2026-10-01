@@ -1,8 +1,15 @@
-async function loadAuditoria() {
+const AUDITORIA_PER_PAGE = 50;
+let auditoriaCurrentPage = 1;
+
+async function loadAuditoria(page) {
+    auditoriaCurrentPage = page || auditoriaCurrentPage || 1;
+
     const form = document.getElementById('auditoriaFilterForm');
     const formData = new FormData(form);
+    formData.set('page', auditoriaCurrentPage);
+    formData.set('per_page', AUDITORIA_PER_PAGE);
     const params = new URLSearchParams(formData).toString();
-    
+
     console.log('Parámetros enviados:', params);
     try {
         const response = await fetch(`index.php?controller=auditoria&action=getAuditoria&${params}`, {
@@ -19,7 +26,8 @@ async function loadAuditoria() {
                 throw new Error(`Error HTTP: ${response.status} - Respuesta no es JSON válida: ${text}`);
             }
         }
-        const auditoria = await response.json();
+        const result = await response.json();
+        const auditoria = Array.isArray(result) ? result : (result.data || []);
         console.log('Registros recibidos:', auditoria);
         const tbody = document.querySelector('#auditoriaTable tbody');
         tbody.innerHTML = '';
@@ -36,7 +44,7 @@ async function loadAuditoria() {
                     }
                     detallesHtml += '</tbody></table>';
                 } catch (e) {
-                    console.error('Error al parsear detalles para entrada ID ' + entry.id + ':', e);
+                    // Campo "detalles" guardado como texto plano (no JSON), se muestra tal cual.
                     detallesHtml = entry.detalles || '-';
                 }
 
@@ -64,10 +72,32 @@ async function loadAuditoria() {
         } else {
             tbody.innerHTML = '<tr><td colspan="7">No hay registros de auditoría.</td></tr>';
         }
+
+        renderAuditoriaPagination(result);
     } catch (error) {
         console.error('Error al cargar auditoría:', error.message);
         alert('No se pudo cargar el historial de auditoría: ' + error.message);
     }
+}
+
+function renderAuditoriaPagination(result) {
+    const container = document.getElementById('auditoriaPagination');
+    if (!container) return;
+
+    if (Array.isArray(result) || !result.total_pages) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const page = result.page || 1;
+    const totalPages = result.total_pages || 1;
+    const total = result.total || 0;
+
+    container.innerHTML = `
+        <button type="button" ${page <= 1 ? 'disabled' : ''} onclick="loadAuditoria(${page - 1})">Anterior</button>
+        <span>Página ${page} de ${totalPages} (${total} registros)</span>
+        <button type="button" ${page >= totalPages ? 'disabled' : ''} onclick="loadAuditoria(${page + 1})">Siguiente</button>
+    `;
 }
 
 async function createAuditoria(data) {
