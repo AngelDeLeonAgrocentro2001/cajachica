@@ -128,7 +128,7 @@ class DashboardController {
             $resumen['EN_CORRECCION']['monto'] += (float) $liquidacion['monto_total'];
         }
 
-        $isAdmin = $this->esAdmin($usuario);
+        $isAdmin = $this->puedeVerEstadisticas($usuario);
 
         // ✅ Pasar información del rol al frontend para lógica adicional si es necesario
         echo "<script>const usuarioRol = '" . $rol . "'; const esContador = " . ($this->esContador($usuario) ? 'true' : 'false') . ";</script>";
@@ -155,6 +155,13 @@ class DashboardController {
     private function esAdmin($usuario) {
         $rol = strtoupper($usuario['rol'] ?? '');
         return strpos($rol, Usuario::ROL_ADMIN) !== false;
+    }
+
+    /**
+     * La pestaña de estadísticas es para administradores y contabilidad.
+     */
+    private function puedeVerEstadisticas($usuario) {
+        return $this->esAdmin($usuario) || $this->esContador($usuario);
     }
 
     /**
@@ -189,7 +196,7 @@ class DashboardController {
     }
 
     /**
-     * Estadisticas mensuales para el tab de graficas del dashboard. Solo ADMIN.
+     * Estadisticas mensuales para el tab de graficas del dashboard. Solo ADMIN y CONTABILIDAD.
      */
     public function estadisticas() {
         if (!isset($_SESSION['user_id'])) {
@@ -201,7 +208,7 @@ class DashboardController {
 
         $usuarioModel = new Usuario();
         $usuario = $usuarioModel->getUsuarioById($_SESSION['user_id']);
-        if (!$usuario || !$this->esAdmin($usuario)) {
+        if (!$usuario || !$this->puedeVerEstadisticas($usuario)) {
             error_log('Acceso denegado a estadisticas del dashboard para user_id: ' . $_SESSION['user_id']);
             header('Content-Type: application/json; charset=UTF-8');
             http_response_code(403);
