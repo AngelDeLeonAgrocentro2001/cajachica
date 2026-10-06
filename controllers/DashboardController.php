@@ -178,7 +178,7 @@ class DashboardController {
             exit;
         }
 
-        $meses = 6;
+        $meses = 12;
 
         $liquidacionModel = new Liquidacion();
         $detalleModel = new DetalleLiquidacion();
