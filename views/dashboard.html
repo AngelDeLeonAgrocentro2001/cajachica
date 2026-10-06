@@ -830,7 +830,26 @@
           return idsStr ? idsStr.split(",").join(", ") : "-";
         }
 
-        function renderTablaPorUsuario(elId, porUsuario, mostrarAutorizador) {
+        // Acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:MM:SS" y lo muestra como dd/mm/yyyy [HH:MM] sin pasar por Date (evita desfases de zona horaria)
+        function formatFecha(valor) {
+          if (!valor) return "-";
+          const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+          if (!m) return String(valor);
+          return `${m[3]}/${m[2]}/${m[1]}` + (m[4] ? ` ${m[4]}:${m[5]}` : "");
+        }
+
+        function renderFechasLiquidaciones(fechas, esExpirado) {
+          if (!fechas || fechas.length === 0) return "-";
+          return fechas
+            .map((f) => {
+              const base = `<strong>${escapeHtml(String(f.id))}</strong>: creada ${escapeHtml(formatFecha(f.fecha_creacion))}`;
+              if (!esExpirado) return `<div>${base}</div>`;
+              return `<div>${base} · expiró ${escapeHtml(formatFecha(f.fecha_expiracion))} · se elimina ${escapeHtml(formatFecha(f.fecha_eliminacion))}</div>`;
+            })
+            .join("");
+        }
+
+        function renderTablaPorUsuario(elId, porUsuario, mostrarAutorizador, esExpirado) {
           const el = document.getElementById(elId);
           if (!el) return;
           if (!porUsuario || porUsuario.length === 0) {
@@ -847,6 +866,7 @@
                   <td class="num">${fila.facturas}</td>
                   <td class="ids">${escapeHtml(formatIds(fila.ids_liquidaciones))}</td>
                   <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
+                  <td class="ids">${renderFechasLiquidaciones(fila.fechas_liquidaciones, esExpirado)}</td>
                 </tr>
               `
             )
@@ -861,9 +881,58 @@
                   <th>Facturas</th>
                   <th>IDs Liquidaciones</th>
                   <th>IDs Facturas</th>
+                  <th>${esExpirado ? "Fechas (creación / expiración / eliminación)" : "Fechas de creación"}</th>
                 </tr>
               </thead>
               <tbody>${filas}</tbody>
+            </table>
+          `;
+        }
+
+        // Conteo regresivo de expiración: liquidaciones activas que expiran a los 14 días de su creación
+        function renderTablaPorExpirar(elId, filas) {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          if (!filas || filas.length === 0) {
+            el.innerHTML = '<p class="stats-table-empty">No hay liquidaciones próximas a expirar.</p>';
+            return;
+          }
+          const porEncargado = new Map();
+          filas.forEach((f) => {
+            const clave = f.id_usuario === null || f.id_usuario === undefined ? "sin" : String(f.id_usuario);
+            if (!porEncargado.has(clave)) porEncargado.set(clave, { nombre: f.nombre_usuario, items: [] });
+            porEncargado.get(clave).items.push(f);
+          });
+          const colorDias = (d) => (d <= 1 ? "#c0392b" : d <= 3 ? "#e67e22" : "#7f8c8d");
+          const textoDias = (d) => (d < 0 ? "vencida" : d === 0 ? "expira hoy" : d === 1 ? "1 día" : `${d} días`);
+          const cuerpo = Array.from(porEncargado.values())
+            .sort((a, b) => Math.min(...a.items.map((i) => Number(i.dias_restantes))) - Math.min(...b.items.map((i) => Number(i.dias_restantes))))
+            .map((enc) => {
+              const detalle = enc.items
+                .map((i) => {
+                  const d = Number(i.dias_restantes);
+                  return `<div><strong>${escapeHtml(String(i.id))}</strong> (creada ${escapeHtml(formatFecha(i.fecha_creacion))}) — <span style="color:${colorDias(d)};font-weight:600">${textoDias(d)}</span></div>`;
+                })
+                .join("");
+              return `
+                <tr>
+                  <td>${escapeHtml(enc.nombre || "Sin encargado")}</td>
+                  <td class="num">${enc.items.length}</td>
+                  <td class="ids">${detalle}</td>
+                </tr>
+              `;
+            })
+            .join("");
+          el.innerHTML = `
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Encargado</th>
+                  <th>Liquidaciones por expirar</th>
+                  <th>Liquidación — días restantes</th>
+                </tr>
+              </thead>
+              <tbody>${cuerpo}</tbody>
             </table>
           `;
         }
@@ -895,9 +964,10 @@
                   <td class="num" style="color:#2c3e50">${escapeHtml(String(fila.id_liquidacion))}</td>
                   <td>${escapeHtml(fila.nombre_usuario || "Sin encargado")}</td>
                   <td><span class="stats-badge" style="background:${est.color}">${escapeHtml(est.texto)}</span></td>
+                  <td>${escapeHtml(formatFecha(fila.fecha_creacion))}</td>
                   <td>${quien}</td>
                   <td class="motivo">${escapeHtml(fila.motivo || "Sin motivo registrado")}</td>
-                  <td>${escapeHtml(fila.fecha_rechazo || "-")}</td>
+                  <td>${escapeHtml(formatFecha(fila.fecha_rechazo))}</td>
                   <td class="num" style="color:#2c3e50">${fila.facturas}</td>
                   <td class="ids">${escapeHtml(formatIds(fila.ids_facturas))}</td>
                 </tr>
@@ -911,6 +981,7 @@
                   <th>ID Liquidación</th>
                   <th>Encargado</th>
                   <th>Estado</th>
+                  <th>Fecha creación</th>
                   <th>Rechazada por</th>
                   <th>Motivo</th>
                   <th>Fecha rechazo</th>
@@ -1022,6 +1093,10 @@
               <div class="stats-table-wrap" id="tabla-expirado-usuario"></div>
             </div>
             <div class="stats-chart-card">
+              <h4>Conteo de expiración — liquidaciones próximas a expirar por encargado</h4>
+              <div class="stats-table-wrap" id="tabla-por-expirar"></div>
+            </div>
+            <div class="stats-chart-card">
               <h4>Liquidaciones y facturas pendientes de autorización — por encargado y autorizador</h4>
               <div class="stats-table-wrap" id="tabla-pendiente_autorizacion-usuario"></div>
             </div>
@@ -1045,17 +1120,18 @@
           [
             { key: "en_correccion" },
             { key: "rechazado_autorizacion" },
-            { key: "expirado" },
+            { key: "expirado", esExpirado: true },
             { key: "pendiente_autorizacion", mostrarAutorizador: true },
-          ].forEach(({ key: seccion, mostrarAutorizador }) => {
+          ].forEach(({ key: seccion, mostrarAutorizador, esExpirado }) => {
             const seccionData = data[seccion] || { liquidaciones: 0, facturas: 0, por_usuario: [] };
             const kpiLiquidaciones = document.getElementById(`kpi-${seccion}-liquidaciones`);
             const kpiFacturas = document.getElementById(`kpi-${seccion}-facturas`);
             if (kpiLiquidaciones) kpiLiquidaciones.textContent = seccionData.liquidaciones;
             if (kpiFacturas) kpiFacturas.textContent = seccionData.facturas;
-            renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || [], mostrarAutorizador);
+            renderTablaPorUsuario(`tabla-${seccion}-usuario`, seccionData.por_usuario || [], mostrarAutorizador, esExpirado);
           });
 
+          renderTablaPorExpirar("tabla-por-expirar", data.por_expirar || []);
           renderTablaRechazadas("tabla-rechazadas-detalle", data.rechazadas_detalle || []);
 
           const meses = new Set();

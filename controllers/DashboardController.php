@@ -158,6 +158,37 @@ class DashboardController {
     }
 
     /**
+     * Agrega a cada fila por encargado (y autorizador si $porSupervisor) la lista de sus
+     * liquidaciones con fechas. Si $esExpirado, incluye cuando expiro (14 dias despues de la
+     * creacion) y cuando se elimina automaticamente (12 horas despues de pasar a EXPIRADO).
+     */
+    private function adjuntarFechas(array $filas, array $fechas, $porSupervisor, $esExpirado) {
+        $agrupadas = [];
+        foreach ($fechas as $f) {
+            $clave = $f['id_usuario'] . '|' . ($porSupervisor ? $f['id_supervisor'] : '');
+            $item = [
+                'id' => $f['id'],
+                'fecha_creacion' => $f['fecha_creacion'],
+            ];
+            if ($esExpirado) {
+                $item['fecha_expiracion'] = $f['updated_at'];
+                $item['fecha_eliminacion'] = $f['updated_at']
+                    ? date('Y-m-d H:i:s', strtotime($f['updated_at'] . ' +12 hours'))
+                    : null;
+            }
+            $agrupadas[$clave][] = $item;
+        }
+
+        foreach ($filas as &$fila) {
+            $clave = $fila['id_usuario'] . '|' . ($porSupervisor ? $fila['id_supervisor'] : '');
+            $fila['fechas_liquidaciones'] = $agrupadas[$clave] ?? [];
+        }
+        unset($fila);
+
+        return $filas;
+    }
+
+    /**
      * Estadisticas mensuales para el tab de graficas del dashboard. Solo ADMIN.
      */
     public function estadisticas() {
@@ -190,6 +221,12 @@ class DashboardController {
         $pendienteAutorizacionPorUsuario = $liquidacionModel->getPendienteAutorizacionPorUsuario();
         $rechazadasDetalle = $liquidacionModel->getLiquidacionesRechazadasDetalle();
 
+        // Fechas de cada liquidacion, agregadas a cada fila por encargado (los campos existentes no cambian)
+        $enCorreccionPorUsuario = $this->adjuntarFechas($enCorreccionPorUsuario, $liquidacionModel->getFechasLiquidacionesEnCorreccion(), false, false);
+        $rechazadoAutorizacionPorUsuario = $this->adjuntarFechas($rechazadoAutorizacionPorUsuario, $liquidacionModel->getFechasLiquidacionesPorEstado('RECHAZADO_AUTORIZACION'), false, false);
+        $expiradoPorUsuario = $this->adjuntarFechas($expiradoPorUsuario, $liquidacionModel->getFechasLiquidacionesPorEstado('EXPIRADO'), false, true);
+        $pendienteAutorizacionPorUsuario = $this->adjuntarFechas($pendienteAutorizacionPorUsuario, $liquidacionModel->getFechasLiquidacionesPorEstado('PENDIENTE_AUTORIZACION'), true, false);
+
         $data = [
             'meses' => $meses,
             'volumen_liquidaciones' => $liquidacionModel->getEstadisticasMensuales($meses),
@@ -219,6 +256,7 @@ class DashboardController {
                 'por_usuario' => $pendienteAutorizacionPorUsuario,
             ],
             'rechazadas_detalle' => $rechazadasDetalle,
+            'por_expirar' => $liquidacionModel->getPorExpirarPorUsuario(),
             'tiempo_ciclo' => $liquidacionModel->getTiempoPromedioCicloPorMes($meses),
             'dte' => [
                 'hoy' => $dteModel->contarHoy(),

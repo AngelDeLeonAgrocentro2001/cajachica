@@ -1212,6 +1212,52 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Fechas de cada liquidacion en un estado dado (dueño, supervisor, creacion, ultima actualizacion).
+    // Se usa para mostrar las fechas junto a los IDs en las tablas por encargado del dashboard.
+    public function getFechasLiquidacionesPorEstado($estado) {
+        $stmt = $this->pdo->prepare("
+            SELECT l.id, l.id_usuario, l.id_supervisor, l.fecha_creacion, l.updated_at
+            FROM liquidaciones l
+            WHERE l.estado = ?
+            ORDER BY l.id
+        ");
+        $stmt->execute([$estado]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Fechas de las liquidaciones que tienen al menos una factura (detalle) EN_CORRECCION.
+    public function getFechasLiquidacionesEnCorreccion() {
+        $stmt = $this->pdo->prepare("
+            SELECT l.id, l.id_usuario, l.id_supervisor, l.fecha_creacion, l.updated_at
+            FROM liquidaciones l
+            WHERE EXISTS (
+                SELECT 1 FROM detalle_liquidaciones dl
+                WHERE dl.id_liquidacion = l.id AND dl.estado = 'EN_CORRECCION'
+            )
+            ORDER BY l.id
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Liquidaciones activas (EN_PROCESO / PENDIENTE_AUTORIZACION) que expiran a los 14 dias de su
+    // creacion, con los dias que les quedan, agrupadas por encargado. Misma regla que
+    // checkAndFinalizeOldLiquidaciones().
+    public function getPorExpirarPorUsuario() {
+        $stmt = $this->pdo->prepare("
+            SELECT l.id, l.estado, l.fecha_creacion,
+                   u.id AS id_usuario,
+                   u.nombre AS nombre_usuario,
+                   DATEDIFF(DATE_ADD(DATE(l.fecha_creacion), INTERVAL 14 DAY), CURDATE()) AS dias_restantes
+            FROM liquidaciones l
+            LEFT JOIN usuarios u ON l.id_usuario = u.id
+            WHERE l.estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
+            ORDER BY dias_restantes ASC, l.id ASC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     // Detalle de liquidaciones RECHAZADAS (por autorizacion o por contabilidad): de quien es,
     // quien la rechazo, por que y sus facturas. El motivo/rechazador salen del ultimo registro
     // de auditoria de rechazo de esa liquidacion.
@@ -1219,6 +1265,7 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
         $stmt = $this->pdo->prepare("
             SELECT l.id AS id_liquidacion,
                    l.estado,
+                   l.fecha_creacion,
                    u.nombre AS nombre_usuario,
                    a.usuario_nombre AS rechazado_por,
                    a.tipo_accion AS tipo_rechazo,
@@ -1240,7 +1287,7 @@ public function hasRecentMovements($liquidacionId, $weeks = 2) {
                 ) am ON am.max_id = ar.id
             ) a ON a.id_liquidacion = l.id
             WHERE l.estado IN ('RECHAZADO_AUTORIZACION', 'RECHAZADO_POR_CONTABILIDAD')
-            GROUP BY l.id, l.estado, u.nombre, a.usuario_nombre, a.tipo_accion, a.detalles, a.fecha
+            GROUP BY l.id, l.estado, l.fecha_creacion, u.nombre, a.usuario_nombre, a.tipo_accion, a.detalles, a.fecha
             ORDER BY a.fecha DESC, l.id DESC
         ");
         $stmt->execute();
