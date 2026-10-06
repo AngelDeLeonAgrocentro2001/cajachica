@@ -3592,7 +3592,8 @@ class LiquidacionController
                             'FACTURA ELECTRONICA',
                             'FACTURA PEQUEÑO CONTRIBUYENTE',
                             'FACTURA ELECTRONICA TIPO FACE',
-                            'FACTURA DEL EXTERIOR'
+                            'FACTURA DEL EXTERIOR',
+                            'RECIBO FISCAL'
                         ];
 
                         if (in_array($tipoDocumento, $documentosParaSAP)) {
@@ -3649,7 +3650,8 @@ class LiquidacionController
                         'FACTURA ELECTRONICA',
                         'FACTURA PEQUEÑO CONTRIBUYENTE',
                         'FACTURA ELECTRONICA TIPO FACE',
-                        'FACTURA DEL EXTERIOR'
+                        'FACTURA DEL EXTERIOR',
+                        'RECIBO FISCAL'
                     ];
                     $grupoTieneFactura = false;
                     foreach ($detalles as $detalleGrupo) {
@@ -4121,7 +4123,8 @@ class LiquidacionController
                             'FACTURA ELECTRONICA',
                             'FACTURA PEQUEÑO CONTRIBUYENTE',
                             'FACTURA ELECTRONICA TIPO FACE',
-                            'FACTURA DEL EXTERIOR'
+                            'FACTURA DEL EXTERIOR',
+                            'RECIBO FISCAL'
                         ];
 
                         if (in_array($tipoDocumento, $documentosParaSAP)) {
