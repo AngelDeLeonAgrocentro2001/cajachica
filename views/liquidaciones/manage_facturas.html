@@ -2535,6 +2535,19 @@
                       'Combustible': 'IDP' // Solo para combustible
                     };
 
+                    // Exención temporal de IVA e IDP en combustible: aplica a facturas con fecha dentro del rango.
+                    // Para terminarla, poner COMBUSTIBLE_EXENTO_HASTA con la última fecha exenta (o desde = null para apagarla).
+                    const COMBUSTIBLE_EXENTO_DESDE = '2026-10-01';
+                    const COMBUSTIBLE_EXENTO_HASTA = null;
+
+                    function aplicarExencionCombustible(impuestos, tipoGasto) {
+                      if (tipoGasto !== 'Combustible' || !COMBUSTIBLE_EXENTO_DESDE) return impuestos;
+                      const fechaFactura = document.getElementById('fecha').value;
+                      if (!fechaFactura || fechaFactura < COMBUSTIBLE_EXENTO_DESDE) return impuestos;
+                      if (COMBUSTIBLE_EXENTO_HASTA && fechaFactura > COMBUSTIBLE_EXENTO_HASTA) return impuestos;
+                      return { iva: 0, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+                    }
+
                     function updateTaxFieldsVisibility() {
                       const tipoGastoSelect = document.getElementById('t_gasto');
                       const tipoDocumento = document.getElementById('tipo_documento').value.toUpperCase();
@@ -2550,9 +2563,9 @@
                       }
 
                       const tipoGasto = tipoGastoSelect.value;
-                      const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
+                      const impuestos = aplicarExencionCombustible(tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
                         ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 0, idp: 0, inguat: 0 }
-                        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+                        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }, tipoGasto);
 
                       // Para FACTURA PEQUEÑO CONTRIBUYENTE, el IVA siempre se oculta (es 0)
                       ivaField.style.display = (tipoDocumento !== 'FACTURA PEQUEÑO CONTRIBUYENTE' && impuestos.iva > 0) ? 'block' : 'none';
@@ -2715,6 +2728,9 @@
                         document.getElementById('nit_dpi_input').value = dte.nit_emisor || '';
                         document.getElementById('serie').value = dte.serie || '';
 
+                        if (document.getElementById('t_gasto').value === 'Combustible') {
+                          updateTaxFieldsVisibility();
+                        }
                         updateTaxesAndTotal();
                     }
 
@@ -2956,9 +2972,9 @@
                       const tipoCombustible = tipoCombustibleSelect.value;
 
                       // Obtener los impuestos según el tipo de documento
-                      const impuestos = tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
+                      const impuestos = aplicarExencionCombustible(tipoDocumento === 'FACTURA PEQUEÑO CONTRIBUYENTE'
                         ? impuestosPequeñoContribuyente[tipoGasto] || { iva: 0, idp: 0, inguat: 0 } // IVA = 0 para pequeño contribuyente
-                        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+                        : impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }, tipoGasto);
 
                       let totalBruto = parseFloat(totalFacturaInput.value) || 0;
                       let propina = parseFloat(propinaInput.value) || 0;
@@ -4150,6 +4166,14 @@
 
                     // Event listener para cuando cambia la fecha manualmente
                     document.getElementById('fecha').addEventListener('change', updateFechaDocumento);
+
+                    // La exención de IVA/IDP en combustible depende de la fecha de la factura
+                    document.getElementById('fecha').addEventListener('change', function() {
+                      if (document.getElementById('t_gasto').value === 'Combustible') {
+                        updateTaxFieldsVisibility();
+                        updateTaxesAndTotal();
+                      }
+                    });
 
                     // Event listener para tipo de gasto (actualiza tanto principal como adicionales)
                     document.getElementById('t_gasto').addEventListener('change', () => {

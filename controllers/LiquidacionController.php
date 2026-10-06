@@ -3801,11 +3801,14 @@ class LiquidacionController
                                         "U_TipoA" => $tipoA
                                     ];
                                 } else {
+                                    // Combustible sin IVA (exención temporal): va exento, no con código IVA,
+                                    // para que SAP no extraiga un 12% que no existe en la factura.
+                                    $taxCodeLinea = ($detalle['t_gasto'] === 'Combustible' && $iva <= 0) ? "EXE" : "IVA";
                                     $documentLines[] = [
                                         "LineType" => count($documentLines),
                                         "ItemDescription" => $itemDescription,
                                         "PriceAfterVAT" => ($subtotal + $iva),
-                                        "TaxCode" => "IVA",
+                                        "TaxCode" => $taxCodeLinea,
                                         $costingField => $costingCode, // Usar el campo dinámico
                                         "AccountCode" => $accountCode,
                                         "U_TipoDoc" => $tipoDocForLines,

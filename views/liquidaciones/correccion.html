@@ -1304,6 +1304,19 @@ const impuestosPequeñoContribuyente = {
   'Otros': { iva: 0, idp: 0, inguat: 0 }
 };
 
+// Exención temporal de IVA e IDP en combustible: aplica a facturas con fecha dentro del rango.
+// Para terminarla, poner COMBUSTIBLE_EXENTO_HASTA con la última fecha exenta (o desde = null para apagarla).
+const COMBUSTIBLE_EXENTO_DESDE = '2026-10-01';
+const COMBUSTIBLE_EXENTO_HASTA = null;
+
+function aplicarExencionCombustible(impuestos, tipoGasto) {
+  if (tipoGasto !== 'Combustible' || !COMBUSTIBLE_EXENTO_DESDE) return impuestos;
+  const fechaFactura = document.getElementById('fecha').value;
+  if (!fechaFactura || fechaFactura < COMBUSTIBLE_EXENTO_DESDE) return impuestos;
+  if (COMBUSTIBLE_EXENTO_HASTA && fechaFactura > COMBUSTIBLE_EXENTO_HASTA) return impuestos;
+  return { iva: 0, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+}
+
 function basename(path) {
   return path.split('/').pop();
 }
@@ -3299,12 +3312,12 @@ function updateTaxFieldsVisibility(tipoDocumento = null, tipoGasto = null) {
   if (currentTipoDocumento.toUpperCase() === 'FACTURA PEQUEÑO CONTRIBUYENTE') {
     ivaField.style.display = 'none'; // Siempre ocultar IVA para pequeño contribuyente
     
-    const impuestos = impuestosPequeñoContribuyente[currentTipoGasto] || { iva: 0, idp: 0, inguat: 0 };
+    const impuestos = aplicarExencionCombustible(impuestosPequeñoContribuyente[currentTipoGasto] || { iva: 0, idp: 0, inguat: 0 }, currentTipoGasto);
     idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
     inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
   } else {
     // Para otros tipos de factura
-    const impuestos = impuestosPorTipoGasto[currentTipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
+    const impuestos = aplicarExencionCombustible(impuestosPorTipoGasto[currentTipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 }, currentTipoGasto);
     ivaField.style.display = impuestos.iva > 0 ? 'block' : 'none';
     idpField.style.display = (impuestos.idp > 0 || impuestos.idp_super > 0 || impuestos.idp_regular > 0 || impuestos.idp_diesel > 0) ? 'block' : 'none';
     inguatField.style.display = impuestos.inguat > 0 ? 'block' : 'none';
@@ -3370,6 +3383,7 @@ function updateTaxesAndTotal() {
     } else {
         impuestos = impuestosPorTipoGasto[tipoGasto] || { iva: 12, idp: 0, idp_super: 0, idp_regular: 0, idp_diesel: 0, inguat: 0 };
     }
+    impuestos = aplicarExencionCombustible(impuestos, tipoGasto);
 
     let totalBruto = parseFloat(totalFacturaInput.value) || 0;
     let cantidadGalones = parseFloat(cantidadInput.value) || 0;
@@ -3434,6 +3448,14 @@ function updateTaxesAndTotal() {
 }
 document.getElementById('id_centro_costo_0').addEventListener('change', function() {
   updateCuentaContableOptions();
+});
+
+// La exención de IVA/IDP en combustible depende de la fecha de la factura
+document.getElementById('fecha').addEventListener('change', function() {
+  if (document.getElementById('t_gasto').value === 'Combustible') {
+    updateTaxFieldsVisibility();
+    updateTaxesAndTotal();
+  }
 });
 
 document.getElementById('t_gasto').addEventListener('change', () => {
