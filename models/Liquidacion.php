@@ -9,33 +9,65 @@ class Liquidacion {
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
-    // MÉTODO CORREGIDO: Registrar advertencia de expiración en auditoría
+    // Registra un evento automático (expiración, advertencia, eliminación) en la tabla auditoria con las
+    // columnas reales de la tabla. $idUsuario debe existir en usuarios (llave foránea): se usa el
+    // encargado dueño de la liquidación. $idLiquidacion puede ser null para que el registro no se
+    // borre en cascada cuando la liquidación se elimine. Nunca lanza excepción: un fallo aquí no
+    // debe afectar el flujo de expiración.
+    private function registrarAuditoriaAutomatica($idLiquidacion, $idUsuario, $tipoAccion, $accion, array $detalles) {
+        try {
+            if (empty($idUsuario)) {
+                error_log("registrarAuditoriaAutomatica: sin usuario válido para $tipoAccion (liquidación " . ($idLiquidacion ?? 'N/A') . ")");
+                return false;
+            }
+
+            $stmt = $this->pdo->prepare("SELECT nombre FROM usuarios WHERE id = ?");
+            $stmt->execute([$idUsuario]);
+            $nombre = $stmt->fetchColumn();
+            if ($nombre === false) {
+                error_log("registrarAuditoriaAutomatica: usuario $idUsuario no existe para $tipoAccion");
+                return false;
+            }
+
+            $stmt = $this->pdo->prepare("
+                INSERT INTO auditoria (id_liquidacion, id_detalle_liquidacion, id_usuario, accion, tipo_accion, usuario_nombre, detalles, fecha)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $idLiquidacion,
+                $idUsuario,
+                $accion,
+                $tipoAccion,
+                $nombre,
+                json_encode($detalles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            ]);
+            return true;
+        } catch (Exception $e) {
+            error_log("registrarAuditoriaAutomatica: error al registrar $tipoAccion: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Registrar advertencia de expiración en auditoría (se envía el día 13)
 private function registrarAdvertenciaExpiracion($liquidacionId) {
     try {
-        $userId = 0; // Sistema automático
-        
-        // Obtener nombre del usuario para el campo usuario_nombre
-        $usuarioNombre = 'Sistema Automático';
-        
-        // Verificar la estructura de la tabla auditoria (basado en tu estructura)
-        $query = "
-            INSERT INTO auditoria (
-                id_liquidacion, 
-                id_usuario, 
-                accion, 
-                comentario,
-                usuario_nombre,
-                fecha
-            ) VALUES (?, ?, 'ADVERTENCIA_EXPIRACION', ?, ?, NOW())
-        ";
-        
-        $comentario = "Correo de advertencia enviado: La liquidación expirará mañana.";
-        
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$liquidacionId, $userId, $comentario, $usuarioNombre]);
-        
+        $stmt = $this->pdo->prepare("SELECT id_usuario, fecha_creacion FROM liquidaciones WHERE id = ?");
+        $stmt->execute([$liquidacionId]);
+        $liq = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$liq) {
+            return;
+        }
+
+        $expiraEl = date('Y-m-d', strtotime($liq['fecha_creacion'] . ' +14 days'));
+        $this->registrarAuditoriaAutomatica($liquidacionId, $liq['id_usuario'], 'ADVERTENCIA_EXPIRACION', 'APROBADO', [
+            'liquidacion_id' => $liquidacionId,
+            'ejecutado_por' => 'Sistema (automático)',
+            'mensaje' => 'Correo de advertencia enviado: la liquidación expirará mañana.',
+            'fecha_creacion' => $liq['fecha_creacion'],
+            'fecha_expiracion' => $expiraEl
+        ]);
+
         error_log("✅ Auditoría registrada para advertencia de expiración - Liquidación ID: $liquidacionId");
-        
     } catch (PDOException $e) {
         error_log("Error al registrar auditoría de advertencia: " . $e->getMessage());
     }
@@ -187,15 +219,15 @@ private function verificarCorreoEnviadoHoy($liquidacionId) {
         $query = "
             SELECT COUNT(*) as count 
             FROM auditoria 
-            WHERE id_liquidacion = ? 
-            AND accion = 'ADVERTENCIA_EXPIRACION'
+            WHERE id_liquidacion = ?
+            AND tipo_accion = 'ADVERTENCIA_EXPIRACION'
             AND DATE(fecha) = CURDATE()
         ";
-        
+
         $stmt = $this->pdo->prepare($query);
         $stmt->execute([$liquidacionId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         $enviadoHoy = $result['count'] > 0;
         
         if ($enviadoHoy) {
@@ -248,20 +280,61 @@ public function checkAndFinalizeOldLiquidaciones() {
         // 2. Luego, expirar las liquidaciones antiguas
         $twoWeeksAgo = date('Y-m-d 00:00:00', strtotime('-2 weeks'));
         error_log("Auto-expirado liquidaciones creadas antes de: $twoWeeksAgo");
-        
+
+        // Candidatas a expirar (misma condición del UPDATE), para dejar registro en auditoría
+        $candidatasExpirar = [];
+        try {
+            $stmtCand = $this->pdo->prepare("
+                SELECT id, id_usuario, estado, fecha_creacion
+                FROM liquidaciones
+                WHERE estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
+                AND fecha_creacion <= ?
+            ");
+            $stmtCand->execute([$twoWeeksAgo]);
+            $candidatasExpirar = $stmtCand->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("No se pudieron obtener candidatas a expirar para auditoría: " . $e->getMessage());
+        }
+
         $query = "
-            UPDATE liquidaciones 
-            SET estado = 'EXPIRADO', 
-                updated_at = NOW() 
+            UPDATE liquidaciones
+            SET estado = 'EXPIRADO',
+                updated_at = NOW()
             WHERE estado IN ('EN_PROCESO', 'PENDIENTE_AUTORIZACION')
             AND fecha_creacion <= ?
         ";
-        
+
         $stmt = $this->pdo->prepare($query);
         $stmt->execute([$twoWeeksAgo]);
         $rowCount = $stmt->rowCount();
-        
+
         error_log("Auto-expiradas $rowCount liquidaciones antiguas");
+
+        // Registrar en auditoría las que efectivamente pasaron a EXPIRADO
+        if ($rowCount > 0 && !empty($candidatasExpirar)) {
+            try {
+                $ids = array_column($candidatasExpirar, 'id');
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmtExp = $this->pdo->prepare("SELECT id FROM liquidaciones WHERE estado = 'EXPIRADO' AND id IN ($placeholders)");
+                $stmtExp->execute($ids);
+                $expiradasIds = array_flip($stmtExp->fetchAll(PDO::FETCH_COLUMN));
+
+                foreach ($candidatasExpirar as $cand) {
+                    if (!isset($expiradasIds[$cand['id']])) {
+                        continue;
+                    }
+                    $this->registrarAuditoriaAutomatica($cand['id'], $cand['id_usuario'], 'LIQUIDACION_EXPIRADA', 'ELIMINADO', [
+                        'liquidacion_id' => $cand['id'],
+                        'ejecutado_por' => 'Sistema (automático)',
+                        'motivo' => 'Expiración automática: 14 días desde su creación',
+                        'estado_anterior' => $cand['estado'],
+                        'fecha_creacion' => $cand['fecha_creacion']
+                    ]);
+                }
+            } catch (Exception $e) {
+                error_log("Error al registrar auditoría de expiración: " . $e->getMessage());
+            }
+        }
         
         // 3. Eliminar liquidaciones EXPIRADAS
         $this->deleteExpiredLiquidaciones();
@@ -463,8 +536,8 @@ public function deleteExpiredLiquidaciones() {
         
         // Obtener liquidaciones EXPIRADAS con más de 5 minutos
         $query = "
-            SELECT id, estado 
-            FROM liquidaciones 
+            SELECT id, estado, id_usuario, fecha_creacion, updated_at, monto_total
+            FROM liquidaciones
             WHERE estado = 'EXPIRADO'
             AND updated_at <= ?
         ";
@@ -484,7 +557,17 @@ public function deleteExpiredLiquidaciones() {
             try {
                 // Verificar estado DTE antes de eliminar
                 $detallesConDte = $this->verificarEstadoDteDespuesEliminacion($liquidacionId);
-                
+
+                // Facturas que tenía la liquidación (para dejarlas en el registro de auditoría)
+                $facturasLiberadas = [];
+                try {
+                    $stmtFact = $this->pdo->prepare("SELECT DISTINCT no_factura FROM detalle_liquidaciones WHERE id_liquidacion = ? AND no_factura IS NOT NULL AND no_factura != ''");
+                    $stmtFact->execute([$liquidacionId]);
+                    $facturasLiberadas = $stmtFact->fetchAll(PDO::FETCH_COLUMN);
+                } catch (Exception $e) {
+                    error_log("No se pudieron listar las facturas de la liquidación $liquidacionId para auditoría: " . $e->getMessage());
+                }
+
                 // Liberar y eliminar facturas asociadas
                 if ($this->liberarYeliminarFacturas($liquidacionId)) {
                     // Eliminar la liquidación
@@ -496,7 +579,7 @@ public function deleteExpiredLiquidaciones() {
                         error_log("✓ Liquidación EXPIRADA eliminada ID: $liquidacionId");
                         
                         // Registrar auditoría
-                        $this->registrarAuditoriaEliminacion($liquidacionId);
+                        $this->registrarAuditoriaEliminacion($liquidacionId, $liquidacion, $facturasLiberadas);
                         
                         // Verificar estado DTE después de eliminar
                         $this->verificarEstadoDteDespuesEliminacionEnDte($detallesConDte);
@@ -801,29 +884,23 @@ public function verificarEstadoDteDespuesEliminacion($liquidacionId) {
     }
 }
 // NUEVO MÉTODO: Registrar auditoría de eliminación automática
-private function registrarAuditoriaEliminacion($liquidacionId) {
+// Registro permanente de la eliminación. Va con id_liquidacion NULL porque la tabla auditoria borra en
+// cascada todo lo ligado a la liquidación cuando ésta se elimina; el ID queda dentro de "detalles".
+private function registrarAuditoriaEliminacion($liquidacionId, array $liquidacion = [], array $facturasLiberadas = []) {
     try {
-        $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0; // 0 para sistema automático
-        
-        $query = "
-            INSERT INTO auditoria (
-                id_liquidacion, 
-                id_detalle, 
-                id_usuario, 
-                accion, 
-                descripcion, 
-                fecha
-            ) VALUES (?, NULL, ?, 'ELIMINACION_AUTOMATICA', ?, NOW())
-        ";
-        
-        $descripcion = "Liquidación EXPIRADA eliminada automáticamente después de 1 hora. Facturas liberadas.";
-        
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$liquidacionId, $userId, $descripcion]);
-        
+        $this->registrarAuditoriaAutomatica(null, $liquidacion['id_usuario'] ?? null, 'ELIMINACION_AUTOMATICA', 'ELIMINADO', [
+            'liquidacion_id' => $liquidacionId,
+            'ejecutado_por' => 'Sistema (automático)',
+            'motivo' => 'Liquidación EXPIRADA eliminada automáticamente a las 12 horas de expirar. Facturas liberadas.',
+            'fecha_creacion' => $liquidacion['fecha_creacion'] ?? null,
+            'fecha_expiracion' => $liquidacion['updated_at'] ?? null,
+            'monto_total' => $liquidacion['monto_total'] ?? null,
+            'cantidad_facturas' => count($facturasLiberadas),
+            'facturas_liberadas' => implode(', ', array_slice($facturasLiberadas, 0, 50))
+        ]);
+
         error_log("Auditoría registrada para eliminación automática de liquidación ID: $liquidacionId");
-        
-    } catch (PDOException $e) {
+    } catch (Exception $e) {
         error_log("Error al registrar auditoría de eliminación: " . $e->getMessage());
     }
 }
