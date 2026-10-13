@@ -670,8 +670,15 @@ class DetalleLiquidacionController {
         $this->pdo->beginTransaction();
         
         // 1. Primero liberar DTE si existe
-        if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
-            $detalleModel->liberarDte($detalle['serie'], $detalle['no_factura']);
+        // Si la serie quedó vacía (las facturas editadas la perdían), se recupera de "SERIE NUMERO"
+        $serieDte = trim($detalle['serie'] ?? '');
+        if ($serieDte === ''
+            && in_array(mb_strtoupper(trim($detalle['tipo_documento'] ?? ''), 'UTF-8'), ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'])
+            && preg_match('/^(\S+)\s+(\S+)$/', trim($detalle['no_factura'] ?? ''), $mSerie)) {
+            $serieDte = $mSerie[1];
+        }
+        if ($serieDte !== '' && !empty($detalle['no_factura'])) {
+            $detalleModel->liberarDte($serieDte, $detalle['no_factura']);
         }
         
         // 2. Si tiene grupo_id > 0, liberar DTEs de todos los detalles del grupo

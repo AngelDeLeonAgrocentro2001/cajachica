@@ -2840,7 +2840,11 @@
                       } else {
                         comprobanteFields.style.display = 'none';
                         serieInput.removeAttribute('required');
-                        serieInput.value = '';
+                        // En facturas la serie viene del DTE y se necesita para liberar el DTE al eliminar:
+                        // no se borra (antes se perdía al editar la factura).
+                        if (!['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'].includes(tipoDocumento)) {
+                          serieInput.value = '';
+                        }
                       }
 
                       if (['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE', 'OTROS DOCUMENTOS', 'DUCA'].includes(tipoDocumento)) {

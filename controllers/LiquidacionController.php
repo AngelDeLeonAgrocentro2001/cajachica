@@ -791,6 +791,24 @@ class LiquidacionController
         exit;
     }
 
+    // Serie del DTE de un detalle. Si quedó vacía (las facturas editadas la perdían), se recupera del
+    // número de factura con formato "SERIE NUMERO" para poder liberar el DTE al eliminar.
+    private function serieParaLiberarDte($detalle)
+    {
+        $serie = trim($detalle['serie'] ?? '');
+        if ($serie !== '') {
+            return $serie;
+        }
+        $tipo = mb_strtoupper(trim($detalle['tipo_documento'] ?? ''), 'UTF-8');
+        if (!in_array($tipo, ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'])) {
+            return '';
+        }
+        if (preg_match('/^(\S+)\s+(\S+)$/', trim($detalle['no_factura'] ?? ''), $m)) {
+            return $m[1];
+        }
+        return '';
+    }
+
     public function deleteDetail($detalleId)
     {
         if (!isset($_SESSION['user_id'])) {
@@ -846,8 +864,8 @@ class LiquidacionController
 
             // Actualizar DTE a 'X' antes de eliminar, igual que en manageFacturas y deleteFacturaCorreccion,
             // para que la factura pueda volver a ingresarse
-            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
-                $serie_detalle = trim($detalle['serie']);
+            if ($this->serieParaLiberarDte($detalle) !== '' && !empty($detalle['no_factura'])) {
+                $serie_detalle = $this->serieParaLiberarDte($detalle);
                 $no_factura_detalle = trim($detalle['no_factura']);
                 $numero_dte_detalle = $serie_detalle && strpos($no_factura_detalle, $serie_detalle) === 0
                     ? substr($no_factura_detalle, strlen($serie_detalle))
@@ -6317,8 +6335,8 @@ class LiquidacionController
                     }
 
                     // 🔴 **NUEVO: ACTUALIZAR DTE A 'X' ANTES DE ELIMINAR**
-                    if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
-                        $serie_detalle = trim($detalle['serie']);
+                    if ($this->serieParaLiberarDte($detalle) !== '' && !empty($detalle['no_factura'])) {
+                        $serie_detalle = $this->serieParaLiberarDte($detalle);
                         $no_factura_detalle = trim($detalle['no_factura']);
                         $numero_dte_detalle = $serie_detalle && strpos($no_factura_detalle, $serie_detalle) === 0
                             ? substr($no_factura_detalle, strlen($serie_detalle))
@@ -7328,8 +7346,8 @@ class LiquidacionController
 
             // Actualizar DTE a 'X' antes de eliminar, igual que en manageFacturas,
             // para que la factura pueda volver a ingresarse
-            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
-                $serie_detalle = trim($detalle['serie']);
+            if ($this->serieParaLiberarDte($detalle) !== '' && !empty($detalle['no_factura'])) {
+                $serie_detalle = $this->serieParaLiberarDte($detalle);
                 $no_factura_detalle = trim($detalle['no_factura']);
                 $numero_dte_detalle = $serie_detalle && strpos($no_factura_detalle, $serie_detalle) === 0
                     ? substr($no_factura_detalle, strlen($serie_detalle))

@@ -9,6 +9,23 @@ class Liquidacion {
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
+    // Serie del DTE de un detalle. Si quedó vacía (las facturas editadas la perdían), se recupera del
+    // número de factura con formato "SERIE NUMERO" para poder liberar el DTE al eliminar.
+    private function serieParaLiberarDte($detalle) {
+        $serie = trim($detalle['serie'] ?? '');
+        if ($serie !== '') {
+            return $serie;
+        }
+        $tipo = mb_strtoupper(trim($detalle['tipo_documento'] ?? ''), 'UTF-8');
+        if (!in_array($tipo, ['FACTURA', 'FACTURA ELECTRONICA', 'FACTURA PEQUEÑO CONTRIBUYENTE'])) {
+            return '';
+        }
+        if (preg_match('/^(\S+)\s+(\S+)$/', trim($detalle['no_factura'] ?? ''), $m)) {
+            return $m[1];
+        }
+        return '';
+    }
+
     // Registra un evento automático (expiración, advertencia, eliminación) en la tabla auditoria con las
     // columnas reales de la tabla. $idUsuario debe existir en usuarios (llave foránea): se usa el
     // encargado dueño de la liquidación. $idLiquidacion puede ser null para que el registro no se
@@ -642,8 +659,8 @@ private function liberarYeliminarFacturas($liquidacionId) {
         
         // 1. Obtener todas las facturas (detalles) de la liquidación
         $query = "
-            SELECT id, serie, no_factura 
-            FROM detalle_liquidaciones 
+            SELECT id, serie, no_factura, tipo_documento
+            FROM detalle_liquidaciones
             WHERE id_liquidacion = ?
         ";
         
@@ -657,9 +674,10 @@ private function liberarYeliminarFacturas($liquidacionId) {
         foreach ($detalles as $index => $detalle) {
             error_log("Procesando detalle {$index}: ID={$detalle['id']}, Serie={$detalle['serie']}, No Factura={$detalle['no_factura']}");
             
-            if (!empty($detalle['serie']) && !empty($detalle['no_factura'])) {
+            $serieDte = $this->serieParaLiberarDte($detalle);
+            if ($serieDte !== '' && !empty($detalle['no_factura'])) {
                 // Usar el método liberarDte que ya existe
-                $this->liberarDte($detalle['serie'], $detalle['no_factura']);
+                $this->liberarDte($serieDte, $detalle['no_factura']);
             } else {
                 error_log("Detalle sin serie o número de factura, no se puede liberar DTE");
             }
