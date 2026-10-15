@@ -2742,10 +2742,15 @@ class LiquidacionController
     // Esto cubre el caso en que SAP sí registró el documento pero la respuesta HTTP nunca llegó
     // a tiempo (timeout, error transitorio, etc.), evitando que se mande a corrección algo que
     // ya está en SAP.
-    private function verificarFacturaEnSap($cookie, $reference1)
+    //
+    // Busca primero por Reference1 ("liquidación-factura"). Si no aparece y se indican $numAtCard y
+    // $cardCode, busca por número de factura + proveedor, que es la regla con la que SAP rechaza
+    // duplicados (error 20171012): cubre facturas que ya se exportaron antes con otra referencia
+    // (por ejemplo desde otra liquidación). En ese caso solo se acepta si el total coincide con
+    // $docTotalEsperado, para no confundir con otra factura distinta del mismo número.
+    private function verificarFacturaEnSap($cookie, $reference1, $numAtCard = null, $cardCode = null, $docTotalEsperado = null)
     {
-        try {
-            $filtro = "Reference1 eq '" . str_replace("'", "''", $reference1) . "'";
+        $consultar = function ($filtro, $etiqueta) use ($cookie) {
             $url = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices?\$filter=" . rawurlencode($filtro) . "&\$select=DocEntry,DocNum,Reference1,NumAtCard,CardCode,DocTotal";
 
             $ch = curl_init($url);
@@ -2763,7 +2768,7 @@ class LiquidacionController
             curl_close($ch);
 
             if ($response === false || $curlError || $httpCode >= 400) {
-                error_log("verificarFacturaEnSap: no se pudo verificar Reference1 '$reference1' - HTTP $httpCode" . ($curlError ? ", cURL: $curlError" : ""));
+                error_log("verificarFacturaEnSap: no se pudo verificar ($etiqueta) - HTTP $httpCode" . ($curlError ? ", cURL: $curlError" : "") . ($response ? " - " . substr($response, 0, 200) : ""));
                 return null;
             }
 
@@ -2771,11 +2776,37 @@ class LiquidacionController
             if (json_last_error() !== JSON_ERROR_NONE || empty($data['value'][0])) {
                 return null;
             }
-
-            error_log("verificarFacturaEnSap: Reference1 '$reference1' SÍ existe en SAP, DocEntry: {$data['value'][0]['DocEntry']}");
             return $data['value'][0];
+        };
+
+        $esc = function ($v) {
+            return str_replace("'", "''", $v);
+        };
+
+        try {
+            $doc = $consultar("Reference1 eq '" . $esc($reference1) . "'", "Reference1 '$reference1'");
+            if ($doc) {
+                error_log("verificarFacturaEnSap: Reference1 '$reference1' SÍ existe en SAP, DocEntry: {$doc['DocEntry']}");
+                $doc['encontrado_por'] = 'Reference1';
+                return $doc;
+            }
+
+            if ($numAtCard !== null && $numAtCard !== '' && $cardCode !== null && $cardCode !== '') {
+                $doc = $consultar("NumAtCard eq '" . $esc($numAtCard) . "' and CardCode eq '" . $esc($cardCode) . "'", "NumAtCard '$numAtCard' / $cardCode");
+                if ($doc) {
+                    if ($docTotalEsperado !== null && abs(floatval($doc['DocTotal'] ?? 0) - floatval($docTotalEsperado)) > 0.01) {
+                        error_log("verificarFacturaEnSap: NumAtCard '$numAtCard' existe en SAP (DocEntry {$doc['DocEntry']}) pero con total distinto ({$doc['DocTotal']} vs $docTotalEsperado), no se da por exportada");
+                        return null;
+                    }
+                    error_log("verificarFacturaEnSap: NumAtCard '$numAtCard' / $cardCode SÍ existe en SAP, DocEntry: {$doc['DocEntry']}, Reference1 original: " . ($doc['Reference1'] ?? 'N/A'));
+                    $doc['encontrado_por'] = 'NumAtCard';
+                    return $doc;
+                }
+            }
+
+            return null;
         } catch (Exception $e) {
-            error_log("verificarFacturaEnSap: excepción al verificar Reference1 '$reference1': " . $e->getMessage());
+            error_log("verificarFacturaEnSap: excepción al verificar '$reference1': " . $e->getMessage());
             return null;
         }
     }
@@ -3969,12 +4000,12 @@ class LiquidacionController
 
                         // Antes de dar por fallida la factura, verificar si SAP sí la creó
                         // (puede pasar con timeouts: SAP procesa el documento pero la respuesta no llega a tiempo)
-                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}");
+                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}", $numAtCard, $cardCode, $docTotal);
                         if ($facturaExistente) {
                             error_log("Factura {$noFactura} SÍ existe en SAP (DocEntry {$facturaExistente['DocEntry']}) pese al error de conexión, se marca como finalizada");
                             foreach ($detalles as $detalle) {
                                 $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
-                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada tras error de conexión): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}");
+                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada tras error de conexión): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}, DocNum: {$facturaExistente['DocNum']}, encontrada por {$facturaExistente['encontrado_por']}, Reference1 en SAP: " . ($facturaExistente['Reference1'] ?? 'N/A'));
                             }
                             $results[] = [
                                 'no_factura' => $noFactura,
@@ -4083,12 +4114,12 @@ class LiquidacionController
                         // Antes de dar por fallida la factura, verificar si SAP sí la creó pese al
                         // error reportado (puede pasar con errores transitorios o de validación
                         // posteriores a la creación del documento en SAP)
-                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}");
+                        $facturaExistente = $this->verificarFacturaEnSap($cookie, "{$id}-{$noFactura}", $numAtCard, $cardCode, $docTotal);
                         if ($facturaExistente) {
                             error_log("Factura {$noFactura} SÍ existe en SAP (DocEntry {$facturaExistente['DocEntry']}) pese a error HTTP $httpCode, se marca como finalizada");
                             foreach ($detalles as $detalle) {
                                 $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
-                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada pese a error HTTP $httpCode): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}");
+                                $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (verificada pese a error HTTP $httpCode): {$noFactura}, DocEntry: {$facturaExistente['DocEntry']}, DocNum: {$facturaExistente['DocNum']}, encontrada por {$facturaExistente['encontrado_por']}, Reference1 en SAP: " . ($facturaExistente['Reference1'] ?? 'N/A'));
                             }
                             $results[] = [
                                 'no_factura' => $noFactura,
