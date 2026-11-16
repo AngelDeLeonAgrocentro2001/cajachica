@@ -2601,6 +2601,18 @@ class LiquidacionController
         $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
         $sboObjType = 'Login';
 
+        // El Service Layer NO devuelve el RouteId en el JSON del login: viene en la cabecera
+        // Set-Cookie (ROUTEID=.nodeX). Si se manda un ROUTEID que no corresponde, el balanceador
+        // puede enviar la petición a otro nodo que no conoce la sesión y responde
+        // "HTTP 401 - Invalid session or session already timeout" de forma intermitente.
+        $cookiesLogin = [];
+        $captureCookies = function ($ch, $headerLine) use (&$cookiesLogin) {
+            if (stripos($headerLine, 'Set-Cookie:') === 0 && preg_match('/^Set-Cookie:\s*([^=;\s]+)=([^;\r\n]*)/i', $headerLine, $m)) {
+                $cookiesLogin[$m[1]] = $m[2];
+            }
+            return strlen($headerLine);
+        };
+
         curl_setopt_array($curl, [
             CURLOPT_PORT => 50000,
             CURLOPT_URL => $urlServer . $sboObjType,
@@ -2612,6 +2624,7 @@ class LiquidacionController
             CURLOPT_TIMEOUT => 30,
             CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
             CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
+            CURLOPT_HEADERFUNCTION => $captureCookies,
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_POSTFIELDS => json_encode([
                 "UserName" => $usuario,
@@ -2646,19 +2659,37 @@ class LiquidacionController
             return ['success' => false, 'error' => 'Invalid JSON or no SessionId returned'];
         }
 
+        error_log("SAP Login OK. ROUTEID de la cabecera Set-Cookie: " . ($cookiesLogin['ROUTEID'] ?? 'no recibido') . ", RouteId en JSON: " . ($sessionData['RouteId'] ?? 'no recibido'));
+
         return [
             'success' => true,
             'sessionId' => $sessionData['SessionId'],
-            'routeId' => $sessionData['RouteId'] ?? '.guid',
+            'routeId' => $cookiesLogin['ROUTEID'] ?? ($sessionData['RouteId'] ?? '.guid'),
             'response' => $sessionData
         ];
     }
-    private function logout_sap()
+    // $cookie (opcional): cookie de la sesión propia ("B1SESSION=...; ROUTEID=..."). Si se indica se
+    // cierra ESA sesión; si no, se usa cookie.txt (compartido entre usuarios, puede cerrar la sesión
+    // de otra exportación en curso y provocar "Invalid session" en ella).
+    private function logout_sap($cookie = null)
     {
         $curl = curl_init();
 
         $urlServer = 'https://192.168.1.9:50000/b1s/v1/';
         $sboObjType = 'Logout';
+
+        $headersLogout = [
+            "Content-Type: application/json",
+            "Cache-Control: no-cache"
+        ];
+        $opcionesCookie = [
+            CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
+            CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
+        ];
+        if (!empty($cookie)) {
+            $headersLogout[] = 'Cookie: ' . $cookie;
+            $opcionesCookie = [];
+        }
 
         curl_setopt_array($curl, [
             CURLOPT_PORT => 50000,
@@ -2669,14 +2700,9 @@ class LiquidacionController
             CURLOPT_ENCODING => "",
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 30,
-            CURLOPT_COOKIEJAR => __DIR__ . "/cookie.txt",
-            CURLOPT_COOKIEFILE => __DIR__ . "/cookie.txt",
             CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "Cache-Control: no-cache"
-            ],
-        ]);
+            CURLOPT_HTTPHEADER => $headersLogout,
+        ] + $opcionesCookie);
 
         $response = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
@@ -2694,11 +2720,14 @@ class LiquidacionController
             return ['success' => false, 'error' => "HTTP $httpCode - $response"];
         }
 
-        $cookieFile = __DIR__ . '/cookie.txt';
-        if (file_exists($cookieFile) && is_writable($cookieFile)) {
-            unlink($cookieFile); // Clean up cookie file
-        } elseif (file_exists($cookieFile)) {
-            error_log("Warning: Could not delete cookie file; not writable");
+        // Con cookie propia no se toca el cookie.txt compartido (podría ser de otra sesión en curso)
+        if (empty($cookie)) {
+            $cookieFile = __DIR__ . '/cookie.txt';
+            if (file_exists($cookieFile) && is_writable($cookieFile)) {
+                unlink($cookieFile); // Clean up cookie file
+            } elseif (file_exists($cookieFile)) {
+                error_log("Warning: Could not delete cookie file; not writable");
+            }
         }
 
         return ['success' => true];
@@ -4009,26 +4038,45 @@ class LiquidacionController
                     error_log("JSON file generated at: $jsonFilePath");
 
                     $sapUrl = "https://192.168.1.9:50000/b1s/v1/PurchaseInvoices";
-                    $ch = curl_init($sapUrl);
-                    curl_setopt_array($ch, [
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
-                        CURLOPT_HTTPHEADER => [
-                            'Content-Type: application/json',
-                            'Cookie: ' . $cookie
-                        ],
-                        CURLOPT_POSTFIELDS => $jsonContent,
-                        CURLOPT_SSL_VERIFYPEER => false,
-                        CURLOPT_SSL_VERIFYHOST => false,
-                        CURLOPT_CONNECTTIMEOUT => 10,
-                        CURLOPT_TIMEOUT => 45,
-                    ]);
+                    $enviarPostSap = function () use ($sapUrl, $jsonContent, &$cookie) {
+                        $ch = curl_init($sapUrl);
+                        curl_setopt_array($ch, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_POST => true,
+                            CURLOPT_HTTPHEADER => [
+                                'Content-Type: application/json',
+                                'Cookie: ' . $cookie
+                            ],
+                            CURLOPT_POSTFIELDS => $jsonContent,
+                            CURLOPT_SSL_VERIFYPEER => false,
+                            CURLOPT_SSL_VERIFYHOST => false,
+                            CURLOPT_CONNECTTIMEOUT => 10,
+                            CURLOPT_TIMEOUT => 45,
+                        ]);
+                        $resp = curl_exec($ch);
+                        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        $err = curl_error($ch);
+                        curl_close($ch);
+                        return [$resp, $code, $err];
+                    };
 
                     $sapPostIntentado = true;
-                    $response = curl_exec($ch);
-                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    $curlError = curl_error($ch);
-                    curl_close($ch);
+                    [$response, $httpCode, $curlError] = $enviarPostSap();
+
+                    // HTTP 401 "Invalid session": SAP NO procesó la factura (no se creó). Se vuelve a
+                    // iniciar sesión y se reenvía una vez (hasta 2 veces) en lugar de mandarla a corrección.
+                    $reintentosSesion = 0;
+                    while ($httpCode == 401 && $reintentosSesion < 2) {
+                        $reintentosSesion++;
+                        error_log("SAP respondió 401 (sesión inválida) para la factura {$noFactura}; nuevo login y reintento #{$reintentosSesion}");
+                        $reLogin = $this->login_sap('GT_AGROCENTRO_2016');
+                        if (!$reLogin['success']) {
+                            error_log("No se pudo renovar la sesión SAP: {$reLogin['error']}");
+                            break;
+                        }
+                        $cookie = "B1SESSION={$reLogin['sessionId']}; ROUTEID={$reLogin['routeId']}";
+                        [$response, $httpCode, $curlError] = $enviarPostSap();
+                    }
 
                     if ($response !== false && !$curlError && $httpCode >= 200 && $httpCode < 300) {
                         $sapAceptado = true;
@@ -4279,7 +4327,7 @@ class LiquidacionController
 
             // SAP Logout
             error_log("Intentando logout de SAP");
-            $logoutResult = $this->logout_sap();
+            $logoutResult = $this->logout_sap($cookie);
             if (!$logoutResult['success']) {
                 error_log("SAP Logout Failed: {$logoutResult['error']}");
             }
@@ -4352,7 +4400,7 @@ class LiquidacionController
         } catch (Exception $e) {
             error_log('Error exporting: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
             if (isset($loginResult) && $loginResult['success']) {
-                $this->logout_sap();
+                $this->logout_sap($cookie ?? null);
             }
             $this->pdo->rollBack();
             ob_end_clean();
