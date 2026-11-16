@@ -2772,35 +2772,65 @@ class LiquidacionController
                 return null;
             }
 
-            $data = json_decode($response, true);
-            if (json_last_error() !== JSON_ERROR_NONE || empty($data['value'][0])) {
-                return null;
+            // Se acepta cuerpo con BOM o bytes inválidos para no perder una factura que sí existe
+            $data = json_decode(ltrim($response, "\xEF\xBB\xBF"), true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
+            if (json_last_error() !== JSON_ERROR_NONE || empty($data['value']) || !is_array($data['value'])) {
+                return [];
             }
-            return $data['value'][0];
+            // Devuelve TODOS los documentos encontrados (no solo el primero)
+            return $data['value'];
         };
 
         $esc = function ($v) {
             return str_replace("'", "''", $v);
         };
 
+        // Primer documento cuyo total coincide con el esperado (si no hay total esperado, el primero)
+        $coincideTotal = function ($docs) use ($docTotalEsperado) {
+            foreach ($docs as $d) {
+                if ($docTotalEsperado === null || abs(floatval($d['DocTotal'] ?? 0) - floatval($docTotalEsperado)) <= 0.01) {
+                    return $d;
+                }
+            }
+            return null;
+        };
+
         try {
-            $doc = $consultar("Reference1 eq '" . $esc($reference1) . "'", "Reference1 '$reference1'");
-            if ($doc) {
+            $docs = $consultar("Reference1 eq '" . $esc($reference1) . "'", "Reference1 '$reference1'");
+            if (!empty($docs)) {
+                $doc = $docs[0];
                 error_log("verificarFacturaEnSap: Reference1 '$reference1' SÍ existe en SAP, DocEntry: {$doc['DocEntry']}");
                 $doc['encontrado_por'] = 'Reference1';
                 return $doc;
             }
 
             if ($numAtCard !== null && $numAtCard !== '' && $cardCode !== null && $cardCode !== '') {
-                $doc = $consultar("NumAtCard eq '" . $esc($numAtCard) . "' and CardCode eq '" . $esc($cardCode) . "'", "NumAtCard '$numAtCard' / $cardCode");
-                if ($doc) {
-                    if ($docTotalEsperado !== null && abs(floatval($doc['DocTotal'] ?? 0) - floatval($docTotalEsperado)) > 0.01) {
-                        error_log("verificarFacturaEnSap: NumAtCard '$numAtCard' existe en SAP (DocEntry {$doc['DocEntry']}) pero con total distinto ({$doc['DocTotal']} vs $docTotalEsperado), no se da por exportada");
+                $docs = $consultar("NumAtCard eq '" . $esc($numAtCard) . "' and CardCode eq '" . $esc($cardCode) . "'", "NumAtCard '$numAtCard' / $cardCode");
+                if (!empty($docs)) {
+                    $doc = $coincideTotal($docs);
+                    if (!$doc) {
+                        error_log("verificarFacturaEnSap: NumAtCard '$numAtCard' existe en SAP (" . count($docs) . " documento(s), primer DocEntry {$docs[0]['DocEntry']}) pero ninguno con total {$docTotalEsperado}, no se da por exportada");
                         return null;
                     }
                     error_log("verificarFacturaEnSap: NumAtCard '$numAtCard' / $cardCode SÍ existe en SAP, DocEntry: {$doc['DocEntry']}, Reference1 original: " . ($doc['Reference1'] ?? 'N/A'));
                     $doc['encontrado_por'] = 'NumAtCard';
                     return $doc;
+                }
+
+                // Reference1 en SAP (OPCH.Ref1) admite solo 11 caracteres: si SAP truncó la referencia
+                // "liquidación-factura", la búsqueda exacta nunca coincide. Se busca por la referencia
+                // truncada + proveedor + total.
+                $ref1Corta = mb_substr($reference1, 0, 11, 'UTF-8');
+                if ($ref1Corta !== '' && $ref1Corta !== $reference1) {
+                    $docs = $consultar("Reference1 eq '" . $esc($ref1Corta) . "' and CardCode eq '" . $esc($cardCode) . "'", "Reference1 truncada '$ref1Corta' / $cardCode");
+                    if (!empty($docs) && $docTotalEsperado !== null) {
+                        $doc = $coincideTotal($docs);
+                        if ($doc) {
+                            error_log("verificarFacturaEnSap: Reference1 truncada '$ref1Corta' / $cardCode SÍ existe en SAP, DocEntry: {$doc['DocEntry']}");
+                            $doc['encontrado_por'] = 'Reference1 truncada';
+                            return $doc;
+                        }
+                    }
                 }
             }
 
@@ -3688,6 +3718,10 @@ class LiquidacionController
             foreach ($validDetalles as $groupKey => $detalles) {
                 $indices = $groupedDetalles[$groupKey]['indices'];
                 $noFactura = $groupedDetalles[$groupKey]['no_factura'];
+                // Control para no mandar a corrección una factura que SAP sí recibió:
+                // $sapPostIntentado = ya se hizo el POST a SAP; $sapAceptado = SAP respondió HTTP 2xx.
+                $sapPostIntentado = false;
+                $sapAceptado = false;
                 try {
                     error_log("Procesando exportación para grupo {$groupKey} (Factura: {$noFactura}, Grupo ID: {$groupedDetalles[$groupKey]['grupo_id']}) con " . count($detalles) . " detalles");
 
@@ -3990,10 +4024,15 @@ class LiquidacionController
                         CURLOPT_TIMEOUT => 45,
                     ]);
 
+                    $sapPostIntentado = true;
                     $response = curl_exec($ch);
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     $curlError = curl_error($ch);
                     curl_close($ch);
+
+                    if ($response !== false && !$curlError && $httpCode >= 200 && $httpCode < 300) {
+                        $sapAceptado = true;
+                    }
 
                     if ($response === false || $curlError) {
                         error_log("SAP Error for grupo {$groupKey} (Factura: {$noFactura}): $curlError");
@@ -4023,8 +4062,15 @@ class LiquidacionController
                     }
 
                     // Dentro del bloque donde procesas la respuesta de SAP:
-                    $sapResponse = json_decode($response, true);
-                    if ($httpCode >= 400 || json_last_error() !== JSON_ERROR_NONE) {
+                    // Se tolera BOM y bytes UTF-8 inválidos en la respuesta de SAP
+                    $sapResponse = json_decode(ltrim($response, "\xEF\xBB\xBF"), true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
+                    // Un HTTP 2xx significa que SAP creó el documento: aunque el cuerpo no sea un JSON
+                    // legible (vacío, truncado, etc.) NO se debe tratar como error ni mandar a corrección.
+                    if ($sapAceptado && json_last_error() !== JSON_ERROR_NONE) {
+                        error_log("SAP respondió HTTP $httpCode para la factura {$noFactura} pero el cuerpo no es JSON válido (" . json_last_error_msg() . "); se considera exportada. Cuerpo: " . substr($response, 0, 300));
+                        $sapResponse = ['raw_response' => substr($response, 0, 500)];
+                    }
+                    if ($httpCode >= 400 || (!$sapAceptado && json_last_error() !== JSON_ERROR_NONE)) {
                         $errorMsg = "Error SAP para grupo {$groupKey} (Factura: {$noFactura}): HTTP $httpCode";
 
                         // Verificar si la respuesta es un JSON válido
@@ -4153,6 +4199,47 @@ class LiquidacionController
                     $atLeastOneProcessed = true;
                 } catch (Exception $e) {
                     error_log("Error processing grupo {$groupKey} (Factura: {$noFactura}): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+
+                    // RED DE SEGURIDAD: si ya se hizo el POST a SAP, confirmar antes de mandar a corrección
+                    // que SAP realmente NO tiene la factura. Si SAP la aceptó (HTTP 2xx) o la encuentra
+                    // registrada, se deja FINALIZADA: corrección solo aplica a lo que no está en SAP.
+                    if ($sapPostIntentado) {
+                        try {
+                            $docEnSap = null;
+                            if (!$sapAceptado) {
+                                $docEnSap = $this->verificarFacturaEnSap(
+                                    $cookie,
+                                    "{$id}-{$noFactura}",
+                                    $numAtCard ?? null,
+                                    $cardCode ?? null,
+                                    $docTotal ?? null
+                                );
+                            }
+                            if ($sapAceptado || $docEnSap) {
+                                $infoSap = $docEnSap
+                                    ? "DocEntry: {$docEnSap['DocEntry']}, DocNum: " . ($docEnSap['DocNum'] ?? 'N/A') . ", encontrada por {$docEnSap['encontrado_por']}"
+                                    : "SAP respondió HTTP 2xx";
+                                error_log("Factura {$noFactura} SÍ está en SAP ({$infoSap}) pese al error local '{$e->getMessage()}': se finaliza en lugar de enviar a corrección");
+                                foreach ($detalles as $detalle) {
+                                    $detalleLiquidacionModel->updateEstado($detalle['id'], 'FINALIZADO');
+                                    $this->auditoriaModel->createAuditoria($id, $detalle['id'], $_SESSION['user_id'], 'EXPORTADO_A_SAP', "Factura exportada a SAP (confirmada tras error local): {$noFactura}, {$infoSap}");
+                                }
+                                $results[] = [
+                                    'no_factura' => $noFactura,
+                                    'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
+                                    'success' => true,
+                                    'message' => "Grupo {$groupKey} (Factura: {$noFactura}) ya está en SAP, confirmada tras un error posterior al envío",
+                                    'detalle_ids' => array_column($detalles, 'id'),
+                                    'sap_response' => $docEnSap,
+                                ];
+                                $atLeastOneProcessed = true;
+                                continue;
+                            }
+                        } catch (Throwable $reconErr) {
+                            error_log("No se pudo confirmar en SAP la factura {$noFactura} tras el error: {$reconErr->getMessage()}");
+                        }
+                    }
+
                     $results[] = [
                         'no_factura' => $noFactura,
                         'grupo_id' => $groupedDetalles[$groupKey]['grupo_id'],
